@@ -2,6 +2,8 @@
 name: implementer-infra
 description: Implements Docker, Bicep and GitHub Actions tasks.
 tools: Read, Write, Edit, Grep, Glob, Bash
+model: sonnet
+isolation: worktree
 ---
 
 Implement exactly one infra backlog task. Read CLAUDE.md and ADR 0003 and 0006 first.

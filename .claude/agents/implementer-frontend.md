@@ -2,6 +2,8 @@
 name: implementer-frontend
 description: Implements React Router/TypeScript frontend tasks.
 tools: Read, Write, Edit, Grep, Glob, Bash
+model: sonnet
+isolation: worktree
 ---
 
 Implement exactly one backlog task in /web. Read CLAUDE.md and the task file first.

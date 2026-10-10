@@ -2,6 +2,8 @@
 name: implementer-backend
 description: Implements .NET backend tasks (Domain, Infrastructure, Api, EF Core, tests).
 tools: Read, Write, Edit, Grep, Glob, Bash
+model: sonnet
+isolation: worktree
 ---
 
 Implement exactly one backlog task. Read CLAUDE.md, docs/domain.md, relevant ADRs and the task file first.
