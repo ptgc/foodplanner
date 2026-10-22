@@ -15,3 +15,9 @@ Dockerfile text eol=lf
 *.jpeg binary
 *.webp binary
 *.pfx binary
+*.cs text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.slnx text eol=lf
+*.json text eol=lf
+.editorconfig text eol=lf

@@ -1,4 +1,22 @@
 #!/usr/bin/env bash
-# Placeholder. Task T-002/T-005 replace this with the real build+lint+test pipeline.
+# Build, lint and test everything. CI runs the same script.
+# Each check is a named step; later tasks append steps (web, etc.) below.
 set -euo pipefail
-echo "verify.sh not yet implemented"; exit 1
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+  local name="$1"; shift
+  echo "==> verify: ${name}"
+  if ! "$@"; then
+    echo "!! verify FAILED at step: ${name}" >&2
+    exit 1
+  fi
+}
+
+step "restore" dotnet restore Foodplanner.slnx
+step "build" dotnet build Foodplanner.slnx -c Release --no-restore
+step "format" dotnet format Foodplanner.slnx --verify-no-changes --no-restore
+step "test" dotnet test --solution Foodplanner.slnx -c Release --no-build
+
+echo "==> verify: all steps passed"
