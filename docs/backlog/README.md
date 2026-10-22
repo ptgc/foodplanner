@@ -15,7 +15,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-001 | Oda feasibility spike | M0 | - | implementer-backend | no |
 | T-002 | Solution skeleton and verify script | M0 | - | implementer-backend | no |
 | T-003 | Docker and compose | M0 | T-002 | implementer-infra | no |
-| T-004 | React Router SPA skeleton and API client generation | M0 | T-002 | implementer-frontend | no |
+| T-004 | React Router SPA skeleton and API client generation | M0 | T-002, T-015 | implementer-frontend | no |
 | T-005 | CI workflow | M0 | T-002, T-003, T-004 | implementer-infra | no |
 | T-006 | Bicep dev environment | M0 | T-003 | implementer-infra | no |
 | T-007 | CD workflow to dev | M0 | T-005, T-006 | implementer-infra | no |
@@ -26,6 +26,9 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-012 | Tenant isolation and architecture test suite | M0 | T-008, T-011 | verifier | no |
 | T-013 | Observability baseline | M0 | T-002 | implementer-backend | no |
 | T-014 | Repo hygiene: gitignore and gitattributes | M0 | - | implementer-infra | no |
+| T-015 | Publish the API OpenAPI document | M0 | T-002 | implementer-backend | no |
+| T-016 | Persist Data Protection keys in Azure | M0 | T-006, T-009 | implementer-infra | no |
+| T-017 | Email sender abstraction and providers | M1 | T-009 | implementer-backend | no |
 | T-020 | Ingredient, Unit and seed catalog | M1 | T-012 | implementer-backend | yes |
 | T-021 | Recipe entities and CRUD endpoints | M1 | T-020 | implementer-backend | yes |
 | T-022 | Recipe image upload and resizing | M1 | T-021 | implementer-backend | yes |
@@ -47,9 +50,10 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-042 | Recipe import (backend) | M3 | T-020, T-021, T-031 | implementer-backend | yes |
 | T-043 | Frontend: recipe import review | M3 | T-042, T-025 | implementer-frontend | no |
 | T-044 | Household management: leave, remove, delete, export (backend) | M3 | T-012, T-037 | implementer-backend | no |
-| T-045 | Frontend: household settings | M3 | T-044, T-004 | implementer-frontend | no |
+| T-045 | Frontend: household settings | M3 | T-044, T-048, T-004 | implementer-frontend | no |
 | T-046 | Test and prod environments and promotion CD | M3 | T-007, T-064 | implementer-infra | no |
 | T-047 | Production hardening | M3 | T-046, T-013 | implementer-infra | no |
+| T-048 | Household member and invite management (backend) | M3 | T-044 | implementer-backend | no |
 | T-050 | IShoppingListExporter and share/copy export | M4 | T-033 | implementer-backend | no |
 | T-051 | Frontend: export shopping list | M4 | T-036, T-050 | implementer-frontend | no |
 | T-052 | Ingredient to product mapping | M4 | T-001, T-033 | implementer-backend | yes |
