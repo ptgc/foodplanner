@@ -19,4 +19,4 @@ Work on exactly one task. Do these steps in order.
 4. **Set Status to `in-progress`** in the task file, unless the orchestrator already did.
 5. **Plan the scope.** List the files you expect to touch. Anything outside the task's Goal and Out of scope needs a reason in the PR, or a question.
 
-Never push to `test` or `prod`. Never work on `main` or `dev` directly.
+Never push to `test` or `prod`. Task work goes on its task branch, not on `dev` (ADR 0009); only the orchestrator merges into `dev`. There is no `main`.

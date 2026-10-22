@@ -21,7 +21,7 @@ Mobile-first web app for families: pick weekly meals (image-driven, kid friendly
 ```
 
 ## Commands (created by tasks T-002/T-003/T-005; keep them working)
-- `./scripts/verify.sh` — build, lint, unit, integration, architecture tests. CI runs the same. **Must be green before a PR.**
+- `./scripts/verify.sh` — build, lint, unit, integration, architecture tests. CI runs the same. **Must be green before a task branch is merged.**
 - `docker compose up` — SQL Server, Azurite, api, web for local dev.
 - `dotnet ef` via migration bundles; never apply migrations at app startup.
 
@@ -33,7 +33,7 @@ Mobile-first web app for families: pick weekly meals (image-driven, kid friendly
 5. Ingredients are structured: quantity + unit + ingredient id. Never free text in the model (keep original text only as an import artifact).
 6. API contract = OpenAPI; the TS client is generated, never hand-written.
 7. No secrets in repo/workflows. Key Vault + managed identity. Never deploy to prod; the prod GitHub Environment needs human approval.
-8. One task = one branch (`task/T-xxx-slug`) = one PR. Don't touch files outside the task scope; if you must, say why in the PR.
+8. One task = one branch (`task/T-xxx-slug`) created from `dev`. The orchestrator merges it into `dev` after CI, verifier and reviewer pass (ADR 0009). Never push to `test` or `prod`; the architect promotes `dev` to `test` to `prod` by PR. Don't touch files outside the task scope; if you must, say why in the task report.
 9. Migrations: only one task at a time may add a migration (check backlog `Migration: yes`).
 10. Mobile-first: design at 390px, touch targets >= 44px.
 
@@ -41,4 +41,4 @@ Mobile-first web app for families: pick weekly meals (image-driven, kid friendly
 Do not guess on product or architecture. Create `docs/questions/Q-xxx.md` (use the template) with 2-3 options and a recommendation, mark the task `blocked`, move on.
 
 ## Definition of done
-Acceptance criteria met, `verify.sh` green, tests added, docs/ADRs updated if behaviour or decisions changed, PR description filled in.
+Acceptance criteria met, `verify.sh` green, tests added, docs/ADRs updated if behaviour or decisions changed, task report (PR template) filled in.
