@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Api/Foodplanner.Api.csproj" />
+    <Project Path="src/Domain/Foodplanner.Domain.csproj" />
+    <Project Path="src/Infrastructure/Foodplanner.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Api.Tests/Foodplanner.Api.Tests.csproj" />
+    <Project Path="tests/Architecture.Tests/Foodplanner.Architecture.Tests.csproj" />
+    <Project Path="tests/Domain.Tests/Foodplanner.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
