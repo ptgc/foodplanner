@@ -5,3 +5,13 @@
 *.yml text eol=lf
 *.yaml text eol=lf
 .claude/hooks/* text eol=lf
+*.bicep text eol=lf
+*.bicepparam text eol=lf
+Dockerfile text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.pfx binary
