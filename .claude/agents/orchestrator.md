@@ -18,7 +18,7 @@ Loop:
 4. When the work is ready, set Status to `in-review`, dispatch `verifier` (fresh context, checks against the spec/acceptance criteria), then `reviewer`. Docs-only tasks skip the reviewer.
 5. When the verifier says PASS and the reviewer approves, merge the task branch into `dev` (see rule 7), tick the acceptance boxes the verifier evidenced and set Status to `done`.
 6. If anything is ambiguous, ensure a docs/questions/Q-xxx.md exists and mark the task `blocked`.
-7. Merge a task branch into `dev` only with green CI plus verifier and reviewer approval (ADR 0009). Never push to `test` or `prod`, never open or merge promotion PRs, never force-push. Never touch prod.
+7. Merge a task branch into `dev` only with a green gate plus verifier and reviewer approval (ADR 0009). The gate is green CI; until T-005 exists, it is a green `./scripts/verify.sh` that the verifier ran itself. Never push to `test` or `prod`, never open or merge promotion PRs, never force-push. Never touch prod.
 
 ## Models and cost
 Each agent has a cheap default model in its frontmatter. Override it when dispatching only in these cases:

@@ -2,11 +2,15 @@
 
 Status values in each task file: `todo | in-progress | blocked | in-review | done | cancelled`. Orchestrator picks `todo` tasks whose dependencies are all `done`. Only one `Migration: yes` task may be in-progress at a time.
 
-Milestones: M0 foundations, M1 recipes, M2 planning and shopping, M3 cooking, PWA, households and environments, M4 ordering, voice and extra login, W workflow setup.
+Milestones: M0 foundations, M1 recipes, M2 planning and shopping, M3 cooking, PWA, households and environments, M4 ordering, voice and extra login, W workflow setup, L1 local first iteration.
 
 Agent `architect` means the task is done interactively with the human and Claude; the orchestrator skips it. When a task is solved, tick its acceptance boxes and set Status to `done`.
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
+
+## Current focus: L1 local first iteration
+Goal: the app runs on a developer machine only (no Azure): .NET API, React SPA, SQL Server in Docker, and a README with scripts for bash and PowerShell.
+Scope, in this order: T-014, T-002, T-015, T-003, T-019, T-004, T-018. Do not start any other task until L1 is done, even if it looks ready. Run them one at a time because T-015, T-019 and T-018 touch the same files. T-014 comes first so build output is never committed. Done when the verifier has followed the README from a fresh clone.
 
 Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: they set the patterns agents copy.
 
@@ -19,7 +23,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-005 | CI workflow | M0 | T-002, T-003, T-004 | implementer-infra | no |
 | T-006 | Bicep dev environment | M0 | T-003 | implementer-infra | no |
 | T-007 | CD workflow to dev | M0 | T-005, T-006 | implementer-infra | no |
-| T-008 | EF Core base and tenancy infrastructure | M0 | T-002 | implementer-backend | yes |
+| T-008 | EF Core base and tenancy infrastructure | M0 | T-002, T-019 | implementer-backend | yes |
 | T-009 | Identity, cookie auth, local login | M0 | T-008 | implementer-backend | yes |
 | T-010 | Google external login with invite round trip | M0 | T-009, T-011 | implementer-backend | no |
 | T-011 | Households, memberships, roles, policies | M0 | T-009 | implementer-backend | yes |
@@ -29,6 +33,8 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-015 | Publish the API OpenAPI document | M0 | T-002 | implementer-backend | no |
 | T-016 | Persist Data Protection keys in Azure | M0 | T-006, T-009 | implementer-infra | no |
 | T-017 | Production email provider | M1 | T-009 | implementer-backend | no |
+| T-018 | Local run guide, scripts and VS Code setup | L1 | T-003, T-004, T-019 | implementer-infra | no |
+| T-019 | API: local SQL connectivity and readiness endpoint | L1 | T-002, T-003 | implementer-backend | no |
 | T-020 | Ingredient, Unit and seed catalog | M1 | T-012 | implementer-backend | yes |
 | T-021 | Recipe entities and CRUD endpoints | M1 | T-020 | implementer-backend | yes |
 | T-022 | Recipe image upload and resizing | M1 | T-021 | implementer-backend | yes |

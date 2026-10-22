@@ -1,0 +1,7 @@
+# Minimal version, extended by T-014. Shell scripts and workflow files must keep LF endings,
+# otherwise bash fails on Windows checkouts with "\r: command not found".
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.claude/hooks/* text eol=lf

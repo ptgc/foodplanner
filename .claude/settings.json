@@ -35,7 +35,12 @@
       "Bash(git merge *)",
       "Bash(git push origin task/*)",
       "Bash(git push -u origin task/*)",
-      "Bash(git push origin dev)"
+      "Bash(git push origin dev)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -sS http://localhost:*)",
+      "Bash(curl -sf http://localhost:*)",
+      "Bash(./scripts/doctor.sh)",
+      "Bash(./scripts/start-orchestrator.sh)"
     ],
     "deny": [
       "Bash(git push --force *)",
