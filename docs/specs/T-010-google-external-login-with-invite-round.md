@@ -4,7 +4,7 @@ A person can sign in with Google. If they arrived through a household invite lin
 
 ## Users & roles
 - Anyone (anonymous) can list providers and start an external sign-in.
-- No role check applies to signing in. A new user with no invite has no household and can create one (T-011). A user who completes an invite gets exactly the role stored on the invite (Owner, Adult or Child, as limited by Q-005). Credential-less kid profiles (T-026) never use external login.
+- No role check applies to signing in. A new user with no invite has no household and can create one (T-011). A user who completes an invite gets exactly the role stored on the invite (Adult or Child: invites never grant Owner, Q-005). Credential-less kid profiles (T-026) never use external login.
 - Tenancy: users and external-login links are global, not `ITenantEntity`. The only household data written is the membership from invite acceptance, and only in the invite's household, through `IInviteRedemption` (T-011).
 
 ## Behaviour
@@ -31,12 +31,12 @@ A person can sign in with Google. If they arrived through a household invite lin
   3. A user with the same normalised email exists and that email is confirmed: add the link and sign in.
   4. A user with the same email exists but is unconfirmed (Q-002): do not link, do not sign in, redirect with `account-conflict` and change nothing.
   5. No such user: create the user with `EmailConfirmed = true` and no password, link, and sign in.
-- **Invite after sign-in.** `IInviteRedemption.AcceptAsync`: success adds the membership. Either way the redirect URL gets `invite=accepted`, `invite=invalid` or `invite=already-member`, and the user stays signed in. Whether the invite is bound to the email is decided by Q-005.
+- **Invite after sign-in.** `IInviteRedemption.AcceptAsync`: success adds the membership. Either way the redirect URL gets `invite=accepted`, `invite=invalid` or `invite=already-member`, and the user stays signed in. The invite is not bound to an email (Q-005): the signed-in user who completes the round trip with the token joins.
 - **Public origin.** `redirect_uri` uses the public HTTPS origin. Forwarded headers are honoured only from the configured proxy networks.
 - **Tests** drive the real OIDC handler against an in-process fake identity provider: a static OIDC configuration, plus a stubbed back-channel that issues id_tokens signed with a test key. There are no network calls.
 
 ## Out of scope
-Microsoft, Apple and Vipps (T-057), passkeys (T-058), unlinking providers, account settings, login UI, Keycloak, and Data Protection key persistence. Rate limiting is pending Q-003.
+Microsoft, Apple and Vipps (T-057), passkeys (T-058), unlinking providers, account settings, login UI, Keycloak, and Data Protection key persistence. The `external-signin` rate-limit policy is defined in T-009 (Q-003); this task attaches it.
 
 ## Acceptance criteria (each must be testable)
 - [ ] `Providers_listed_from_config`: with `Google` and a second scheme `TestIdp` enabled only in test configuration, `GET /api/auth/providers` lists both. With `TestIdp.Enabled=false` it lists only Google. No code differs between the runs.
@@ -53,7 +53,8 @@ Microsoft, Apple and Vipps (T-057), passkeys (T-058), unlinking providers, accou
 - [ ] `Misconfigured_provider_fails_startup`: `Enabled=true` without `ClientSecret` makes host startup throw with a message naming the provider.
 - [ ] `Unconfirmed_local_account_conflict`: with an unconfirmed local user of the same email, a verified Google login redirects with `account-conflict`, adds no link and creates no second user.
 
+- [ ] `External_signin_rate_limited`: with a low configured limit, repeated `GET /api/auth/external/{provider}` from one IP returns 429 `rate-limited`.
+
 ## Open questions
 - Answered: [Q-002](../questions/Q-002.md). Link only to confirmed users; unconfirmed gets `account-conflict`.
-- [Q-005](../questions/Q-005.md): whether the invite must match the signed-in email.
-- [Q-003](../questions/Q-003.md): rate limiting on the external sign-in endpoints.
+- Answered: [Q-005](../questions/Q-005.md) (bearer link, not email-bound) and [Q-003](../questions/Q-003.md) (limits in T-009, attached here).

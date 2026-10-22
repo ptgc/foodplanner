@@ -31,17 +31,17 @@ Roles are hierarchical. Owner can do everything Adult can, and Adult can do ever
   - `Invite` (HouseholdId, TokenHash, Role, ExpiresAt, CreatedByUserId, AcceptedAt, AcceptedByUserId).
   - `Membership` and `Invite` implement `ITenantEntity` (Q-006). `Household` is the tenant root with no `HouseholdId`; it is on T-012's explicit exemption list. This task's migration is `AddHouseholds`.
   - **`ITenantResolution`** (`Foodplanner.Infrastructure.Tenancy`, owned here) is the only code that may call `IgnoreQueryFilters` or open an `ITenantWriteScope` (T-008). It offers `GetMembershipsForUser(userId)`, `FindInviteByTokenHash(hash)`, `CreateHouseholdWithOwner(...)` and `AddMembershipFromInvite(...)`. Every filter bypass has an explicit `UserId` or token-hash predicate, and every write scope names its household explicitly. `ICurrentHousehold` and invite redemption use it.
-- **Household context.** `ICurrentHousehold` resolves the caller's membership once per request. `HouseholdId` and `Role` are set only if the caller is a member, and are `null` otherwise. How the request names the household, and what "active household selection" means on the server, is decided by Q-004. Role resolution lives only in `ICurrentHousehold`, so T-026 can narrow it to Child when a kid profile is active.
+- **Household context (Q-004).** Every household-scoped endpoint in the whole API lives under `/api/households/{householdId}/...`. An endpoint filter on that route group resolves the caller's membership once per request and sets `ICurrentHousehold` (`HouseholdId` and `Role`; both `null` if the caller is not a member of that household). Endpoints outside the group have no household context. "Active household" is purely a client choice; the server holds no selection. Role resolution lives only in `ICurrentHousehold`, so T-026 can narrow it to Child when a kid profile is active. This route convention is a contract owned by this task; later tasks follow it.
 - **Policies.** One requirement type, `HouseholdRoleRequirement`, and one handler read `ICurrentHousehold.Role`. Endpoints attach policies with `RequireAuthorization(Policies.X)` on their group. No endpoint compares role strings or enums itself. Anonymous callers get 401. Callers without a membership in the household, or with too low a role, get 403 `urn:foodplanner:problem:forbidden`.
 - **Endpoints** (`Features/Households/HouseholdEndpoints.cs`, `MapHouseholdEndpoints`; all unsafe methods under the antiforgery group from T-009):
   - `POST /api/households` with `{ name }`: returns 201 `{ id, name, role: "Owner" }` with a `Location` header. The household and the Owner membership are created in one transaction. An invalid name returns 400 `ValidationProblem`.
   - `GET /api/households`: returns 200 `[{ id, name, role }]` for the caller's memberships only. The list is empty if there are none.
-  - `POST /api/households/{householdId}/invites` with `{ role }` (`HouseholdOwner`): returns 201 `{ token, expiresAt, role }`. The plain token appears only in this response. Which roles are allowed is decided by Q-005; a disallowed role returns 400 `ValidationProblem`.
+  - `POST /api/households/{householdId}/invites` with `{ role }` (`HouseholdOwner`): returns 201 `{ token, expiresAt, role }`. The plain token appears only in this response. `role` must be `Adult` or `Child`; `Owner` or any other value returns 400 `ValidationProblem` and writes nothing (Q-005).
   - `POST /api/invites/{token}/accept` (authenticated): returns 200 `{ householdId, role }` and creates the membership.
-- **Invite tokens.** A token is 32 cryptographically random bytes, base64url-encoded. Only its SHA-256 hash is stored. Expiry is configurable, default 7 days (confirm in Q-005). Acceptance is atomic: it consumes the invite only if it is unaccepted and unexpired, and creates the membership in the same transaction.
+- **Invite tokens.** A token is 32 cryptographically random bytes, base64url-encoded. Only its SHA-256 hash is stored. Expiry is configurable, default 7 days. Acceptance is atomic: it consumes the invite only if it is unaccepted and unexpired, and creates the membership in the same transaction.
   - An unknown, expired or already-used token returns 410 ProblemDetails `urn:foodplanner:problem:invite-invalid`, with the same body in every case.
   - A caller who is already a member returns 409 `urn:foodplanner:problem:already-member`, and the invite is not consumed.
-- **Who may accept** (any holder of the link, or only the invited email) is decided by Q-005.
+- **Who may accept (Q-005).** Any signed-in user holding the token. The invite is not bound to an email. The accept endpoint uses the `invite-accept` rate-limit policy from T-009.
 
 ## Out of scope
 Changing a member's role, listing or revoking invites, invite previews, removing members, leaving, deleting a household, ownership transfer (T-044), email delivery of invites, kid profiles and PIN (T-026), external login (T-010), UI (T-045), and the generic isolation harness (T-012). This task still adds its own isolation tests for its entities.
@@ -63,14 +63,15 @@ Changing a member's role, listing or revoking invites, invite previews, removing
 - [ ] `Concurrent_accept_single_use`: two parallel accepts of one token by different users produce exactly one 200 and one 410.
 - [ ] `Existing_member_accept_conflict`: a member accepting an invite to their own household gets 409, and the invite can still be used by someone else.
 - [ ] `Token_stored_hashed`: the `Invite` row does not contain the plain token returned to the Owner.
-- [ ] `Two_households_and_switch`: a user who is Owner of A and Adult of B sees both in `GET /api/households`. With context A, an `HouseholdOwner` endpoint returns 200. With context B, it returns 403. The context is set per Q-004. **Pending Q-004.**
+- [ ] `Two_households_and_switch`: a user who is Owner of A and Adult of B sees both in `GET /api/households`. A `HouseholdOwner` test endpoint under `/api/households/A/...` returns 200, and the same endpoint under `/api/households/B/...` returns 403. A GUID that is no household returns 403, never 200.
+- [ ] `Owner_role_invite_rejected`: creating an invite with `role` = `Owner` returns 400 `ValidationProblem`, and no invite row exists.
+- [ ] `Household_endpoints_under_route`: a test enumerating `EndpointDataSource` finds every endpoint that requires a household policy under `/api/households/{householdId}`.
+- [ ] `Invite_accept_rate_limited`: with a low configured limit, repeated accept calls from one client return 429 `rate-limited`.
 - [ ] `Households_isolated`: a user in A only never sees B in `GET /api/households`, and with context A no query returns B's memberships or invites. 
 - [ ] `Tenant_resolution_is_the_only_bypass`: a test lists every `IgnoreQueryFilters` call and every `ITenantWriteScope.ForHousehold` call in the solution and finds them only inside `ITenantResolution`'s implementation (the enforcing architecture test is delivered by T-012).
 - [ ] Architecture test `No_role_checks_outside_policies`: no type under `Foodplanner.Api.Features` reads `ICurrentHousehold.Role` or calls `IsInRole`. Only the authorization handler and `ICurrentHousehold` do.
 - [ ] The `AddHouseholds` migration applies on a fresh database, and `No_pending_model_changes` passes.
 
 ## Open questions
-- [Q-004](../questions/Q-004.md): how a request carries its household context, and what "active household selection" means. Blocks the switching criterion and the `ICurrentHousehold` implementation.
-- [Q-005](../questions/Q-005.md): bearer link or email-bound invite, and which roles an invite may grant.
+- Answered: [Q-004](../questions/Q-004.md) (route segment), [Q-005](../questions/Q-005.md) (bearer link, Adult or Child only), [Q-003](../questions/Q-003.md) (invite accept is rate limited).
 - Answered: [Q-006](../questions/Q-006.md), option 1 (tenant entities, one sanctioned bypass through `ITenantResolution`).
-- [Q-003](../questions/Q-003.md): whether invite accept is rate limited now.

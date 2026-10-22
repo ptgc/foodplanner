@@ -29,12 +29,13 @@ A person can create a local account with email and password, sign in, stay signe
 - **Auth cookie.** Name `__Host-foodplanner`, `HttpOnly`, `Secure` (always), `SameSite=Lax`, `Path=/`, no `Domain`. It is persistent with 14-day sliding expiry (configurable). The API never redirects for auth. A missing or invalid cookie returns 401 ProblemDetails (`type` `urn:foodplanner:problem:unauthenticated`). A forbidden request returns 403 ProblemDetails (`type` `urn:foodplanner:problem:forbidden`). `AddProblemDetails()` is registered here.
 - **Antiforgery.** The cookie `__Host-foodplanner-xsrf` is `HttpOnly`, `Secure` and `SameSite=Strict`. The request token is sent in header `X-XSRF-TOKEN`. All endpoints hang off one root group `/api`. An endpoint filter on that group validates every POST, PUT, PATCH and DELETE, including login and register (login CSRF). A missing or invalid token returns 400 ProblemDetails (`type` `urn:foodplanner:problem:antiforgery-invalid`). Tokens are bound to the signed-in identity, so the client fetches a new token after login and after logout.
 - **Email (Q-002).** This task owns the `IEmailSender.SendAsync(to, subject, textBody, ct)` port in `Foodplanner.Infrastructure.Email` and a `RecordingEmailSender` that keeps messages in memory for tests and Development. Confirmation links are never written to logs. The production provider is T-017; until it lands, deployed environments must set `Email:Provider=Recording` explicitly, otherwise startup fails with a message naming the setting.
+- **Rate limiting (Q-003).** The ASP.NET Core rate limiter is configured here with named policies: `auth` (used by login, register and confirm-email: partitioned by client IP, and for login also by normalised email) and `invite-accept` (partitioned by client IP and user, attached by T-011). `external-signin` (by client IP) is attached by T-010. Defaults are configurable. Over-limit requests get 429 ProblemDetails, `type` `urn:foodplanner:problem:rate-limited`, with a `Retry-After` header. Forwarded headers are honoured only from the configured proxy networks, so a spoofed `X-Forwarded-For` from anywhere else is ignored.
 - **Fallback policy.** Every endpoint requires an authenticated user unless explicitly `AllowAnonymous`. The anonymous allow-list is: health, antiforgery, register, login, and confirm-email.
 - **`ICurrentUser`.** The Api implementation reads the authenticated principal. Feature handlers outside `Features/Auth` never touch `ClaimsPrincipal`, `HttpContext.User`, `UserManager<>` or `SignInManager<>`.
 - **Tests** use `WebApplicationFactory` with base address `https://localhost`, so `Secure` cookies flow.
 
 ## Out of scope
-External providers (T-010), households, roles and policies beyond "authenticated" (T-011), passkeys (T-058), password reset and change, Data Protection key persistence for deployed environments (not assigned, see the task report), and UI. Rate limiting is pending Q-003. The production email provider is T-017 (provider choice: Q-007); this task adds only the port and the recording sender.
+External providers (T-010), households, roles and policies beyond "authenticated" (T-011), passkeys (T-058), password reset and change, Data Protection key persistence for deployed environments (not assigned, see the task report), and UI. Edge limits and tuning are T-047. The production email provider is T-017 (provider choice: Q-007); this task adds only the port and the recording sender.
 
 ## Acceptance criteria (each must be testable)
 - [ ] `Login_logout_round_trip`: for an existing usable user, login returns 204 with a `Set-Cookie` for `__Host-foodplanner`. `GET /api/auth/me` then returns 200 with that user's id and email. Logout returns 204, and `GET /api/auth/me` then returns 401 ProblemDetails.
@@ -53,9 +54,11 @@ External providers (T-010), households, roles and policies beyond "authenticated
 - [ ] `Confirm_email_flow`: a valid token returns 204 and a following login succeeds. An invalid token, an expired token (fake `TimeProvider`) and a reused token each return 400 `confirmation-invalid`.
 - [ ] `Unconfirmed_login_refused`: a correct password with an unconfirmed email returns 401 `login-failed`, with a body identical to a wrong password.
 - [ ] `Missing_email_provider_fails_startup`: a non-Development host without `Email:Provider` throws at startup with a message naming the setting.
+- [ ] `Auth_endpoints_rate_limited`: with a low configured limit, the N+1th `login` from one IP returns 429 `rate-limited` with `Retry-After`. Repeated logins for one email from different IPs are also limited. `register` and `confirm-email` are limited too.
+- [ ] `Spoofed_forwarded_header_ignored`: an `X-Forwarded-For` sent from outside the trusted proxy network does not change the partition key.
 - [ ] Architecture test `Handlers_use_ICurrentUser_only`: types under `Foodplanner.Api.Features` (except `Features.Auth`) have no dependency on `ClaimsPrincipal`, `UserManager<>` or `SignInManager<>`.
 - [ ] The `AddIdentity` migration applies on a fresh database, and `No_pending_model_changes` (T-008) still passes.
 
 ## Open questions
 - Answered: [Q-002](../questions/Q-002.md), option 1 (confirm email in this task). Provider choice for production is [Q-007](../questions/Q-007.md), which blocks T-017 only.
-- [Q-003](../questions/Q-003.md): app-level rate limiting on auth endpoints now or in T-047.
+- Answered: [Q-003](../questions/Q-003.md), option 1 (app-level limits in this task; T-047 keeps edge limits and tuning).
