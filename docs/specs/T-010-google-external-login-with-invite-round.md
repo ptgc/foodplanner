@@ -29,7 +29,7 @@ A person can sign in with Google. If they arrived through a household invite lin
   1. The (scheme, subject) pair is already linked: sign in that user.
   2. The email is missing or not verified: do not link, do not create, and do not sign in. Redirect with `email-not-verified`.
   3. A user with the same normalised email exists and that email is confirmed: add the link and sign in.
-  4. A user with the same email exists but is unconfirmed: behaviour per Q-002. Until then, redirect with `account-conflict` and change nothing.
+  4. A user with the same email exists but is unconfirmed (Q-002): do not link, do not sign in, redirect with `account-conflict` and change nothing.
   5. No such user: create the user with `EmailConfirmed = true` and no password, link, and sign in.
 - **Invite after sign-in.** `IInviteRedemption.AcceptAsync`: success adds the membership. Either way the redirect URL gets `invite=accepted`, `invite=invalid` or `invite=already-member`, and the user stays signed in. Whether the invite is bound to the email is decided by Q-005.
 - **Public origin.** `redirect_uri` uses the public HTTPS origin. Forwarded headers are honoured only from the configured proxy networks.
@@ -51,9 +51,9 @@ Microsoft, Apple and Vipps (T-057), passkeys (T-058), unlinking providers, accou
 - [ ] `Existing_link_signs_in`: a second sign-in with the same subject signs in the same user, even if the provider's email changed.
 - [ ] `Open_redirect_blocked`: `returnUrl` values `https://evil.example`, `//evil.example` and `/\evil.example` each end with a redirect to `/`.
 - [ ] `Misconfigured_provider_fails_startup`: `Enabled=true` without `ClientSecret` makes host startup throw with a message naming the provider.
-- [ ] `Unconfirmed_local_account_conflict`: the behaviour matches the Q-002 answer. **Pending Q-002.**
+- [ ] `Unconfirmed_local_account_conflict`: with an unconfirmed local user of the same email, a verified Google login redirects with `account-conflict`, adds no link and creates no second user.
 
 ## Open questions
-- [Q-002](../questions/Q-002.md): handling of an unconfirmed local account with the same email (linking rule 4).
+- Answered: [Q-002](../questions/Q-002.md). Link only to confirmed users; unconfirmed gets `account-conflict`.
 - [Q-005](../questions/Q-005.md): whether the invite must match the signed-in email.
 - [Q-003](../questions/Q-003.md): rate limiting on the external sign-in endpoints.

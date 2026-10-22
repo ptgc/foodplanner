@@ -21,18 +21,20 @@ A person can create a local account with email and password, sign in, stay signe
 - **Identity.** `AppDbContext` derives from `IdentityUserContext<AppUser, Guid>`. Identity's global role tables are not used, because roles are per membership (T-011). The migration `AddIdentity` adds the user tables. Password rules: minimum length 10, no character-class rules. Lockout is on for all users: 5 failed attempts lock the account for 15 minutes. Both values are configurable.
 - **Endpoints** (`Features/Auth/AuthEndpoints.cs`, `MapAuthEndpoints`, under `/api/auth`):
   - `GET antiforgery` (anonymous): returns 200 `{ "token": "..." }` and sets the antiforgery cookie.
-  - `POST register` (anonymous): body `{ email, password }`. An invalid email or password returns 400 `ValidationProblem`. The duplicate-email response, whether the user is signed in, and email confirmation depend on Q-002.
-  - `POST login` (anonymous): body `{ email, password }`. Success returns 204 and sets the auth cookie. Failure returns 401 ProblemDetails, `type` `urn:foodplanner:problem:login-failed`, with the same `title` and `detail` for an unknown email, a wrong password, a locked-out account and (if Q-002 requires confirmation) an unconfirmed email. For an unknown email the server still runs one password-hash verification against a fixed dummy hash, to reduce timing differences.
+  - `POST register` (anonymous): body `{ email, password }`. An invalid email or password returns 400 `ValidationProblem`. Register never signs the user in. It always returns 202 with an identical status and body for a new and an existing email, so it does not reveal who has an account. A new address gets a confirmation email. An existing address gets an "you already have an account" email with no token.
+  - `POST confirm-email` (anonymous): body `{ userId, token }`. A valid token returns 204 and confirms the email. An invalid, expired (default 24 hours, configurable) or already-used token returns 400 ProblemDetails, `type` `urn:foodplanner:problem:confirmation-invalid`.
+  - `POST login` (anonymous): body `{ email, password }`. Success returns 204 and sets the auth cookie. Failure returns 401 ProblemDetails, `type` `urn:foodplanner:problem:login-failed`, with the same `title` and `detail` for an unknown email, a wrong password, a locked-out account and an unconfirmed email. For an unknown email the server still runs one password-hash verification against a fixed dummy hash, to reduce timing differences.
   - `POST logout` (authenticated): returns 204 and expires the auth cookie. Cookies are stateless, so other devices stay signed in until their cookies expire.
   - `GET me` (authenticated): returns 200 `{ userId, email }`.
 - **Auth cookie.** Name `__Host-foodplanner`, `HttpOnly`, `Secure` (always), `SameSite=Lax`, `Path=/`, no `Domain`. It is persistent with 14-day sliding expiry (configurable). The API never redirects for auth. A missing or invalid cookie returns 401 ProblemDetails (`type` `urn:foodplanner:problem:unauthenticated`). A forbidden request returns 403 ProblemDetails (`type` `urn:foodplanner:problem:forbidden`). `AddProblemDetails()` is registered here.
 - **Antiforgery.** The cookie `__Host-foodplanner-xsrf` is `HttpOnly`, `Secure` and `SameSite=Strict`. The request token is sent in header `X-XSRF-TOKEN`. All endpoints hang off one root group `/api`. An endpoint filter on that group validates every POST, PUT, PATCH and DELETE, including login and register (login CSRF). A missing or invalid token returns 400 ProblemDetails (`type` `urn:foodplanner:problem:antiforgery-invalid`). Tokens are bound to the signed-in identity, so the client fetches a new token after login and after logout.
-- **Fallback policy.** Every endpoint requires an authenticated user unless explicitly `AllowAnonymous`. The anonymous allow-list is: health, antiforgery, register, login, and any Q-002 confirmation endpoint.
+- **Email (Q-002).** This task owns the `IEmailSender.SendAsync(to, subject, textBody, ct)` port in `Foodplanner.Infrastructure.Email` and a `RecordingEmailSender` that keeps messages in memory for tests and Development. Confirmation links are never written to logs. The production provider is T-017; until it lands, deployed environments must set `Email:Provider=Recording` explicitly, otherwise startup fails with a message naming the setting.
+- **Fallback policy.** Every endpoint requires an authenticated user unless explicitly `AllowAnonymous`. The anonymous allow-list is: health, antiforgery, register, login, and confirm-email.
 - **`ICurrentUser`.** The Api implementation reads the authenticated principal. Feature handlers outside `Features/Auth` never touch `ClaimsPrincipal`, `HttpContext.User`, `UserManager<>` or `SignInManager<>`.
 - **Tests** use `WebApplicationFactory` with base address `https://localhost`, so `Secure` cookies flow.
 
 ## Out of scope
-External providers (T-010), households, roles and policies beyond "authenticated" (T-011), passkeys (T-058), password reset and change, Data Protection key persistence for deployed environments (not assigned, see the task report), and UI. Rate limiting is pending Q-003. Email sending is out of scope unless Q-002 is answered with option 1.
+External providers (T-010), households, roles and policies beyond "authenticated" (T-011), passkeys (T-058), password reset and change, Data Protection key persistence for deployed environments (not assigned, see the task report), and UI. Rate limiting is pending Q-003. The production email provider is T-017 (provider choice: Q-007); this task adds only the port and the recording sender.
 
 ## Acceptance criteria (each must be testable)
 - [ ] `Login_logout_round_trip`: for an existing usable user, login returns 204 with a `Set-Cookie` for `__Host-foodplanner`. `GET /api/auth/me` then returns 200 with that user's id and email. Logout returns 204, and `GET /api/auth/me` then returns 401 ProblemDetails.
@@ -46,10 +48,14 @@ External providers (T-010), households, roles and policies beyond "authenticated
 - [ ] `Anonymous_endpoints_match_allow_list`: enumerating endpoints, the set allowing anonymous access equals the documented allow-list exactly.
 - [ ] `Protected_endpoint_returns_401_problem_not_redirect`: `GET /api/auth/me` without a cookie returns 401 with `Content-Type: application/problem+json` and no `Location` header.
 - [ ] `Register_validation`: an invalid email, or a password shorter than 10 characters, returns 400 `ValidationProblem` naming the field.
-- [ ] Register success, duplicate-email and (if any) confirmation behaviour are covered by integration tests once Q-002 is answered. **Pending Q-002.**
+- [ ] `Register_is_uniform`: register for a new email and for an existing email returns 202 with identical status and body, and sets no auth cookie.
+- [ ] `Register_sends_confirmation_or_notice`: the recording sender holds one confirmation mail with a token for a new email, and one "already registered" mail with no token for an existing confirmed email.
+- [ ] `Confirm_email_flow`: a valid token returns 204 and a following login succeeds. An invalid token, an expired token (fake `TimeProvider`) and a reused token each return 400 `confirmation-invalid`.
+- [ ] `Unconfirmed_login_refused`: a correct password with an unconfirmed email returns 401 `login-failed`, with a body identical to a wrong password.
+- [ ] `Missing_email_provider_fails_startup`: a non-Development host without `Email:Provider` throws at startup with a message naming the setting.
 - [ ] Architecture test `Handlers_use_ICurrentUser_only`: types under `Foodplanner.Api.Features` (except `Features.Auth`) have no dependency on `ClaimsPrincipal`, `UserManager<>` or `SignInManager<>`.
 - [ ] The `AddIdentity` migration applies on a fresh database, and `No_pending_model_changes` (T-008) still passes.
 
 ## Open questions
-- [Q-002](../questions/Q-002.md): email confirmation for local accounts (affects register, login, and T-010 linking). Blocks the register criteria.
+- Answered: [Q-002](../questions/Q-002.md), option 1 (confirm email in this task). Provider choice for production is [Q-007](../questions/Q-007.md), which blocks T-017 only.
 - [Q-003](../questions/Q-003.md): app-level rate limiting on auth endpoints now or in T-047.

@@ -22,7 +22,7 @@ Rules:
   - **Added:** with no household context, throw `TenancyViolationException`. If `HouseholdId` is empty, set it to the current household. If it is set to a different household, throw.
   - **Modified or Deleted:** if `HouseholdId` differs from the current household, throw. If `HouseholdId` itself was modified, throw.
 - **Audit timestamps.** `Entity` types get shadow properties `CreatedAt` and `UpdatedAt` (`datetimeoffset`, UTC). The interceptor sets them from `TimeProvider`.
-- **Filter bypass.** Nothing in this task calls `IgnoreQueryFilters`. Any sanctioned bypass is decided by Q-006.
+- **Filter bypass and write scope (Q-006).** Nothing in this task calls `IgnoreQueryFilters`. This task owns one extra contract: `ITenantWriteScope.ForHousehold(householdId)` returns a disposable scope in which the write guard treats `householdId` as the current household for Added and Modified entities. Outside such a scope behaviour is unchanged. Only `ITenantResolution` (built in T-011) may open a scope; T-012 enforces that with an architecture test.
 - **Placeholder household context.** Until T-011 lands, the Api registers a placeholder `ICurrentHousehold` that always returns `null`.
 - **Migrations.** They live in `src/Infrastructure/Persistence/Migrations`. The first migration, `Initial`, creates only the baseline schema. The app never calls `Migrate()` or `EnsureCreated()` at startup. Tests apply migrations explicitly.
 - **Test fixture.** One SQL Server Testcontainer per test assembly (xUnit assembly fixture). Each test class gets a fresh, uniquely named database with migrations applied. Tenancy behaviour is tested with a test-only `AppDbContext` subclass that adds a test entity `TestNote : Entity, ITenantEntity`. That entity never enters the production model or migrations. Docker is required to run `verify.sh` from this task on.
@@ -37,6 +37,7 @@ Real entities (Household, Membership, Identity tables: T-009 and T-011), the `IC
 - [ ] `Filter_returns_nothing_without_household_context`: with a `null` context, the query returns 0 rows.
 - [ ] `Find_by_id_of_other_household_returns_null`: `FindAsync` or `FirstOrDefaultAsync` by id for B's row with the context set to A returns `null`.
 - [ ] `ExecuteDelete_does_not_touch_other_household`: `ExecuteDeleteAsync()` on all `TestNote`s with the context set to A leaves B's rows in the database. The test checks with a raw SQL count.
+- [ ] `Write_scope_allows_explicit_household`: inside `ITenantWriteScope.ForHousehold(H)` with no current household, adding a tenant entity with `HouseholdId = H` succeeds. Adding one with another household still throws, and after the scope is disposed the guard throws again.
 - [ ] `Add_without_household_context_throws`: `SaveChangesAsync` throws `TenancyViolationException`, and no row is inserted.
 - [ ] `Add_sets_household_from_context`: an added entity with an empty `HouseholdId` is saved with the current household id.
 - [ ] `Add_for_other_household_throws`, `Update_of_other_household_row_throws`, `Delete_of_other_household_row_throws` and `Changing_HouseholdId_throws` each throw `TenancyViolationException`, and the database is unchanged. The update and delete cases use an attached entity that carries B's `HouseholdId` while the context is A.
@@ -46,4 +47,4 @@ Real entities (Household, Membership, Identity tables: T-009 and T-011), the `IC
 - [ ] `Api_startup_does_not_migrate`: starting the Api against an empty database leaves no `__EFMigrationsHistory` table.
 
 ## Open questions
-- [Q-006](../questions/Q-006.md): whether and how tenant-filter bypasses are allowed for membership and invite lookups. This task adds no bypass, so it is not blocked.
+- None open. [Q-006](../questions/Q-006.md) is answered (sanctioned bypass through `ITenantResolution`); this task adds only the write scope it needs.

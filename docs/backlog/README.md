@@ -28,7 +28,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-014 | Repo hygiene: gitignore and gitattributes | M0 | - | implementer-infra | no |
 | T-015 | Publish the API OpenAPI document | M0 | T-002 | implementer-backend | no |
 | T-016 | Persist Data Protection keys in Azure | M0 | T-006, T-009 | implementer-infra | no |
-| T-017 | Email sender abstraction and providers | M1 | T-009 | implementer-backend | no |
+| T-017 | Production email provider | M1 | T-009 | implementer-backend | no |
 | T-020 | Ingredient, Unit and seed catalog | M1 | T-012 | implementer-backend | yes |
 | T-021 | Recipe entities and CRUD endpoints | M1 | T-020 | implementer-backend | yes |
 | T-022 | Recipe image upload and resizing | M1 | T-021 | implementer-backend | yes |

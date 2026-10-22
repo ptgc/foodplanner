@@ -29,7 +29,8 @@ Roles are hierarchical. Owner can do everything Adult can, and Adult can do ever
   - `Household` (Name, 1-100 characters after trimming) is the tenant root.
   - `Membership` (HouseholdId, UserId, Role), unique on (HouseholdId, UserId).
   - `Invite` (HouseholdId, TokenHash, Role, ExpiresAt, CreatedByUserId, AcceptedAt, AcceptedByUserId).
-  - Which of these are `ITenantEntity`, and how lookups across households are done, is decided by Q-006. This task's migration is `AddHouseholds`.
+  - `Membership` and `Invite` implement `ITenantEntity` (Q-006). `Household` is the tenant root with no `HouseholdId`; it is on T-012's explicit exemption list. This task's migration is `AddHouseholds`.
+  - **`ITenantResolution`** (`Foodplanner.Infrastructure.Tenancy`, owned here) is the only code that may call `IgnoreQueryFilters` or open an `ITenantWriteScope` (T-008). It offers `GetMembershipsForUser(userId)`, `FindInviteByTokenHash(hash)`, `CreateHouseholdWithOwner(...)` and `AddMembershipFromInvite(...)`. Every filter bypass has an explicit `UserId` or token-hash predicate, and every write scope names its household explicitly. `ICurrentHousehold` and invite redemption use it.
 - **Household context.** `ICurrentHousehold` resolves the caller's membership once per request. `HouseholdId` and `Role` are set only if the caller is a member, and are `null` otherwise. How the request names the household, and what "active household selection" means on the server, is decided by Q-004. Role resolution lives only in `ICurrentHousehold`, so T-026 can narrow it to Child when a kid profile is active.
 - **Policies.** One requirement type, `HouseholdRoleRequirement`, and one handler read `ICurrentHousehold.Role`. Endpoints attach policies with `RequireAuthorization(Policies.X)` on their group. No endpoint compares role strings or enums itself. Anonymous callers get 401. Callers without a membership in the household, or with too low a role, get 403 `urn:foodplanner:problem:forbidden`.
 - **Endpoints** (`Features/Households/HouseholdEndpoints.cs`, `MapHouseholdEndpoints`; all unsafe methods under the antiforgery group from T-009):
@@ -63,12 +64,13 @@ Changing a member's role, listing or revoking invites, invite previews, removing
 - [ ] `Existing_member_accept_conflict`: a member accepting an invite to their own household gets 409, and the invite can still be used by someone else.
 - [ ] `Token_stored_hashed`: the `Invite` row does not contain the plain token returned to the Owner.
 - [ ] `Two_households_and_switch`: a user who is Owner of A and Adult of B sees both in `GET /api/households`. With context A, an `HouseholdOwner` endpoint returns 200. With context B, it returns 403. The context is set per Q-004. **Pending Q-004.**
-- [ ] `Households_isolated`: a user in A only never sees B in `GET /api/households`, and with context A no query returns B's memberships or invites. **Mechanism pending Q-006.**
+- [ ] `Households_isolated`: a user in A only never sees B in `GET /api/households`, and with context A no query returns B's memberships or invites. 
+- [ ] `Tenant_resolution_is_the_only_bypass`: a test lists every `IgnoreQueryFilters` call and every `ITenantWriteScope.ForHousehold` call in the solution and finds them only inside `ITenantResolution`'s implementation (the enforcing architecture test is delivered by T-012).
 - [ ] Architecture test `No_role_checks_outside_policies`: no type under `Foodplanner.Api.Features` reads `ICurrentHousehold.Role` or calls `IsInRole`. Only the authorization handler and `ICurrentHousehold` do.
 - [ ] The `AddHouseholds` migration applies on a fresh database, and `No_pending_model_changes` passes.
 
 ## Open questions
 - [Q-004](../questions/Q-004.md): how a request carries its household context, and what "active household selection" means. Blocks the switching criterion and the `ICurrentHousehold` implementation.
 - [Q-005](../questions/Q-005.md): bearer link or email-bound invite, and which roles an invite may grant.
-- [Q-006](../questions/Q-006.md): tenancy of Membership, Invite and Household, and the sanctioned filter bypass.
+- Answered: [Q-006](../questions/Q-006.md), option 1 (tenant entities, one sanctioned bypass through `ITenantResolution`).
 - [Q-003](../questions/Q-003.md): whether invite accept is rate limited now.
