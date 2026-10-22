@@ -6,6 +6,8 @@ public static class HealthEndpoints
     {
         // Liveness only: does not check the database.
         app.MapGet("/api/health", () => Results.Ok(new HealthResponse("Healthy")))
+            .WithName("GetHealth")
+            .Produces<HealthResponse>()
             .AllowAnonymous();
         return app;
     }

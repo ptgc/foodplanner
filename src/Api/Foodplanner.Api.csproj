@@ -3,4 +3,7 @@
     <ProjectReference Include="..\Domain\Foodplanner.Domain.csproj" />
     <ProjectReference Include="..\Infrastructure\Foodplanner.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+  </ItemGroup>
 </Project>
