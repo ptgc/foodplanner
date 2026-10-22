@@ -34,15 +34,15 @@ $engine = $null
 if (Has docker) {
     docker info *> $null
     if ($LASTEXITCODE -eq 0) { $engine = 'docker'; Ok "docker engine running" }
-    else { Bad "docker is installed but its engine is not running" "start Docker Desktop, or if you use Docker Engine in WSL2 run: wsl -d Ubuntu -u root service docker start" }
+    else { Bad "docker is installed but its engine is not running" "start Rancher Desktop (dockerd/moby mode) or Docker Desktop; if you use Docker Engine in WSL2 run: wsl -d Ubuntu -u root service docker start" }
 } elseif (Has podman) {
     podman info *> $null
     if ($LASTEXITCODE -eq 0) { $engine = 'podman'; Ok "podman running (use 'podman compose'; see README)" }
     else { Bad "podman is installed but not running" "podman machine start" }
-} else { Bad "no container engine found" "install Docker Desktop (winget install --id Docker.DockerDesktop -e) or Docker Engine inside WSL2 (see README)" }
+} else { Bad "no container engine found" "install Rancher Desktop (winget install --id SUSE.RancherDesktop -e), dockerd mode (see README)" }
 if ($engine -eq 'docker') {
     docker compose version *> $null
-    if ($LASTEXITCODE -eq 0) { Ok "docker compose available" } else { Bad "docker compose plugin not found" "install Docker Desktop or the compose plugin" }
+    if ($LASTEXITCODE -eq 0) { Ok "docker compose available" } else { Bad "docker compose plugin not found" "use Rancher Desktop in dockerd (moby) mode, or install the compose plugin" }
 }
 
 if (Has claude) { Ok ("claude " + ((claude --version 2>$null) | Select-Object -First 1)) }

@@ -37,7 +37,7 @@ else bad "jq not found (the guard hook needs it)" "macOS 'brew install jq', Ubun
 engine=""
 if command -v docker >/dev/null 2>&1; then
   if docker info >/dev/null 2>&1; then engine=docker; ok "docker engine running ($(docker --version | awk '{print $3}' | tr -d ,))"
-  else bad "docker is installed but its engine is not running" "start Docker Desktop, or Colima ('colima start'), or on Linux/WSL 'sudo service docker start'"; fi
+  else bad "docker is installed but its engine is not running" "start Rancher Desktop (dockerd mode), Docker Desktop, or Colima ('colima start'), or on Linux/WSL 'sudo service docker start'"; fi
 elif command -v podman >/dev/null 2>&1; then
   if podman info >/dev/null 2>&1; then engine=podman; ok "podman running (use 'podman compose'; see README)"
   else bad "podman is installed but not running" "on macOS/Windows run 'podman machine start'"; fi
