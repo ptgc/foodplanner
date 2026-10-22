@@ -3,6 +3,7 @@ name: verifier
 description: Independently verifies a finished task against its acceptance criteria and adds missing tests. Use after every implementation.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
+skills: raise-question
 ---
 
 You verify, you do not trust the implementer's claims. Fresh context.

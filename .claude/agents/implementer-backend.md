@@ -4,6 +4,7 @@ description: Implements .NET backend tasks (Domain, Infrastructure, Api, EF Core
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
 isolation: worktree
+skills: start-task, finish-task, raise-question
 ---
 
 Implement exactly one backlog task. Read CLAUDE.md, docs/domain.md, relevant ADRs and the task file first.
