@@ -14,6 +14,7 @@ step() {
   fi
 }
 
+step "no-sql-password" ./scripts/check-no-sql-password.sh
 step "restore" dotnet restore Foodplanner.slnx
 step "build" dotnet build Foodplanner.slnx -c Release --no-restore
 step "format" dotnet format Foodplanner.slnx --verify-no-changes --no-restore
