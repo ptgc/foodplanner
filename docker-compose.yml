@@ -1,0 +1,59 @@
+# Local dev stack. Start via scripts/local-up, which passes MSSQL_SA_PASSWORD
+# in the process environment. Never put the password in a file.
+name: foodplanner
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?run scripts/local-up}
+    ports:
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  # One-shot: creates the database if missing, then exits 0. No migrations here.
+  sql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      SQLCMDPASSWORD: ${MSSQL_SA_PASSWORD:?run scripts/local-up}
+    restart: "no"
+    command: >
+      /opt/mssql-tools18/bin/sqlcmd -C -b -S sql -U sa
+      -Q "IF DB_ID('foodplanner') IS NULL CREATE DATABASE foodplanner"
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    depends_on:
+      sql-init:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Default: Server=sql;Database=foodplanner;User Id=sa;Password=${MSSQL_SA_PASSWORD:?run scripts/local-up};TrustServerCertificate=True
+
+  web:
+    build:
+      context: web
+    depends_on:
+      - api
+    ports:
+      - "3000:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  sqldata:
