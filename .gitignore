@@ -1,0 +1,41 @@
+# Build output
+bin/
+obj/
+node_modules/
+dist/
+build/
+.react-router/
+coverage/
+TestResults/
+*.user
+*.suo
+.vs/
+*.log
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env and secret files (never commit secrets)
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+*.pfx
+
+# Local data (Azurite, local SQL Server)
+__azurite_db_*.json
+__blobstorage__/
+__queuestorage__/
+__tablestorage__/
+.azurite/
+azurite/
+.data/
+sqldata/
+mssql-data/
