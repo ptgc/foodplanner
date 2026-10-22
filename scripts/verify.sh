@@ -19,5 +19,11 @@ step "restore" dotnet restore Foodplanner.slnx
 step "build" dotnet build Foodplanner.slnx -c Release --no-restore
 step "format" dotnet format Foodplanner.slnx --verify-no-changes --no-restore
 step "test" dotnet test --solution Foodplanner.slnx -c Release --no-build
+step "web-install" npm --prefix web ci
+step "web-lint" npm --prefix web run lint
+step "web-typecheck" npm --prefix web run typecheck
+step "web-test" npm --prefix web test
+step "web-build" npm --prefix web run build
+step "web-api-check" npm --prefix web run api:check
 
 echo "==> verify: all steps passed"
