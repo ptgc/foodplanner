@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "API (debug, host) against compose SQL",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "api: prepare",
+      "program": "${workspaceFolder}/src/Api/bin/Debug/net10.0/Foodplanner.Api.dll",
+      "cwd": "${workspaceFolder}/src/Api",
+      "env": {
+        // Development loads user secrets (ConnectionStrings:Default) and exposes /openapi/v1.json.
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5000"
+      },
+      "stopAtEntry": false
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Generates the local SQL SA password once and stores it in .NET user secrets (Api project):
+#   Sql:SaPassword             used by local-up/down/reset
+#   ConnectionStrings:Default  used by the API when it runs on the host (F5 / dotnet run). Uses 127.0.0.1 not localhost: see README troubleshooting
+# Skips keys that are already set. Never prints the password.
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_local-env.sh"
+
+existing="$(dotnet user-secrets list --project src/Api)"
+has() { printf '%s\n' "$existing" | grep -q "^$1 = "; }
+
+if has Sql:SaPassword; then
+  echo "Sql:SaPassword already set, keeping it."
+else
+  # 24 alphanumerics with at least one upper, lower and digit, plus one '-' (SQL Server policy,
+  # and no character that breaks a connection string or a shell).
+  pw=""
+  until [[ "$pw" =~ [A-Z] && "$pw" =~ [a-z] && "$pw" =~ [0-9] ]]; do
+    pw="$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+    pw="${pw:0:24}"
+  done
+  pw="${pw:0:12}-${pw:12}"
+  # dotnet echoes the value it saved, so discard its output.
+  dotnet user-secrets set Sql:SaPassword "$pw" --project src/Api >/dev/null
+  existing="$(dotnet user-secrets list --project src/Api)"
+  echo "Generated Sql:SaPassword."
+fi
+
+if has ConnectionStrings:Default; then
+  echo "ConnectionStrings:Default already set, keeping it."
+else
+  pw="$(secret Sql:SaPassword)"
+  dotnet user-secrets set ConnectionStrings:Default \
+    "Server=127.0.0.1,1433;Database=foodplanner;User Id=sa;Password=$pw;TrustServerCertificate=True" \
+    --project src/Api >/dev/null
+  echo "Set ConnectionStrings:Default."
+fi
