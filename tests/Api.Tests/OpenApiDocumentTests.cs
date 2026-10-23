@@ -83,6 +83,16 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
             problems.Add("GET /api/health has no default application/problem+json response.");
         }
 
+        var ready = document.Paths.TryGetValue("/api/health/ready", out var readyItem)
+            && readyItem.Operations is { } readyOps && readyOps.TryGetValue(HttpMethod.Get, out var readyOp) ? readyOp : null;
+        if (ready?.Responses is not { } readyResponses
+            || !readyResponses.ContainsKey("200")
+            || !readyResponses.TryGetValue("503", out var unavailable)
+            || unavailable.Content?.ContainsKey("application/problem+json") != true)
+        {
+            problems.Add("GET /api/health/ready must describe 200 and a 503 application/problem+json response.");
+        }
+
         if (document.Components?.Schemas?.ContainsKey("ProblemDetails") != true)
         {
             problems.Add("Components has no ProblemDetails schema.");

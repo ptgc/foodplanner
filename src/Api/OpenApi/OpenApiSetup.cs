@@ -28,14 +28,15 @@ public static class OpenApiSetup
             options.AddOperationTransformer((operation, _, _) =>
             {
                 operation.Responses ??= [];
-                operation.Responses["default"] = new OpenApiResponse
+                // TryAdd keeps endpoint-specific responses (e.g. 503 on /api/health/ready).
+                operation.Responses.TryAdd("default", new OpenApiResponse
                 {
                     Description = "Error (RFC 9457 ProblemDetails)",
                     Content = new Dictionary<string, OpenApiMediaType>
                     {
                         ["application/problem+json"] = new() { Schema = new OpenApiSchemaReference(ProblemDetailsName) },
                     },
-                };
+                });
                 return Task.CompletedTask;
             });
         });

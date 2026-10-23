@@ -34,6 +34,46 @@
           }
         }
       }
+    },
+    "/api/health/ready": {
+      "get": {
+        "tags": [
+          "Foodplanner.Api"
+        ],
+        "operationId": "GetHealthReady",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -84,6 +124,21 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ReadyResponse": {
+        "required": [
+          "status",
+          "database"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "database": {
+            "type": "string"
           }
         }
       }

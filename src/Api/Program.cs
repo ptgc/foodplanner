@@ -1,9 +1,11 @@
 using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.OpenApi;
+using Foodplanner.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddFoodplannerOpenApi();
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
