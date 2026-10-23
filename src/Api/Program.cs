@@ -1,5 +1,7 @@
+using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Auth;
 using Foodplanner.Api.Features.Health;
+using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.OpenApi;
 using Foodplanner.Api.Security;
 using Foodplanner.Api.Tenancy;
@@ -14,8 +16,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddEmailSender(builder.Environment.IsDevelopment());
 builder.Services.AddFoodplannerAuth();
 builder.Services.AddFoodplannerRateLimiting();
-// T-011 replaces this with the membership-based implementation.
-builder.Services.AddScoped<ICurrentHousehold, PlaceholderCurrentHousehold>();
+builder.Services.AddHouseholdPolicies();
+builder.Services.AddOptions<HouseholdOptions>().BindConfiguration(HouseholdOptions.Section);
+// One light per-request instance, set by HouseholdContextMiddleware (Q-004).
+builder.Services.AddScoped<RequestCurrentHousehold>();
+builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredService<RequestCurrentHousehold>());
 
 var app = builder.Build();
 
@@ -51,6 +56,8 @@ else
 
 app.UseRouting();
 app.UseAuthentication();
+// After authentication (needs the caller) and before authorization (policies read the role).
+app.UseMiddleware<HouseholdContextMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 
@@ -65,6 +72,7 @@ if (app.Environment.IsDevelopment())
 var api = app.MapApiRoot();
 api.MapHealthEndpoints();
 api.MapAuthEndpoints();
+api.MapHouseholdEndpoints();
 
 app.Run();
 

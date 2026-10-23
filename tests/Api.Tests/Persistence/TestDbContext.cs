@@ -47,7 +47,7 @@ public sealed class TestShelf : Entity
     public List<TestBook> Books { get; } = [];
 }
 
-public sealed record FixedHousehold(Guid? HouseholdId) : ICurrentHousehold;
+public sealed record FixedHousehold(Guid? HouseholdId, HouseholdRole? Role = null) : ICurrentHousehold;
 
 /// <summary>A clock the test moves by hand.</summary>
 public sealed class ManualTimeProvider(DateTimeOffset now) : TimeProvider

@@ -92,7 +92,8 @@ public sealed class AuthHost : IAsyncDisposable
     public static AuthHost Create(
         string connectionString,
         IDictionary<string, string?>? configuration = null,
-        string environment = "Development")
+        string environment = "Development",
+        Action<IServiceCollection>? configureServices = null)
     {
         var time = new ManualTimeProvider(DateTimeOffset.UtcNow);
         var hasher = new SpyPasswordHasher();
@@ -119,6 +120,7 @@ public sealed class AuthHost : IAsyncDisposable
                 services.RemoveAll<IPasswordHasher<AppUser>>();
                 services.AddSingleton<IPasswordHasher<AppUser>>(hasher);
                 services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>();
+                configureServices?.Invoke(services);
             });
         });
         return new AuthHost(factory, time, hasher);
