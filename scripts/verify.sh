@@ -18,6 +18,7 @@ step "no-sql-password" ./scripts/check-no-sql-password.sh
 step "restore" dotnet restore Foodplanner.slnx
 step "build" dotnet build Foodplanner.slnx -c Release --no-restore
 step "format" dotnet format Foodplanner.slnx --verify-no-changes --no-restore
+step "container-engine (Api.Tests need it; start Rancher Desktop or Docker)" docker info --format "engine {{.ServerVersion}} ({{.OperatingSystem}})"
 step "test" dotnet test --solution Foodplanner.slnx -c Release --no-build
 step "web-install" npm --prefix web ci
 step "web-lint" npm --prefix web run lint
