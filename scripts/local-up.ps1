@@ -10,8 +10,8 @@ $ErrorActionPreference = 'Stop'
 if ($Only -eq 'sql') {
     Invoke-Compose up -d --wait sql
     Invoke-Compose run --rm sql-init
-    Write-Host 'SQL Server is up on localhost,1433. Start the API with F5 in VS Code (README section 5).'
+    Write-Host 'SQL Server is up on 127.0.0.1,1433. Start the API with F5 in VS Code (README section 5).'
 } else {
     Invoke-Compose up -d --build --wait
-    Write-Host 'Web: http://localhost:3000   API via the web proxy: http://localhost:3000/api/health/ready   SQL: localhost,1433'
+    Write-Host 'Web: http://localhost:3000   API via the web proxy: http://localhost:3000/api/health/ready   SQL: 127.0.0.1,1433'
 }
