@@ -21,6 +21,7 @@ How it is enforced (T-008, `src/Infrastructure/Persistence/Tenancy`):
 - Write guard: a SaveChanges interceptor rejects Added/Modified/Deleted tenant rows without or outside the current household, and any change of `HouseholdId`, with `TenancyViolationException` (a 500).
 - `HouseholdId` is a concurrency token: UPDATE/DELETE also match the stored `HouseholdId`, so a forged detached entity (own household, other household's row id) fails with `DbUpdateConcurrencyException`. T-013 must map that deliberately.
 - `ITenantWriteScope` (only `ITenantResolution`, T-011) covers Added and Modified only. Delete inside a scope throws by design, so invites are marked used, not deleted.
+- Identity tables (`AspNetUsers`, claims, logins, tokens; T-009) are global identity data, not tenant entities: no `HouseholdId`, no filter. A User belongs to households only through Membership (T-011). The role tables are not created because roles are per membership.
 - Known gaps, for T-012 to cover: `ExecuteUpdate` that sets `HouseholdId` moves rows and skips `UpdatedAt`; `Database.ExecuteSql*`/`SqlQuery` bypass filter and guard; the cached EF model holds the first context instance (and its `ICurrentHousehold`) as the filter's parameter template, so keep `ICurrentHousehold` implementations light.
 
 ## Invariants

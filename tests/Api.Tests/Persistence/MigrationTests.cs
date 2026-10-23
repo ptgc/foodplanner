@@ -36,6 +36,29 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddIdentity_migration_applies_on_a_fresh_database()
+    {
+        var connectionString = await server.CreateDatabaseAsync("identity", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        var applied = (await context.Database.GetAppliedMigrationsAsync(Ct)).ToList();
+        Assert.Contains(applied, id => id.EndsWith("_AddIdentity", StringComparison.Ordinal));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddIdentity'"));
+        foreach (var table in new[] { "AspNetUsers", "AspNetUserClaims", "AspNetUserLogins", "AspNetUserTokens" })
+        {
+            Assert.NotEqual(DBNull.Value, await ScalarAsync(connectionString, $"SELECT OBJECT_ID('{table}')"));
+        }
+
+        // Roles are per membership (T-011), so Identity's global role tables must not exist.
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT OBJECT_ID('AspNetRoles')"));
+        // The user table is global: no tenant column.
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('AspNetUsers') AND name = 'HouseholdId'"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);

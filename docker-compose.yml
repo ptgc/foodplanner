@@ -43,6 +43,8 @@ services:
         condition: service_completed_successfully
     environment:
       ConnectionStrings__Default: Server=sql;Database=foodplanner;User Id=sa;Password=${MSSQL_SA_PASSWORD:?run scripts/local-up};TrustServerCertificate=True
+      # No production email provider yet (T-017). Outside Development the API refuses to start without this.
+      Email__Provider: Recording
 
   web:
     build:

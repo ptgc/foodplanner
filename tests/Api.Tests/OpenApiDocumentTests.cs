@@ -149,10 +149,18 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
     [Fact]
     public async Task Openapi_endpoint_is_not_served_in_Production()
     {
-        using var client = factory.WithWebHostBuilder(b => b.UseEnvironment("Production")).CreateClient();
+        // Outside Development the email provider must be set explicitly (T-009), otherwise startup fails.
+        using var client = factory.WithWebHostBuilder(b =>
+        {
+            b.UseEnvironment("Production");
+            b.UseSetting("Email:Provider", "Recording");
+        }).CreateClient();
 
         using var response = await client.GetAsync(DocumentUrl, TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // The route does not exist. An anonymous caller gets 401 rather than 404, because the fallback authorization
+        // policy (T-009) also covers unmatched paths; either way nothing is served.
+        Assert.Contains(response.StatusCode, new[] { HttpStatusCode.NotFound, HttpStatusCode.Unauthorized });
+        Assert.NotEqual("application/json", response.Content.Headers.ContentType?.MediaType);
     }
 }

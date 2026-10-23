@@ -1,16 +1,20 @@
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Infrastructure.Persistence;
 
 /// <summary>
-/// The single application context (T-009 changes its base class for Identity; it stays one context).
+/// The single application context. It derives from <see cref="IdentityUserContext{TUser, TKey}"/> for local login (T-009).
+/// Identity's tables are global (not tenant entities) and its role tables are not used, because roles are per
+/// membership (T-011).
 /// Tenancy is built in: every <see cref="ITenantEntity"/> gets the global query filter <see cref="TenantFilterName"/>
 /// and every save passes the tenancy write guard. Add entities through <c>IEntityTypeConfiguration</c> classes in
 /// this assembly; the tenancy conventions run after them. Migrations are never applied at startup.
 /// </summary>
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityUserContext<AppUser, Guid>
 {
     /// <summary>Name of the global tenant query filter (EF Core named filter).</summary>
     public const string TenantFilterName = "Tenant";
