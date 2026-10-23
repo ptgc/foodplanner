@@ -25,8 +25,30 @@ public class RoleCheckRulesTests
 
         Assert.NotEmpty(featureTypes);
         Assert.Contains(featureTypes, t => t.Name == "HouseholdEndpoints"); // not vacuous: the feature that has a policy is scanned
-        var offenders = featureTypes.SelectMany(t => RoleChecks(t).Select(c => $"{t.FullName} -> {c}")).ToList();
+        var offenders = featureTypes
+            .SelectMany(t => RoleChecks(t).Where(c => !IsAllowedMembershipListing(c)).Select(c => $"{t.FullName} -> {c}"))
+            .ToList();
         Assert.Empty(offenders);
+    }
+
+    // Gap h. GetMembershipsForUser returns the caller's role in every household. Feature code must not use it to decide
+    // anything; the one legitimate use is echoing the list back in ListHouseholds. A call site elsewhere is flagged.
+    // What the allowed method does with the roles it gets back cannot be checked by this scanner (review catches it).
+    private static readonly string AllowedMembershipListing = typeof(Foodplanner.Api.Features.Households.HouseholdEndpoints).FullName + "+<ListHouseholds>";
+
+    private static bool IsAllowedMembershipListing(string check) =>
+        check.StartsWith(nameof(ITenantResolution) + "." + nameof(ITenantResolution.GetMembershipsForUser), StringComparison.Ordinal)
+        && check.Contains("type " + AllowedMembershipListing, StringComparison.Ordinal);
+
+    [Fact]
+    public void Membership_listing_is_used_only_by_ListHouseholds()
+    {
+        var endpoints = typeof(Foodplanner.Api.Features.Households.HouseholdEndpoints);
+
+        // Not vacuous: the one allowed call site exists, and the scanner sees it.
+        Assert.Contains(RoleChecks(endpoints), IsAllowedMembershipListing);
+        Assert.Contains(RoleChecks(typeof(ListsMemberships)), c => c.Contains("GetMembershipsForUser", StringComparison.Ordinal));
+        Assert.DoesNotContain(RoleChecks(typeof(ListsMemberships)), IsAllowedMembershipListing);
     }
 
     [Fact]
@@ -42,7 +64,8 @@ public class RoleCheckRulesTests
 
     private static bool IsRoleCheck(MemberInfo member) =>
         // Looking a role up by hand is a role check too, even without reading ICurrentHousehold.Role.
-        (member.Name == nameof(ITenantResolution.FindRole) && member.DeclaringType == typeof(ITenantResolution))
+        ((member.Name == nameof(ITenantResolution.FindRole) || member.Name == nameof(ITenantResolution.GetMembershipsForUser))
+            && member.DeclaringType == typeof(ITenantResolution))
         || (member.Name == "get_Role" && member.DeclaringType is { } type
             && (type == typeof(ICurrentHousehold) || type.GetInterfaces().Contains(typeof(ICurrentHousehold))))
         || (member.Name == "IsInRole" && member.DeclaringType is { } principal
@@ -77,7 +100,7 @@ public class RoleCheckRulesTests
 
                 if (member is MethodBase called && IsRoleCheck(called))
                 {
-                    found.Add($"{called.DeclaringType!.Name}.{called.Name} (in {method.Name})");
+                    found.Add($"{called.DeclaringType!.Name}.{called.Name} (in {method.Name}, type {type.FullName})");
                 }
             }
         }
@@ -167,6 +190,11 @@ public class RoleCheckRulesTests
     private sealed class LooksUpRole
     {
         public Task<HouseholdRole?> Role(ITenantResolution resolution) => resolution.FindRole(Guid.Empty, Guid.Empty, default);
+    }
+
+    private sealed class ListsMemberships
+    {
+        public Task<IReadOnlyList<HouseholdMembership>> Mine(ITenantResolution resolution) => resolution.GetMembershipsForUser(Guid.Empty, default);
     }
 
     private sealed class ReadsHouseholdId
