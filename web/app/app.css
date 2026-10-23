@@ -88,3 +88,86 @@ body {
 .health-error {
   color: var(--error);
 }
+
+.shell-header {
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  justify-content: space-between;
+}
+
+.shell-session {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.shell-email {
+  overflow-wrap: anywhere;
+}
+
+.shell-session select {
+  min-height: var(--touch);
+  font: inherit;
+  padding: 0 0.5rem;
+}
+
+.shell-main:focus {
+  outline: none;
+}
+
+.button-light {
+  background: #fff;
+  color: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.login {
+  max-width: 24rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.field input {
+  min-height: var(--touch);
+  padding: 0 0.75rem;
+  font: inherit;
+  border: 1px solid #767680;
+  border-radius: 0.5rem;
+}
+
+.form-error {
+  color: var(--error);
+  margin-bottom: 1rem;
+}
+
+.form-error:empty {
+  display: none;
+}
+
+.login .button {
+  width: 100%;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
