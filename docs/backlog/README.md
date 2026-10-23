@@ -8,7 +8,13 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: L1 local first iteration
+## Current focus: L2 local recipes to shopping list
+Decided in docs/questions/Q-010.md. Local only; every secret in .NET user secrets. Google login (T-010) postponed; a seeded local admin (T-029) is used instead, with a login screen (T-028).
+Order (one migration task at a time): T-008, T-027 (parallel), T-009, T-011, T-029, T-012 and T-028 (parallel), T-020, T-031 (parallel), T-021, T-032 (parallel), T-022, T-023, T-024, T-025, T-030, T-033, T-034, T-035, T-036.
+Gate: full ADR 0009 gate for T-008, T-009, T-011, T-012 (reviewer on opus, T-008 implementer on opus); implementer evidence plus a green verify.sh on dev for the rest.
+Done when the seeded admin can sign in at http://localhost:3000, browse and edit recipes from the database, plan a week and see the generated shopping list.
+
+## Done: L1 local first iteration
 Goal: the app runs on a developer machine only (no Azure): .NET API, React SPA, SQL Server in Docker, and a README with scripts for bash and PowerShell.
 Scope, in this order: T-014, T-002, T-015, T-003, T-019, T-004, T-018. Do not start any other task until L1 is done, even if it looks ready. Run them one at a time because T-015, T-019 and T-018 touch the same files. T-014 comes first so build output is never committed. Done when the verifier has followed the README from a fresh clone.
 
@@ -43,6 +49,8 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-025 | Frontend: recipe detail and edit | M1 | T-024 | implementer-frontend | no |
 | T-026 | Kid profiles and profile switching | M1 | T-011 | implementer-backend | yes |
 | T-027 | Playwright e2e harness | M1 | T-003, T-004 | implementer-frontend | no |
+| T-028 | Frontend: login screen and session shell | L2 | T-004, T-009, T-011, T-029 | implementer-frontend | no |
+| T-029 | Local migrations and seeded admin | L2 | T-011 | implementer-backend | no |
 | T-030 | MealPlan entities and endpoints | M2 | T-021 | implementer-backend | yes |
 | T-031 | Domain: unit conversion and quantity merging | M2 | T-020 | implementer-backend | no |
 | T-032 | Domain: shopping list generation | M2 | T-031 | implementer-backend | no |
