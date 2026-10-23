@@ -203,6 +203,22 @@ bash ./scripts/verify.sh     # uses Git Bash, which comes with Git
 (integration tests need the container engine running) and lints, typechecks, tests and builds `web`.
 Single parts: `dotnet test --solution Foodplanner.slnx` and `npm --prefix web test` (same in both shells).
 
+### End-to-end tests (Playwright)
+
+With the stack up (`local-up`), run the suite (mobile 390px and desktop projects, headless chromium, traces kept on failure):
+
+```bash
+./scripts/local-up.sh
+./scripts/e2e.sh                    # E2E=1 ./scripts/verify.sh runs it as part of verify
+```
+
+```powershell
+.\scripts\local-up.ps1
+.\scripts\e2e.ps1
+```
+
+Details and CI wiring: `tests/e2e/README.md`.
+
 ### Regenerating the API contract
 
 After changing API endpoints, regenerate the OpenAPI document and then the TypeScript types, and commit both:
@@ -229,6 +245,7 @@ npm --prefix web run api:generate
 | `local-down` | stops, keeps the SQL volume |
 | `local-reset` | stops and deletes the SQL volume |
 | `verify` (`.sh` only) | build, lint and test everything |
+| `e2e` | runs the Playwright e2e suite against the running stack |
 | `openapi` | regenerates `openapi/openapi.v1.json` |
 | `start-orchestrator` | starts Claude Code as the orchestrator (section 11) |
 
