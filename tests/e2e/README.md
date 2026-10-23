@@ -1,0 +1,44 @@
+# e2e tests (Playwright)
+
+Runs against the running docker compose stack through the web container (same-origin `/api` proxy).
+Two projects: `mobile-390` (390x844, touch) and `desktop` (1280x800). Headless chromium only.
+Traces are kept on failure (`trace: 'retain-on-failure'`); `test-results/` and `playwright-report/` are gitignored.
+
+## Run locally
+
+Start the stack first, then run the suite:
+
+```bash
+./scripts/local-up.sh
+./scripts/e2e.sh                       # or: ./scripts/e2e.sh --project=mobile-390
+```
+
+```powershell
+.\scripts\local-up.ps1
+.\scripts\e2e.ps1                      # or: .\scripts\e2e.ps1 --project=mobile-390
+```
+
+The script runs `npm ci` and `npx playwright install chromium` (Windows and Linux; on a fresh Linux box
+use `npx playwright install --with-deps chromium` once), then `npx playwright test`.
+`BASE_URL` overrides the default `http://localhost:3000`.
+
+Open a kept trace: `npx playwright show-trace test-results/<test-dir>/trace.zip` (run in `tests/e2e`).
+
+## verify.sh
+
+Off by default so `verify.sh` works without the stack. `E2E=1 ./scripts/verify.sh` (or `./scripts/verify.sh --e2e`)
+runs the suite as a final step; the stack must be up.
+
+## CI wiring (for T-005)
+
+In the CI job that runs `verify.sh`:
+
+1. Provide `MSSQL_SA_PASSWORD` from a generated per-run value (never a repo secret) and `docker compose up -d --build --wait`.
+2. `npm --prefix tests/e2e ci` and `npx --prefix tests/e2e playwright install --with-deps chromium`.
+3. `E2E=1 ./scripts/verify.sh` (or `./scripts/e2e.sh`), with `CI=true` (enables one retry and `forbidOnly`).
+4. Upload `tests/e2e/playwright-report` and `tests/e2e/test-results` (traces) as artifacts with `if: always()`.
+5. `docker compose down -v` with `if: always()`.
+
+## Auth fixtures
+
+None yet. T-028 adds sign-in as the seeded admin (see the placeholder comment in `tests/smoke.spec.ts`).

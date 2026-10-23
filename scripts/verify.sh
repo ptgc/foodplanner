@@ -26,4 +26,9 @@ step "web-test" npm --prefix web test
 step "web-build" npm --prefix web run build
 step "web-api-check" npm --prefix web run api:check
 
+# e2e needs the running stack (scripts/local-up), so it is opt-in: E2E=1 ./scripts/verify.sh or --e2e
+if [ "${E2E:-0}" = 1 ] || [ "${1:-}" = --e2e ]; then
+  step "e2e" ./scripts/e2e.sh
+fi
+
 echo "==> verify: all steps passed"
