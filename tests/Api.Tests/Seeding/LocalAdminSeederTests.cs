@@ -51,7 +51,7 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
         using var scope = host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal(1, await context.Users.CountAsync(u => u.Email == email, Ct));
-        Assert.Equal(1, await context.Memberships.IgnoreQueryFilters().CountAsync(m => m.UserId == user.Id, Ct));
+        Assert.Equal(1, await context.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]).CountAsync(m => m.UserId == user.Id, Ct));
     }
 
     [Theory]

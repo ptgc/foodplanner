@@ -24,6 +24,9 @@ public static partial class TenantSourceRules
         ["tests/Api.Tests/Persistence/TenancyWriteGuardTests.cs"] = new(
             ["ForHousehold"],
             "Test support: proves what the write scope does and does not permit, so it must open scopes itself."),
+        ["tests/Api.Tests/Seeding/LocalAdminSeederTests.cs"] = new(
+            ["IgnoreQueryFilters"],
+            "Test support: the seeder runs before any household context exists, so the test counts the seeded Membership across households with the named Tenant filter bypassed."),
     };
 
     public sealed record BypassAllowance(string[] Symbols, string Reason);
