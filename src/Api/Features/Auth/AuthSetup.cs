@@ -39,10 +39,14 @@ public static class AuthSetup
             .AddSignInManager();
         services.TryAddScoped<IUserClaimsPrincipalFactory<AppUser>, UserClaimsPrincipalFactory<AppUser>>();
         services.TryAddScoped<ISecurityStampValidator, SecurityStampValidator<AppUser>>();
-        // Lockout is implemented in the login handler against TimeProvider (Identity's UserManager reads the system
-        // clock), so the Identity lockout options are not used.
-        services.AddOptions<IdentityOptions>().Configure<IOptions<AuthOptions>>(
-            (identity, auth) => identity.Password.RequiredLength = auth.Value.MinPasswordLength);
+        // The login handler implements lockout against TimeProvider (UserManager reads the system clock). The Identity
+        // lockout options carry the same values so SignInManager paths (T-010) cannot drift.
+        services.AddOptions<IdentityOptions>().Configure<IOptions<AuthOptions>>((identity, auth) =>
+        {
+            identity.Password.RequiredLength = auth.Value.MinPasswordLength;
+            identity.Lockout.MaxFailedAccessAttempts = auth.Value.LockoutMaxFailedAttempts;
+            identity.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(auth.Value.LockoutMinutes);
+        });
 
         services.AddAuthentication(IdentityConstants.ApplicationScheme)
             .AddCookie(IdentityConstants.ApplicationScheme, cookie =>

@@ -380,5 +380,7 @@ links are not logged. Outside Development the API refuses to start unless `Email
   `RateLimiting:{Auth,LoginByEmail,InviteAccept,ExternalSignin}:{PermitLimit,WindowSeconds}`, and
   `ForwardedHeaders:TrustedNetworks:0..n` (CIDR of the reverse proxy; without it `X-Forwarded-For` is ignored and every
   client behind nginx shares one rate-limit bucket).
-- Data Protection keys are not persisted yet (not assigned to a task): restarting the API container signs everyone out and
-  invalidates pending confirmation links.
+- Data Protection keys: for Azure see [docs/backlog/T-016.md](docs/backlog/T-016.md). Local compose keys are not persisted,
+  so restarting the API container signs everyone out and invalidates pending confirmation links.
+- Behind a trusted proxy (`ForwardedHeaders:TrustedNetworks` set) the API relies on `X-Forwarded-Proto` (the proxy must send
+  `https`) and skips the `AssumeHttps` rewrite; without trusted networks outside Development it logs a warning at startup.

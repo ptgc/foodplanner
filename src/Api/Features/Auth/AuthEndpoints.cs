@@ -107,20 +107,14 @@ public static class AuthEndpoints
             return accepted;
         }
 
-        if (existing.EmailConfirmed)
-        {
-            await email.SendAsync(
-                existing.Email!,
-                "You already have a Foodplanner account",
-                $"Someone tried to register this address, but you already have an account. Sign in at {options.Value.PublicBaseUrl}/login.\n"
-                + "If this was not you, you can ignore this email.",
-                ct);
-        }
-        else
-        {
-            // Registered but never confirmed (for example the link expired): send a fresh link to the address owner.
-            await SendConfirmationAsync(email, tokens, options.Value, existing, ct);
-        }
+        // Every existing address, confirmed or not, gets the notice and never a token. Re-sending a link would let
+        // whoever pre-registered the address (with their own password) get the owner to confirm the attacker's account.
+        await email.SendAsync(
+            existing.Email!,
+            "You already have a Foodplanner account",
+            $"Someone tried to register this address, but you already have an account. Sign in at {options.Value.PublicBaseUrl}/login.\n"
+            + "If this was not you, you can ignore this email.",
+            ct);
 
         return accepted;
     }
@@ -158,10 +152,11 @@ public static class AuthEndpoints
         IPasswordHasher<AppUser> hasher,
         LoginEmailRateLimiter emailLimiter,
         IOptions<AuthOptions> options,
-        TimeProvider time)
+        TimeProvider time,
+        ILogger<LoginRequest> logger)
     {
         var errors = new Dictionary<string, string[]>();
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Trim().Length > MaxEmailLength)
         {
             errors["email"] = ["Email is required."];
         }
@@ -187,7 +182,7 @@ public static class AuthEndpoints
         if (user is null)
         {
             // Still pay for one password-hash verification, to reduce the timing difference to a known account.
-            hasher.VerifyHashedPassword(new AppUser(), DummyPasswordHash.Get(), request.Password!);
+            hasher.VerifyHashedPassword(new AppUser(), DummyPasswordHash.Get(hasher), request.Password!);
             return failed;
         }
 
@@ -209,7 +204,15 @@ public static class AuthEndpoints
                 user.AccessFailedCount = 0;
             }
 
-            await users.UpdateAsync(user);
+            var saved = await users.UpdateAsync(user);
+            if (!saved.Succeeded)
+            {
+                logger.LogWarning(
+                    "Could not record a failed login attempt for user {UserId}: {Errors}",
+                    user.Id,
+                    string.Join(", ", saved.Errors.Select(e => e.Code)));
+            }
+
             return failed;
         }
 

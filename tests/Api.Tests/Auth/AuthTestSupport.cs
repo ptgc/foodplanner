@@ -162,9 +162,14 @@ public sealed class ApiClient(HttpClient http) : IDisposable
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    public async Task<HttpResponseMessage> GetAsync(string url)
+    public async Task<HttpResponseMessage> GetAsync(string url, IDictionary<string, string>? headers = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        foreach (var (name, value) in headers ?? new Dictionary<string, string>())
+        {
+            request.Headers.Add(name, value);
+        }
+
         AddRemoteIp(request);
         return await http.SendAsync(request, Ct);
     }

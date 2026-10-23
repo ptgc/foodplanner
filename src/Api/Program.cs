@@ -19,23 +19,34 @@ builder.Services.AddScoped<ICurrentHousehold, PlaceholderCurrentHousehold>();
 
 var app = builder.Build();
 
-// Only from the configured proxy networks; without any, X-Forwarded-* is ignored (an empty list would trust everyone).
+// The auth and antiforgery cookies are Secure and the antiforgery system refuses to run on a request it sees as plain
+// HTTP.
 if (RateLimitingSetup.TrustedNetworks(app.Configuration).Length > 0)
 {
+    // A configured proxy network: honour its X-Forwarded-For/-Proto (the proxy must send Proto=https). Without any
+    // trusted network the headers are ignored, because an empty list would trust everyone.
     app.UseForwardedHeaders();
 }
-
-// The auth and antiforgery cookies are Secure and the antiforgery system refuses to run on a request it sees as plain
-// HTTP. TLS ends before the API (Container Apps ingress), and locally browsers treat http://localhost as a secure
-// context, so the API always sees plain HTTP from its proxy. Declaring the scheme https weakens nothing: the cookies
-// are Secure either way. Set Auth:AssumeHttps=false only to run the API directly behind its own TLS.
-if (app.Configuration.GetValue("Auth:AssumeHttps", true))
+else
 {
-    app.Use((context, next) =>
+    if (!app.Environment.IsDevelopment())
     {
-        context.Request.Scheme = Uri.UriSchemeHttps;
-        return next(context);
-    });
+        app.Logger.LogWarning(
+            "{Setting} is not set: X-Forwarded-For is ignored, so every client behind the proxy shares one rate-limit bucket.",
+            RateLimitingSetup.TrustedNetworksSetting);
+    }
+
+    // No trusted proxy (local compose, Vite proxy): the API sees plain HTTP from nginx. Locally browsers treat
+    // http://localhost as a secure context, so declaring https weakens nothing: the cookies are Secure either way.
+    // Set Auth:AssumeHttps=false only to run the API directly behind its own TLS.
+    if (app.Configuration.GetValue("Auth:AssumeHttps", true))
+    {
+        app.Use((context, next) =>
+        {
+            context.Request.Scheme = Uri.UriSchemeHttps;
+            return next(context);
+        });
+    }
 }
 
 app.UseRouting();

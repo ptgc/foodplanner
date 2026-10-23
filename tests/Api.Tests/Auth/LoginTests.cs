@@ -87,6 +87,27 @@ public sealed class LoginTests(AuthDatabase db) : IClassFixture<AuthDatabase>, I
         Assert.Contains(response.SetCookies(), c => c.StartsWith("__Host-foodplanner-xsrf=", StringComparison.Ordinal) && c.Contains("secure", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task Trusted_proxy_forwarded_proto_is_used_instead_of_the_https_rewrite()
+    {
+        await using var proxied = AuthHost.Create(db.ConnectionString, new Dictionary<string, string?> { ["ForwardedHeaders:TrustedNetworks:0"] = "10.0.0.0/8" });
+        using var client = proxied.CreateClient(remoteIp: "10.1.2.3", useHttp: true);
+
+        using var response = await client.GetAsync("/api/auth/antiforgery", new Dictionary<string, string> { ["X-Forwarded-Proto"] = "https" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Overlong_login_email_is_a_validation_error()
+    {
+        using var client = _host.CreateClient();
+
+        using var response = await client.LoginAsync(new string('a', 300) + "@example.com", AuthHost.Password);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static async Task<(string Type, string Title, string Detail)> Failure(HttpResponseMessage response)
     {
         await response.AssertProblemAsync(HttpStatusCode.Unauthorized, "login-failed");

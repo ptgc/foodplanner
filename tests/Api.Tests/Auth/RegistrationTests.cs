@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Foodplanner.Api.Tests.Auth;
 
@@ -91,26 +92,39 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
     }
 
     [Fact]
-    public async Task Register_for_unconfirmed_existing_address_sends_a_fresh_confirmation()
+    public async Task Register_for_unconfirmed_existing_address_sends_notice_without_token()
     {
+        // Pre-account hijack: the attacker registers the victim's address with the attacker's password; the victim
+        // (or anyone) registering again must not get a link that confirms the attacker's account.
         var email = AuthHost.NewEmail();
+        const string attackerPassword = "attacker chosen password";
         using var client = _host.CreateClient();
-        using var first = await client.PostAsync("/api/auth/register", new { email, password = AuthHost.Password });
-        _host.Time.Now = _host.Time.Now.AddHours(25); // the first link has expired
+        using var first = await client.PostAsync("/api/auth/register", new { email, password = attackerPassword });
+        var firstBody = await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
-        using var second = await client.PostAsync("/api/auth/register", new { email, password = "another long password" });
+        using var second = await client.PostAsync("/api/auth/register", new { email, password = AuthHost.Password });
 
         Assert.Equal(HttpStatusCode.Accepted, second.StatusCode);
-        var (userId, token) = ConfirmationForLast(email);
-        using var confirm = await client.PostAsync("/api/auth/confirm-email", new { userId, token });
-        Assert.Equal(HttpStatusCode.NoContent, confirm.StatusCode);
-        // The first password stays: the second registration did not change it.
-        using var login = await client.LoginAsync(email, AuthHost.Password);
-        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
-    }
+        Assert.Equal(firstBody, await second.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var mails = _host.Email.Messages.Where(m => m.To == email).ToList();
+        Assert.Equal(2, mails.Count);
+        Assert.Contains("token=", mails[0].TextBody, StringComparison.Ordinal);
+        Assert.Contains("already have", mails[1].Subject, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("token", mails[1].TextBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("userId", mails[1].TextBody, StringComparison.Ordinal);
 
-    private (string UserId, string Token) ConfirmationForLast(string email) =>
-        ParseLink(_host.Email.Messages.Last(m => m.To == email).TextBody);
+        // The account is still unconfirmed and keeps the first registrant's password, not the second one's.
+        var user = await _host.FindUserAsync(email);
+        Assert.False(user.EmailConfirmed);
+        using var users = _host.Services.CreateScope();
+        var hasher = users.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.IPasswordHasher<Foodplanner.Infrastructure.Identity.AppUser>>();
+        Assert.Equal(
+            Microsoft.AspNetCore.Identity.PasswordVerificationResult.Success,
+            hasher.VerifyHashedPassword(user, user.PasswordHash!, attackerPassword));
+        Assert.Equal(
+            Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed,
+            hasher.VerifyHashedPassword(user, user.PasswordHash!, AuthHost.Password));
+    }
 
     [Fact]
     public async Task Confirm_email_flow()
