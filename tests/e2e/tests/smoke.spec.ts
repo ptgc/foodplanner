@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-// Auth fixtures: T-028 adds sign-in as the seeded admin here (a fixture extending `test`).
-
 test("app shell loads", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle("Foodplanner");

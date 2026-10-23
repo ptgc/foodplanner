@@ -22,6 +22,11 @@ The script runs `npm ci` and `npx playwright install chromium` (Windows and Linu
 use `npx playwright install --with-deps chromium` once), then `npx playwright test`.
 `BASE_URL` overrides the default `http://localhost:3000`.
 
+Sign-in tests use the seeded admin (T-029). The scripts read `Seed:AdminEmail` / `Seed:AdminPassword` from
+`dotnet user-secrets` (without printing) into `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`; set those two variables
+yourself to override. Fixtures are in `tests/fixtures.ts` (`adminPage` is already signed in). Login is rate limited
+(429), so avoid many repeated full runs in a minute against the same account.
+
 Open a kept trace: `npx playwright show-trace test-results/<test-dir>/trace.zip` (run in `tests/e2e`).
 
 ## verify.sh

@@ -1,5 +1,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { ReactNode } from "react";
+import { SessionProvider } from "./session";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -27,16 +28,8 @@ export function HydrateFallback() {
 
 export default function App() {
   return (
-    <div className="shell">
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-      <header className="shell-header">
-        <span className="shell-title">Foodplanner</span>
-      </header>
-      <main id="main" className="shell-main">
-        <Outlet />
-      </main>
-    </div>
+    <SessionProvider>
+      <Outlet />
+    </SessionProvider>
   );
 }
