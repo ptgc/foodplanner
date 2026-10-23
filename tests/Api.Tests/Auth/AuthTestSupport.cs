@@ -27,7 +27,12 @@ public sealed class AuthDatabase(SqlServerFixture server) : IAsyncLifetime
         await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    /// <summary>Fails the run if any test of the class left a link between households in the database (see CrossHouseholdLinks).</summary>
+    public async ValueTask DisposeAsync()
+    {
+        await using var context = TenancyDatabase.CreateProductionContext(ConnectionString);
+        Assert.Empty(await TenantIsolation.CrossHouseholdLinks.FindAsync(context.Model, ConnectionString));
+    }
 }
 
 /// <summary>Counts password verifications and delegates to the real hasher.</summary>

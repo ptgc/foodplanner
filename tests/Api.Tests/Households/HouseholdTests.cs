@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Api.Tests.Auth;
 using Foodplanner.Api.Tests.Persistence;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Tests.Households;
 
@@ -398,11 +400,31 @@ public sealed class HouseholdTests(AuthDatabase db) : IClassFixture<AuthDatabase
     {
         await using var host = Host(("Households:InviteLifetimeDays", days));
 
-        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        var thrown = await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
             using var client = host.CreateClient();
             await client.GetAsync("/api/health");
         });
+
+        // Not just any startup failure: the options validation, and it names the setting.
+        var validation = Flatten(thrown).OfType<OptionsValidationException>().FirstOrDefault();
+        Assert.NotNull(validation);
+        Assert.Contains(nameof(HouseholdOptions.InviteLifetimeDays), validation.Message, StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<Exception> Flatten(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            yield return current;
+            if (current is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.InnerExceptions.SelectMany(Flatten))
+                {
+                    yield return inner;
+                }
+            }
+        }
     }
 
     [Fact]

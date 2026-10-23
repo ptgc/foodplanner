@@ -33,7 +33,12 @@ public sealed class TenancyDatabase(SqlServerFixture server) : IAsyncLifetime
         await test.GetService<IMigrationCommandExecutor>().ExecuteNonQueryAsync(commands, test.GetService<IRelationalConnection>(), ct);
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    /// <summary>Fails the run if any test of the class left a link between households in the database (see CrossHouseholdLinks).</summary>
+    public async ValueTask DisposeAsync()
+    {
+        await using var context = TestDbContext.Create(ConnectionString, household: null);
+        Assert.Empty(await TenantIsolation.CrossHouseholdLinks.FindAsync(context.Model, ConnectionString));
+    }
 
     public TestDbContext Context(Guid? household, ITenantWriteScope? writeScope = null, TimeProvider? timeProvider = null) =>
         TestDbContext.Create(ConnectionString, household, writeScope, timeProvider);
