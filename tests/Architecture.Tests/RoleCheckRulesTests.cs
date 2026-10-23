@@ -3,6 +3,7 @@ using System.Reflection.Emit;
 using System.Security.Claims;
 using System.Security.Principal;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Infrastructure.Persistence.Tenancy;
 
 namespace Foodplanner.Architecture.Tests;
 
@@ -35,11 +36,14 @@ public class RoleCheckRulesTests
         Assert.Contains(RoleChecks(typeof(ReadsRoleInLambda)), c => c.Contains("get_Role", StringComparison.Ordinal));
         Assert.Contains(RoleChecks(typeof(CallsIsInRole)), c => c.Contains("IsInRole", StringComparison.Ordinal));
         Assert.Contains(RoleChecks(typeof(CallsIsInRoleOnPrincipal)), c => c.Contains("IsInRole", StringComparison.Ordinal));
+        Assert.Contains(RoleChecks(typeof(LooksUpRole)), c => c.Contains("FindRole", StringComparison.Ordinal));
         Assert.Empty(RoleChecks(typeof(ReadsHouseholdId)));
     }
 
     private static bool IsRoleCheck(MemberInfo member) =>
-        (member.Name == "get_Role" && member.DeclaringType is { } type
+        // Looking a role up by hand is a role check too, even without reading ICurrentHousehold.Role.
+        (member.Name == nameof(ITenantResolution.FindRole) && member.DeclaringType == typeof(ITenantResolution))
+        || (member.Name == "get_Role" && member.DeclaringType is { } type
             && (type == typeof(ICurrentHousehold) || type.GetInterfaces().Contains(typeof(ICurrentHousehold))))
         || (member.Name == "IsInRole" && member.DeclaringType is { } principal
             && (principal == typeof(ClaimsPrincipal) || principal == typeof(IPrincipal)));
@@ -158,6 +162,11 @@ public class RoleCheckRulesTests
     private sealed class CallsIsInRoleOnPrincipal
     {
         public bool Is(IPrincipal user) => user.IsInRole("Owner");
+    }
+
+    private sealed class LooksUpRole
+    {
+        public Task<HouseholdRole?> Role(ITenantResolution resolution) => resolution.FindRole(Guid.Empty, Guid.Empty, default);
     }
 
     private sealed class ReadsHouseholdId

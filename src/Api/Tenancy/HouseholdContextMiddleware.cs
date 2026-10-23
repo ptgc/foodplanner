@@ -1,3 +1,4 @@
+using Foodplanner.Api.Authorization;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 
@@ -26,6 +27,9 @@ public static class HouseholdRoutes
     {
         var group = api.MapGroup($"/households/{{{RouteParameter}:guid}}");
         group.WithMetadata(HouseholdScopedMetadata.Instance);
+        // Secure by default: an endpoint that forgets its own policy still needs a membership. Policies stack, so
+        // HouseholdAdult/HouseholdOwner on a sub-group add to this.
+        group.RequireAuthorization(Policies.HouseholdMember);
         return group;
     }
 }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Tenancy;
 using Foodplanner.Api.Tests.Auth;
 using Foodplanner.Api.Tests.Persistence;
 using Foodplanner.Domain.Tenancy;
@@ -356,11 +357,52 @@ public sealed class HouseholdTests(AuthDatabase db) : IClassFixture<AuthDatabase
         var withPolicy = endpoints
             .Where(e => e.Metadata.GetOrderedMetadata<IAuthorizeData>().Any(a => a.Policy is not null && householdPolicies.Contains(a.Policy)))
             .ToList();
+        var underRoute = endpoints
+            .Where(e => e.RoutePattern.RawText!.StartsWith("/api/households/{householdId", StringComparison.Ordinal))
+            .ToList();
 
-        Assert.True(withPolicy.Count >= 4, $"found {withPolicy.Count}"); // not vacuous: create-invite plus the three test endpoints
+        Assert.True(withPolicy.Count >= 5, $"found {withPolicy.Count}"); // not vacuous: create-invite plus the four test endpoints
+        // Both ways: a household policy implies the route and the context metadata; the route implies both as well.
         Assert.All(withPolicy, e => Assert.StartsWith("/api/households/{householdId", e.RoutePattern.RawText, StringComparison.Ordinal));
+        Assert.All(withPolicy, e => Assert.NotNull(e.Metadata.GetMetadata<HouseholdScopedMetadata>()));
+        Assert.All(underRoute, e => Assert.NotNull(e.Metadata.GetMetadata<HouseholdScopedMetadata>()));
+        Assert.All(underRoute, e => Assert.Contains(
+            e.Metadata.GetOrderedMetadata<IAuthorizeData>(), a => a.Policy is not null && householdPolicies.Contains(a.Policy)));
         Assert.Contains(withPolicy, e => e.RoutePattern.RawText!.Contains("/invites", StringComparison.Ordinal));
-        await Task.CompletedTask;
+        Assert.Contains(underRoute, e => e.RoutePattern.RawText!.EndsWith("/test/unprotected", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Scoped_endpoint_without_own_policy_requires_membership()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var outsider = await host.SignInAsync();
+        var child = await host.JoinAsync(owner, household, "Child");
+        using var anonymous = host.CreateClient();
+
+        using var denied = await outsider.Client.GetAsync($"/api/households/{household}/test/unprotected");
+        using var member = await child.Client.GetAsync($"/api/households/{household}/test/unprotected");
+        using var signedOut = await anonymous.GetAsync($"/api/households/{household}/test/unprotected");
+
+        await denied.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
+        Assert.Equal(HttpStatusCode.OK, member.StatusCode);
+        await signedOut.AssertProblemAsync(HttpStatusCode.Unauthorized, "unauthenticated");
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("91")]
+    public async Task Invite_lifetime_out_of_range_fails_startup(string days)
+    {
+        await using var host = Host(("Households:InviteLifetimeDays", days));
+
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        {
+            using var client = host.CreateClient();
+            await client.GetAsync("/api/health");
+        });
     }
 
     [Fact]

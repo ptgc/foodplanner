@@ -17,7 +17,7 @@ builder.Services.AddEmailSender(builder.Environment.IsDevelopment());
 builder.Services.AddFoodplannerAuth();
 builder.Services.AddFoodplannerRateLimiting();
 builder.Services.AddHouseholdPolicies();
-builder.Services.AddOptions<HouseholdOptions>().BindConfiguration(HouseholdOptions.Section);
+builder.Services.AddOptions<HouseholdOptions>().BindConfiguration(HouseholdOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 // One light per-request instance, set by HouseholdContextMiddleware (Q-004).
 builder.Services.AddScoped<RequestCurrentHousehold>();
 builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredService<RequestCurrentHousehold>());

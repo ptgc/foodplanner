@@ -25,6 +25,7 @@ public sealed class HouseholdOptions
 {
     public const string Section = "Households";
 
+    [System.ComponentModel.DataAnnotations.Range(1, 90)]
     public int InviteLifetimeDays { get; set; } = 7;
 }
 
@@ -106,10 +107,15 @@ public static class HouseholdEndpoints
         IOptions<HouseholdOptions> options,
         CancellationToken cancellationToken)
     {
-        // The policy guarantees a household context and the Owner role; the checks below only keep the types honest.
-        if (user.UserId is not { } userId || household.HouseholdId is not { } householdId)
+        if (user.UserId is not { } userId)
         {
             return Unauthenticated();
+        }
+
+        // The policy guarantees a household context; a missing one is a wiring bug, so refuse rather than guess.
+        if (household.HouseholdId is not { } householdId)
+        {
+            return AppProblems.Problem(StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
         }
 
         if (!HouseholdRoles.TryParse(request?.Role, out var role) || !role.IsInvitable())
@@ -121,7 +127,7 @@ public static class HouseholdEndpoints
         }
 
         var token = InviteToken.Generate();
-        var expiresAt = time.GetUtcNow().AddDays(Math.Max(1, options.Value.InviteLifetimeDays));
+        var expiresAt = time.GetUtcNow().AddDays(options.Value.InviteLifetimeDays);
         db.Invites.Add(new Invite(householdId, InviteToken.Hash(token), role, expiresAt, userId));
         await db.SaveChangesAsync(cancellationToken);
 

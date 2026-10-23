@@ -33,6 +33,8 @@ internal sealed class PolicyTestEndpointsStartupFilter : IStartupFilter
         var test = routes.MapApiRoot().MapHouseholdScopedGroup().MapGroup("/test");
         test.MapGet("/member", () => Results.Ok()).RequireAuthorization(Policies.HouseholdMember);
         test.MapGet("/adult", () => Results.Ok()).RequireAuthorization(Policies.HouseholdAdult);
+        // Deliberately no policy of its own: the group must still demand a membership.
+        test.MapGet("/unprotected", () => Results.Ok());
         test.MapGet("/owner", () => Results.Ok()).RequireAuthorization(Policies.HouseholdOwner);
     };
 }

@@ -11,7 +11,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
     private const int UniqueConstraintViolation = 2627;
 
     public async Task<IReadOnlyList<HouseholdMembership>> GetMembershipsForUser(Guid userId, CancellationToken cancellationToken) =>
-        await (from membership in db.Memberships.IgnoreQueryFilters().AsNoTracking()
+        await (from membership in db.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking()
                where membership.UserId == userId
                join household in db.Households.AsNoTracking() on membership.HouseholdId equals household.Id
                orderby household.Name, household.Id
@@ -20,7 +20,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
 
     public async Task<HouseholdRole?> FindRole(Guid userId, Guid householdId, CancellationToken cancellationToken)
     {
-        var roles = await db.Memberships.IgnoreQueryFilters().AsNoTracking()
+        var roles = await db.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking()
             .Where(m => m.UserId == userId && m.HouseholdId == householdId)
             .Select(m => (HouseholdRole?)m.Role)
             .ToListAsync(cancellationToken);
@@ -28,7 +28,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
     }
 
     public Task<Invite?> FindInviteByTokenHash(byte[] tokenHash, CancellationToken cancellationToken) =>
-        db.Invites.IgnoreQueryFilters().AsNoTracking().SingleOrDefaultAsync(i => i.TokenHash == tokenHash, cancellationToken);
+        db.Invites.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking().SingleOrDefaultAsync(i => i.TokenHash == tokenHash, cancellationToken);
 
     public async Task<HouseholdMembership> CreateHouseholdWithOwner(string name, Guid ownerUserId, CancellationToken cancellationToken)
     {
@@ -51,7 +51,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
         var invalid = new InviteRedemptionResult(InviteRedemptionOutcome.InvalidInvite);
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
-        var invite = await db.Invites.IgnoreQueryFilters().AsNoTracking()
+        var invite = await db.Invites.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking()
             .Where(i => i.TokenHash == tokenHash)
             .Select(i => new { i.Id, i.HouseholdId, i.Role, i.ExpiresAt, i.AcceptedAt })
             .SingleOrDefaultAsync(cancellationToken);
@@ -61,7 +61,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
         }
 
         var alreadyMember = new InviteRedemptionResult(InviteRedemptionOutcome.AlreadyMember);
-        if (await db.Memberships.IgnoreQueryFilters()
+        if (await db.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName])
                 .AnyAsync(m => m.HouseholdId == invite.HouseholdId && m.UserId == userId, cancellationToken))
         {
             return alreadyMember;
@@ -69,7 +69,7 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
 
         // The single-use gate: the UPDATE matches only an unaccepted, unexpired invite, and SQL Server serialises
         // concurrent updates of the row, so exactly one caller sees one affected row.
-        var consumed = await db.Invites.IgnoreQueryFilters()
+        var consumed = await db.Invites.IgnoreQueryFilters([AppDbContext.TenantFilterName])
             .Where(i => i.Id == invite.Id && i.AcceptedAt == null && i.ExpiresAt > now)
             .ExecuteUpdateAsync(
                 set => set
