@@ -360,3 +360,25 @@ Open `claude` once in this folder and accept the trust prompt, then quit. Then:
 
 This runs `claude --agent orchestrator` with the prompt in `docs/prompts/local-iteration-1.md`.
 Tasks are built one at a time on `task/T-xxx-*` branches and merged into `dev`. Never work on `test` or `prod`; they are promoted by PR.
+
+## 12. Sign-in and cookies (T-009)
+
+Local accounts: `POST /api/auth/register` then the emailed link (`confirm-email`), then `login`. Until a production email
+provider exists (T-017) the only sender is the in-memory `Recording` one, so no mail leaves the machine and confirmation
+links are not logged. Outside Development the API refuses to start unless `Email:Provider=Recording` is set (compose sets
+`Email__Provider`); a seeded, already confirmed local admin is T-029.
+
+- Auth cookie `__Host-foodplanner` (HttpOnly, Secure, SameSite=Lax, Path=/, no Domain, 14 days sliding) and antiforgery cookie
+  `__Host-foodplanner-xsrf` (HttpOnly, Secure, SameSite=Strict). Every POST/PUT/PATCH/DELETE under `/api` needs the header
+  `X-XSRF-TOKEN` from `GET /api/auth/antiforgery`; fetch a new token after login and logout.
+- Cookies are Secure on `http://localhost` too: Chrome, Edge and Firefox accept Secure cookies from localhost, Safari does not.
+  Nginx (`:3000`) and the Vite proxy (`:5173`) pass `Set-Cookie` through unchanged. The API treats every request as HTTPS
+  (`Auth:AssumeHttps`, default true) because TLS ends before it.
+- Settings (all optional, env var form `Auth__PublicBaseUrl`): `Auth:PublicBaseUrl` (origin used in email links, default
+  `http://localhost:3000`; set it when deployed), `Auth:MinPasswordLength` (10), `Auth:LockoutMaxFailedAttempts` (5),
+  `Auth:LockoutMinutes` (15), `Auth:CookieLifetimeDays` (14), `Auth:ConfirmationTokenLifetimeHours` (24),
+  `RateLimiting:{Auth,LoginByEmail,InviteAccept,ExternalSignin}:{PermitLimit,WindowSeconds}`, and
+  `ForwardedHeaders:TrustedNetworks:0..n` (CIDR of the reverse proxy; without it `X-Forwarded-For` is ignored and every
+  client behind nginx shares one rate-limit bucket).
+- Data Protection keys are not persisted yet (not assigned to a task): restarting the API container signs everyone out and
+  invalidates pending confirmation links.

@@ -7,13 +7,13 @@ public static class HealthEndpoints
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
         // Liveness only: does not check the database.
-        app.MapGet("/api/health", () => Results.Ok(new HealthResponse("Healthy")))
+        app.MapGet("/health", () => Results.Ok(new HealthResponse("Healthy")))
             .WithName("GetHealth")
             .Produces<HealthResponse>()
             .AllowAnonymous();
 
         // Readiness: reports whether SQL Server answers. Details never include the connection string.
-        app.MapGet("/api/health/ready", async (IDatabaseReadiness readiness, CancellationToken ct) =>
+        app.MapGet("/health/ready", async (IDatabaseReadiness readiness, CancellationToken ct) =>
             {
                 var status = await readiness.CheckAsync(ct);
                 return status switch

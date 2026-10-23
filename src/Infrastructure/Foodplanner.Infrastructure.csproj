@@ -7,6 +7,7 @@
     <InternalsVisibleTo Include="Foodplanner.Api.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
     <!-- Override the vulnerable 9.0.11 pulled in transitively by SqlClient (NU1902/NU1903). Remove when SqlClient moves on. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />

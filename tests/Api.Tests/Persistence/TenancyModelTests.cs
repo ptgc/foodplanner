@@ -1,4 +1,7 @@
+using Foodplanner.Domain.Tenancy;
+using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Tests.Persistence;
@@ -20,6 +23,22 @@ public sealed class TenancyModelTests(TenancyDatabase db) : IClassFixture<Tenanc
         Assert.NotNull(context.Model.FindEntityType(typeof(TestBook))!.FindDeclaredQueryFilter(AppDbContext.TenantFilterName));
         Assert.Null(context.Model.FindEntityType(typeof(TestShelf))!.FindDeclaredQueryFilter(AppDbContext.TenantFilterName));
         Assert.NotNull(context.Model.FindEntityType(typeof(TestShelf))!.FindProperty("CreatedAt"));
+    }
+
+    [Fact]
+    public async Task Identity_tables_are_global_not_tenant_entities()
+    {
+        await using var context = db.Context(Guid.NewGuid());
+
+        var identityTypes = new[] { typeof(AppUser), typeof(IdentityUserClaim<Guid>), typeof(IdentityUserLogin<Guid>), typeof(IdentityUserToken<Guid>) };
+        foreach (var clrType in identityTypes)
+        {
+            var entity = context.Model.FindEntityType(clrType);
+            Assert.NotNull(entity);
+            Assert.Empty(entity.GetDeclaredQueryFilters());
+            Assert.Null(entity.FindProperty("HouseholdId"));
+            Assert.False(typeof(ITenantEntity).IsAssignableFrom(clrType));
+        }
     }
 
     [Fact]
