@@ -15,7 +15,8 @@ namespace Foodplanner.Api.Tests.Persistence;
 /// </summary>
 public sealed class SqlServerFixture : IAsyncLifetime
 {
-    public const string Image = "mcr.microsoft.com/mssql/server:2022-latest";
+    // Pinned so test runs are reproducible. Same digest as compose's 2022-latest on 2026-10-23 (16.0.4305.5); bump deliberately.
+    public const string Image = "mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04";
 
     private MsSqlContainer? _container;
 

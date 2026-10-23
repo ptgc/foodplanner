@@ -46,9 +46,10 @@ public class AppDbContext : DbContext
 
     internal TimeProvider TimeProvider { get; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    protected sealed override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        // Added here, not in DI, so no AppDbContext can be created without the write guard.
+        // Added here, not in DI, so no AppDbContext can be created without the write guard. Sealed so a
+        // subclass cannot drop it.
         optionsBuilder.AddInterceptors(TenancySaveChangesInterceptor.Instance);
     }
 

@@ -203,7 +203,7 @@ bash ./scripts/verify.sh     # uses Git Bash, which comes with Git
 (integration tests need the container engine running) and lints, typechecks, tests and builds `web`.
 Single parts: `dotnet test --solution Foodplanner.slnx` and `npm --prefix web test` (same in both shells).
 
-`Api.Tests` start one SQL Server Testcontainer (`mcr.microsoft.com/mssql/server:2022-latest`) per run, with a
+`Api.Tests` start one SQL Server Testcontainer (`mcr.microsoft.com/mssql/server`, pinned 2022 CU tag in `SqlServerFixture.cs`) per run, with a
 password generated at runtime, and give each test class a fresh database with the migrations applied.
 Testcontainers uses `DOCKER_HOST` if set, otherwise the default local endpoint (`npipe://./pipe/docker_engine` on
 Windows, which Rancher Desktop in dockerd (moby) mode provides; `/var/run/docker.sock` elsewhere). For another

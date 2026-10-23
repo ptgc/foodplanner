@@ -32,21 +32,24 @@ internal static class TenancyModelConventions
                 continue;
             }
 
-            var builder = modelBuilder.Entity(clrType);
-
+            // Configure through the mutable entity type, never modelBuilder.Entity(clrType): that throws for
+            // shared-type entity types such as the implicit Dictionary<string, object> join entity of a many-to-many,
+            // and would miss a shared-type entity that implements ITenantEntity.
             if (typeof(ITenantEntity).IsAssignableFrom(clrType))
             {
-                builder.HasQueryFilter(AppDbContext.TenantFilterName, TenantFilter(clrType, context));
+                entityType.SetQueryFilter(AppDbContext.TenantFilterName, TenantFilter(clrType, context));
 
                 // UPDATE and DELETE then also match the original HouseholdId in SQL, so a detached entity that
                 // carries this household's id but another household's row id affects no row (concurrency exception).
-                builder.Property(nameof(ITenantEntity.HouseholdId)).IsConcurrencyToken();
+                var householdId = entityType.FindProperty(nameof(ITenantEntity.HouseholdId))
+                    ?? entityType.AddProperty(nameof(ITenantEntity.HouseholdId));
+                householdId.IsConcurrencyToken = true;
             }
 
             if (typeof(Entity).IsAssignableFrom(clrType))
             {
-                builder.Property<DateTimeOffset>(CreatedAt);
-                builder.Property<DateTimeOffset>(UpdatedAt);
+                _ = entityType.FindProperty(CreatedAt) ?? entityType.AddProperty(CreatedAt, typeof(DateTimeOffset));
+                _ = entityType.FindProperty(UpdatedAt) ?? entityType.AddProperty(UpdatedAt, typeof(DateTimeOffset));
             }
         }
     }

@@ -174,6 +174,41 @@ public sealed class TenancyWriteGuardTests(TenancyDatabase db) : IClassFixture<T
     }
 
     [Fact]
+    public async Task Write_scope_allows_update_of_scoped_household_row_only()
+    {
+        // T-011 invite redemption updates a row of a household the caller has no context for yet.
+        var h = Guid.NewGuid();
+        var note = await SeedAsync(h, "scoped before");
+        var other = await SeedAsync(_b, "other before");
+        var scope = new TenantWriteScope();
+
+        await using (var none = db.Context(household: null, writeScope: scope))
+        {
+            using (scope.ForHousehold(h))
+            {
+                none.Attach(note);
+                note.Rename("scoped after");
+                await none.SaveChangesAsync(Ct);
+
+                none.Attach(other);
+                other.Rename("other after");
+                await Assert.ThrowsAsync<TenancyViolationException>(() => none.SaveChangesAsync(Ct));
+                none.ChangeTracker.Clear();
+            }
+        }
+
+        await using (var none = db.Context(household: null, writeScope: scope))
+        {
+            none.Attach(note);
+            note.Rename("after scope");
+            await Assert.ThrowsAsync<TenancyViolationException>(() => none.SaveChangesAsync(Ct));
+        }
+
+        Assert.Equal((h, "scoped after"), Pick(await db.RawRowAsync(note.Id)));
+        Assert.Equal((_b, "other before"), Pick(await db.RawRowAsync(other.Id)));
+    }
+
+    [Fact]
     public async Task Write_scope_does_not_allow_delete()
     {
         var h = Guid.NewGuid();
