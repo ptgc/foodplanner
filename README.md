@@ -310,7 +310,7 @@ The scripts only need a `docker` command with `docker compose`. Check any option
   WSL2 engine: `sudo service docker start`; Linux: `sudo systemctl start docker`.
 - **SQL password policy / `Login failed for user 'sa'`.** If you set your own password it must meet the policy (section 8). If the
   secret and the existing volume disagree (you rotated the secret without a reset), run the rotation steps in section 8: reset first.
-  The `sql` container shows `unhealthy` for the same reasons: `docker compose logs sql` (run it with the secret in the environment, or look at Rancher/Docker Desktop's log view).
+  The `sql` container shows `unhealthy` for the same reasons: `docker logs foodplanner-sql-1`.
 - **`/api/health/ready` returns 503 from the host API.** Check that SQL is up (`docker ps`), that the API runs with
   `ASPNETCORE_ENVIRONMENT=Development` (section 5), and that the connection string uses `127.0.0.1,1433`, not `localhost,1433`:
   on Windows `localhost` resolves to `::1` first, and Rancher Desktop only forwards the container port on IPv4 loopback, so `localhost,1433` times out.
