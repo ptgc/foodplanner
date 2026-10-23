@@ -1,0 +1,54 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "sql: up",
+      "detail": "Start only SQL Server and the database init step in containers (password from user secrets)",
+      "type": "shell",
+      "command": "./scripts/local-up.sh sql",
+      "windows": {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-up.ps1 sql"
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "api: build",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "src/Api/Foodplanner.Api.csproj"],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "api: prepare",
+      "detail": "SQL up, then build the API (used by F5)",
+      "dependsOn": ["sql: up", "api: build"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "web: dev",
+      "detail": "Vite dev server on http://localhost:5173, proxies /api to http://localhost:5000",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "react-router dev",
+          "endsPattern": "Local:"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "verify",
+      "type": "shell",
+      "command": "./scripts/verify.sh",
+      "problemMatcher": []
+    }
+  ]
+}

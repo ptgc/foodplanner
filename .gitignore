@@ -17,6 +17,8 @@ TestResults/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 
 # OS
 .DS_Store
@@ -39,3 +41,6 @@ azurite/
 .data/
 sqldata/
 mssql-data/
+
+# Agent worktrees
+.claude/worktrees/
