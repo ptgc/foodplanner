@@ -26,6 +26,22 @@ else
   echo "Generated Sql:SaPassword."
 fi
 
+if has Seed:AdminEmail; then
+  echo "Seed:AdminEmail already set, keeping it."
+else
+  dotnet user-secrets set Seed:AdminEmail admin@foodplanner.local --project src/Api >/dev/null
+  echo "Set Seed:AdminEmail."
+fi
+
+if has Seed:AdminPassword; then
+  echo "Seed:AdminPassword already set, keeping it."
+else
+  # 20 alphanumerics: well above the 10 character minimum (Auth:MinPasswordLength, T-009); no other rules apply.
+  apw="$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+  dotnet user-secrets set Seed:AdminPassword "${apw:0:20}" --project src/Api >/dev/null
+  echo "Generated Seed:AdminPassword."
+fi
+
 if has ConnectionStrings:Default; then
   echo "ConnectionStrings:Default already set, keeping it."
 else

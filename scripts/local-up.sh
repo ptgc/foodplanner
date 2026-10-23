@@ -7,9 +7,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/_local-env.sh"
 
 "$repo_root/scripts/local-secrets.sh"
 
+compose up -d --wait sql
+compose run --rm sql-init
+# Schema and admin are in place before the api container starts serving. The API itself never migrates.
+"$repo_root/scripts/local-migrate.sh"
+"$repo_root/scripts/local-seed.sh"
+
 if [ "${1:-}" = sql ]; then
-  compose up -d --wait sql
-  compose run --rm sql-init
   echo "SQL Server is up on 127.0.0.1,1433. Start the API with F5 in VS Code (README section 5)."
 else
   compose up -d --build --wait

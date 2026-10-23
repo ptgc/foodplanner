@@ -128,8 +128,14 @@ Always use `localhost` in the browser, not `127.0.0.1` or your machine name, so 
 ```
 
 The first run generates the SQL password (section 8), builds the api and web images (a few minutes)
-and starts SQL, creates the `foodplanner` database, then starts api and web. Open
-http://localhost:3000: the page shows **API is Healthy.** and **Database: Up**.
+and starts SQL, creates the `foodplanner` database, applies the EF migrations (`local-migrate`), seeds the local admin
+(`local-seed`), then starts api and web. Open http://localhost:3000: the page shows **API is Healthy.** and **Database: Up**.
+
+The API never migrates or seeds on its own. Both are explicit host steps run by `local-up` (and runnable alone, both
+idempotent): `local-migrate` runs `dotnet ef database update` against `ConnectionStrings:Default` from user secrets, and
+`local-seed` runs `dotnet run --project src/Api -- seed-admin` with `ASPNETCORE_ENVIRONMENT=Development`. Seeding is
+refused in any other environment, so it cannot run inside the compose api container (which is Production). It creates
+the admin as a confirmed user and Owner of the household **Home**. Sign-in details: section 8 ("Local admin login").
 
 Check from a terminal:
 
@@ -150,7 +156,8 @@ Expected: `status` Healthy, `database` Up.
 | Stop, keep the data | `./scripts/local-down.sh` | `.\scripts\local-down.ps1` |
 | Stop and **delete the SQL volume** (all local data) | `./scripts/local-reset.sh` | `.\scripts\local-reset.ps1` |
 
-Reset keeps your user secrets, so the password stays the same. `local-up` afterwards starts with an empty database.
+Reset keeps your user secrets, so the password and the admin login stay the same. The next `local-up` recreates the
+database, the schema (migrations) and the admin.
 
 ## 5. VS Code dev loop (SQL in Docker, API on the host with the debugger, web with Vite)
 
@@ -251,8 +258,10 @@ npm --prefix web run api:generate
 | Script (`.sh` / `.ps1`) | What it does |
 | --- | --- |
 | `doctor` | checks the machine: tools, container engine, branch |
-| `local-secrets` | generates the SQL password into user secrets, once (run by `local-up` for you) |
-| `local-up` | starts the stack; `local-up sql` starts only SQL and the database init |
+| `local-secrets` | generates the SQL password and the seeded admin login into user secrets, once (run by `local-up` for you) |
+| `local-migrate` | applies EF migrations to the local database (idempotent; run by `local-up`) |
+| `local-seed` | creates the local admin and the household "Home" (Development only, idempotent; run by `local-up`) |
+| `local-up` | starts the stack, migrates and seeds; `local-up sql` starts only SQL, the database init, migrations and seed |
 | `local-down` | stops, keeps the SQL volume |
 | `local-reset` | stops and deletes the SQL volume |
 | `verify` (`.sh` only) | build, lint and test everything |
@@ -270,7 +279,10 @@ random SQL Server `sa` password (24 letters and digits plus one `-`; meets the S
 - `ConnectionStrings:Default`: used by the API when it runs on the host (`127.0.0.1,1433`; see troubleshooting).
   Inside containers compose builds the connection string itself.
 
-List the key names (this prints the values, do not paste the output anywhere):
+- `Seed:AdminEmail` (`admin@foodplanner.local`) and `Seed:AdminPassword` (random, 20 letters and digits; T-009 needs at
+  least 10 characters): the local admin that `local-seed` creates (T-029).
+
+**Local admin login.** Sign in at http://localhost:3000 with `Seed:AdminEmail` and `Seed:AdminPassword`. List the secrets (this prints the values, do not paste the output anywhere):
 
 ```bash
 dotnet user-secrets list --project src/Api
@@ -366,7 +378,7 @@ Tasks are built one at a time on `task/T-xxx-*` branches and merged into `dev`. 
 Local accounts: `POST /api/auth/register` then the emailed link (`confirm-email`), then `login`. Until a production email
 provider exists (T-017) the only sender is the in-memory `Recording` one, so no mail leaves the machine and confirmation
 links are not logged. Outside Development the API refuses to start unless `Email:Provider=Recording` is set (compose sets
-`Email__Provider`); a seeded, already confirmed local admin is T-029.
+`Email__Provider`); the already confirmed local admin comes from `local-seed` (section 3, T-029).
 
 - Auth cookie `__Host-foodplanner` (HttpOnly, Secure, SameSite=Lax, Path=/, no Domain, 14 days sliding) and antiforgery cookie
   `__Host-foodplanner-xsrf` (HttpOnly, Secure, SameSite=Strict). Every POST/PUT/PATCH/DELETE under `/api` needs the header

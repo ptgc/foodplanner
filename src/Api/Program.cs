@@ -4,6 +4,7 @@ using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.OpenApi;
 using Foodplanner.Api.Security;
+using Foodplanner.Api.Seeding;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure;
@@ -23,6 +24,12 @@ builder.Services.AddScoped<RequestCurrentHousehold>();
 builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredService<RequestCurrentHousehold>());
 
 var app = builder.Build();
+
+// One-shot host command (scripts/local-seed): seeds the local admin and exits. Refuses outside Development.
+if (args.Contains(LocalAdminSeeder.Command))
+{
+    return await LocalAdminSeeder.RunAsync(app.Services);
+}
 
 // The auth and antiforgery cookies are Secure and the antiforgery system refuses to run on a request it sees as plain
 // HTTP.
@@ -75,6 +82,7 @@ api.MapAuthEndpoints();
 api.MapHouseholdEndpoints();
 
 app.Run();
+return 0;
 
 // Makes Program visible to WebApplicationFactory<Program> in Api.Tests.
 public partial class Program;

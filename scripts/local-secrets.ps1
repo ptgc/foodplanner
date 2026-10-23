@@ -27,6 +27,28 @@ if (Get-Secret 'Sql:SaPassword') {
     Write-Host 'Generated Sql:SaPassword.'
 }
 
+if (Get-Secret 'Seed:AdminEmail') {
+    Write-Host 'Seed:AdminEmail already set, keeping it.'
+} else {
+    dotnet user-secrets set Seed:AdminEmail admin@foodplanner.local --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Set Seed:AdminEmail.'
+}
+
+if (Get-Secret 'Seed:AdminPassword') {
+    Write-Host 'Seed:AdminPassword already set, keeping it.'
+} else {
+    # 20 alphanumerics: well above the 10 character minimum (Auth:MinPasswordLength, T-009); no other rules apply.
+    $chars = [char[]]'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $bytes = New-Object byte[] 20
+    $rng.GetBytes($bytes)
+    $apw = -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
+    dotnet user-secrets set Seed:AdminPassword $apw --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Generated Seed:AdminPassword.'
+}
+
 if (Get-Secret 'ConnectionStrings:Default') {
     Write-Host 'ConnectionStrings:Default already set, keeping it.'
 } else {
