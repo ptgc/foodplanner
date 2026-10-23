@@ -13,6 +13,12 @@ namespace Foodplanner.Api.Tests.TenantIsolation;
 /// HouseholdId change and ExecuteUpdate/ExecuteDelete isolation for it.
 /// </para>
 /// <para>
+/// The factory may ignore its household argument: the harness stamps HouseholdId on the new row itself, so
+/// entities whose household is assigned by Infrastructure on Add (the normal pattern, no constructor parameter, no
+/// public setter) register exactly like Membership and Invite. Limits: single Guid key <c>Entity.Id</c>; the factory
+/// adds exactly one row of the type per household. Seed parent rows with <c>env.SaveAsync(household, parent)</c>.
+/// </para>
+/// <para>
 /// Types that are deliberately not tenant entities (the tenant root and the global identity tables) are on
 /// <see cref="TenantCoverage.Exempt"/>, each with a reason.
 /// </para>

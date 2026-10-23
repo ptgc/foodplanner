@@ -19,7 +19,7 @@ public sealed record SourceFile(string Path, string Code, string CodeWithStrings
 
 /// <summary>
 /// A small C# lexer, not a parser. It is enough to ask "does this identifier appear in code" without being fooled by
-/// comments and string literals. Interpolation holes inside strings are treated as string text.
+/// comments and string literals. Interpolation holes are lexed as code.
 /// </summary>
 public static class SourceScanner
 {
@@ -58,162 +58,210 @@ public static class SourceScanner
 
     public static (string Code, string WithStrings) Strip(string text)
     {
-        var code = new StringBuilder(text.Length);
-        var withStrings = new StringBuilder(text.Length);
+        var lexer = new Lexer(text);
+        lexer.Run(0, stopAtCloseBrace: false);
+        return (lexer.Code.ToString(), lexer.WithStrings.ToString());
+    }
 
-        void Emit(char c, bool isCode, bool isString)
+    private sealed class Lexer(string text)
+    {
+        public StringBuilder Code { get; } = new(text.Length);
+
+        public StringBuilder WithStrings { get; } = new(text.Length);
+
+        private void Emit(char c, bool isCode, bool isString)
         {
             var blank = c == '\n' || c == '\r' ? c : ' ';
-            code.Append(isCode ? c : blank);
-            withStrings.Append(isCode || isString ? c : blank);
+            Code.Append(isCode ? c : blank);
+            WithStrings.Append(isCode || isString ? c : blank);
         }
 
-        var i = 0;
-        while (i < text.Length)
+        private char At(int i) => i < text.Length ? text[i] : '\0';
+
+        /// <summary>
+        /// Lexes code from <paramref name="i"/>. With <paramref name="stopAtCloseBrace"/> (an interpolation hole) it
+        /// returns the index of the unbalanced closing brace, which it does not consume.
+        /// </summary>
+        public int Run(int i, bool stopAtCloseBrace)
         {
-            var c = text[i];
-            var next = i + 1 < text.Length ? text[i + 1] : '\0';
+            var depth = 0;
+            while (i < text.Length)
+            {
+                var c = text[i];
+                var next = At(i + 1);
 
-            if (c == '/' && next == '/')
-            {
-                while (i < text.Length && text[i] != '\n')
+                if (c == '/' && next == '/')
+                {
+                    while (i < text.Length && text[i] != '\n')
+                    {
+                        Emit(text[i++], false, false);
+                    }
+                }
+                else if (c == '/' && next == '*')
                 {
                     Emit(text[i++], false, false);
-                }
-            }
-            else if (c == '/' && next == '*')
-            {
-                Emit(text[i++], false, false);
-                Emit(text[i++], false, false);
-                while (i < text.Length && !(text[i] == '*' && i + 1 < text.Length && text[i + 1] == '/'))
-                {
                     Emit(text[i++], false, false);
-                }
-
-                for (var k = 0; k < 2 && i < text.Length; k++)
-                {
-                    Emit(text[i++], false, false);
-                }
-            }
-            else if (c == '"' || ((c == '@' || c == '$') && IsStringStart(text, i)))
-            {
-                i = ReadString(text, i, Emit);
-            }
-            else if (c == '\'')
-            {
-                // Char literal such as 'a', '\'' or '"'.
-                Emit(text[i++], false, false);
-                while (i < text.Length && text[i] != '\'' && text[i] != '\n')
-                {
-                    if (text[i] == '\\' && i + 1 < text.Length)
+                    while (i < text.Length && !(text[i] == '*' && At(i + 1) == '/'))
                     {
                         Emit(text[i++], false, false);
                     }
 
-                    Emit(text[i++], false, false);
-                }
-
-                if (i < text.Length && text[i] == '\'')
-                {
-                    Emit(text[i++], false, false);
-                }
-            }
-            else
-            {
-                Emit(text[i++], true, false);
-            }
-        }
-
-        return (code.ToString(), withStrings.ToString());
-    }
-
-    private static bool IsStringStart(string text, int i)
-    {
-        var j = i;
-        while (j < text.Length && (text[j] == '@' || text[j] == '$'))
-        {
-            j++;
-        }
-
-        return j < text.Length && text[j] == '"';
-    }
-
-    private static int ReadString(string text, int i, Action<char, bool, bool> emit)
-    {
-        var verbatim = false;
-        while (text[i] != '"')
-        {
-            verbatim |= text[i] == '@';
-            emit(text[i++], true, false); // the @ and $ prefixes
-        }
-
-        var quotes = 0;
-        while (i + quotes < text.Length && text[i + quotes] == '"')
-        {
-            quotes++;
-        }
-
-        if (quotes >= 3)
-        {
-            // Raw string literal: ends at the same number of quotes.
-            for (var k = 0; k < quotes; k++)
-            {
-                emit(text[i++], false, true);
-            }
-
-            while (i < text.Length)
-            {
-                var run = 0;
-                while (i + run < text.Length && text[i + run] == '"')
-                {
-                    run++;
-                }
-
-                if (run >= quotes)
-                {
-                    for (var k = 0; k < quotes; k++)
+                    for (var k = 0; k < 2 && i < text.Length; k++)
                     {
-                        emit(text[i++], false, true);
+                        Emit(text[i++], false, false);
+                    }
+                }
+                else if (c == '"' || ((c == '@' || c == '$') && IsStringStart(i)))
+                {
+                    i = ReadString(i);
+                }
+                else if (c == '\'')
+                {
+                    // Char literal such as 'a', '\'' or '"'.
+                    Emit(text[i++], false, false);
+                    while (i < text.Length && text[i] != '\'' && text[i] != '\n')
+                    {
+                        if (text[i] == '\\' && i + 1 < text.Length)
+                        {
+                            Emit(text[i++], false, false);
+                        }
+
+                        Emit(text[i++], false, false);
                     }
 
-                    return i;
+                    if (i < text.Length && text[i] == '\'')
+                    {
+                        Emit(text[i++], false, false);
+                    }
                 }
+                else
+                {
+                    if (c == '{')
+                    {
+                        depth++;
+                    }
+                    else if (c == '}')
+                    {
+                        if (depth == 0 && stopAtCloseBrace)
+                        {
+                            return i;
+                        }
 
-                emit(text[i++], false, true);
+                        depth--;
+                    }
+
+                    Emit(text[i++], true, false);
+                }
             }
 
             return i;
         }
 
-        emit(text[i++], false, true); // opening quote
-        while (i < text.Length)
+        private bool IsStringStart(int i)
         {
-            var c = text[i];
-            if (verbatim && c == '"' && i + 1 < text.Length && text[i + 1] == '"')
+            var j = i;
+            while (j < text.Length && (text[j] == '@' || text[j] == '$'))
             {
-                emit(text[i++], false, true);
-                emit(text[i++], false, true);
+                j++;
             }
-            else if (!verbatim && c == '\\' && i + 1 < text.Length)
-            {
-                emit(text[i++], false, true);
-                emit(text[i++], false, true);
-            }
-            else if (c == '"')
-            {
-                emit(text[i++], false, true);
-                return i;
-            }
-            else if (!verbatim && c == '\n')
-            {
-                return i; // unterminated: do not swallow the rest of the file
-            }
-            else
-            {
-                emit(text[i++], false, true);
-            }
+
+            return j < text.Length && text[j] == '"';
         }
 
-        return i;
+        private int ReadString(int i)
+        {
+            var verbatim = false;
+            var interpolated = false;
+            while (text[i] != '"')
+            {
+                verbatim |= text[i] == '@';
+                interpolated |= text[i] == '$';
+                Emit(text[i++], true, false); // the @ and $ prefixes
+            }
+
+            var quotes = 0;
+            while (i + quotes < text.Length && text[i + quotes] == '"')
+            {
+                quotes++;
+            }
+
+            if (quotes >= 3)
+            {
+                // Raw string literal: ends at the same number of quotes. Interpolation holes in raw strings are not lexed.
+                for (var k = 0; k < quotes; k++)
+                {
+                    Emit(text[i++], false, true);
+                }
+
+                while (i < text.Length)
+                {
+                    var run = 0;
+                    while (i + run < text.Length && text[i + run] == '"')
+                    {
+                        run++;
+                    }
+
+                    if (run >= quotes)
+                    {
+                        for (var k = 0; k < quotes; k++)
+                        {
+                            Emit(text[i++], false, true);
+                        }
+
+                        return i;
+                    }
+
+                    Emit(text[i++], false, true);
+                }
+
+                return i;
+            }
+
+            Emit(text[i++], false, true); // opening quote
+            while (i < text.Length)
+            {
+                var c = text[i];
+                if (interpolated && c == '{' && At(i + 1) == '{')
+                {
+                    Emit(text[i++], false, true);
+                    Emit(text[i++], false, true);
+                }
+                else if (interpolated && c == '{')
+                {
+                    // An interpolation hole is code: a bypass call inside it is still a call.
+                    Emit(text[i++], false, true);
+                    i = Run(i, stopAtCloseBrace: true);
+                    if (i < text.Length)
+                    {
+                        Emit(text[i++], false, true); // the closing brace
+                    }
+                }
+                else if (verbatim && c == '"' && At(i + 1) == '"')
+                {
+                    Emit(text[i++], false, true);
+                    Emit(text[i++], false, true);
+                }
+                else if (!verbatim && c == '\\' && i + 1 < text.Length)
+                {
+                    Emit(text[i++], false, true);
+                    Emit(text[i++], false, true);
+                }
+                else if (c == '"')
+                {
+                    Emit(text[i++], false, true);
+                    return i;
+                }
+                else if (!verbatim && c == '\n')
+                {
+                    return i; // unterminated: do not swallow the rest of the file
+                }
+                else
+                {
+                    Emit(text[i++], false, true);
+                }
+            }
+
+            return i;
+        }
     }
 }

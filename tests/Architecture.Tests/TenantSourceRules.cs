@@ -51,7 +51,7 @@ public static partial class TenantSourceRules
     [GeneratedRegex(@"\bHouseholdId\b")]
     private static partial Regex HouseholdIdName();
 
-    [GeneratedRegex(@"\b(ExecuteSql\w*|SqlQuery\w*|FromSql\w*|GetDbConnection|DbConnection|DbCommand|SqlConnection|SqlCommand|CreateCommand)\b")]
+    [GeneratedRegex(@"\b(ExecuteSql\w*|SqlQuery\w*|FromSql\w*|GetDbConnection|DbConnection|DbCommand|SqlConnection|SqlCommand|CreateCommand|DbDataSource|SqlDataSource|CreateConnection|IDbConnection|IDbCommand|DbBatch|SqlBulkCopy|FromExpression|HasDbFunction|ToFunction|ToSqlQuery)\b")]
     private static partial Regex RawSql();
 
     /// <summary>Criterion 3: bypasses only where <see cref="Allowed"/> says, and never unnamed.</summary>
@@ -62,10 +62,10 @@ public static partial class TenantSourceRules
         {
             Allowed.TryGetValue(file.Path, out var allowance);
 
-            foreach (Match match in IgnoreFilters().Matches(file.Code))
+            foreach (Match match in IgnoreFilters().Matches(Scanned(file)))
             {
                 var line = file.LineOf(match.Index);
-                if (!NamedArguments().IsMatch(file.Code, match.Index))
+                if (!NamedArguments().IsMatch(Scanned(file), match.Index))
                 {
                     findings.Add(new(file.Path, line, "IgnoreQueryFilters without named filters ignores every filter; pass the filter name(s) to bypass, e.g. IgnoreQueryFilters([AppDbContext.TenantFilterName])."));
                 }
@@ -75,9 +75,9 @@ public static partial class TenantSourceRules
                 }
             }
 
-            foreach (Match match in WriteScope().Matches(file.Code))
+            foreach (Match match in WriteScope().Matches(Scanned(file)))
             {
-                if (IsDeclaration(file.Code, match.Index))
+                if (IsDeclaration(Scanned(file), match.Index))
                 {
                     continue;
                 }
@@ -114,7 +114,7 @@ public static partial class TenantSourceRules
 
             foreach (var symbol in allowance.Symbols)
             {
-                if (!Regex.IsMatch(file.Code, $@"\b{symbol}\b"))
+                if (!Regex.IsMatch(Scanned(file), $@"\b{symbol}\b"))
                 {
                     stale.Add($"{path}: no longer uses {symbol}");
                 }
@@ -143,11 +143,65 @@ public static partial class TenantSourceRules
                 {
                     findings.Add(new(file.Path, file.LineOf(call.Index), "SetProperty must not set HouseholdId: it moves rows between households and bypasses the write guard."));
                 }
+
+                // A column name that is not a literal could be HouseholdId at run time.
+                foreach (Match property in EfProperty().Matches(arguments))
+                {
+                    var propertyOpen = property.Index + property.Length - 1;
+                    var propertyArgs = SplitArguments(arguments[(propertyOpen + 1)..MatchingParenthesis(arguments, propertyOpen)]);
+                    if (propertyArgs.Count < 2 || !AllowedPropertyName().IsMatch(propertyArgs[1].Trim()))
+                    {
+                        findings.Add(new(file.Path, file.LineOf(call.Index), "EF.Property inside SetProperty needs a string literal, nameof(...) or TenancyModelConventions.CreatedAt/UpdatedAt as the name, so the column can be checked."));
+                    }
+                }
             }
         }
 
         return findings;
     }
+
+    [GeneratedRegex(@"\bEF\s*\.\s*Property\s*<[^>]*>\s*\(")]
+    private static partial Regex EfProperty();
+
+    [GeneratedRegex(@"^(""[^""\\]*""|nameof\s*\(.*\)|TenancyModelConventions\s*\.\s*(CreatedAt|UpdatedAt))$", RegexOptions.Singleline)]
+    private static partial Regex AllowedPropertyName();
+
+    private static List<string> SplitArguments(string text)
+    {
+        var parts = new List<string>();
+        var depth = 0;
+        var inString = false;
+        var start = 0;
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c == '"' && (i == 0 || text[i - 1] != '\\'))
+            {
+                inString = !inString;
+            }
+            else if (!inString && (c == '(' || c == '[' || c == '{'))
+            {
+                depth++;
+            }
+            else if (!inString && (c == ')' || c == ']' || c == '}'))
+            {
+                depth--;
+            }
+            else if (!inString && c == ',' && depth == 0)
+            {
+                parts.Add(text[start..i]);
+                start = i + 1;
+            }
+        }
+
+        parts.Add(text[start..]);
+        return parts;
+    }
+
+    // src files are also scanned inside string literals: a name in a literal can feed reflection or a runtime
+    // expression tree. Tests are scanned as code only, so they can talk about the bypasses in messages.
+    private static string Scanned(SourceFile file) =>
+        file.Path.StartsWith("src/", StringComparison.Ordinal) ? file.CodeWithStrings : file.Code;
 
     private static int MatchingParenthesis(string text, int open)
     {
@@ -173,7 +227,7 @@ public static partial class TenantSourceRules
         var findings = new List<Finding>();
         foreach (var file in files)
         {
-            foreach (Match match in RawSql().Matches(file.Code))
+            foreach (Match match in RawSql().Matches(file.CodeWithStrings))
             {
                 findings.Add(new(file.Path, file.LineOf(match.Index), $"{match.Value}: raw SQL bypasses the tenant filter and write guard. Use LINQ, or a reviewed migration."));
             }

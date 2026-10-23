@@ -14,7 +14,7 @@ namespace Foodplanner.Api.Tests.TenantIsolation;
 /// household, rows for the parents every tenant row needs (households, users), and a raw-SQL snapshot of a row that
 /// bypasses EF and its filters, so "unchanged" is checked against the database, not against EF's view of it.
 /// </summary>
-public sealed class TenantIsolationEnvironment(string connectionString)
+public sealed class TenantIsolationEnvironment(string connectionString, Func<string, Guid?, AppDbContext>? contextFactory = null)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -30,13 +30,24 @@ public sealed class TenantIsolationEnvironment(string connectionString)
         return context.Model;
     }
 
-    /// <summary>A production context acting for <paramref name="household"/> (<c>null</c>: no household context).</summary>
+    /// <summary>
+    /// A context acting for <paramref name="household"/> (<c>null</c>: no household context). The production
+    /// <see cref="AppDbContext"/> unless the environment was given a factory (self-tests of the harness use test contexts).
+    /// </summary>
     public AppDbContext ContextFor(Guid? household) =>
-        new(
+        contextFactory?.Invoke(ConnectionString, household) ?? new(
             new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(ConnectionString).Options,
             new FixedHousehold(household),
             new TenantWriteScope(),
             TimeProvider.System);
+
+    /// <summary>Saves <paramref name="entity"/> through a context of <paramref name="household"/>. For seeding the parent rows a child entity needs.</summary>
+    public async Task SaveAsync(Guid household, object entity)
+    {
+        await using var context = ContextFor(household);
+        context.Add(entity);
+        await context.SaveChangesAsync(Ct);
+    }
 
     /// <summary>Creates a household row (the tenant root, unfiltered) and returns its id.</summary>
     public async Task<Guid> NewHouseholdAsync()
@@ -73,8 +84,9 @@ public sealed class TenantIsolationEnvironment(string connectionString)
     /// </summary>
     public async Task<string?> SnapshotAsync(Type entityType, Guid id)
     {
-        var model = ProductionModel().FindEntityType(entityType)
-            ?? throw new InvalidOperationException($"{entityType.Name} is not in the production model.");
+        await using var modelContext = ContextFor(null);
+        var model = modelContext.Model.FindEntityType(entityType)
+            ?? throw new InvalidOperationException($"{entityType.Name} is not in the model of this environment.");
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(Ct);
         await using var command = connection.CreateCommand();

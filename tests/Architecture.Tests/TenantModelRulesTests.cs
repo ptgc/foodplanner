@@ -57,6 +57,32 @@ public class TenantModelRulesTests
         Assert.Contains(TenantModelRules.Violations(model), v => v.Contains(nameof(ShadowLeakThing), StringComparison.Ordinal));
     }
 
+    // N4.
+    [Fact]
+    public void Implicit_many_to_many_between_tenant_entities_is_rejected()
+    {
+        var model = BuildModel<ImplicitJoinContext>(options => new ImplicitJoinContext(options));
+
+        var violation = Assert.Single(TenantModelRules.Violations(model));
+        Assert.Contains("joins two tenant entities", violation, StringComparison.Ordinal);
+    }
+
+    // N1. A second DbContext would bypass the tenant filter, the write guard and the isolation coverage.
+    [Fact]
+    public void AppDbContext_is_the_only_DbContext_in_the_production_assemblies()
+    {
+        var assemblies = new[] { typeof(Program).Assembly, typeof(AppDbContext).Assembly, typeof(Household).Assembly };
+
+        Assert.Empty(TenantModelRules.ForbiddenContexts(assemblies.SelectMany(a => a.GetTypes())));
+        Assert.Contains(assemblies.SelectMany(a => a.GetTypes()), t => t == typeof(AppDbContext)); // not vacuous
+
+        // The rule fires on a second context and on a subclass of AppDbContext.
+        var forbidden = TenantModelRules.ForbiddenContexts([typeof(AppDbContext), typeof(PlainContext), typeof(OwnedEntityContext)]);
+        Assert.Contains(typeof(PlainContext), forbidden);
+        Assert.Contains(typeof(OwnedEntityContext), forbidden);
+        Assert.DoesNotContain(typeof(AppDbContext), forbidden);
+    }
+
     private static IModel BuildModel<TContext>(Func<DbContextOptions<TContext>, TContext> create)
         where TContext : DbContext
     {
@@ -98,6 +124,29 @@ public class TenantModelRulesTests
     {
     }
 
+    public sealed class JoinA : Entity, ITenantEntity
+    {
+        public Guid HouseholdId { get; private set; }
+
+        public List<JoinB> Bs { get; } = [];
+    }
+
+    public sealed class JoinB : Entity, ITenantEntity
+    {
+        public Guid HouseholdId { get; private set; }
+
+        public List<JoinA> As { get; } = [];
+    }
+
+    private sealed class PlainContext(DbContextOptions<PlainContext> options) : DbContext(options);
+
+    private sealed class ImplicitJoinContext(DbContextOptions<ImplicitJoinContext> options)
+        : AppDbContext(options, NoHousehold, new NoopWriteScope(), TimeProvider.System)
+    {
+        protected override void ConfigureAdditionalModel(ModelBuilder modelBuilder) =>
+            modelBuilder.Entity<JoinA>().HasMany(a => a.Bs).WithMany(b => b.As);
+    }
+
     private sealed class OwnedEntityContext(DbContextOptions<OwnedEntityContext> options)
         : AppDbContext(options, NoHousehold, new NoopWriteScope(), TimeProvider.System)
     {
@@ -123,6 +172,10 @@ public class TenantModelRulesTests
 /// <summary>Model-level tenancy rules (gaps c and d of the T-008 review).</summary>
 public static class TenantModelRules
 {
+    /// <summary>N1: every DbContext type other than AppDbContext itself (subclasses of AppDbContext included).</summary>
+    public static List<Type> ForbiddenContexts(IEnumerable<Type> types) =>
+        [.. types.Where(t => typeof(DbContext).IsAssignableFrom(t) && t != typeof(AppDbContext) && !t.IsAbstract)];
+
     public static List<string> Violations(IModel model)
     {
         var violations = new List<string>();
@@ -146,6 +199,15 @@ public static class TenantModelRules
             if (!isTenant && entityType.FindProperty(nameof(ITenantEntity.HouseholdId)) is not null)
             {
                 violations.Add($"{name}: has a HouseholdId property but does not implement ITenantEntity, so it gets no query filter and no write guard. Implement ITenantEntity, or rename the property if it is not the owning household.");
+            }
+
+            // N4. A join between two tenant entities must be an explicit entity implementing ITenantEntity. An implicit
+            // (shared-type) join entity, or any non-tenant entity pointing at two tenant entities, has no HouseholdId, no
+            // filter and no guard, so a row can join two households.
+            if (!isTenant && !entityType.IsOwned()
+                && entityType.GetForeignKeys().Count(fk => typeof(ITenantEntity).IsAssignableFrom(fk.PrincipalEntityType.ClrType)) >= 2)
+            {
+                violations.Add($"{name}: joins two tenant entities but is not an ITenantEntity itself. Model the many-to-many with an explicit join entity that implements ITenantEntity (and has its own isolation case).");
             }
 
             if (isTenant && !entityType.IsOwned() && !entityType.HasSharedClrType)

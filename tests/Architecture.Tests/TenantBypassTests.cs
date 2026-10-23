@@ -86,6 +86,23 @@ public class TenantBypassTests
     }
 
     [Fact]
+    public void Interpolation_holes_are_code_and_src_string_literals_are_scanned()
+    {
+        // A call inside an interpolation hole is still a call.
+        const string hole = "class Q { string M(Db db) => $\"rows: {db.Notes.IgnoreQueryFilters().Count()} {{literal}} {(true ? \"a\" : \"b\")}\"; }";
+        Assert.NotEmpty(TenantSourceRules.Bypasses([SourceFile.FromText(FeatureFile, hole)]));
+
+        // In src a name inside a string literal can feed reflection or an expression tree; in tests it cannot.
+        const string reflective = "class Q { object M(Type t) => t.GetMethod(\"IgnoreQueryFilters\"); }";
+        Assert.NotEmpty(TenantSourceRules.Bypasses([SourceFile.FromText(FeatureFile, reflective)]));
+        Assert.Empty(TenantSourceRules.Bypasses([SourceFile.FromText("tests/Api.Tests/Anything.cs", reflective)]));
+
+        // Code after an interpolated string is still lexed as code, and text in the string is not.
+        const string after = "class Q { void M() { var s = $\"{x}\"; var t = \"IgnoreQueryFilters()\"; } }";
+        Assert.Empty(TenantSourceRules.Bypasses([SourceFile.FromText("tests/Api.Tests/Anything.cs", after)]));
+    }
+
+    [Fact]
     public void Declaring_ForHousehold_and_mentions_in_comments_or_strings_are_not_calls()
     {
         const string harmless = """
@@ -95,7 +112,7 @@ public class TenantBypassTests
             class Q { string s = "x.IgnoreQueryFilters() scope.ForHousehold(id)"; string v = @"a ""b"" ForHousehold("; char c = '"'; }
             """;
 
-        Assert.Empty(TenantSourceRules.Bypasses([SourceFile.FromText(FeatureFile, harmless)]));
+        Assert.Empty(TenantSourceRules.Bypasses([SourceFile.FromText("tests/Api.Tests/Anything.cs", harmless)]));
     }
 
     [Fact]
@@ -116,6 +133,12 @@ public class TenantBypassTests
             Assert.NotEmpty(TenantSourceRules.HouseholdIdSetters([SourceFile.FromText(FeatureFile, mutant)]));
         }
 
+        // A non-literal column name could be HouseholdId at run time.
+        const string dynamicName = "class Q { Task M(Db d, string column) => d.Notes.ExecuteUpdateAsync(s => s.SetProperty(n => EF.Property<Guid>(n, column), other)); }";
+        Assert.NotEmpty(TenantSourceRules.HouseholdIdSetters([SourceFile.FromText(FeatureFile, dynamicName)]));
+        const string literalName = "class Q { Task M(Db d) => d.Notes.ExecuteUpdateAsync(s => s.SetProperty(n => EF.Property<DateTimeOffset>(n, \"UpdatedAt\"), now).SetProperty(n => EF.Property<DateTimeOffset>(n, TenancyModelConventions.UpdatedAt), now)); }";
+        Assert.Empty(TenantSourceRules.HouseholdIdSetters([SourceFile.FromText(FeatureFile, literalName)]));
+
         const string fine = "class Q { Task M(Db d) => d.Notes.ExecuteUpdateAsync(s => s.SetProperty(n => n.Text, n => n.Text + \"x\")); }";
         Assert.Empty(TenantSourceRules.HouseholdIdSetters([SourceFile.FromText(FeatureFile, fine)]));
     }
@@ -123,7 +146,9 @@ public class TenantBypassTests
     [Fact]
     public void Raw_SQL_is_not_used_in_production_code_outside_migrations()
     {
-        var production = SourceScanner.Load("src").Where(f => !f.Path.Contains("/Migrations/", StringComparison.Ordinal)).ToList();
+        // The exemption is pinned to the one generated-migrations folder, not any folder named Migrations.
+        var production = SourceScanner.Load("src")
+            .Where(f => !f.Path.StartsWith("src/Infrastructure/Persistence/Migrations/", StringComparison.Ordinal)).ToList();
         Assert.Contains(production, f => f.Path == TenantSourceRules.TenantResolutionFile); // not vacuous
         Assert.Empty(TenantSourceRules.RawSqlUse(production));
 
@@ -135,6 +160,17 @@ public class TenantBypassTests
             "class Q { void M(Db d) { d.Notes.FromSqlInterpolated($\"SELECT * FROM Notes\"); } }",
             "class Q { void M(Db d) { d.Database.GetDbConnection(); } }",
             "class Q { void M() { using var c = new SqlConnection(cs); } }",
+            "class Q { void M(DbDataSource s) { s.CreateCommand(\"x\"); } }",
+            "class Q { void M(IDbConnection c) { } }",
+            "class Q { void M(IDbCommand c) { } }",
+            "class Q { void M(DbBatch b) { } }",
+            "class Q { void M() { new SqlBulkCopy(cs); } }",
+            "class Q { void M(ModelBuilder b) { b.Entity<X>().ToSqlQuery(\"x\"); } }",
+            "class Q { void M(ModelBuilder b) { b.HasDbFunction(typeof(Q)); } }",
+            "class Q { void M(ModelBuilder b) { b.Entity<X>().ToFunction(\"f\"); } }",
+            "class Q { void M(DbSet<X> s) { s.FromExpression(() => null); } }",
+            "class Q { void M(Db d) { var s = $\"{d.Database.ExecuteSqlRaw(\"x\")}\"; } }",
+            "class Q { void M(Db d) { d.GetType().GetMethod(\"ExecuteSqlRaw\"); } }",
         ];
         foreach (var mutant in mutants)
         {

@@ -20,9 +20,15 @@ public abstract class TenantIsolationCase
     public override string ToString() => Name;
 
     /// <summary>
-    /// Registers a tenant entity. <paramref name="create"/> builds a new, unsaved row for the given household (and
-    /// seeds whatever parent rows it needs through the environment). <paramref name="mutate"/> changes one persisted
-    /// column of a tracked row, so a save of it is a real UPDATE.
+    /// Registers a tenant entity. <paramref name="create"/> builds a new, unsaved row (and seeds whatever parent rows
+    /// it needs, with <see cref="TenantIsolationEnvironment.SaveAsync"/>); it may ignore the household id it is given,
+    /// because the harness stamps HouseholdId itself. <paramref name="mutate"/> changes one persisted column of a
+    /// tracked row, so a save of it is a real UPDATE.
+    /// <para>
+    /// Limits: the entity must have the single Guid key <see cref="Entity.Id"/> (no composite keys), and
+    /// <paramref name="create"/> must add exactly one row of this type per household (the bulk test expects exactly
+    /// one affected row, so a factory that also seeds a parent of the same type would fail it).
+    /// </para>
     /// </summary>
     public static TenantIsolationCase For<TEntity>(
         Func<TenantIsolationEnvironment, Guid, Task<TEntity>> create,
@@ -68,12 +74,31 @@ internal sealed class TenantIsolationCase<TEntity>(
         return new Scenario(a, b, idA, idB, await env.SnapshotAsync(typeof(TEntity), idB));
     }
 
-    private async Task<Guid> SeedAsync(TenantIsolationEnvironment env, Guid household)
+    /// <summary>
+    /// A new unsaved row that carries <paramref name="household"/> explicitly. The harness stamps the id itself, because
+    /// the normal pattern (<see cref="ITenantEntity"/>) gives an entity no way to take a household in its constructor
+    /// and leaves Infrastructure to assign it on Add. Factories may therefore ignore the household id.
+    /// </summary>
+    private async Task<TEntity> NewRowAsync(TenantIsolationEnvironment env, Guid household)
     {
         var row = await create(env, household);
-        await using var context = env.ContextFor(household);
-        context.Add(row);
-        await context.SaveChangesAsync(Ct);
+        for (var type = typeof(TEntity); type is not null; type = type.BaseType)
+        {
+            if (type.GetProperty(nameof(ITenantEntity.HouseholdId), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly) is { } property)
+            {
+                property.SetValue(row, household);
+                return row;
+            }
+        }
+
+        throw new InvalidOperationException($"{typeof(TEntity).Name} has no HouseholdId property.");
+    }
+
+    private async Task<Guid> SeedAsync(TenantIsolationEnvironment env, Guid household)
+    {
+        var row = await NewRowAsync(env, household);
+        await env.SaveAsync(household, row);
         return row.Id;
     }
 
@@ -94,7 +119,7 @@ internal sealed class TenantIsolationCase<TEntity>(
     /// <summary>A forged row: carries A's household id but B's row id, as an attacker-built detached entity would.</summary>
     private async Task<TEntity> ForgeAsync(TenantIsolationEnvironment env, Scenario s)
     {
-        var forged = await create(env, s.A);
+        var forged = await NewRowAsync(env, s.A);
         typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(forged, s.IdB);
         return forged;
     }
@@ -119,9 +144,10 @@ internal sealed class TenantIsolationCase<TEntity>(
             Assert.DoesNotContain(await a.Set<TEntity>().AsNoTracking().ToListAsync(Ct), e => e.Id == s.IdB);
             Assert.DoesNotContain(a.ChangeTracker.Entries<TEntity>(), e => e.Entity.Id == s.IdB);
 
-            foreach (var navigation in a.Model.FindEntityType(typeof(TEntity))!.GetNavigations())
+            var entityType = a.Model.FindEntityType(typeof(TEntity))!;
+            foreach (var navigationName in entityType.GetNavigations().Select(n => n.Name).Concat(entityType.GetSkipNavigations().Select(n => n.Name)))
             {
-                var included = await a.Set<TEntity>().AsNoTracking().Include(navigation.Name).ToListAsync(Ct);
+                var included = await a.Set<TEntity>().AsNoTracking().Include(navigationName).ToListAsync(Ct);
                 Assert.DoesNotContain(included, e => e.Id == s.IdB);
             }
         }
@@ -143,7 +169,7 @@ internal sealed class TenantIsolationCase<TEntity>(
 
         await using (var a = env.ContextFor(s.A))
         {
-            var intruder = await create(env, s.B);
+            var intruder = await NewRowAsync(env, s.B);
             a.Add(intruder);
             await Assert.ThrowsAsync<TenancyViolationException>(() => a.SaveChangesAsync(Ct));
             Assert.Null(await env.SnapshotAsync(typeof(TEntity), intruder.Id));
