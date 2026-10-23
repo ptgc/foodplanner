@@ -6,8 +6,9 @@ COPY global.json Directory.Build.props Foodplanner.slnx ./
 COPY src/ src/
 RUN dotnet publish src/Api/Foodplanner.Api.csproj -c Release -o /out
 
-# Chiseled: no shell, no package manager, runs as non-root user "app" (uid 1654).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled AS final
+# Chiseled-extra (adds ICU: Microsoft.Data.SqlClient does not work in invariant globalization mode).
+# No shell, no package manager, runs as non-root user "app" (uid 1654).
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled-extra AS final
 WORKDIR /app
 COPY --from=build /out .
 ENV ASPNETCORE_URLS=http://+:8080

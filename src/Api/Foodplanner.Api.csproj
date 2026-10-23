@@ -1,4 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>foodplanner-api-4f1c2a7e-9b3d-4c58-8a61-2d7e5b0c9f13</UserSecretsId>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Domain\Foodplanner.Domain.csproj" />
     <ProjectReference Include="..\Infrastructure\Foodplanner.Infrastructure.csproj" />
