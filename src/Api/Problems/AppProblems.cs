@@ -12,6 +12,8 @@ public static class AppProblems
     public const string ConfirmationInvalid = "confirmation-invalid";
     public const string AntiforgeryInvalid = "antiforgery-invalid";
     public const string RateLimited = "rate-limited";
+    public const string InviteInvalid = "invite-invalid";
+    public const string AlreadyMember = "already-member";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
 

@@ -43,6 +43,12 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
         TimeProvider = timeProvider;
     }
 
+    public DbSet<Household> Households => Set<Household>();
+
+    public DbSet<Membership> Memberships => Set<Membership>();
+
+    public DbSet<Invite> Invites => Set<Invite>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 

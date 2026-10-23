@@ -20,5 +20,7 @@ internal sealed class AppDbContextDesignTimeFactory : IDesignTimeDbContextFactor
     private sealed class NoHousehold : ICurrentHousehold
     {
         public Guid? HouseholdId => null;
+
+        public HouseholdRole? Role => null;
     }
 }

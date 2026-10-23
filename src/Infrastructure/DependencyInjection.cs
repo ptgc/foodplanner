@@ -21,6 +21,8 @@ public static class DependencyInjection
     {
         services.TryAddSingleton(TimeProvider.System);
         services.AddScoped<ITenantWriteScope, TenantWriteScope>();
+        services.AddScoped<ITenantResolution, TenantResolution>();
+        services.AddScoped<IInviteRedemption, InviteRedemption>();
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString(ConnectionStringName)));
         services.AddScoped<IDatabaseReadiness, DatabaseReadiness>();
