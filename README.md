@@ -203,6 +203,17 @@ bash ./scripts/verify.sh     # uses Git Bash, which comes with Git
 (integration tests need the container engine running) and lints, typechecks, tests and builds `web`.
 Single parts: `dotnet test --solution Foodplanner.slnx` and `npm --prefix web test` (same in both shells).
 
+`Api.Tests` start one SQL Server Testcontainer (`mcr.microsoft.com/mssql/server:2022-latest`) per run, with a
+password generated at runtime, and give each test class a fresh database with the migrations applied.
+Testcontainers uses `DOCKER_HOST` if set, otherwise the default local endpoint (`npipe://./pipe/docker_engine` on
+Windows, which Rancher Desktop in dockerd (moby) mode provides; `/var/run/docker.sock` elsewhere). For another
+endpoint (Colima, rootless Podman) set `DOCKER_HOST` to the endpoint `docker context inspect` shows.
+`verify.sh` checks the engine with `docker info` before the tests and stops there if it is not running.
+
+New migration (the Api is the startup project; migrations are never applied at app startup):
+`dotnet tool restore` once, then
+`dotnet ef migrations add <Name> --project src/Infrastructure --startup-project src/Api --output-dir Persistence/Migrations`.
+
 ### End-to-end tests (Playwright)
 
 With the stack up (`local-up`), run the suite (mobile 390px and desktop projects, headless chromium, traces kept on failure):
