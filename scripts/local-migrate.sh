@@ -11,4 +11,6 @@ if [ -z "$cs" ]; then
   exit 1
 fi
 dotnet tool restore >/dev/null
+# dotnet-ef reads project metadata before building, so a fresh clone needs a restore first.
+dotnet restore Foodplanner.slnx --verbosity quiet
 dotnet ef database update --project src/Infrastructure --startup-project src/Api --connection "$cs"
