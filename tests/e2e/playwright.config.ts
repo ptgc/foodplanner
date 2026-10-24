@@ -15,11 +15,14 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
+    // Signs in once as the seeded admin and saves the session to .auth/admin.json (gitignored) for the others.
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     // Mobile first: 390px wide is the design target (CLAUDE.md rule 10).
     {
       name: "mobile-390",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      dependencies: ["setup"],
     },
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } }, dependencies: ["setup"] },
   ],
 });
