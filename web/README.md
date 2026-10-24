@@ -38,6 +38,14 @@ Measured 2026-10-24 with `lighthouse@12` (mobile preset: Moto G Power emulation,
 
 The first run showed nginx sent the SPA uncompressed, so `web/nginx.conf` now enables gzip for text assets. Re-measure after T-025 and when images are many (`npx lighthouse http://localhost:3000/recipes --extra-headers=<json with Cookie> --only-categories=performance`). Raising a budget is a deliberate change to this table and the script.
 
+## Week planner (T-035, `/plan`)
+- Code: `app/routes/plan.tsx` (screen and picker sheet), `app/planner/use-plan.ts` (week state and writes on the generated client), `avatar.ts` (initials and colour of who picked), `planner.css`. Keys are `planner.*`; the nav link is `nav.plan`.
+- The week is in the URL (`?week=yyyy-MM-dd`, a Monday, default the current ISO week) and reuses `shopping/week.ts`. Day names and dates come from `Intl` in the active locale.
+- Picking: the day's round "+" (56px) opens a bottom sheet with the recipe grid (search and category chips, same `useRecipeList`/`useTags` as `/recipes`); tapping a recipe POSTs the entry with the recipe's default servings and closes the sheet. That is 2 taps from the week view (Playwright "Kid can pick a meal in <=3 taps" asserts exactly 2).
+- Servings are - / + steppers (1 to 50, PUT); remove is a x button. Adult and Owner may change any entry; a Child sees the stepper and remove only on their own picks (others show the servings as text), matching the API's `MealPlanEntryOwnerOrAdult` policy. 400/403/404/409 show translated messages; 404 and 409 re-read the week.
+- Plan entries carry no image urls, so the screen reads each distinct recipe once for its card image (placeholder tile on failure). A plan response with image urls would remove those requests.
+- "Make shopping list" POSTs generate and opens `/shopping?week=...`; "See shopping list" links there without generating.
+
 ## Internationalisation (T-038, Q-013)
 All user-facing text is translatable. Code, keys and the fallback are English; locales are `nb` and `en`.
 

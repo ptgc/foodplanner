@@ -14,6 +14,8 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:already-member": "problem.alreadyMember",
   "urn:foodplanner:problem:invite-invalid": "problem.inviteInvalid",
   "urn:foodplanner:problem:confirmation-invalid": "problem.confirmationInvalid",
+  "urn:foodplanner:problem:meal-plan-entry-not-found": "problem.mealPlanEntryNotFound",
+  "urn:foodplanner:problem:meal-plan-entry-conflict": "problem.mealPlanEntryConflict",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */
