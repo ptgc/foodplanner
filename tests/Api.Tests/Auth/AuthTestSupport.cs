@@ -207,6 +207,25 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         return await http.SendAsync(request, Ct);
     }
 
+    /// <summary>PUT of one file as multipart/form-data (part name "file"), with a freshly fetched antiforgery token.</summary>
+    public async Task<HttpResponseMessage> PutFileAsync(
+        string url, byte[] content, string fileName = "photo.jpg", string contentType = "image/jpeg", string partName = "file",
+        bool antiforgery = true)
+    {
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(content);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(file, partName, fileName);
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = form };
+        if (antiforgery)
+        {
+            request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
+        }
+
+        AddRemoteIp(request);
+        return await http.SendAsync(request, Ct);
+    }
+
     /// <summary>DELETE with a freshly fetched antiforgery token.</summary>
     public async Task<HttpResponseMessage> DeleteAsync(string url)
     {

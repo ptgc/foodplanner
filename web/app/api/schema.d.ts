@@ -388,6 +388,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/recipes/{recipeId}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UploadRecipeImage"];
+        post?: never;
+        delete: operations["DeleteRecipeImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/recipes/{recipeId}/image/{version}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRecipeImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -459,6 +491,8 @@ export interface components {
                 [key: string]: string[];
             };
         };
+        /** Format: binary */
+        IFormFile: string;
         IngredientResponse: {
             /** Format: uuid */
             id: string;
@@ -518,6 +552,11 @@ export interface components {
             status: string;
             database: string;
         };
+        RecipeImageUrlsResponse: {
+            thumbUrl: string;
+            cardUrl: string;
+            fullUrl: string;
+        };
         RecipeIngredientRequest: {
             /** Format: uuid */
             ingredientId: null | string;
@@ -576,6 +615,7 @@ export interface components {
             steps: components["schemas"]["RecipeStepResponse"][];
             ingredients: components["schemas"]["RecipeIngredientResponse"][];
             tags: components["schemas"]["TagResponse"][];
+            image: null | components["schemas"]["RecipeImageUrlsResponse"];
         };
         RecipeStepRequest: {
             text: null | string;
@@ -594,6 +634,8 @@ export interface components {
             /** Format: int32 */
             totalMinutes: null | number | string;
             tags: components["schemas"]["TagResponse"][];
+            thumbUrl: null | string;
+            cardUrl: null | string;
         };
         RegisterRequest: {
             email: null | string;
@@ -1288,7 +1330,9 @@ export interface operations {
                 offset?: number | string;
             };
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1509,6 +1553,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                householdId: string;
                 recipeId: string;
             };
             cookie?: never;
@@ -2192,6 +2237,205 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UploadRecipeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    file?: components["schemas"]["IFormFile"];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImageUrlsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteRecipeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRecipeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+                version: string;
+                size: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

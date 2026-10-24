@@ -716,6 +716,15 @@
         "operationId": "ListRecipes",
         "parameters": [
           {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "search",
             "in": "query",
             "schema": {
@@ -1061,6 +1070,15 @@
         ],
         "operationId": "DeleteRecipe",
         "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
           {
             "name": "recipeId",
             "in": "path",
@@ -2003,6 +2021,283 @@
           }
         }
       }
+    },
+    "/api/households/{householdId}/recipes/{recipeId}/image": {
+      "put": {
+        "tags": [
+          "RecipeImageEndpoints"
+        ],
+        "operationId": "UploadRecipeImage",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeImageUrlsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RecipeImageEndpoints"
+        ],
+        "operationId": "DeleteRecipeImage",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/recipes/{recipeId}/image/{version}/{size}": {
+      "get": {
+        "tags": [
+          "RecipeImageEndpoints"
+        ],
+        "operationId": "GetRecipeImage",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "size",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2296,6 +2591,10 @@
           }
         }
       },
+      "IFormFile": {
+        "type": "string",
+        "format": "binary"
+      },
       "IngredientResponse": {
         "required": [
           "id",
@@ -2515,6 +2814,25 @@
             "type": "string"
           },
           "database": {
+            "type": "string"
+          }
+        }
+      },
+      "RecipeImageUrlsResponse": {
+        "required": [
+          "thumbUrl",
+          "cardUrl",
+          "fullUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "thumbUrl": {
+            "type": "string"
+          },
+          "cardUrl": {
+            "type": "string"
+          },
+          "fullUrl": {
             "type": "string"
           }
         }
@@ -2741,7 +3059,8 @@
           "totalMinutes",
           "steps",
           "ingredients",
-          "tags"
+          "tags",
+          "image"
         ],
         "type": "object",
         "properties": {
@@ -2810,6 +3129,16 @@
             "items": {
               "$ref": "#/components/schemas/TagResponse"
             }
+          },
+          "image": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RecipeImageUrlsResponse"
+              }
+            ]
           }
         }
       },
@@ -2853,7 +3182,9 @@
           "title",
           "servings",
           "totalMinutes",
-          "tags"
+          "tags",
+          "thumbUrl",
+          "cardUrl"
         ],
         "type": "object",
         "properties": {
@@ -2886,6 +3217,18 @@
             "items": {
               "$ref": "#/components/schemas/TagResponse"
             }
+          },
+          "thumbUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -3199,6 +3542,9 @@
     },
     {
       "name": "ShoppingListEndpoints"
+    },
+    {
+      "name": "RecipeImageEndpoints"
     }
   ]
 }

@@ -1,5 +1,7 @@
+using Foodplanner.Infrastructure.Images;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
+using Foodplanner.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +28,8 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString(ConnectionStringName)));
         services.AddScoped<IDatabaseReadiness, DatabaseReadiness>();
+        services.AddOptions<ImageOptions>().BindConfiguration(ImageOptions.Section);
+        services.AddImageStorage();
         return services;
     }
 }

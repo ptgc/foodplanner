@@ -2,8 +2,10 @@ using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
+using Foodplanner.Domain.Images;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Infrastructure.Persistence;
+using Foodplanner.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.Recipes;
@@ -24,7 +26,7 @@ public sealed record RecipeRequest(
     Guid[]? TagIds);
 
 /// <summary>A grid card: enough to list recipes. <c>TotalMinutes</c> is prep plus cook, null when neither is set.</summary>
-public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags);
+public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags, string? ThumbUrl, string? CardUrl);
 
 public sealed record RecipeListResponse(RecipeSummaryResponse[] Items, int Total, int Limit, int Offset);
 
@@ -43,7 +45,8 @@ public sealed record RecipeResponse(
     int? TotalMinutes,
     RecipeStepResponse[] Steps,
     RecipeIngredientResponse[] Ingredients,
-    TagResponse[] Tags);
+    TagResponse[] Tags,
+    RecipeImageUrlsResponse? Image);
 
 /// <summary>Recipe CRUD (T-021). Any member reads; only an Adult or Owner writes.</summary>
 public static class RecipeEndpoints
@@ -104,7 +107,7 @@ public static class RecipeEndpoints
     /// simply matches nothing.
     /// </summary>
     private static async Task<IResult> ListRecipes(
-        string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, int? limit, int? offset,
+        Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, int? limit, int? offset,
         AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -173,14 +176,16 @@ public static class RecipeEndpoints
         var skip = offset ?? 0;
         var total = await query.CountAsync(cancellationToken);
         var rows = await query.OrderBy(r => r.Title).ThenBy(r => r.Id).Skip(skip).Take(take)
-            .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes })
+            .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes, r.ImageVersion })
             .ToListAsync(cancellationToken);
 
         var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), cancellationToken);
         var items = rows.Select(r => new RecipeSummaryResponse(
             r.Id, r.Title, r.Servings,
             r.PrepMinutes is null && r.CookMinutes is null ? null : (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0),
-            tagsByRecipe.GetValueOrDefault(r.Id, []))).ToArray();
+            tagsByRecipe.GetValueOrDefault(r.Id, []),
+            RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Thumb),
+            RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Card))).ToArray();
         return Results.Ok(new RecipeListResponse(items, total, take, skip));
     }
 
@@ -274,7 +279,8 @@ public static class RecipeEndpoints
         return Results.Ok(await LoadAsync(db, recipe, cancellationToken));
     }
 
-    private static async Task<IResult> DeleteRecipe(Guid recipeId, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> DeleteRecipe(
+        Guid householdId, Guid recipeId, AppDbContext db, IImageStore images, ILogger<Recipe> logger, CancellationToken cancellationToken)
     {
         var recipe = await db.Recipes.FirstOrDefaultAsync(r => r.Id == recipeId, cancellationToken);
         if (recipe is null)
@@ -294,10 +300,14 @@ public static class RecipeEndpoints
         db.ShoppingListItemSources.RemoveRange(sources);
 
         // Steps and ingredient lines go with the recipe (database cascade).
+        var hadImage = recipe.ImageVersion is not null;
         db.Recipes.Remove(recipe);
         try
         {
-            return await TrySaveAsync(db, cancellationToken) ?? Results.NoContent();
+            if (await TrySaveAsync(db, cancellationToken) is { } conflict)
+            {
+                return conflict;
+            }
         }
         catch (DbUpdateException)
         {
@@ -310,6 +320,13 @@ public static class RecipeEndpoints
 
             throw;
         }
+
+        if (hadImage)
+        {
+            await RecipeImageEndpoints.TryDeleteBlobsAsync(images, logger, RecipeImageBlobNames.RecipePrefix(householdId, recipeId), cancellationToken);
+        }
+
+        return Results.NoContent();
     }
 
     private static IResult RecipeInUse() =>
@@ -562,7 +579,8 @@ public static class RecipeEndpoints
         return new RecipeResponse(
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,
             recipe.TotalMinutes, [.. steps], ingredients,
-            (await LoadTagsAsync(db, [recipe.Id], cancellationToken)).GetValueOrDefault(recipe.Id, []));
+            (await LoadTagsAsync(db, [recipe.Id], cancellationToken)).GetValueOrDefault(recipe.Id, []),
+            RecipeImageUrls.All(recipe));
     }
 
     private static IResult NotFound() =>
