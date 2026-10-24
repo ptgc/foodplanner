@@ -1,10 +1,12 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Tenancy;
 
 namespace Foodplanner.Api.Tests.TenantIsolation;
 
 /// <summary>
-/// The tenant-isolation suite's registrations (CLAUDE.md rule 1). Every <see cref="ITenantEntity"/> in the production
-/// model needs a <see cref="TenantIsolationCase"/> here, or <c>TenantIsolationCoverageTests</c> fails the build and
+/// The tenant-isolation suite's registrations (CLAUDE.md rule 1). Every <see cref="ITenantEntity"/> (<c>For</c>) and every
+/// <see cref="Foodplanner.Domain.Catalog.ICatalogEntity"/> (<c>ForCatalog</c>, which adds the global-row checks) in the
+/// production model needs a <see cref="TenantIsolationCase"/> here, or <c>TenantIsolationCoverageTests</c> fails the build and
 /// names the entity.
 /// <para>
 /// To add an entity: 1) add one <c>TenantIsolationCase.For</c> line to <see cref="Cases"/>, whose factory builds a
@@ -35,7 +37,15 @@ public static class TenantIsolationRegistry
             async (env, household) => new Invite(
                 household, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32), HouseholdRole.Child, DateTimeOffset.UtcNow.AddDays(3), await env.NewUserAsync()),
             entry => entry.Property(i => i.ExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(30)),
+
+        // Global-or-household catalog entity (T-020): also proven against global rows (visible to all, read-only).
+        TenantIsolationCase.ForCatalog<Ingredient>(
+            (_, household) => Task.FromResult(new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: false, UnitDimension.Mass)),
+            entry => entry.Property(i => i.IsStaple).CurrentValue = true),
     ];
+
+    /// <summary>The registered catalog entities, for the global-row checks.</summary>
+    public static IEnumerable<string> CatalogNames => Cases.Where(c => c.IsCatalog).Select(c => c.Name);
 
     public static TenantIsolationCase Find(string name) =>
         Cases.Single(c => c.Name == name);

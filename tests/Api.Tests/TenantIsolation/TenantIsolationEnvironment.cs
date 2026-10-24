@@ -79,6 +79,23 @@ public sealed class TenantIsolationEnvironment(string connectionString, Func<str
     }
 
     /// <summary>
+    /// Makes a saved catalog row global (HouseholdId NULL) with raw SQL. Request code cannot do this, by design; in
+    /// production the seed (migration data) creates global rows. The tests use it to stand in for a seeded row.
+    /// </summary>
+    public async Task MakeGlobalAsync(Type entityType, Guid id)
+    {
+        await using var modelContext = ContextFor(null);
+        var model = modelContext.Model.FindEntityType(entityType)
+            ?? throw new InvalidOperationException($"{entityType.Name} is not in the model of this environment.");
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"UPDATE [{model.GetSchema() ?? "dbo"}].[{model.GetTableName()}] SET HouseholdId = NULL WHERE Id = @id";
+        command.Parameters.AddWithValue("@id", id);
+        Assert.Equal(1, await command.ExecuteNonQueryAsync(Ct));
+    }
+
+    /// <summary>
     /// Every column of the row, read with raw SQL outside EF and its filters, as one comparable string.
     /// <c>null</c> when the row does not exist.
     /// </summary>

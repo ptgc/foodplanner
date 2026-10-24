@@ -218,6 +218,35 @@ public static partial class TenantSourceRules
         return text.Length - 1;
     }
 
+    [GeneratedRegex(@"\bExecute(Update|Delete)(Async)?\b")]
+    private static partial Regex BulkWrite();
+
+    /// <summary>Production files that may use ExecuteUpdate/ExecuteDelete. Add a reasoned entry rather than using them elsewhere.</summary>
+    public static readonly IReadOnlyDictionary<string, string> BulkWriteAllowed = new Dictionary<string, string>
+    {
+        [TenantResolutionFile] = "Marks an invite used with a conditional UPDATE (T-011); touches the Invite tenant entity only.",
+    };
+
+    /// <summary>
+    /// T-020: ExecuteUpdate/ExecuteDelete skip the SaveChanges guard, and the filter of a catalog entity ("global or mine")
+    /// lets them reach the global rows, which no household may change. Production code may not use them (src only), except
+    /// where <see cref="BulkWriteAllowed"/> says, with a reason. A bulk change of a catalog set from request code is a
+    /// foreign-row write: load the rows and use SaveChanges, which refuses global rows.
+    /// </summary>
+    public static List<Finding> BulkWrites(IEnumerable<SourceFile> files)
+    {
+        var findings = new List<Finding>();
+        foreach (var file in files.Where(f => !BulkWriteAllowed.ContainsKey(f.Path)))
+        {
+            foreach (Match match in BulkWrite().Matches(file.CodeWithStrings))
+            {
+                findings.Add(new(file.Path, file.LineOf(match.Index), $"{match.Value}: bulk writes skip the tenancy write guard and, on a catalog entity, reach the global rows. Load the rows and use SaveChanges."));
+            }
+        }
+
+        return findings;
+    }
+
     /// <summary>
     /// Gap b: raw SQL and raw ADO.NET bypass both the query filter and the write guard. Not allowed in production code
     /// (the caller excludes Migrations, which are generated). Tests may use them freely.

@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -19,24 +20,44 @@ public static class TenantCoverage
     public static readonly IReadOnlyDictionary<Type, string> Exempt = new Dictionary<Type, string>
     {
         [typeof(Household)] = "The tenant root. It has no HouseholdId; households are reached through Membership (Q-006).",
+        [typeof(Unit)] = "Global measuring units (T-020): the seed defines them, no household owns or creates one, no HouseholdId. Read-only at request time because nothing writes the set.",
         [typeof(AppUser)] = "Global login identity (ADR 0004, T-009), not household data.",
         [typeof(IdentityUserClaim<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserLogin<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserToken<Guid>)] = "Global login identity (T-009).",
     };
 
-    public static List<string> Problems(IModel model, IEnumerable<Type> registered, IReadOnlyDictionary<Type, string>? exempt = null)
+    public static List<string> Problems(
+        IModel model, IEnumerable<Type> registered, IReadOnlyDictionary<Type, string>? exempt = null, IEnumerable<Type>? registeredAsCatalog = null)
     {
         exempt ??= Exempt;
         var problems = new List<string>();
         var registeredTypes = registered.ToHashSet();
         var entityTypes = model.GetEntityTypes().ToList();
-        var tenantTypes = entityTypes.Where(e => typeof(ITenantEntity).IsAssignableFrom(e.ClrType)).Select(e => e.ClrType).ToHashSet();
+        var tenantTypes = entityTypes.Where(e => typeof(ITenantEntity).IsAssignableFrom(e.ClrType) || typeof(ICatalogEntity).IsAssignableFrom(e.ClrType)).Select(e => e.ClrType).ToHashSet();
 
         foreach (var type in tenantTypes.Where(t => !registeredTypes.Contains(t)).OrderBy(t => t.Name))
         {
             problems.Add($"Tenant entity '{type.Name}' has no isolation test. Register it in TenantIsolationRegistry.Cases "
                 + "(one TenantIsolationCase.For<...> line) so household A is proven unable to read or write its household B rows.");
+        }
+
+        // A catalog entity needs the catalog variant (global-row checks); a tenant entity must not use it.
+        if (registeredAsCatalog is not null)
+        {
+            var asCatalog = registeredAsCatalog.ToHashSet();
+            foreach (var type in tenantTypes.Where(t => registeredTypes.Contains(t)).OrderBy(t => t.Name))
+            {
+                var isCatalog = typeof(ICatalogEntity).IsAssignableFrom(type);
+                if (isCatalog && !asCatalog.Contains(type))
+                {
+                    problems.Add($"Catalog entity '{type.Name}' is registered with TenantIsolationCase.For; register it with ForCatalog so the global-row checks run.");
+                }
+                else if (!isCatalog && asCatalog.Contains(type))
+                {
+                    problems.Add($"Tenant entity '{type.Name}' is registered with ForCatalog; use TenantIsolationCase.For.");
+                }
+            }
         }
 
         foreach (var type in registeredTypes.Where(t => !tenantTypes.Contains(t)).OrderBy(t => t.Name))
@@ -57,7 +78,7 @@ public static class TenantCoverage
         foreach (var (type, _) in exempt.Where(e => tenantTypes.Contains(e.Key) || entityTypes.All(t => t.ClrType != e.Key)))
         {
             problems.Add(tenantTypes.Contains(type)
-                ? $"'{type.Name}' is on the exemption list but is an ITenantEntity; remove it from Exempt and register it."
+                ? $"'{type.Name}' is on the exemption list but is an ITenantEntity or ICatalogEntity; remove it from Exempt and register it."
                 : $"'{type.Name}' is on the exemption list but is not in the model; remove the stale exemption.");
         }
 

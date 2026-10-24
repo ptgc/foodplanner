@@ -14,6 +14,7 @@ public static class AppProblems
     public const string RateLimited = "rate-limited";
     public const string InviteInvalid = "invite-invalid";
     public const string AlreadyMember = "already-member";
+    public const string IngredientExists = "ingredient-exists";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
 
