@@ -364,8 +364,8 @@ describe("Recipe detail (minimal, T-025 extends)", () => {
         { position: 2, text: "Ha i fisken" },
       ],
       ingredients: [
-        { ingredientId: "i1", ingredientName: "Torsk", quantity: 400, unitId: "u1", unitCode: "g", note: null },
-        { ingredientId: "i2", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, note: "etter smak" },
+        { ingredientId: "i1", ingredientName: "Torsk", quantity: 400, unitId: "u1", unitCode: "g", unitName: "gram", note: null },
+        { ingredientId: "i2", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak" },
       ],
       tags: [dinner],
     };
