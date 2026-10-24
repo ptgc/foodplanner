@@ -55,3 +55,33 @@ internal sealed class RecipeIngredientConfiguration : IEntityTypeConfiguration<R
         line.HasOne<Unit>().WithMany().HasForeignKey(i => i.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+internal sealed class TagConfiguration : IEntityTypeConfiguration<Tag>
+{
+    public void Configure(EntityTypeBuilder<Tag> tag)
+    {
+        tag.ToTable("Tags");
+        tag.Property(t => t.Name).HasMaxLength(Tag.MaxNameLength).IsRequired();
+        tag.Property(t => t.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
+
+        // Unique per household and among the global rows (see the Ingredient index); a household cannot shadow a global
+        // name, which the endpoint refuses (409).
+        tag.HasIndex(t => new { t.HouseholdId, t.Name }).IsUnique().HasFilter(null);
+        tag.HasOne<Household>().WithMany().HasForeignKey(t => t.HouseholdId).IsRequired(false).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class RecipeTagConfiguration : IEntityTypeConfiguration<RecipeTag>
+{
+    public void Configure(EntityTypeBuilder<RecipeTag> link)
+    {
+        link.ToTable("RecipeTags");
+        link.HasIndex(l => new { l.RecipeId, l.TagId }).IsUnique();
+        link.HasIndex(l => l.TagId);
+        link.HasOne<Recipe>().WithMany().HasForeignKey(l => l.RecipeId).OnDelete(DeleteBehavior.Cascade);
+        link.HasOne<Household>().WithMany().HasForeignKey(l => l.HouseholdId).OnDelete(DeleteBehavior.Restrict);
+
+        // A tag in use cannot be deleted from under a recipe (and the household's tags go with the household).
+        link.HasOne<Tag>().WithMany().HasForeignKey(l => l.TagId).OnDelete(DeleteBehavior.Restrict);
+    }
+}

@@ -64,6 +64,11 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
+    /// <summary>Global-or-household categories and tags (T-023), like <see cref="Ingredients"/>.</summary>
+    public DbSet<Tag> Tags => Set<Tag>();
+
+    public DbSet<RecipeTag> RecipeTags => Set<RecipeTag>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 

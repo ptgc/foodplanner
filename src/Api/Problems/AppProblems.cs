@@ -15,6 +15,7 @@ public static class AppProblems
     public const string InviteInvalid = "invite-invalid";
     public const string AlreadyMember = "already-member";
     public const string IngredientExists = "ingredient-exists";
+    public const string TagExists = "tag-exists";
     public const string RecipeNotFound = "recipe-not-found";
     public const string RecipeConflict = "recipe-conflict";
 

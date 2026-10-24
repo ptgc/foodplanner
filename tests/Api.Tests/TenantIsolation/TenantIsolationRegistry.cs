@@ -44,6 +44,11 @@ public static class TenantIsolationRegistry
             (_, household) => Task.FromResult(new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: false, UnitDimension.Mass)),
             entry => entry.Property(i => i.IsStaple).CurrentValue = true),
 
+        // Global-or-household categories and tags (T-023), like Ingredient.
+        TenantIsolationCase.ForCatalog<Tag>(
+            (_, household) => Task.FromResult(new Tag(household, "Isolation " + Guid.NewGuid().ToString("N"), TagKind.Tag)),
+            entry => entry.Property(t => t.Kind).CurrentValue = TagKind.Category),
+
         // Recipes (T-021). Children point to their recipe by id only; the parent row is seeded through the environment.
         TenantIsolationCase.For<Recipe>(
             (_, _) => Task.FromResult(new Recipe("Isolation " + Guid.NewGuid().ToString("N"), null, 4, 10, 20)),
@@ -67,6 +72,16 @@ public static class TenantIsolationRegistry
                 return new RecipeIngredient(recipe.Id, 0, IngredientSeed.All[0].Id, 1.5m, UnitSeed.All[0].Id, null);
             },
             entry => entry.Property(i => i.Note).CurrentValue = "finely chopped"),
+
+        // The join row (T-023): the tag is a seeded global row, which every household may reference. Mutate swaps it for another global tag.
+        TenantIsolationCase.For<RecipeTag>(
+            async (env, household) =>
+            {
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new RecipeTag(recipe.Id, TagSeed.All[5].Id);
+            },
+            entry => entry.Property(l => l.TagId).CurrentValue = TagSeed.All[6].Id),
     ];
 
     /// <summary>The registered catalog entities, for the global-row checks.</summary>

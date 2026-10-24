@@ -244,6 +244,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListTags"];
+        put?: never;
+        post: operations["CreateTag"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -270,6 +286,10 @@ export interface components {
         };
         CreateInviteRequest: {
             role: null | string;
+        };
+        CreateTagRequest: {
+            name: null | string;
+            kind: null | string;
         };
         HealthResponse: {
             status: string;
@@ -368,6 +388,7 @@ export interface components {
             cookMinutes: null | number | string;
             steps: null | components["schemas"]["RecipeStepRequest"][];
             ingredients: null | components["schemas"]["RecipeIngredientRequest"][];
+            tagIds: null | string[];
         };
         RecipeResponse: {
             /** Format: uuid */
@@ -384,6 +405,7 @@ export interface components {
             totalMinutes: null | number | string;
             steps: components["schemas"]["RecipeStepResponse"][];
             ingredients: components["schemas"]["RecipeIngredientResponse"][];
+            tags: components["schemas"]["TagResponse"][];
         };
         RecipeStepRequest: {
             text: null | string;
@@ -401,6 +423,7 @@ export interface components {
             servings: number | string;
             /** Format: int32 */
             totalMinutes: null | number | string;
+            tags: components["schemas"]["TagResponse"][];
         };
         RegisterRequest: {
             email: null | string;
@@ -408,6 +431,15 @@ export interface components {
         };
         RegisterResponse: {
             message: string;
+        };
+        /** @enum {unknown} */
+        TagKind: "Category" | "Tag";
+        TagResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            kind: components["schemas"]["TagKind"];
+            isGlobal: boolean;
         };
         /** @enum {unknown} */
         UnitDimension: "Mass" | "Volume" | "Count";
@@ -1035,6 +1067,9 @@ export interface operations {
         parameters: {
             query?: {
                 search?: string;
+                tagIds?: string[];
+                maxMinutes?: number | string;
+                ingredientId?: string[];
                 limit?: number | string;
                 offset?: number | string;
             };
@@ -1284,6 +1319,104 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateTag: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["CreateTagRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
