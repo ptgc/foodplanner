@@ -133,13 +133,16 @@ public sealed class AuthHost : IAsyncDisposable
         return new AuthHost(factory, time, hasher);
     }
 
+    /// <summary>Accept-Language for the clients this host creates (T-039); null sends none.</summary>
+    public string? DefaultLanguage { get; set; }
+
     public ApiClient CreateClient(string? remoteIp = null, bool useHttp = false) => new(_factory.CreateClient(new WebApplicationFactoryClientOptions
     {
         BaseAddress = new Uri(useHttp ? "http://localhost" : "https://localhost"),
         AllowAutoRedirect = false,
         HandleCookies = true,
     }))
-    { RemoteIp = remoteIp };
+    { RemoteIp = remoteIp, Language = DefaultLanguage };
 
     /// <summary>Creates a user straight in the store, as an already registered account.</summary>
     public async Task<AppUser> CreateUserAsync(string email, bool confirmed = true, string password = Password)
@@ -168,6 +171,9 @@ public sealed class AuthHost : IAsyncDisposable
 public sealed class ApiClient(HttpClient http) : IDisposable
 {
     public string? RemoteIp { get; set; }
+
+    /// <summary>Sent as Accept-Language on every request when set (T-039). Null sends none, which the API treats as English.</summary>
+    public string? Language { get; set; }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -273,6 +279,11 @@ public sealed class ApiClient(HttpClient http) : IDisposable
 
     private void AddRemoteIp(HttpRequestMessage request)
     {
+        if (Language is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Accept-Language", Language);
+        }
+
         if (RemoteIp is not null)
         {
             request.Headers.Add(RemoteIpStartupFilter.Header, RemoteIp);

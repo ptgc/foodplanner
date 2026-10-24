@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
+using Foodplanner.Domain.Localization;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -53,7 +54,8 @@ internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbConte
             throw new HubException("weekStart must be the Monday of an ISO week, as yyyy-MM-dd.");
         }
 
-        var list = await ShoppingListEndpoints.ReadAsync(db, monday, Context.ConnectionAborted);
+        var list = await ShoppingListEndpoints.ReadAsync(
+            db, monday, Locales.Negotiate(Context.GetHttpContext()?.Request.Headers.AcceptLanguage.ToString()), Context.ConnectionAborted);
         var hash = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(list, VersionJson));
         return new ShoppingListState(Convert.ToHexStringLower(hash.AsSpan(0, 12)), list);
     }

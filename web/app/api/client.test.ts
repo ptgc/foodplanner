@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLocale } from "../i18n";
 import { api, resetAntiforgeryToken } from "./client";
 
 const json = (body: unknown, status = 200) =>
@@ -25,6 +26,19 @@ beforeEach(() => {
   resetAntiforgeryToken();
 });
 afterEach(() => vi.unstubAllGlobals());
+
+describe("language middleware", () => {
+  afterEach(() => setLocale("en", false));
+
+  it("sends the active locale as Accept-Language and follows a switch", async () => {
+    const calls = stub();
+    setLocale("nb", false);
+    await api.GET("/api/auth/me");
+    setLocale("en", false);
+    await api.GET("/api/auth/me");
+    expect(calls.map((c) => c.headers.get("Accept-Language"))).toEqual(["nb", "en"]);
+  });
+});
 
 describe("antiforgery middleware", () => {
   it("does not fetch a token or add the header for GET", async () => {

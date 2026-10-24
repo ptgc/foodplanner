@@ -1,4 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
+import { getLocale } from "../i18n";
 import type { paths } from "./schema";
 
 // All API types come from the generated schema.d.ts (npm run api:generate); none are hand-written.
@@ -44,5 +45,17 @@ const antiforgery: Middleware = {
   },
 };
 
+// The API answers in the language of Accept-Language (nb or en) for catalog names: ingredients, units and tags.
+// It follows the app's active locale, read per request so a language switch applies to the next call.
+export const ACCEPT_LANGUAGE_HEADER = "Accept-Language";
+
+const language: Middleware = {
+  onRequest({ request }) {
+    request.headers.set(ACCEPT_LANGUAGE_HEADER, getLocale());
+    return request;
+  },
+};
+
 export const api = createClient<paths>(options);
+api.use(language);
 api.use(antiforgery);

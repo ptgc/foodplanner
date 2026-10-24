@@ -7,7 +7,7 @@ namespace Foodplanner.Domain.Catalog;
 /// A staple (salt, oil, flour) is never auto-added to a shopping list. <see cref="Dimension"/> is what the ingredient is
 /// normally measured in, a hint for the recipe editor (T-021).
 /// </summary>
-public sealed class Ingredient : Entity, ICatalogEntity
+public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
 {
     public const int MaxNameLength = 100;
 

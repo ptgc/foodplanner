@@ -19,7 +19,13 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
     private static readonly Guid Rask = TagSeed.All.Single(t => t.Key == "rask").Id;
     private static readonly Guid Middag = TagSeed.All.Single(t => t.Key == "middag").Id;
 
-    private AuthHost Host() => HouseholdHost.Create(db.ConnectionString);
+    // The seeded names asserted in this class are the Norwegian ones; English and the fallbacks are tested in CatalogTranslationTests.
+    private AuthHost Host()
+    {
+        var host = HouseholdHost.Create(db.ConnectionString);
+        host.DefaultLanguage = "nb";
+        return host;
+    }
 
     private static string Url(Guid household, string rest = "") => $"/api/households/{household}/recipes{rest}";
 
@@ -156,7 +162,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
             }
         }
 
-        Assert.Equal(1, await CountAsync("Tags", "Id = @t AND Name = N'Vegetar' AND HouseholdId IS NULL", ("@t", Vegetar)));
+        Assert.Equal(1, await CountAsync("Tags", "Id = @t AND Name = N'Vegetarian' AND HouseholdId IS NULL", ("@t", Vegetar)));
     }
 
     [Fact]

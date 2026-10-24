@@ -22,6 +22,1867 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("Foodplanner.Domain.Catalog.CatalogTranslation", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Kind", "EntityId", "Locale");
+
+                    b.HasIndex("Kind", "Name");
+
+                    b.ToTable("CatalogTranslations", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("dff32bc5-07cd-59dd-9ba1-46f7e110ff57"),
+                            Locale = "en",
+                            Name = "Onion"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("dff32bc5-07cd-59dd-9ba1-46f7e110ff57"),
+                            Locale = "nb",
+                            Name = "Løk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("302edd54-59dc-5145-b469-c988cf1f3694"),
+                            Locale = "en",
+                            Name = "Red onion"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("302edd54-59dc-5145-b469-c988cf1f3694"),
+                            Locale = "nb",
+                            Name = "Rødløk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7bb12c8d-a801-55bd-b957-f04f33baddf2"),
+                            Locale = "en",
+                            Name = "Garlic"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7bb12c8d-a801-55bd-b957-f04f33baddf2"),
+                            Locale = "nb",
+                            Name = "Hvitløk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0942b134-c6e7-5b24-b9c7-0aa52f8783d6"),
+                            Locale = "en",
+                            Name = "Spring onion"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0942b134-c6e7-5b24-b9c7-0aa52f8783d6"),
+                            Locale = "nb",
+                            Name = "Vårløk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("80db0d1f-6512-58a7-a507-887a43683457"),
+                            Locale = "en",
+                            Name = "Leek"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("80db0d1f-6512-58a7-a507-887a43683457"),
+                            Locale = "nb",
+                            Name = "Purre"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("578d165a-9764-56e3-8eee-7979def50aef"),
+                            Locale = "en",
+                            Name = "Carrot"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("578d165a-9764-56e3-8eee-7979def50aef"),
+                            Locale = "nb",
+                            Name = "Gulrot"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6aca22ad-6eff-588f-b605-fb3d2c81df89"),
+                            Locale = "en",
+                            Name = "Potato"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6aca22ad-6eff-588f-b605-fb3d2c81df89"),
+                            Locale = "nb",
+                            Name = "Potet"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e2221128-f4f3-5415-9ad2-2a3444660f18"),
+                            Locale = "en",
+                            Name = "Sweet potato"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e2221128-f4f3-5415-9ad2-2a3444660f18"),
+                            Locale = "nb",
+                            Name = "Søtpotet"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7c5a3a77-7111-56d6-82ac-12d5fa52c10c"),
+                            Locale = "en",
+                            Name = "Broccoli"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7c5a3a77-7111-56d6-82ac-12d5fa52c10c"),
+                            Locale = "nb",
+                            Name = "Brokkoli"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("28f29641-7731-5158-ad85-90ace26007a6"),
+                            Locale = "en",
+                            Name = "Cauliflower"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("28f29641-7731-5158-ad85-90ace26007a6"),
+                            Locale = "nb",
+                            Name = "Blomkål"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b1c9c75b-ca8c-5b1d-931b-7ae58472b2f4"),
+                            Locale = "en",
+                            Name = "White cabbage"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b1c9c75b-ca8c-5b1d-931b-7ae58472b2f4"),
+                            Locale = "nb",
+                            Name = "Hvitkål"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6e596366-2e86-5b36-ae83-f0d5749150a1"),
+                            Locale = "en",
+                            Name = "Tomato"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6e596366-2e86-5b36-ae83-f0d5749150a1"),
+                            Locale = "nb",
+                            Name = "Tomat"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("182bfd36-b47f-51af-b97d-c9c5e870636a"),
+                            Locale = "en",
+                            Name = "Canned tomatoes"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("182bfd36-b47f-51af-b97d-c9c5e870636a"),
+                            Locale = "nb",
+                            Name = "Hermetiske tomater"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("25530a97-c780-5914-b22c-c281940b37e1"),
+                            Locale = "en",
+                            Name = "Tomato puree"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("25530a97-c780-5914-b22c-c281940b37e1"),
+                            Locale = "nb",
+                            Name = "Tomatpuré"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e995deeb-fa91-5698-ab94-caf43f7c4cc8"),
+                            Locale = "en",
+                            Name = "Cucumber"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e995deeb-fa91-5698-ab94-caf43f7c4cc8"),
+                            Locale = "nb",
+                            Name = "Agurk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c253a6bb-412a-5308-8ba4-ff2ffba19662"),
+                            Locale = "en",
+                            Name = "Bell pepper"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c253a6bb-412a-5308-8ba4-ff2ffba19662"),
+                            Locale = "nb",
+                            Name = "Paprika"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f89cfb7c-b140-5315-be9b-31c60bb5f945"),
+                            Locale = "en",
+                            Name = "Zucchini"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f89cfb7c-b140-5315-be9b-31c60bb5f945"),
+                            Locale = "nb",
+                            Name = "Squash"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("12aaac43-57fb-55c3-979c-3a7cd2c71f22"),
+                            Locale = "en",
+                            Name = "Eggplant"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("12aaac43-57fb-55c3-979c-3a7cd2c71f22"),
+                            Locale = "nb",
+                            Name = "Aubergine"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d4e4de1c-5557-5d29-b2c7-ea8f29035f8a"),
+                            Locale = "en",
+                            Name = "Corn"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d4e4de1c-5557-5d29-b2c7-ea8f29035f8a"),
+                            Locale = "nb",
+                            Name = "Mais"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("14edc321-5475-52f2-9b9c-a8e58631d691"),
+                            Locale = "en",
+                            Name = "Peas"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("14edc321-5475-52f2-9b9c-a8e58631d691"),
+                            Locale = "nb",
+                            Name = "Erter"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("906be377-84d2-5135-b6d5-4d95e9242255"),
+                            Locale = "en",
+                            Name = "Spinach"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("906be377-84d2-5135-b6d5-4d95e9242255"),
+                            Locale = "nb",
+                            Name = "Spinat"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("817f66e7-a5b1-57f8-9126-3047278e0740"),
+                            Locale = "en",
+                            Name = "Lettuce"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("817f66e7-a5b1-57f8-9126-3047278e0740"),
+                            Locale = "nb",
+                            Name = "Salat"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("91ea51af-b23d-525a-8f73-4b3a9b1579d7"),
+                            Locale = "en",
+                            Name = "Mushrooms"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("91ea51af-b23d-525a-8f73-4b3a9b1579d7"),
+                            Locale = "nb",
+                            Name = "Sopp"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c66300ab-d1cc-516a-b548-7428baa2cef0"),
+                            Locale = "en",
+                            Name = "Ginger"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c66300ab-d1cc-516a-b548-7428baa2cef0"),
+                            Locale = "nb",
+                            Name = "Ingefær"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("3cb77c8d-983a-5eef-a4fe-ac08cb08309b"),
+                            Locale = "en",
+                            Name = "Chili"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("3cb77c8d-983a-5eef-a4fe-ac08cb08309b"),
+                            Locale = "nb",
+                            Name = "Chili"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("062621ee-301b-53d1-aa7b-0e00f1c33081"),
+                            Locale = "en",
+                            Name = "Celery"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("062621ee-301b-53d1-aa7b-0e00f1c33081"),
+                            Locale = "nb",
+                            Name = "Selleri"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0d7adfbb-5b54-5ae4-bd7e-ab5ea9de6b86"),
+                            Locale = "en",
+                            Name = "Apple"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0d7adfbb-5b54-5ae4-bd7e-ab5ea9de6b86"),
+                            Locale = "nb",
+                            Name = "Eple"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("a994e67c-5ac7-5793-b00f-546bcc2a1822"),
+                            Locale = "en",
+                            Name = "Banana"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("a994e67c-5ac7-5793-b00f-546bcc2a1822"),
+                            Locale = "nb",
+                            Name = "Banan"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("481a68a8-b863-58be-87c5-0f2860de7f0e"),
+                            Locale = "en",
+                            Name = "Lemon"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("481a68a8-b863-58be-87c5-0f2860de7f0e"),
+                            Locale = "nb",
+                            Name = "Sitron"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("fa28a23a-4e65-50c5-b127-f3e6b1bd37d9"),
+                            Locale = "en",
+                            Name = "Lime"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("fa28a23a-4e65-50c5-b127-f3e6b1bd37d9"),
+                            Locale = "nb",
+                            Name = "Lime"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("5a4a9fbe-71e7-55a1-bd65-e5a626e66c51"),
+                            Locale = "en",
+                            Name = "Orange"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("5a4a9fbe-71e7-55a1-bd65-e5a626e66c51"),
+                            Locale = "nb",
+                            Name = "Appelsin"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("16bb8de3-129a-5b67-867e-969a2270c5e5"),
+                            Locale = "en",
+                            Name = "Strawberries"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("16bb8de3-129a-5b67-867e-969a2270c5e5"),
+                            Locale = "nb",
+                            Name = "Jordbær"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("60cfdd20-06dd-509e-91d6-df0929a098c7"),
+                            Locale = "en",
+                            Name = "Blueberries"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("60cfdd20-06dd-509e-91d6-df0929a098c7"),
+                            Locale = "nb",
+                            Name = "Blåbær"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1127b196-6678-52fb-afe8-80ffd554e70c"),
+                            Locale = "en",
+                            Name = "Chicken breast fillet"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1127b196-6678-52fb-afe8-80ffd554e70c"),
+                            Locale = "nb",
+                            Name = "Kyllingfilet"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9889b811-51f0-5a78-911f-ddf64315f5dd"),
+                            Locale = "en",
+                            Name = "Chicken thighs"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9889b811-51f0-5a78-911f-ddf64315f5dd"),
+                            Locale = "nb",
+                            Name = "Kyllinglår"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("340165f7-81cb-5452-8e49-a5a4e02d3962"),
+                            Locale = "en",
+                            Name = "Minced meat"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("340165f7-81cb-5452-8e49-a5a4e02d3962"),
+                            Locale = "nb",
+                            Name = "Kjøttdeig"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2f80230b-4d31-56e2-b12f-f79776e21680"),
+                            Locale = "en",
+                            Name = "Pork chop"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2f80230b-4d31-56e2-b12f-f79776e21680"),
+                            Locale = "nb",
+                            Name = "Svinekotelett"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("55d1d54c-4791-500c-947d-11264953c044"),
+                            Locale = "en",
+                            Name = "Bacon"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("55d1d54c-4791-500c-947d-11264953c044"),
+                            Locale = "nb",
+                            Name = "Bacon"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("079d2db4-8e75-543b-84fe-5c82a7963559"),
+                            Locale = "en",
+                            Name = "Ham"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("079d2db4-8e75-543b-84fe-5c82a7963559"),
+                            Locale = "nb",
+                            Name = "Skinke"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0c6bbe3a-b113-52a5-9fbe-c680dc6fa614"),
+                            Locale = "en",
+                            Name = "Sausages"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0c6bbe3a-b113-52a5-9fbe-c680dc6fa614"),
+                            Locale = "nb",
+                            Name = "Pølser"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("86d85834-4e8c-5e1a-b079-556dde755928"),
+                            Locale = "en",
+                            Name = "Salmon"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("86d85834-4e8c-5e1a-b079-556dde755928"),
+                            Locale = "nb",
+                            Name = "Laks"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7c3ea56c-14ca-5a91-afdc-f568bf2a44f9"),
+                            Locale = "en",
+                            Name = "Cod"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7c3ea56c-14ca-5a91-afdc-f568bf2a44f9"),
+                            Locale = "nb",
+                            Name = "Torsk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6968fff3-8d67-5bca-ac32-0caea672f02b"),
+                            Locale = "en",
+                            Name = "Shrimp"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6968fff3-8d67-5bca-ac32-0caea672f02b"),
+                            Locale = "nb",
+                            Name = "Reker"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ece38aeb-5105-5eef-b921-af6c0f1c3ce0"),
+                            Locale = "en",
+                            Name = "Tuna"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ece38aeb-5105-5eef-b921-af6c0f1c3ce0"),
+                            Locale = "nb",
+                            Name = "Tunfisk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2c102b4b-c557-59f1-ba38-fbb7edef5a2b"),
+                            Locale = "en",
+                            Name = "Fish fingers"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2c102b4b-c557-59f1-ba38-fbb7edef5a2b"),
+                            Locale = "nb",
+                            Name = "Fiskepinner"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f8986fd1-a524-5ff0-80e3-9795f0d5de2d"),
+                            Locale = "en",
+                            Name = "Milk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f8986fd1-a524-5ff0-80e3-9795f0d5de2d"),
+                            Locale = "nb",
+                            Name = "Melk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b9f18d0b-f60a-5c28-9838-37fe57d7e2cc"),
+                            Locale = "en",
+                            Name = "Cream"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b9f18d0b-f60a-5c28-9838-37fe57d7e2cc"),
+                            Locale = "nb",
+                            Name = "Fløte"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("cc94a551-2fb1-5df4-ba10-27663092ade6"),
+                            Locale = "en",
+                            Name = "Cooking cream"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("cc94a551-2fb1-5df4-ba10-27663092ade6"),
+                            Locale = "nb",
+                            Name = "Matfløte"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("05a6160e-87cd-5d2c-81df-c0a753ba5e19"),
+                            Locale = "en",
+                            Name = "Sour cream"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("05a6160e-87cd-5d2c-81df-c0a753ba5e19"),
+                            Locale = "nb",
+                            Name = "Rømme"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ae6ce0de-ba86-5cb2-a56f-a0c8449a0ca6"),
+                            Locale = "en",
+                            Name = "Crème fraîche"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ae6ce0de-ba86-5cb2-a56f-a0c8449a0ca6"),
+                            Locale = "nb",
+                            Name = "Crème fraîche"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6871d5c3-f983-5046-870b-095b26f4c9b3"),
+                            Locale = "en",
+                            Name = "Plain yoghurt"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6871d5c3-f983-5046-870b-095b26f4c9b3"),
+                            Locale = "nb",
+                            Name = "Yoghurt naturell"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("81be2532-c29d-5f62-a1da-1985004d8435"),
+                            Locale = "en",
+                            Name = "Butter"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("81be2532-c29d-5f62-a1da-1985004d8435"),
+                            Locale = "nb",
+                            Name = "Smør"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("810748fa-acf5-538c-b92e-93de60765fb8"),
+                            Locale = "en",
+                            Name = "Cheese"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("810748fa-acf5-538c-b92e-93de60765fb8"),
+                            Locale = "nb",
+                            Name = "Ost"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2da824bf-7d71-5906-8fd3-a2a54e547c69"),
+                            Locale = "en",
+                            Name = "Mozzarella"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2da824bf-7d71-5906-8fd3-a2a54e547c69"),
+                            Locale = "nb",
+                            Name = "Mozzarella"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("a17d723e-660b-5394-bacf-3f4a7f1dd119"),
+                            Locale = "en",
+                            Name = "Parmesan"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("a17d723e-660b-5394-bacf-3f4a7f1dd119"),
+                            Locale = "nb",
+                            Name = "Parmesan"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("991a40d6-f019-532c-98ab-cf03a2ff1ef0"),
+                            Locale = "en",
+                            Name = "Brown cheese"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("991a40d6-f019-532c-98ab-cf03a2ff1ef0"),
+                            Locale = "nb",
+                            Name = "Brunost"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6593ae76-1a40-50b7-b118-976d50dd35a1"),
+                            Locale = "en",
+                            Name = "Egg"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6593ae76-1a40-50b7-b118-976d50dd35a1"),
+                            Locale = "nb",
+                            Name = "Egg"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("aab25390-c788-518b-aaef-0cb573a5ba10"),
+                            Locale = "en",
+                            Name = "Cottage cheese"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("aab25390-c788-518b-aaef-0cb573a5ba10"),
+                            Locale = "nb",
+                            Name = "Cottage cheese"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("792a6751-38e0-5406-a86d-cf376c44014d"),
+                            Locale = "en",
+                            Name = "Pasta"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("792a6751-38e0-5406-a86d-cf376c44014d"),
+                            Locale = "nb",
+                            Name = "Pasta"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("38796544-559e-5b16-833c-65eae0c8be7a"),
+                            Locale = "en",
+                            Name = "Spaghetti"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("38796544-559e-5b16-833c-65eae0c8be7a"),
+                            Locale = "nb",
+                            Name = "Spaghetti"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6bbf5e98-4b0d-5818-9efc-c9fd3010a527"),
+                            Locale = "en",
+                            Name = "Rice"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6bbf5e98-4b0d-5818-9efc-c9fd3010a527"),
+                            Locale = "nb",
+                            Name = "Ris"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("28317d98-d5d6-521a-b011-a35b77fa4f55"),
+                            Locale = "en",
+                            Name = "Couscous"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("28317d98-d5d6-521a-b011-a35b77fa4f55"),
+                            Locale = "nb",
+                            Name = "Couscous"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("5a1af167-140c-561c-a977-8aefd9618c68"),
+                            Locale = "en",
+                            Name = "Noodles"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("5a1af167-140c-561c-a977-8aefd9618c68"),
+                            Locale = "nb",
+                            Name = "Nudler"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("18aeb9c6-f737-5ae7-a050-a69952a33d65"),
+                            Locale = "en",
+                            Name = "Rolled oats"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("18aeb9c6-f737-5ae7-a050-a69952a33d65"),
+                            Locale = "nb",
+                            Name = "Havregryn"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ba45e4fc-b4a3-55b3-b0b7-dcfb22358b0e"),
+                            Locale = "en",
+                            Name = "Bread"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ba45e4fc-b4a3-55b3-b0b7-dcfb22358b0e"),
+                            Locale = "nb",
+                            Name = "Brød"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0ede68df-ce20-58e2-a9fa-6cbeadf05b8b"),
+                            Locale = "en",
+                            Name = "Tortilla wraps"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0ede68df-ce20-58e2-a9fa-6cbeadf05b8b"),
+                            Locale = "nb",
+                            Name = "Tortillalefser"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("bedbb7cc-d514-5978-a105-6671fa93e8c3"),
+                            Locale = "en",
+                            Name = "Lentils"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("bedbb7cc-d514-5978-a105-6671fa93e8c3"),
+                            Locale = "nb",
+                            Name = "Linser"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f820ab7f-4d7f-51ec-a99b-53196dbdc901"),
+                            Locale = "en",
+                            Name = "Chickpeas"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("f820ab7f-4d7f-51ec-a99b-53196dbdc901"),
+                            Locale = "nb",
+                            Name = "Kikerter"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("74a75ef6-eb74-5fe8-930a-6359f770bd74"),
+                            Locale = "en",
+                            Name = "Kidney beans"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("74a75ef6-eb74-5fe8-930a-6359f770bd74"),
+                            Locale = "nb",
+                            Name = "Kidneybønner"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("018b5367-aabf-5218-9a80-387c1eefa30a"),
+                            Locale = "en",
+                            Name = "Coconut milk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("018b5367-aabf-5218-9a80-387c1eefa30a"),
+                            Locale = "nb",
+                            Name = "Kokosmelk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("62629f8f-0cb8-5245-a091-6a7fe95b914b"),
+                            Locale = "en",
+                            Name = "Stock cube"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("62629f8f-0cb8-5245-a091-6a7fe95b914b"),
+                            Locale = "nb",
+                            Name = "Buljongterning"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("22fdd055-6217-5f93-93a4-e2c4fad857cb"),
+                            Locale = "en",
+                            Name = "Soy sauce"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("22fdd055-6217-5f93-93a4-e2c4fad857cb"),
+                            Locale = "nb",
+                            Name = "Soyasaus"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("48f5afed-5b6d-5e25-af57-48a47694d3f7"),
+                            Locale = "en",
+                            Name = "Mustard"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("48f5afed-5b6d-5e25-af57-48a47694d3f7"),
+                            Locale = "nb",
+                            Name = "Sennep"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("79178d43-875e-52fa-83a7-33583762c88c"),
+                            Locale = "en",
+                            Name = "Ketchup"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("79178d43-875e-52fa-83a7-33583762c88c"),
+                            Locale = "nb",
+                            Name = "Ketchup"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d8fa323d-76da-59c0-a895-1924aa8a3ca0"),
+                            Locale = "en",
+                            Name = "Mayonnaise"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d8fa323d-76da-59c0-a895-1924aa8a3ca0"),
+                            Locale = "nb",
+                            Name = "Majones"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("dd4248ca-3750-5bf7-b7e7-610a6388f7cf"),
+                            Locale = "en",
+                            Name = "Honey"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("dd4248ca-3750-5bf7-b7e7-610a6388f7cf"),
+                            Locale = "nb",
+                            Name = "Honning"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7d4f5a75-b5cb-5e1d-9db0-44d5f4e16256"),
+                            Locale = "en",
+                            Name = "Syrup"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("7d4f5a75-b5cb-5e1d-9db0-44d5f4e16256"),
+                            Locale = "nb",
+                            Name = "Sirup"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("358bbaa7-68e5-5ebb-8bd7-adaa02707a1f"),
+                            Locale = "en",
+                            Name = "Peanut butter"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("358bbaa7-68e5-5ebb-8bd7-adaa02707a1f"),
+                            Locale = "nb",
+                            Name = "Peanøttsmør"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e0ba0668-a3ec-50ba-9063-115da67c2e6a"),
+                            Locale = "en",
+                            Name = "Salt"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e0ba0668-a3ec-50ba-9063-115da67c2e6a"),
+                            Locale = "nb",
+                            Name = "Salt"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("78b635b5-8e1f-505f-a6dc-de67f8593ec1"),
+                            Locale = "en",
+                            Name = "Black pepper"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("78b635b5-8e1f-505f-a6dc-de67f8593ec1"),
+                            Locale = "nb",
+                            Name = "Sort pepper"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ed472bba-a9e2-5b5c-89f9-296472b8617b"),
+                            Locale = "en",
+                            Name = "Paprika powder"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ed472bba-a9e2-5b5c-89f9-296472b8617b"),
+                            Locale = "nb",
+                            Name = "Paprikapulver"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c223976c-0aec-54e8-b637-0bffe6cd80c5"),
+                            Locale = "en",
+                            Name = "Cinnamon"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c223976c-0aec-54e8-b637-0bffe6cd80c5"),
+                            Locale = "nb",
+                            Name = "Kanel"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6eb278e9-119d-5994-af30-45094f1072bd"),
+                            Locale = "en",
+                            Name = "Cumin"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6eb278e9-119d-5994-af30-45094f1072bd"),
+                            Locale = "nb",
+                            Name = "Spisskummen"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("79b6b702-e4f9-5017-9a69-367c785fcaf8"),
+                            Locale = "en",
+                            Name = "Oregano"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("79b6b702-e4f9-5017-9a69-367c785fcaf8"),
+                            Locale = "nb",
+                            Name = "Oregano"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("722e16a9-d3ff-5004-9772-10933d4fe6bd"),
+                            Locale = "en",
+                            Name = "Thyme"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("722e16a9-d3ff-5004-9772-10933d4fe6bd"),
+                            Locale = "nb",
+                            Name = "Timian"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2437ea85-570e-5944-8af8-0a9572fae257"),
+                            Locale = "en",
+                            Name = "Basil"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("2437ea85-570e-5944-8af8-0a9572fae257"),
+                            Locale = "nb",
+                            Name = "Basilikum"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("4cc2ada6-73b1-506f-818f-c5855d935d73"),
+                            Locale = "en",
+                            Name = "Parsley"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("4cc2ada6-73b1-506f-818f-c5855d935d73"),
+                            Locale = "nb",
+                            Name = "Persille"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("da9bf5f7-9cdb-563d-91aa-38553c382aa6"),
+                            Locale = "en",
+                            Name = "Chives"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("da9bf5f7-9cdb-563d-91aa-38553c382aa6"),
+                            Locale = "nb",
+                            Name = "Gressløk"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6c2abe88-f414-54a9-8516-1bdc57f79b80"),
+                            Locale = "en",
+                            Name = "Curry powder"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("6c2abe88-f414-54a9-8516-1bdc57f79b80"),
+                            Locale = "nb",
+                            Name = "Karri"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e387d7f6-3531-5fac-8ff5-1828c0a487f0"),
+                            Locale = "en",
+                            Name = "Nutmeg"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("e387d7f6-3531-5fac-8ff5-1828c0a487f0"),
+                            Locale = "nb",
+                            Name = "Muskat"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1e775c0f-11de-56e3-9e48-162a8ce306b5"),
+                            Locale = "en",
+                            Name = "Bay leaf"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1e775c0f-11de-56e3-9e48-162a8ce306b5"),
+                            Locale = "nb",
+                            Name = "Laurbærblad"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("00b577aa-2127-533c-8a68-f9099001f88a"),
+                            Locale = "en",
+                            Name = "Cardamom"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("00b577aa-2127-533c-8a68-f9099001f88a"),
+                            Locale = "nb",
+                            Name = "Kardemomme"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("12e6be7c-2862-509e-b602-b5bac890ca06"),
+                            Locale = "en",
+                            Name = "Wheat flour"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("12e6be7c-2862-509e-b602-b5bac890ca06"),
+                            Locale = "nb",
+                            Name = "Hvetemel"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d25c1950-1087-560e-998d-498e10cf418e"),
+                            Locale = "en",
+                            Name = "Sugar"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d25c1950-1087-560e-998d-498e10cf418e"),
+                            Locale = "nb",
+                            Name = "Sukker"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9455e9ad-ee5e-525c-81af-05f95ddaebcf"),
+                            Locale = "en",
+                            Name = "Icing sugar"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9455e9ad-ee5e-525c-81af-05f95ddaebcf"),
+                            Locale = "nb",
+                            Name = "Melis"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1105b71c-7f8b-537d-a00c-11f2d21798a2"),
+                            Locale = "en",
+                            Name = "Brown sugar"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("1105b71c-7f8b-537d-a00c-11f2d21798a2"),
+                            Locale = "nb",
+                            Name = "Brunt sukker"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("cef2dcdd-aab6-56b0-b4a7-cf69803006e2"),
+                            Locale = "en",
+                            Name = "Baking powder"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("cef2dcdd-aab6-56b0-b4a7-cf69803006e2"),
+                            Locale = "nb",
+                            Name = "Bakepulver"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("da5739f3-0171-54c0-834f-f0ea0632e189"),
+                            Locale = "en",
+                            Name = "Baking soda"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("da5739f3-0171-54c0-834f-f0ea0632e189"),
+                            Locale = "nb",
+                            Name = "Natron"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("fe6a6905-3590-54db-8bc7-5f9be03dffde"),
+                            Locale = "en",
+                            Name = "Vanilla sugar"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("fe6a6905-3590-54db-8bc7-5f9be03dffde"),
+                            Locale = "nb",
+                            Name = "Vaniljesukker"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ac11796b-2f44-52fb-8524-6fa2b3340a6c"),
+                            Locale = "en",
+                            Name = "Cocoa"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ac11796b-2f44-52fb-8524-6fa2b3340a6c"),
+                            Locale = "nb",
+                            Name = "Kakao"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b86a1379-8389-5a39-9081-14c0e331f2cd"),
+                            Locale = "en",
+                            Name = "Yeast"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b86a1379-8389-5a39-9081-14c0e331f2cd"),
+                            Locale = "nb",
+                            Name = "Gjær"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0eb2fb2b-c95a-5044-99a3-d9453c52cc2d"),
+                            Locale = "en",
+                            Name = "Cornstarch"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("0eb2fb2b-c95a-5044-99a3-d9453c52cc2d"),
+                            Locale = "nb",
+                            Name = "Maisenna"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9239cd66-0bdd-5d2f-90be-fdd746ebdc98"),
+                            Locale = "en",
+                            Name = "Chocolate"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("9239cd66-0bdd-5d2f-90be-fdd746ebdc98"),
+                            Locale = "nb",
+                            Name = "Sjokolade"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b3daf0da-3cb7-5aec-bf47-ed04f352bec0"),
+                            Locale = "en",
+                            Name = "Rapeseed oil"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("b3daf0da-3cb7-5aec-bf47-ed04f352bec0"),
+                            Locale = "nb",
+                            Name = "Rapsolje"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ab733b3b-71d1-5d14-99a5-32905ee589ed"),
+                            Locale = "en",
+                            Name = "Olive oil"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("ab733b3b-71d1-5d14-99a5-32905ee589ed"),
+                            Locale = "nb",
+                            Name = "Olivenolje"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("4e968abd-1dfe-579d-acf9-de5fdfeae671"),
+                            Locale = "en",
+                            Name = "Vinegar"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("4e968abd-1dfe-579d-acf9-de5fdfeae671"),
+                            Locale = "nb",
+                            Name = "Eddik"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c2b92c25-7566-522e-b817-beedfe24fd49"),
+                            Locale = "en",
+                            Name = "Water"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("c2b92c25-7566-522e-b817-beedfe24fd49"),
+                            Locale = "nb",
+                            Name = "Vann"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("21341ca2-75fd-5c45-864a-084b06676bc3"),
+                            Locale = "en",
+                            Name = "gram"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("21341ca2-75fd-5c45-864a-084b06676bc3"),
+                            Locale = "nb",
+                            Name = "gram"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("668e1f20-d880-5cf9-8120-e4d65e55bb52"),
+                            Locale = "en",
+                            Name = "kilogram"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("668e1f20-d880-5cf9-8120-e4d65e55bb52"),
+                            Locale = "nb",
+                            Name = "kilogram"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("be6d83b2-31bd-5979-b8be-193939902ee1"),
+                            Locale = "en",
+                            Name = "milliliter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("be6d83b2-31bd-5979-b8be-193939902ee1"),
+                            Locale = "nb",
+                            Name = "milliliter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("74ab4d15-0762-5bb2-88b9-a0a57179b878"),
+                            Locale = "en",
+                            Name = "deciliter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("74ab4d15-0762-5bb2-88b9-a0a57179b878"),
+                            Locale = "nb",
+                            Name = "desiliter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("bd160927-abba-5cdb-883e-f18ee85434c2"),
+                            Locale = "en",
+                            Name = "liter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("bd160927-abba-5cdb-883e-f18ee85434c2"),
+                            Locale = "nb",
+                            Name = "liter"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("780932a4-30a7-5208-8edc-b185679fc00c"),
+                            Locale = "en",
+                            Name = "teaspoon"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("780932a4-30a7-5208-8edc-b185679fc00c"),
+                            Locale = "nb",
+                            Name = "teskje"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("745cb6dc-58a7-5454-baa5-d2b9e5faf17e"),
+                            Locale = "en",
+                            Name = "tablespoon"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("745cb6dc-58a7-5454-baa5-d2b9e5faf17e"),
+                            Locale = "nb",
+                            Name = "spiseskje"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("0b27c324-159b-513c-8bcb-a11f7da2247f"),
+                            Locale = "en",
+                            Name = "cup"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("0b27c324-159b-513c-8bcb-a11f7da2247f"),
+                            Locale = "nb",
+                            Name = "kopp"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("bd92778d-4bcc-5c00-a80d-1bd1a08afb58"),
+                            Locale = "en",
+                            Name = "piece"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("bd92778d-4bcc-5c00-a80d-1bd1a08afb58"),
+                            Locale = "nb",
+                            Name = "stykk"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("c7969cfb-2cf1-5d5f-9855-504b47ed4faf"),
+                            Locale = "en",
+                            Name = "clove"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("c7969cfb-2cf1-5d5f-9855-504b47ed4faf"),
+                            Locale = "nb",
+                            Name = "fedd"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("5bd4a484-e162-589c-a8db-456552bb256f"),
+                            Locale = "en",
+                            Name = "pinch"
+                        },
+                        new
+                        {
+                            Kind = "unit",
+                            EntityId = new Guid("5bd4a484-e162-589c-a8db-456552bb256f"),
+                            Locale = "nb",
+                            Name = "klype"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("116bd925-5e28-5aa6-b8d7-1be4b654428b"),
+                            Locale = "en",
+                            Name = "Dinner"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("116bd925-5e28-5aa6-b8d7-1be4b654428b"),
+                            Locale = "nb",
+                            Name = "Middag"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("e15c99ac-dd7b-516a-9e39-ea1881b8798b"),
+                            Locale = "en",
+                            Name = "Lunch"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("e15c99ac-dd7b-516a-9e39-ea1881b8798b"),
+                            Locale = "nb",
+                            Name = "Lunsj"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("3499a5e6-0a40-5a7a-913a-e4a3bf9a0d78"),
+                            Locale = "en",
+                            Name = "Breakfast"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("3499a5e6-0a40-5a7a-913a-e4a3bf9a0d78"),
+                            Locale = "nb",
+                            Name = "Frokost"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("fadf24a6-74f5-5991-a159-54e29d3489f1"),
+                            Locale = "en",
+                            Name = "Dessert"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("fadf24a6-74f5-5991-a159-54e29d3489f1"),
+                            Locale = "nb",
+                            Name = "Dessert"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("9783fe91-642e-54d7-94ed-6c6daf55afc4"),
+                            Locale = "en",
+                            Name = "Baking"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("9783fe91-642e-54d7-94ed-6c6daf55afc4"),
+                            Locale = "nb",
+                            Name = "Bakst"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("1b7b0e72-5763-5bbf-abbd-dd710f275db5"),
+                            Locale = "en",
+                            Name = "Vegetarian"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("1b7b0e72-5763-5bbf-abbd-dd710f275db5"),
+                            Locale = "nb",
+                            Name = "Vegetar"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("a6f985f6-8c31-526b-9090-1115c56cde39"),
+                            Locale = "en",
+                            Name = "Fish"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("a6f985f6-8c31-526b-9090-1115c56cde39"),
+                            Locale = "nb",
+                            Name = "Fisk"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("c9540730-73c0-5f9e-af48-8dbebeaf9f04"),
+                            Locale = "en",
+                            Name = "Chicken"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("c9540730-73c0-5f9e-af48-8dbebeaf9f04"),
+                            Locale = "nb",
+                            Name = "Kylling"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("275e7f12-8016-5cca-86bc-24e60a545b02"),
+                            Locale = "en",
+                            Name = "Meat"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("275e7f12-8016-5cca-86bc-24e60a545b02"),
+                            Locale = "nb",
+                            Name = "Kjøtt"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("ea055abc-60e0-5d30-8147-3b23d030c8a2"),
+                            Locale = "en",
+                            Name = "Pasta"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("ea055abc-60e0-5d30-8147-3b23d030c8a2"),
+                            Locale = "nb",
+                            Name = "Pasta"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("b1b9d3d6-f8bf-5c24-a830-0da73ab73b11"),
+                            Locale = "en",
+                            Name = "Soup"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("b1b9d3d6-f8bf-5c24-a830-0da73ab73b11"),
+                            Locale = "nb",
+                            Name = "Suppe"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("fedc36ae-081b-5129-81d0-3e9ee1f7746c"),
+                            Locale = "en",
+                            Name = "Quick"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("fedc36ae-081b-5129-81d0-3e9ee1f7746c"),
+                            Locale = "nb",
+                            Name = "Rask"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("8926186c-b8c9-577f-a055-26b2036e118c"),
+                            Locale = "en",
+                            Name = "Kid friendly"
+                        },
+                        new
+                        {
+                            Kind = "tag",
+                            EntityId = new Guid("8926186c-b8c9-577f-a055-26b2036e118c"),
+                            Locale = "nb",
+                            Name = "Barnevennlig"
+                        });
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.Catalog.Ingredient", b =>
                 {
                     b.Property<Guid>("Id")
@@ -65,7 +1926,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Løk",
+                            Name = "Onion",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -74,7 +1935,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Rødløk",
+                            Name = "Red onion",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -83,7 +1944,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Hvitløk",
+                            Name = "Garlic",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -92,7 +1953,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Vårløk",
+                            Name = "Spring onion",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -101,7 +1962,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Purre",
+                            Name = "Leek",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -110,7 +1971,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Gulrot",
+                            Name = "Carrot",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -119,7 +1980,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Potet",
+                            Name = "Potato",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -128,7 +1989,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Søtpotet",
+                            Name = "Sweet potato",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -137,7 +1998,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Brokkoli",
+                            Name = "Broccoli",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -146,7 +2007,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Blomkål",
+                            Name = "Cauliflower",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -155,7 +2016,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Hvitkål",
+                            Name = "White cabbage",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -164,7 +2025,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Tomat",
+                            Name = "Tomato",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -173,7 +2034,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Hermetiske tomater",
+                            Name = "Canned tomatoes",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -182,7 +2043,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Tomatpuré",
+                            Name = "Tomato puree",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -191,7 +2052,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Agurk",
+                            Name = "Cucumber",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -200,7 +2061,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Paprika",
+                            Name = "Bell pepper",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -209,7 +2070,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Squash",
+                            Name = "Zucchini",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -218,7 +2079,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Aubergine",
+                            Name = "Eggplant",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -227,7 +2088,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Mais",
+                            Name = "Corn",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -236,7 +2097,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Erter",
+                            Name = "Peas",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -245,7 +2106,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Spinat",
+                            Name = "Spinach",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -254,7 +2115,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Salat",
+                            Name = "Lettuce",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -263,7 +2124,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Sopp",
+                            Name = "Mushrooms",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -272,7 +2133,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Ingefær",
+                            Name = "Ginger",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -290,7 +2151,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Selleri",
+                            Name = "Celery",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -299,7 +2160,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Eple",
+                            Name = "Apple",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -308,7 +2169,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Banan",
+                            Name = "Banana",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -317,7 +2178,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Sitron",
+                            Name = "Lemon",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -335,7 +2196,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Appelsin",
+                            Name = "Orange",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -344,7 +2205,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Jordbær",
+                            Name = "Strawberries",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -353,7 +2214,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Blåbær",
+                            Name = "Blueberries",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -362,7 +2223,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kyllingfilet",
+                            Name = "Chicken breast fillet",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -371,7 +2232,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kyllinglår",
+                            Name = "Chicken thighs",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -380,7 +2241,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kjøttdeig",
+                            Name = "Minced meat",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -389,7 +2250,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Svinekotelett",
+                            Name = "Pork chop",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -407,7 +2268,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Skinke",
+                            Name = "Ham",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -416,7 +2277,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Pølser",
+                            Name = "Sausages",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -425,7 +2286,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Laks",
+                            Name = "Salmon",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -434,7 +2295,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Torsk",
+                            Name = "Cod",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -443,7 +2304,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Reker",
+                            Name = "Shrimp",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -452,7 +2313,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Tunfisk",
+                            Name = "Tuna",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -461,7 +2322,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Fiskepinner",
+                            Name = "Fish fingers",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -470,7 +2331,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Melk",
+                            Name = "Milk",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -479,7 +2340,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Fløte",
+                            Name = "Cream",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -488,7 +2349,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Matfløte",
+                            Name = "Cooking cream",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -497,7 +2358,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Rømme",
+                            Name = "Sour cream",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -515,7 +2376,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Yoghurt naturell",
+                            Name = "Plain yoghurt",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -524,7 +2385,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Smør",
+                            Name = "Butter",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -533,7 +2394,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Ost",
+                            Name = "Cheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -560,7 +2421,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Brunost",
+                            Name = "Brown cheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -605,7 +2466,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Ris",
+                            Name = "Rice",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -623,7 +2484,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Nudler",
+                            Name = "Noodles",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -632,7 +2493,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Havregryn",
+                            Name = "Rolled oats",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -641,7 +2502,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Brød",
+                            Name = "Bread",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -650,7 +2511,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Tortillalefser",
+                            Name = "Tortilla wraps",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -659,7 +2520,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Linser",
+                            Name = "Lentils",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -668,7 +2529,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kikerter",
+                            Name = "Chickpeas",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -677,7 +2538,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kidneybønner",
+                            Name = "Kidney beans",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -686,7 +2547,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Kokosmelk",
+                            Name = "Coconut milk",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -695,7 +2556,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Buljongterning",
+                            Name = "Stock cube",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -704,7 +2565,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Soyasaus",
+                            Name = "Soy sauce",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -713,7 +2574,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Sennep",
+                            Name = "Mustard",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -731,7 +2592,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Majones",
+                            Name = "Mayonnaise",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -740,7 +2601,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Honning",
+                            Name = "Honey",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -749,7 +2610,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = false,
-                            Name = "Sirup",
+                            Name = "Syrup",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -758,7 +2619,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Peanøttsmør",
+                            Name = "Peanut butter",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -776,7 +2637,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Sort pepper",
+                            Name = "Black pepper",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -785,7 +2646,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Paprikapulver",
+                            Name = "Paprika powder",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -794,7 +2655,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kanel",
+                            Name = "Cinnamon",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -803,7 +2664,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Spisskummen",
+                            Name = "Cumin",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -821,7 +2682,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Timian",
+                            Name = "Thyme",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -830,7 +2691,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Basilikum",
+                            Name = "Basil",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -839,7 +2700,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Persille",
+                            Name = "Parsley",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -848,7 +2709,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Gressløk",
+                            Name = "Chives",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -857,7 +2718,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Karri",
+                            Name = "Curry powder",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -866,7 +2727,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Muskat",
+                            Name = "Nutmeg",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -875,7 +2736,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             IsStaple = false,
-                            Name = "Laurbærblad",
+                            Name = "Bay leaf",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -884,7 +2745,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kardemomme",
+                            Name = "Cardamom",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -893,7 +2754,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Hvetemel",
+                            Name = "Wheat flour",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -902,7 +2763,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Sukker",
+                            Name = "Sugar",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -911,7 +2772,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Melis",
+                            Name = "Icing sugar",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -920,7 +2781,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Brunt sukker",
+                            Name = "Brown sugar",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -929,7 +2790,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Bakepulver",
+                            Name = "Baking powder",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -938,7 +2799,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = true,
-                            Name = "Natron",
+                            Name = "Baking soda",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -947,7 +2808,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Vaniljesukker",
+                            Name = "Vanilla sugar",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -956,7 +2817,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Kakao",
+                            Name = "Cocoa",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -965,7 +2826,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Gjær",
+                            Name = "Yeast",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -974,7 +2835,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Maisenna",
+                            Name = "Cornstarch",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -983,7 +2844,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Mass",
                             IsStaple = false,
-                            Name = "Sjokolade",
+                            Name = "Chocolate",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -992,7 +2853,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = true,
-                            Name = "Rapsolje",
+                            Name = "Rapeseed oil",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1001,7 +2862,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = true,
-                            Name = "Olivenolje",
+                            Name = "Olive oil",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1010,7 +2871,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = true,
-                            Name = "Eddik",
+                            Name = "Vinegar",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1019,7 +2880,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             IsStaple = true,
-                            Name = "Vann",
+                            Name = "Water",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
@@ -1100,7 +2961,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             FactorToBase = 100m,
-                            Name = "desiliter",
+                            Name = "deciliter",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1120,7 +2981,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             FactorToBase = 5m,
-                            Name = "teskje",
+                            Name = "teaspoon",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1130,7 +2991,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             FactorToBase = 15m,
-                            Name = "spiseskje",
+                            Name = "tablespoon",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1140,7 +3001,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Volume",
                             FactorToBase = 250m,
-                            Name = "kopp",
+                            Name = "cup",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1150,7 +3011,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             FactorToBase = 1m,
-                            Name = "stykk",
+                            Name = "piece",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1160,7 +3021,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             FactorToBase = 1m,
-                            Name = "fedd",
+                            Name = "clove",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1170,7 +3031,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Dimension = "Count",
                             FactorToBase = 1m,
-                            Name = "klype",
+                            Name = "pinch",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });
@@ -1448,7 +3309,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("116bd925-5e28-5aa6-b8d7-1be4b654428b"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Category",
-                            Name = "Middag",
+                            Name = "Dinner",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1456,7 +3317,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("e15c99ac-dd7b-516a-9e39-ea1881b8798b"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Category",
-                            Name = "Lunsj",
+                            Name = "Lunch",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1464,7 +3325,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("3499a5e6-0a40-5a7a-913a-e4a3bf9a0d78"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Category",
-                            Name = "Frokost",
+                            Name = "Breakfast",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1480,7 +3341,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("9783fe91-642e-54d7-94ed-6c6daf55afc4"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Category",
-                            Name = "Bakst",
+                            Name = "Baking",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1488,7 +3349,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("1b7b0e72-5763-5bbf-abbd-dd710f275db5"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Vegetar",
+                            Name = "Vegetarian",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1496,7 +3357,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("a6f985f6-8c31-526b-9090-1115c56cde39"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Fisk",
+                            Name = "Fish",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1504,7 +3365,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("c9540730-73c0-5f9e-af48-8dbebeaf9f04"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Kylling",
+                            Name = "Chicken",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1512,7 +3373,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("275e7f12-8016-5cca-86bc-24e60a545b02"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Kjøtt",
+                            Name = "Meat",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1528,7 +3389,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("b1b9d3d6-f8bf-5c24-a830-0da73ab73b11"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Suppe",
+                            Name = "Soup",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1536,7 +3397,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("fedc36ae-081b-5129-81d0-3e9ee1f7746c"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Rask",
+                            Name = "Quick",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1544,7 +3405,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Id = new Guid("8926186c-b8c9-577f-a055-26b2036e118c"),
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Kind = "Tag",
-                            Name = "Barnevennlig",
+                            Name = "Kid friendly",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });

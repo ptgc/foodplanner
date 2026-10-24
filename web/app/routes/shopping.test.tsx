@@ -92,10 +92,10 @@ const baseList = (): List => ({
   id: "l1",
   weekStart: week,
   main: [
-    item("melk", "Melk", { quantities: [{ amount: 1.5, unitCode: "l" }], recipes: [{ id: "r1", title: "Pannekaker" }] }),
+    item("melk", "Melk", { quantities: [{ amount: 1.5, unitCode: "l", unitName: "liter" }], recipes: [{ id: "r1", title: "Pannekaker" }] }),
     item("brod", "Brod", { checked: true }),
     item("egg", "Egg", {
-      quantities: [{ amount: 6, unitCode: "stk" }],
+      quantities: [{ amount: 6, unitCode: "stk", unitName: "piece" }],
       checked: true,
       quantityChangedSinceChecked: true,
     }),

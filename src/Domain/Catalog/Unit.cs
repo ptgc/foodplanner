@@ -6,7 +6,7 @@ namespace Foodplanner.Domain.Catalog;
 /// A measuring unit. Global only (no household): the seed defines them. <see cref="FactorToBase"/> is how many base
 /// units one of this unit is; the base unit of Mass is g, of Volume ml and of Count stk (factor 1).
 /// </summary>
-public sealed class Unit : Entity
+public sealed class Unit : Entity, ICatalogNamed
 {
     public const int MaxCodeLength = 20;
     public const int MaxNameLength = 50;
