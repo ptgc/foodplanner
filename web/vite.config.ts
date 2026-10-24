@@ -10,7 +10,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: apiTarget, changeOrigin: true },
+      // Caveat: the hub rejects an Origin whose host differs from Host (403 forbidden-origin), so API_PROXY_TARGET=http://api:8080 with changeOrigin breaks it; the default localhost:5000 is fine.
+      // ws: true lets the SignalR hub (/api/hubs/...) upgrade to a WebSocket through the dev proxy.
+      "/api": { target: apiTarget, changeOrigin: true, ws: true },
     },
   },
 });

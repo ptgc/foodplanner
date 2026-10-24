@@ -510,8 +510,7 @@ public static class ShoppingListEndpoints
     /// <summary>The week of the route: a <c>yyyy-MM-dd</c> date that is a Monday.</summary>
     private static bool TryParseWeekStart(string value, Dictionary<string, string[]> errors, out DateOnly weekStart)
     {
-        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out weekStart)
-            || !MealPlan.IsWeekStart(weekStart))
+        if (!IsWeekStart(value, out weekStart))
         {
             errors["weekStart"] = ["The week must be the Monday of an ISO week, as yyyy-MM-dd."];
             return false;
@@ -520,9 +519,20 @@ public static class ShoppingListEndpoints
         return true;
     }
 
+    internal static bool IsWeekStart(string value, out DateOnly weekStart) =>
+        DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out weekStart)
+        && MealPlan.IsWeekStart(weekStart);
+
     private static Task<ShoppingListItem?> FindItemAsync(AppDbContext db, DateOnly monday, Guid itemId, CancellationToken cancellationToken) =>
         db.ShoppingListItems.FirstOrDefaultAsync(
             i => i.Id == itemId && db.ShoppingLists.Any(l => l.Id == i.ShoppingListId && l.WeekStart == monday), cancellationToken);
+
+    /// <summary>The current list of a week as GET returns it (an empty shape when there is none). Used by the hub's GetState.</summary>
+    internal static async Task<ShoppingListResponse> ReadAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    {
+        var list = await db.ShoppingLists.AsNoTracking().FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
+        return await BuildResponseAsync(db, list, monday, cancellationToken);
+    }
 
     private static async Task<ShoppingListResponse> BuildResponseAsync(
         AppDbContext db, ShoppingList? list, DateOnly monday, CancellationToken cancellationToken)
