@@ -39,6 +39,14 @@ How it is enforced (T-008, `src/Infrastructure/Persistence/Tenancy`):
 - Rounding (`ForDisplay`/`MergeForDisplay`/`Round`; half away from zero; a positive amount never rounds to 0, it shows one step): g 1, kg 0.1, ml 1, dl 0.1, l 0.1, ts 0.5, ss 0.5, kopp 0.25, stk 0.5, fedd 1, klype 1. Mass and Volume are rounded in g/ml first and the unit chosen after, so 999.6 g shows as 1 kg. Rounded results are for people only: never merge or scale them again.
 - The display units come from a `UnitCatalog` (the caller passes the units loaded from the database; `UnitCatalog.Seed` for tests).
 
+## Shopping list generation (T-032, `Domain/ShoppingLists`)
+`ShoppingListGenerator.Generate(IEnumerable<PlannedMeal>, UnitCatalog)` is a pure function. `PlannedMeal` = recipe id, recipe servings, planned servings (both > 0) and `PlannedIngredient`s (ingredient id, name, IsStaple, `Quantity` for the recipe servings); T-033 maps plan entries and recipes onto these.
+- Scaling: each amount is multiplied by planned / recipe servings, exactly in decimal (multiply first, then divide), so 4 -> 3 servings is exactly 0.75. To-taste stays to-taste.
+- Grouping and merging: by ingredient id, then `QuantityMerger.Merge` (exact). 200 g + 0.3 kg across two recipes = 500 g. Mass and volume of one ingredient stay separate lines.
+- Rounding: once, at the end, via `ForDisplay`. Never round per recipe or before merging.
+- Staples: an ingredient flagged staple in any entry goes only to the "check you have" section (no quantity), never to the main list, even when a recipe gives it an amount.
+- Each item lists the distinct contributing recipe ids (ascending). Order of both sections: ingredient name (OrdinalIgnoreCase, then Ordinal, so æ ø å sort after z), then id; independent of input order.
+
 ## Invariants
 - Merging only combines compatible units (mass with mass, volume with volume); incompatible stay separate lines.
 - Scaling recipe servings scales all ingredient quantities proportionally.
