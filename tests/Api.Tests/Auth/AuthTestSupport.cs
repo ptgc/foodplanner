@@ -196,6 +196,24 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         return await SendPostAsync(url, body, token, headers);
     }
 
+    /// <summary>PUT with a freshly fetched antiforgery token.</summary>
+    public async Task<HttpResponseMessage> PutAsync(string url, object? body = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(body ?? new { }) };
+        request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
+        AddRemoteIp(request);
+        return await http.SendAsync(request, Ct);
+    }
+
+    /// <summary>DELETE with a freshly fetched antiforgery token.</summary>
+    public async Task<HttpResponseMessage> DeleteAsync(string url)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
+        AddRemoteIp(request);
+        return await http.SendAsync(request, Ct);
+    }
+
     /// <summary>Posts with the given token; null sends no antiforgery header at all.</summary>
     public async Task<HttpResponseMessage> PostWithTokenAsync(string url, object? body, string? token)
         => await SendPostAsync(url, body, token, null);

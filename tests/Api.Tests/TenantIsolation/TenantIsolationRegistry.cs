@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 
 namespace Foodplanner.Api.Tests.TenantIsolation;
@@ -42,6 +43,30 @@ public static class TenantIsolationRegistry
         TenantIsolationCase.ForCatalog<Ingredient>(
             (_, household) => Task.FromResult(new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: false, UnitDimension.Mass)),
             entry => entry.Property(i => i.IsStaple).CurrentValue = true),
+
+        // Recipes (T-021). Children point to their recipe by id only; the parent row is seeded through the environment.
+        TenantIsolationCase.For<Recipe>(
+            (_, _) => Task.FromResult(new Recipe("Isolation " + Guid.NewGuid().ToString("N"), null, 4, 10, 20)),
+            entry => entry.Property(r => r.Title).CurrentValue = "Changed"),
+
+        TenantIsolationCase.For<RecipeStep>(
+            async (env, household) =>
+            {
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new RecipeStep(recipe.Id, 0, "Stir");
+            },
+            entry => entry.Property(s => s.Text).CurrentValue = "Stir again"),
+
+        // The ingredient and unit are seeded global rows, which every household may reference.
+        TenantIsolationCase.For<RecipeIngredient>(
+            async (env, household) =>
+            {
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new RecipeIngredient(recipe.Id, 0, IngredientSeed.All[0].Id, 1.5m, UnitSeed.All[0].Id, null);
+            },
+            entry => entry.Property(i => i.Note).CurrentValue = "finely chopped"),
     ];
 
     /// <summary>The registered catalog entities, for the global-row checks.</summary>
