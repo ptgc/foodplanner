@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence.Configurations;
@@ -56,6 +57,12 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     /// <summary>Global only. Not household data, so no filter; nothing writes it at request time.</summary>
     public DbSet<Unit> Units => Set<Unit>();
+
+    public DbSet<Recipe> Recipes => Set<Recipe>();
+
+    public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();
+
+    public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;

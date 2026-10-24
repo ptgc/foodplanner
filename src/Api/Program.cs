@@ -3,6 +3,7 @@ using Foodplanner.Api.Features.Auth;
 using Foodplanner.Api.Features.Catalog;
 using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
+using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.OpenApi;
 using Foodplanner.Api.Security;
 using Foodplanner.Api.Seeding;
@@ -82,6 +83,7 @@ api.MapHealthEndpoints();
 api.MapAuthEndpoints();
 api.MapHouseholdEndpoints();
 api.MapCatalogEndpoints();
+api.MapRecipeEndpoints();
 
 app.Run();
 return 0;

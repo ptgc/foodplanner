@@ -15,6 +15,8 @@ public static class AppProblems
     public const string InviteInvalid = "invite-invalid";
     public const string AlreadyMember = "already-member";
     public const string IngredientExists = "ingredient-exists";
+    public const string RecipeNotFound = "recipe-not-found";
+    public const string RecipeConflict = "recipe-conflict";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
 

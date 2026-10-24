@@ -131,6 +131,48 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddRecipes_migration_applies_and_deleting_a_household_removes_its_recipes_and_ingredients()
+    {
+        var connectionString = await server.CreateDatabaseAsync("recipes", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddRecipes'"));
+        foreach (var table in new[] { "Recipes", "RecipeSteps", "RecipeIngredients" })
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('{table}') AND name = 'HouseholdId'"));
+        }
+
+        // A household with its own ingredient, a recipe using it, a step and a line: one DELETE removes it all
+        // (Household -> Recipe -> children cascade; the NO ACTION foreign keys are checked at the end of the statement).
+        var salt = Foodplanner.Domain.Catalog.IngredientSeed.All.Single(r => r.Key == "salt");
+        var gram = Foodplanner.Domain.Catalog.UnitSeed.All.First();
+        await ScalarAsync(connectionString, $"""
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID(), @i uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO Ingredients (Id, HouseholdId, Name, IsStaple, Dimension, CreatedAt, UpdatedAt) VALUES (@i, @h, N'Own', 0, 'Mass', @now, @now);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'R', 4, @now, @now);
+            INSERT INTO RecipeSteps (Id, HouseholdId, RecipeId, Position, Text, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, 0, N'Stir', @now, @now);
+            INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, Quantity, UnitId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, 0, @i, 1, '{gram.Id}', @now, @now);
+            INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, 1, '{salt.Id}', @now, @now);
+            """);
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeSteps"));
+
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+
+        foreach (var table in new[] { "Recipes", "RecipeSteps", "RecipeIngredients" })
+        {
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM {table}"));
+        }
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients WHERE HouseholdId IS NOT NULL"));
+        Assert.Equal(Foodplanner.Domain.Catalog.IngredientSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);
