@@ -1,0 +1,244 @@
+/* Recipes (T-024): big, friendly, image-led cards; two columns at 390px, more on wider screens. */
+.shell:has(.recipes) {
+  max-width: 72rem;
+}
+
+.recipes h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+}
+
+.recipes-search label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.recipes-search input {
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 0.75rem;
+  border: 2px solid #6b6b78;
+  border-radius: 0.75rem;
+  font: inherit;
+  font-size: 1.125rem;
+}
+
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.chip {
+  min-height: var(--touch);
+  padding: 0 1rem;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.button-outline {
+  background: #fff;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+
+.recipes-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1rem 0 0.5rem;
+  min-height: var(--touch);
+}
+
+.recipes-status p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: var(--touch);
+  overflow: hidden;
+  border: 2px solid #d0d0d8;
+  border-radius: 1rem;
+  background: #fff;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.recipe-card:hover {
+  border-color: var(--accent);
+}
+
+.recipe-image {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  background: #eceef2;
+}
+
+.recipe-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recipe-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #4a3b52;
+}
+
+.recipe-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.recipe-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.recipe-card-time {
+  color: #4b4b57;
+}
+
+.recipe-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.tag-pill {
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #e3f1e8;
+  color: #14502f;
+  font-size: 0.875rem;
+}
+
+.recipes-message {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.recipes-message-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.recipes-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.recipes-more-error {
+  color: var(--error);
+  text-align: center;
+}
+
+.recipe-skeleton-image,
+.recipe-skeleton-line {
+  background: linear-gradient(90deg, #eceef2 25%, #f7f8fa 50%, #eceef2 75%);
+  background-size: 200% 100%;
+  animation: recipe-shimmer 1.4s linear infinite;
+  border-radius: 0.5rem;
+}
+
+.recipe-skeleton-image {
+  aspect-ratio: 4 / 3;
+}
+
+.recipe-skeleton-line {
+  height: 1rem;
+  margin-top: 0.5rem;
+}
+
+.recipe-skeleton-line.short {
+  width: 60%;
+}
+
+@keyframes recipe-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-skeleton-image,
+  .recipe-skeleton-line {
+    animation: none;
+  }
+}
+
+/* Minimal read-only detail (T-025 replaces it). */
+.recipe-detail h1 {
+  margin: 0.5rem 0;
+  font-size: 1.75rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.recipe-meta {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 0.5rem;
+  color: #4b4b57;
+}
+
+.recipe-ingredients,
+.recipe-steps {
+  padding-left: 1.25rem;
+  font-size: 1.0625rem;
+}
+
+.recipe-ingredients li,
+.recipe-steps li {
+  margin-bottom: 0.5rem;
+}
+
+.recipe-amount {
+  font-weight: 700;
+}
