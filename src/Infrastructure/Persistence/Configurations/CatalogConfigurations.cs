@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +71,16 @@ internal static class CatalogSeedData
             i.Name,
             i.IsStaple,
             i.Dimension,
+            CreatedAt = SeededAt,
+            UpdatedAt = SeededAt,
+        }));
+
+        modelBuilder.Entity<Tag>().HasData(TagSeed.All.Select(t => new
+        {
+            t.Id,
+            HouseholdId = (Guid?)null,
+            t.Name,
+            t.Kind,
             CreatedAt = SeededAt,
             UpdatedAt = SeededAt,
         }));

@@ -1,4 +1,5 @@
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Recipes;
@@ -19,10 +20,11 @@ public sealed record RecipeRequest(
     int? PrepMinutes,
     int? CookMinutes,
     RecipeStepRequest[]? Steps,
-    RecipeIngredientRequest[]? Ingredients);
+    RecipeIngredientRequest[]? Ingredients,
+    Guid[]? TagIds);
 
 /// <summary>A grid card: enough to list recipes. <c>TotalMinutes</c> is prep plus cook, null when neither is set.</summary>
-public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes);
+public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags);
 
 public sealed record RecipeListResponse(RecipeSummaryResponse[] Items, int Total, int Limit, int Offset);
 
@@ -40,7 +42,8 @@ public sealed record RecipeResponse(
     int? CookMinutes,
     int? TotalMinutes,
     RecipeStepResponse[] Steps,
-    RecipeIngredientResponse[] Ingredients);
+    RecipeIngredientResponse[] Ingredients,
+    TagResponse[] Tags);
 
 /// <summary>Recipe CRUD (T-021). Any member reads; only an Adult or Owner writes.</summary>
 public static class RecipeEndpoints
@@ -48,6 +51,8 @@ public static class RecipeEndpoints
     public const int DefaultLimit = 20;
     public const int MaxLimit = 100;
     public const int MaxSearchLength = 100;
+    public const int MaxTagsPerRecipe = 20;
+    public const int MaxFilterIds = 10;
 
     public static IEndpointRouteBuilder MapRecipeEndpoints(this IEndpointRouteBuilder api)
     {
@@ -90,9 +95,17 @@ public static class RecipeEndpoints
         return api;
     }
 
-    /// <summary>Recipes of the route's household (the query filter), sorted by title; <c>search</c> is a case-insensitive "contains" on the title.</summary>
+    /// <summary>
+    /// Recipes of the route's household (the query filter), sorted by title then id (a total order, so offset paging
+    /// has no duplicates or gaps, and inserting a later title never shifts an earlier page). All filters combine with AND:
+    /// <c>search</c> (case-insensitive "contains" on the title), <c>tagIds</c> (the recipe has every one of them),
+    /// <c>maxMinutes</c> (prep plus cook at most n; a recipe with neither time set is not matched, because its time is
+    /// unknown) and <c>ingredientId</c> (the recipe has a line for every one of them). An unknown tag or ingredient id
+    /// simply matches nothing.
+    /// </summary>
     private static async Task<IResult> ListRecipes(
-        string? search, int? limit, int? offset, AppDbContext db, CancellationToken cancellationToken)
+        string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, int? limit, int? offset,
+        AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var term = search?.Trim();
@@ -111,6 +124,23 @@ public static class RecipeEndpoints
             errors["offset"] = ["The offset cannot be negative."];
         }
 
+        if (maxMinutes is < 0 or > Recipe.MaxMinutes * 2)
+        {
+            errors["maxMinutes"] = [$"The maximum minutes must be 0 to {Recipe.MaxMinutes * 2}."];
+        }
+
+        var tags = (tagIds ?? []).Distinct().ToList();
+        if (tags.Count > MaxFilterIds || tags.Contains(Guid.Empty))
+        {
+            errors["tagIds"] = [$"Give at most {MaxFilterIds} valid tag ids."];
+        }
+
+        var ingredients = (ingredientId ?? []).Distinct().ToList();
+        if (ingredients.Count > MaxFilterIds || ingredients.Contains(Guid.Empty))
+        {
+            errors["ingredientId"] = [$"Give at most {MaxFilterIds} valid ingredient ids."];
+        }
+
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
@@ -122,6 +152,23 @@ public static class RecipeEndpoints
             query = query.Where(r => r.Title.Contains(term));
         }
 
+        if (maxMinutes is { } max)
+        {
+            query = query.Where(r => (r.PrepMinutes != null || r.CookMinutes != null) && (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0) <= max);
+        }
+
+        foreach (var tag in tags)
+        {
+            var id = tag;
+            query = query.Where(r => db.RecipeTags.Any(t => t.RecipeId == r.Id && t.TagId == id));
+        }
+
+        foreach (var ingredient in ingredients)
+        {
+            var id = ingredient;
+            query = query.Where(r => db.RecipeIngredients.Any(l => l.RecipeId == r.Id && l.IngredientId == id));
+        }
+
         var take = limit ?? DefaultLimit;
         var skip = offset ?? 0;
         var total = await query.CountAsync(cancellationToken);
@@ -129,9 +176,29 @@ public static class RecipeEndpoints
             .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes })
             .ToListAsync(cancellationToken);
 
+        var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), cancellationToken);
         var items = rows.Select(r => new RecipeSummaryResponse(
-            r.Id, r.Title, r.Servings, r.PrepMinutes is null && r.CookMinutes is null ? null : (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0))).ToArray();
+            r.Id, r.Title, r.Servings,
+            r.PrepMinutes is null && r.CookMinutes is null ? null : (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0),
+            tagsByRecipe.GetValueOrDefault(r.Id, []))).ToArray();
         return Results.Ok(new RecipeListResponse(items, total, take, skip));
+    }
+
+    /// <summary>The tags of the given recipes, categories first, then by name.</summary>
+    private static async Task<Dictionary<Guid, TagResponse[]>> LoadTagsAsync(
+        AppDbContext db, List<Guid> recipeIds, CancellationToken cancellationToken)
+    {
+        if (recipeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await (from link in db.RecipeTags.AsNoTracking()
+                          join tag in db.Tags.AsNoTracking() on link.TagId equals tag.Id
+                          where recipeIds.Contains(link.RecipeId)
+                          orderby tag.Kind, tag.Name, tag.Id
+                          select new { link.RecipeId, Tag = tag }).ToListAsync(cancellationToken);
+        return rows.GroupBy(r => r.RecipeId).ToDictionary(g => g.Key, g => g.Select(r => TagEndpoints.ToResponse(r.Tag)).ToArray());
     }
 
     private static async Task<IResult> GetRecipe(Guid recipeId, AppDbContext db, CancellationToken cancellationToken)
@@ -156,6 +223,11 @@ public static class RecipeEndpoints
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync(cancellationToken);
         AddChildren(db, recipe.Id, request!);
+        foreach (var tagId in DistinctTagIds(request!))
+        {
+            db.RecipeTags.Add(new RecipeTag(recipe.Id, tagId));
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -184,6 +256,15 @@ public static class RecipeEndpoints
         db.RecipeSteps.RemoveRange(await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken));
         db.RecipeIngredients.RemoveRange(await db.RecipeIngredients.Where(i => i.RecipeId == recipeId).ToListAsync(cancellationToken));
         AddChildren(db, recipeId, request!);
+
+        // Tags: tracked diff (remove the ones no longer wanted, add the new ones), so an unchanged tag is never deleted and re-inserted.
+        var wanted = DistinctTagIds(request!).ToHashSet();
+        var current = await db.RecipeTags.Where(t => t.RecipeId == recipeId).ToListAsync(cancellationToken);
+        db.RecipeTags.RemoveRange(current.Where(t => !wanted.Contains(t.TagId)));
+        foreach (var tagId in wanted.Except(current.Select(t => t.TagId)))
+        {
+            db.RecipeTags.Add(new RecipeTag(recipeId, tagId));
+        }
 
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
@@ -245,6 +326,8 @@ public static class RecipeEndpoints
         }
     }
 
+    private static List<Guid> DistinctTagIds(RecipeRequest request) => (request.TagIds ?? []).Distinct().ToList();
+
     private static string? NormalizeNote(string? note) => string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
     private sealed record ValidRecipe(string Title, string? Description, int Servings, int? PrepMinutes, int? CookMinutes);
@@ -305,6 +388,22 @@ public static class RecipeEndpoints
             for (var i = 0; i < lines.Length; i++)
             {
                 CheckLine(lines[i], i, errors);
+            }
+        }
+
+        var requestedTags = request.TagIds ?? [];
+        if (requestedTags.Length > MaxTagsPerRecipe)
+        {
+            errors["tagIds"] = [$"A recipe can have at most {MaxTagsPerRecipe} tags."];
+        }
+        else
+        {
+            for (var i = 0; i < requestedTags.Length; i++)
+            {
+                if (requestedTags[i] == Guid.Empty)
+                {
+                    errors[$"tagIds[{i}]"] = ["A tag id is required."];
+                }
             }
         }
 
@@ -390,6 +489,21 @@ public static class RecipeEndpoints
             }
         }
 
+        // Tags: global or the household's own, through the filtered set; another household's tag is "not found".
+        var requested = DistinctTagIds(request);
+        if (requested.Count > 0)
+        {
+            var knownTags = (await db.Tags.AsNoTracking().Where(t => requested.Contains(t.Id)).Select(t => t.Id).ToListAsync(cancellationToken)).ToHashSet();
+            var all = request.TagIds ?? [];
+            for (var i = 0; i < all.Length; i++)
+            {
+                if (!knownTags.Contains(all[i]))
+                {
+                    errors[$"tagIds[{i}]"] = ["The tag does not exist."];
+                }
+            }
+        }
+
         return errors.Count == 0;
     }
 
@@ -415,7 +529,8 @@ public static class RecipeEndpoints
 
         return new RecipeResponse(
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,
-            recipe.TotalMinutes, [.. steps], ingredients);
+            recipe.TotalMinutes, [.. steps], ingredients,
+            (await LoadTagsAsync(db, [recipe.Id], cancellationToken)).GetValueOrDefault(recipe.Id, []));
     }
 
     private static IResult NotFound() =>

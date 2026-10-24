@@ -723,6 +723,40 @@
             }
           },
           {
+            "name": "tagIds",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "maxMinutes",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "ingredientId",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -1083,6 +1117,123 @@
           }
         }
       }
+    },
+    "/api/households/{householdId}/tags": {
+      "get": {
+        "tags": [
+          "TagEndpoints"
+        ],
+        "operationId": "ListTags",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TagResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "TagEndpoints"
+        ],
+        "operationId": "CreateTag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateTagRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1184,6 +1335,27 @@
         "type": "object",
         "properties": {
           "role": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CreateTagRequest": {
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
             "type": [
               "null",
               "string"
@@ -1551,7 +1723,8 @@
           "prepMinutes",
           "cookMinutes",
           "steps",
-          "ingredients"
+          "ingredients",
+          "tagIds"
         ],
         "type": "object",
         "properties": {
@@ -1611,6 +1784,16 @@
             "items": {
               "$ref": "#/components/schemas/RecipeIngredientRequest"
             }
+          },
+          "tagIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -1624,7 +1807,8 @@
           "cookMinutes",
           "totalMinutes",
           "steps",
-          "ingredients"
+          "ingredients",
+          "tags"
         ],
         "type": "object",
         "properties": {
@@ -1687,6 +1871,12 @@
             "items": {
               "$ref": "#/components/schemas/RecipeIngredientResponse"
             }
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagResponse"
+            }
           }
         }
       },
@@ -1729,7 +1919,8 @@
           "id",
           "title",
           "servings",
-          "totalMinutes"
+          "totalMinutes",
+          "tags"
         ],
         "type": "object",
         "properties": {
@@ -1756,6 +1947,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagResponse"
+            }
           }
         }
       },
@@ -1788,6 +1985,36 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "TagKind": {
+        "enum": [
+          "Category",
+          "Tag"
+        ]
+      },
+      "TagResponse": {
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "isGlobal"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TagKind"
+          },
+          "isGlobal": {
+            "type": "boolean"
           }
         }
       },
@@ -1848,6 +2075,9 @@
     },
     {
       "name": "RecipeEndpoints"
+    },
+    {
+      "name": "TagEndpoints"
     }
   ]
 }

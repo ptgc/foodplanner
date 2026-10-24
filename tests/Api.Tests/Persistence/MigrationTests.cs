@@ -173,6 +173,43 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddTags_migration_applies_seeds_the_global_tags_and_deleting_a_household_removes_its_tags_and_links()
+    {
+        var connectionString = await server.CreateDatabaseAsync("tags", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddTags'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('RecipeTags') AND name = 'HouseholdId'"));
+        Assert.Equal(Foodplanner.Domain.Recipes.TagSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags WHERE HouseholdId IS NULL"));
+        Assert.Equal(5, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags WHERE Kind = 'Category'"));
+
+        // A second migrate is a no-op, so the seed is not duplicated.
+        await context.Database.MigrateAsync(Ct);
+        Assert.Equal(Foodplanner.Domain.Recipes.TagSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags"));
+
+        var seeded = Foodplanner.Domain.Recipes.TagSeed.All[0];
+        await ScalarAsync(connectionString, $"""
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID(), @t uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO Tags (Id, HouseholdId, Name, Kind, CreatedAt, UpdatedAt) VALUES (@t, @h, N'Own', 'Tag', @now, @now);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'R', 4, @now, @now);
+            INSERT INTO RecipeTags (Id, HouseholdId, RecipeId, TagId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, @t, @now, @now);
+            INSERT INTO RecipeTags (Id, HouseholdId, RecipeId, TagId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, '{seeded.Id}', @now, @now);
+            """);
+        Assert.Equal(2, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeTags"));
+
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeTags"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags WHERE HouseholdId IS NOT NULL"));
+        Assert.Equal(Foodplanner.Domain.Recipes.TagSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);
