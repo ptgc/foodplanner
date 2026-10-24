@@ -13,6 +13,7 @@ Decided in docs/questions/Q-010.md. Local only; every secret in .NET user secret
 Order (one migration task at a time): T-008, T-027 (parallel), T-009, T-011, T-029, T-012 and T-028 (parallel), T-020, T-031 (parallel), T-021, T-032 (parallel), T-022, T-023, T-024, T-025, T-030, T-033, T-034, T-035, T-036.
 Gate: full ADR 0009 gate for T-008, T-009, T-011, T-012 (reviewer on opus, T-008 implementer on opus); implementer evidence plus a green verify.sh on dev for the rest.
 Done when the seeded admin can sign in at http://localhost:3000, browse and edit recipes from the database, plan a week and see the generated shopping list.
+Update 2026-10-24 (Q-011..Q-015 answered): added T-038 (translatable UI), T-039 (translatable catalog), T-072 (Q-011), T-073 (Q-012). Remaining order: T-022 (NetVips) and T-038 in parallel; T-024 (placeholder images allowed until T-022 lands) and T-039; T-025, T-035; T-072, T-073.
 
 ## Done: L1 local first iteration
 Goal: the app runs on a developer machine only (no Azure): .NET API, React SPA, SQL Server in Docker, and a README with scripts for bash and PowerShell.
@@ -59,6 +60,8 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-035 | Frontend: week planner | M2 | T-024, T-030, T-027 | implementer-frontend | no |
 | T-036 | Frontend: shopping list | M2 | T-033, T-034 | implementer-frontend | no |
 | T-037 | Pantry memory | M2 | T-033 | implementer-backend | yes |
+| T-038 | Frontend: translatable text (i18n foundation) | L2 | T-004, T-028, T-036 | implementer-frontend | no |
+| T-039 | Translatable catalog data (nb + en) | L2 | T-020, T-023 | implementer-backend | yes |
 | T-040 | Frontend: cooking mode | M3 | T-025, T-032 | implementer-frontend | no |
 | T-041 | Frontend: PWA install and offline shell | M3 | T-025, T-036 | implementer-frontend | no |
 | T-042 | Recipe import (backend) | M3 | T-020, T-021, T-031 | implementer-backend | yes |
@@ -89,3 +92,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-069 | Specs for M0 pattern-setting tasks | W | T-060 | spec-writer | no |
 | T-070 | Specs for M1 tasks | W | T-012, T-069 | spec-writer | no |
 | T-071 | Specs for M2 tasks | W | T-070 | spec-writer | no |
+| T-072 | Set the password at confirm time, expire unconfirmed accounts | L2 | T-009, T-028, T-038 | implementer-backend | no |
+| T-073 | Save-time check for cross-household references | L2 | T-012, T-020, T-021, T-023, T-030, T-033 | implementer-backend | no |
