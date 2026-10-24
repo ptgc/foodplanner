@@ -86,6 +86,18 @@ public abstract class TenantIsolationCase
 
     /// <summary>ExecuteUpdate and ExecuteDelete from A touch only A's rows.</summary>
     public abstract Task BulkOperationsRespectTheFilterAsync(TenantIsolationEnvironment env);
+
+    /// <summary>
+    /// A new unsaved row for <paramref name="household"/> from the registered factory (parents seeded in that household),
+    /// for tests that build rows of any registered type without knowing it, such as the save-time reference check (T-073).
+    /// </summary>
+    public abstract Task<object> NewUnsavedRowAsync(TenantIsolationEnvironment env, Guid household);
+
+    /// <summary>Saves a new row of the type for <paramref name="household"/> and returns its id.</summary>
+    public abstract Task<Guid> SeedRowAsync(TenantIsolationEnvironment env, Guid household);
+
+    /// <summary>Catalog only: saves a row and makes it global (a stand-in for a seeded row); returns its id.</summary>
+    public abstract Task<Guid> SeedGlobalRowAsync(TenantIsolationEnvironment env);
 }
 
 internal sealed class TenantIsolationCase<TEntity>(
@@ -145,6 +157,20 @@ internal sealed class TenantIsolationCase<TEntity>(
         var id = await SeedAsync(env, owner);
         await env.MakeGlobalAsync(typeof(TEntity), id);
         return (id, await env.SnapshotAsync(typeof(TEntity), id));
+    }
+
+    public override async Task<object> NewUnsavedRowAsync(TenantIsolationEnvironment env, Guid household) => await NewRowAsync(env, household);
+
+    public override Task<Guid> SeedRowAsync(TenantIsolationEnvironment env, Guid household) => SeedAsync(env, household);
+
+    public override async Task<Guid> SeedGlobalRowAsync(TenantIsolationEnvironment env)
+    {
+        if (!isCatalog)
+        {
+            throw new InvalidOperationException($"{typeof(TEntity).Name} is not a catalog entity: it has no global rows.");
+        }
+
+        return (await NewGlobalRowAsync(env)).Id;
     }
 
     private async Task<Guid> SeedAsync(TenantIsolationEnvironment env, Guid household)
