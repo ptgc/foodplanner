@@ -56,7 +56,7 @@ test("the language switch is a 44px target, switches the app and is remembered o
 });
 
 test("the login page is Norwegian and has the language switch", async ({ browser }) => {
-  const context = await browser.newContext({ locale: "nb-NO", viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] }, locale: "nb-NO", viewport: { width: 390, height: 844 } });
   try {
     const page = await context.newPage();
     await page.goto("/login");

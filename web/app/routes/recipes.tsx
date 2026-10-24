@@ -192,7 +192,7 @@ function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
   const minutes = recipe.totalMinutes === null || recipe.totalMinutes === undefined ? null : Number(recipe.totalMinutes);
   return (
     <Link to={`/recipes/${recipe.id}`} className="recipe-card" data-testid="recipe-card">
-      <RecipeImage title={recipe.title} />
+      <RecipeImage title={recipe.title} thumbUrl={recipe.thumbUrl} cardUrl={recipe.cardUrl} />
       <span className="recipe-card-body">
         <span className="recipe-card-title">{recipe.title}</span>
         {minutes !== null && <span className="recipe-card-time">{t("recipes.minutes", { minutes })}</span>}

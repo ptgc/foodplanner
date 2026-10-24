@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-/** Pixel widths of the stored sizes (T-022: thumb and card). The intrinsic size keeps the layout from shifting. */
-export const thumbWidth = 320;
+/** Pixel widths of the stored sizes (T-022: thumb 160, card 640). The intrinsic size keeps the layout from shifting. */
+export const thumbWidth = 160;
 export const cardWidth = 640;
 const aspect = { width: 4, height: 3 };
 

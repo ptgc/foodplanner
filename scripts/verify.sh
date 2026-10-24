@@ -25,6 +25,7 @@ step "web-lint" npm --prefix web run lint
 step "web-typecheck" npm --prefix web run typecheck
 step "web-test" npm --prefix web test
 step "web-build" npm --prefix web run build
+step "web-bundle-size" node web/scripts/check-bundle-size.mjs
 step "web-api-check" npm --prefix web run api:check
 
 # e2e needs the running stack (scripts/local-up), so it is opt-in: E2E=1 ./scripts/verify.sh or --e2e

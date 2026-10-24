@@ -1,3 +1,4 @@
+import { crc32, deflateSync } from "node:zlib";
 import type { APIRequestContext, Page } from "@playwright/test";
 import { adminState, expect, test } from "./fixtures";
 
@@ -41,6 +42,36 @@ async function createRecipe(
   return ((await res.json()) as { id: string }).id;
 }
 
+/** A valid 64x48 orange PNG built in code (no binary fixture); the API resizes it to the stored sizes. */
+function solidPng(): Buffer {
+  const width = 64;
+  const height = 48;
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8); // 8-bit RGB
+  const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array.from({ length: width }, () => [255, 140, 60]).flat())]);
+  const raw = Buffer.concat(Array.from({ length: height }, () => row));
+  const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  return Buffer.concat([signature, chunk("IHDR", header), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+async function uploadImage(request: APIRequestContext, h: string, recipeId: string) {
+  const res = await request.put(`/api/households/${h}/recipes/${recipeId}/image`, {
+    headers: await csrf(request),
+    multipart: { file: { name: "tiny.png", mimeType: "image/png", buffer: solidPng() } },
+  });
+  expect(res.status(), await res.text()).toBe(200);
+}
+
 async function noHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, "no horizontal scroll").toBeLessThanOrEqual(0);
@@ -68,6 +99,8 @@ test("filter by tag and search, then open a recipe", async ({ page }, testInfo) 
       await createRecipe(request, h, { title: nameB, tagIds: [tagB.id], ingredientId: ingredients[0]!.id, unitId: unit.id, prep: 20, cook: 15 }),
     );
 
+    await uploadImage(request, h, created[0]!);
+
     await page.goto("/recipes");
     await expect(page.getByRole("heading", { name: "Recipes", level: 1 })).toBeVisible();
 
@@ -78,6 +111,9 @@ test("filter by tag and search, then open a recipe", async ({ page }, testInfo) 
     await expect(page.getByTestId("recipe-card")).toHaveCount(2);
     await expect(page).toHaveURL(/q=/);
     await expect(cardA.getByText("15 min")).toBeVisible();
+    // The recipe with a picture shows it (lazy, scrolled into view); the other one a placeholder tile.
+    await expect.poll(() => cardA.locator("img").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+    await expect(cardB.locator("img")).toHaveCount(0);
     await expect(cardB.getByText("35 min")).toBeVisible();
 
     if ((page.viewportSize()?.width ?? 0) <= 390) {

@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { useI18n, type I18n } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
+import { RecipeImage } from "../recipes/recipe-image";
 import { useSession } from "../session";
 
 type Recipe = components["schemas"]["RecipeResponse"];
@@ -86,6 +87,7 @@ function RecipeView({ householdId, id }: { householdId: string; id: string }) {
   return (
     <article className="recipe-detail" aria-labelledby="recipe-title">
       {back}
+      <RecipeImage title={recipe.title} thumbUrl={recipe.image?.thumbUrl} cardUrl={recipe.image?.cardUrl} sizes="(min-width: 40rem) 40rem, 100vw" />
       <h1 id="recipe-title">{recipe.title}</h1>
       <p className="recipe-meta">
         {minutes !== null && <span>{t("recipes.minutes", { minutes })}</span>}

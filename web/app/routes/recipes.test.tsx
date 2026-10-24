@@ -22,12 +22,14 @@ const dessert = tag("dessert", "Dessert", "Category");
 const veg = tag("veg", "Vegetar");
 const quick = tag("quick", "Rask");
 
-const recipe = (id: string, title: string, totalMinutes: number | null, tags: Tag[]): Summary => ({
+const recipe = (id: string, title: string, totalMinutes: number | null, tags: Tag[], withImage = false): Summary => ({
   id,
   title,
   servings: 4,
   totalMinutes,
   tags,
+  thumbUrl: withImage ? `/img/${id}/thumb` : null,
+  cardUrl: withImage ? `/img/${id}/card` : null,
 });
 
 const json = (body: unknown, status = 200) =>
@@ -153,6 +155,19 @@ describe("Recipes grid", () => {
     expect(within(first).getByText("Middag")).toBeInTheDocument();
     expect(within(first).getByText("Rask")).toBeInTheDocument();
     expect(screen.getByText(t("recipes.count", { count: 3 }))).toBeInTheDocument();
+  });
+
+  it("shows the real picture when a recipe has one and the placeholder when it has none", async () => {
+    server.recipes = [recipe("r1", "Med bilde", 10, [], true), recipe("r2", "Uten bilde", 10, [])];
+    renderPage();
+    await loaded();
+    const [withImage, without] = screen.getAllByTestId("recipe-card");
+    const img = withImage!.querySelector("img")!;
+    expect(img).toHaveAttribute("src", "/img/r1/card");
+    expect(img).toHaveAttribute("loading", "lazy");
+    expect(img.getAttribute("srcset")).toContain("/img/r1/thumb 160w");
+    expect(without!.querySelector("img")).toBeNull();
+    expect(without!.querySelector(".recipe-image-placeholder")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("offers category, tag and time chips, none pressed at first", async () => {
@@ -343,6 +358,7 @@ describe("Recipe detail (minimal, T-025 extends)", () => {
       prepMinutes: 10,
       cookMinutes: 30,
       totalMinutes: 40,
+      image: null,
       steps: [
         { position: 1, text: "Kok opp vannet" },
         { position: 2, text: "Ha i fisken" },
