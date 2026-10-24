@@ -15,6 +15,29 @@ React Router v7 SPA (ssr: false), TypeScript strict.
 - Offline: the list of each household and week is cached in localStorage; check-offs are queued as intended states (`checked: true|false`, idempotent), one per item (latest wins), persisted, shown optimistically, replayed in order when the API answers again (online event, reconnect, or a 5 s retry), then the list is re-read. The last confirmed session (user and households) is also kept so a reload while the API is down can render the cached list; it is cleared on log out, together with cached lists and the queue.
 - Limit: there is no service worker (PWA is T-041). Offline means "the page is open, or the app is served but the API is unreachable". A browser that is fully offline cannot load the page itself. Generate, add and remove need the API and are disabled offline.
 
+## Recipe grid (T-024, `/recipes`, `/recipes/:id`)
+- Code: `app/routes/recipes.tsx` (screen), `app/recipes/filters.ts` (filters <-> URL, pure), `use-recipes.ts` (list with `limit`/`offset` paging, tags), `recipe-image.tsx` (the only place that knows image urls), `recipes.css`; `app/routes/recipe-detail.tsx` is a minimal read-only page that T-025 replaces.
+- Filters live in the URL: `?q=text&tag=<id>&tag=<id>&max=30`. Chips and "clear filters" add a history entry (back undoes them), typing replaces the entry after a 300 ms pause. Several tags are AND (T-023). Malformed values in the URL are ignored.
+- Paging is a "Show more" button (offset paging, 12 per page). Two columns at 390px (cards are 2 x 173px), more on wider screens; chips, cards and buttons are at least 44px.
+- `RecipeImage` shows the card/thumb image (lazy, async decode, `srcset` 160w/640w, 4:3 box so nothing shifts) or, without one (or if it fails to load), a coloured tile with the initial. Decorative (`alt=""`, the title is beside it).
+- Contract note: the generated schema does not declare the `{householdId}` route parameter on the list and tags endpoints (OpenAPI generator), so `householdPath()` in `use-recipes.ts` is the one typed cast. Declare it in the API and the cast goes away.
+
+### Performance budget (Lighthouse, mobile preset)
+Measured 2026-10-24 with `lighthouse@12` (mobile preset: Moto G Power emulation, simulated slow 4G, 4x CPU), headless Chromium, against the Docker stack at http://localhost:3000/recipes, signed in by sending the saved Playwright session cookie (`--extra-headers`), 3 runs, 3 demo recipes in the household.
+
+| Metric | Before gzip (3 runs) | After gzip (3 runs) | Budget |
+|---|---|---|---|
+| Performance score | 75-83 | 89-96 | >= 85 |
+| LCP | 3.7-3.8 s | 2.4-2.5 s | <= 2.5 s |
+| FCP | 3.3-3.4 s | 2.0-2.2 s | <= 2.0 s (watch) |
+| TBT | 1-38 ms | 3-14 ms | <= 200 ms |
+| CLS | 0.05-0.15 | 0.05-0.15 | <= 0.1 (one run in three is 0.15: the filter chips appear after the tags load; fix by reserving their space) |
+| Transferred | 397 KB | 156 KB | <= 250 KB |
+| JS (gzipped) | 381 KB (uncompressed!) | 146 KB | <= 170 KB, checked by `web/scripts/check-bundle-size.mjs` in verify.sh |
+| Accessibility / Best practices | 100 / 100 | 100 / 100 | 100 / 100 |
+
+The first run showed nginx sent the SPA uncompressed, so `web/nginx.conf` now enables gzip for text assets. Re-measure after T-025 and when images are many (`npx lighthouse http://localhost:3000/recipes --extra-headers=<json with Cookie> --only-categories=performance`). Raising a budget is a deliberate change to this table and the script.
+
 ## Internationalisation (T-038, Q-013)
 All user-facing text is translatable. Code, keys and the fallback are English; locales are `nb` and `en`.
 
