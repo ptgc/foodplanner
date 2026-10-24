@@ -3,6 +3,7 @@ import { useState } from "react";
 /** Pixel widths of the stored sizes (T-022: thumb 160, card 640). The intrinsic size keeps the layout from shifting. */
 export const thumbWidth = 160;
 export const cardWidth = 640;
+export const fullWidth = 1600;
 const aspect = { width: 4, height: 3 };
 
 // Friendly, distinct tile colours (dark text on light tints; the initial is decorative and large).
@@ -25,6 +26,8 @@ export type RecipeImageProps = {
   /** Small and card sized image urls (T-022). Without a card url a friendly placeholder tile is shown. */
   thumbUrl?: string | null;
   cardUrl?: string | null;
+  /** Full size image (1600px), offered to large and high-density screens on the detail page. */
+  fullUrl?: string | null;
   /** `sizes` hint for the responsive image; default is the two-column mobile grid. */
   sizes?: string;
 };
@@ -34,7 +37,7 @@ export type RecipeImageProps = {
  * lazy, async-decoded, size-reserved `<img>` with a thumb/card `srcset`; without them (or if loading fails) a
  * coloured tile with the recipe's initial. Always decorative (the title is next to it), so alt is empty.
  */
-export function RecipeImage({ title, thumbUrl, cardUrl, sizes = "(min-width: 40rem) 14rem, 50vw" }: RecipeImageProps) {
+export function RecipeImage({ title, thumbUrl, cardUrl, fullUrl, sizes = "(min-width: 40rem) 14rem, 50vw" }: RecipeImageProps) {
   const [failed, setFailed] = useState<string | null>(null);
   const src = cardUrl ?? thumbUrl ?? null;
 
@@ -46,8 +49,12 @@ export function RecipeImage({ title, thumbUrl, cardUrl, sizes = "(min-width: 40r
     );
   }
 
-  const srcSet =
-    thumbUrl && cardUrl ? `${thumbUrl} ${thumbWidth}w, ${cardUrl} ${cardWidth}w` : undefined;
+  const candidates = [
+    thumbUrl && `${thumbUrl} ${thumbWidth}w`,
+    cardUrl && `${cardUrl} ${cardWidth}w`,
+    fullUrl && cardUrl && `${fullUrl} ${fullWidth}w`,
+  ].filter(Boolean);
+  const srcSet = thumbUrl && cardUrl ? candidates.join(", ") : undefined;
 
   return (
     <div className="recipe-image">

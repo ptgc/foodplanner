@@ -5,6 +5,7 @@ import { SessionProvider } from "./session";
 import "./app.css";
 import "./recipes/recipes.css";
 import "./planner/planner.css";
+import "./recipes/recipe-edit.css";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (

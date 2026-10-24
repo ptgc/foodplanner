@@ -46,6 +46,15 @@ The first run showed nginx sent the SPA uncompressed, so `web/nginx.conf` now en
 - Plan entries carry no image urls, so the screen reads each distinct recipe once for its card image (placeholder tile on failure). A plan response with image urls would remove those requests.
 - "Make shopping list" POSTs generate and opens `/shopping?week=...`; "See shopping list" links there without generating.
 
+## Recipe detail and edit (T-025, `/recipes/:id`, `/recipes/new`, `/recipes/:id/edit`)
+- Detail: `routes/recipe-detail.tsx` (picture via `RecipeImage` with thumb/card/full in `srcset`, times, tags, ingredients, steps). The servings stepper scales the shown amounts by the servings ratio on the client; nothing is saved.
+- Edit/new: `routes/recipe-edit.tsx` (one component for both routes), rows in `recipes/ingredient-rows.tsx`, `step-rows.tsx`, `ingredient-picker.tsx` (searches `GET .../ingredients?search=`, creates the household's own ingredient inline), `form-parts.tsx`. Pure logic and tests: `recipes/recipe-form.ts` (client validation with the T-021 limits, request building, `mapServerErrors`).
+- Role: `useActiveRole()` reads the role of the active household from `GET /api/households`. A Child gets no New/Edit/Delete/upload controls and a message on the edit routes; the API refuses their writes with 403 regardless.
+- Quantity and unit come together; "to taste" is a checkbox that sends neither. No free-text ingredients (rule 5): every line points at an ingredient id.
+- Validation: the client checks first (error summary with focus, `aria-invalid`, `aria-describedby`). If the server still answers 400, its `errors` keys (`ingredients[2].unitId`, `tagIds[0]`, ...) are mapped to the same fields with translated messages; the server texts are never shown.
+- Picture: chosen with a file input, previewed, and sent (PUT multipart part `file`) or removed (DELETE) after the recipe is saved. The generated schema types a binary part as `string`, so the `File` is cast once in `applyPicture`. If the recipe saved but the picture failed, the page stays and the next save updates the same recipe.
+- Delete asks first; `409 recipe-in-use` shows a translated message. i18n keys for this screen are in the `recipe.*` namespace.
+
 ## Internationalisation (T-038, Q-013)
 All user-facing text is translatable. Code, keys and the fallback are English; locales are `nb` and `en`.
 

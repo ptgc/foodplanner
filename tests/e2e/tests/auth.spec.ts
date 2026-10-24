@@ -10,7 +10,8 @@ test("wrong password shows the generic error", async ({ page }) => {
   await page.getByLabel("Email").fill(adminCredentials().email);
   await page.getByLabel("Password").fill("definitely-wrong-password");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("alert")).toContainText("Sign in failed");
+  // Login hashing can take several seconds under a full parallel run, so wait longer than the 5 s default.
+  await expect(page.getByRole("alert")).toContainText("Sign in failed", { timeout: 15_000 });
   await expect(page).toHaveURL(/\/login/);
 });
 
