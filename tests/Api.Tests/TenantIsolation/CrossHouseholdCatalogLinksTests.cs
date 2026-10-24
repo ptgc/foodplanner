@@ -17,6 +17,9 @@ public sealed class XCatalogItem : Entity, ICatalogEntity
 
     /// <summary>Optional pointer at a household's project, to prove a global row that points at household data is found.</summary>
     public Guid? ProjectId { get; set; }
+
+    /// <summary>Navigation to the same project: assigning it sets ProjectId by relationship fix-up (T-073).</summary>
+    public XProject? Project { get; set; }
 }
 
 public sealed class XNote : Entity, ITenantEntity
@@ -229,6 +232,28 @@ public sealed class SaveTimeReferenceCheckCatalogModelTests(SqlServerFixture ser
         }
     }
 
+    [Fact]
+    public async Task Assigning_a_navigation_to_another_households_row_is_refused_too()
+    {
+        var cs = await NewDatabaseAsync();
+        var (a, b) = (Guid.NewGuid(), Guid.NewGuid());
+        var projectOfB = await AddProjectAsync(cs, b);
+        XProject detachedProjectOfB;
+        await using (var ofB = CatalogReferenceContext.Create(cs, b))
+        {
+            detachedProjectOfB = await ofB.Set<XProject>().AsNoTracking().SingleAsync(p => p.Id == projectOfB, Ct);
+        }
+
+        await using var context = CatalogReferenceContext.Create(cs, a);
+        context.Attach(detachedProjectOfB);
+        var item = new XCatalogItem { Name = "by navigation" };
+        item.Project = detachedProjectOfB; // the foreign key is never set directly
+        context.Add(item);
+
+        var ex = await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+        Assert.Contains("XCatalogItem.ProjectId", ex.Message, StringComparison.Ordinal);
+    }
+
     private static async Task<Guid> AddItemAsync(string cs, Guid household, bool global)
     {
         Guid id;
@@ -267,7 +292,7 @@ public sealed class CatalogReferenceContext : AppDbContext
     protected override void ConfigureAdditionalModel(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<XProject>().ToTable("XProjects");
-        modelBuilder.Entity<XCatalogItem>().ToTable("XCatalogItems").HasOne<XProject>().WithMany().HasForeignKey(i => i.ProjectId);
+        modelBuilder.Entity<XCatalogItem>().ToTable("XCatalogItems").HasOne(i => i.Project).WithMany().HasForeignKey(i => i.ProjectId);
         modelBuilder.Entity<XNote>().ToTable("XNotes").HasOne<XCatalogItem>().WithMany().HasForeignKey(n => n.ItemId);
     }
 }

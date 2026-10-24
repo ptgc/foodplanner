@@ -281,6 +281,58 @@ public sealed class SaveTimeReferenceCheckTests(TenancyDatabase db) : IClassFixt
             TimeProvider.System);
 }
 
+/// <summary>Invariants behind the save-time reference check that the per-key theories do not pin (T-073 review).</summary>
+public sealed class SaveTimeReferenceCheckInvariantTests(TenancyDatabase db) : IClassFixture<TenancyDatabase>
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    private TenantIsolationEnvironment Env => new(db.ConnectionString);
+
+    [Fact]
+    public async Task A_principal_of_another_household_and_a_dependent_referencing_it_in_the_same_save_is_refused()
+    {
+        var env = Env;
+        var (a, b) = (await env.NewHouseholdAsync(), await env.NewHouseholdAsync());
+
+        await using var context = env.ContextFor(a);
+        var recipe = new Recipe("Smuggled " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+        context.Add(recipe);
+        context.Entry(recipe).Property(nameof(ITenantEntity.HouseholdId)).CurrentValue = b;
+        context.Add(new RecipeStep(recipe.Id, 0, "Stir"));
+
+        // The same-save shortcut is safe only because the principal's own Add check refuses another household.
+        await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+        await using var check = env.ContextFor(b);
+        Assert.False(await check.Recipes.AnyAsync(r => r.Id == recipe.Id, Ct));
+    }
+
+    [Fact]
+    public async Task A_refused_save_changes_nothing_and_a_following_valid_save_works()
+    {
+        var env = Env;
+        var (a, b) = (await env.NewHouseholdAsync(), await env.NewHouseholdAsync());
+        var recipeOfB = new Recipe("Other " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+        await env.SaveAsync(b, recipeOfB);
+        var own = new Recipe("Own " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+        await env.SaveAsync(a, own);
+
+        await using var context = env.ContextFor(a);
+        var bad = new RecipeStep(recipeOfB.Id, 0, "Stir");
+        context.Add(bad);
+        await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+
+        var entry = context.Entry(bad);
+        Assert.Equal(EntityState.Added, entry.State);
+        Assert.Equal(Guid.Empty, entry.Property(nameof(ITenantEntity.HouseholdId)).CurrentValue); // not stamped
+        Assert.Equal(default(DateTimeOffset), entry.Property("CreatedAt").CurrentValue); // no timestamps
+        Assert.Equal(default(DateTimeOffset), entry.Property("UpdatedAt").CurrentValue);
+
+        entry.State = EntityState.Detached;
+        context.Add(new RecipeStep(own.Id, 0, "Stir"));
+        await context.SaveChangesAsync(Ct);
+    }
+}
+
 /// <summary>Counts the commands a context sends: reads (text starts with SELECT) and the save's writes.</summary>
 internal sealed class CommandCounter : DbCommandInterceptor
 {
