@@ -21,6 +21,23 @@ services:
       retries: 20
       start_period: 15s
 
+  # Local Azure Blob Storage emulator (recipe images, T-022). Blob service only. It uses Microsoft's documented,
+  # public development account, so there is no credential to keep: clients say UseDevelopmentStorage=true.
+  # Reachable from the host on loopback only. Data is in the named volume (deleted by local-reset).
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    command: azurite-blob --blobHost 0.0.0.0 --location /data --skipApiVersionCheck
+    ports:
+      - "127.0.0.1:10000:10000"
+    volumes:
+      - blobdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 10000"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   # One-shot: creates the database if missing, then exits 0. No migrations here.
   sql-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -41,7 +58,11 @@ services:
     depends_on:
       sql-init:
         condition: service_completed_successfully
+      azurite:
+        condition: service_healthy
     environment:
+      # Azurite's well-known development account, reached by service name instead of 127.0.0.1. Not a secret.
+      ConnectionStrings__Blobs: UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite
       ConnectionStrings__Default: Server=sql;Database=foodplanner;User Id=sa;Password=${MSSQL_SA_PASSWORD:?run scripts/local-up};TrustServerCertificate=True
       # No production email provider yet (T-017). Outside Development the API refuses to start without this.
       Email__Provider: Recording
@@ -61,3 +82,4 @@ services:
 
 volumes:
   sqldata:
+  blobdata:

@@ -40,6 +40,24 @@ public sealed class Recipe : Entity, ITenantEntity
     /// <summary>Prep plus cook time; null when neither is known.</summary>
     public int? TotalMinutes => PrepMinutes is null && CookMinutes is null ? null : (PrepMinutes ?? 0) + (CookMinutes ?? 0);
 
+    /// <summary>
+    /// The version of the current image, or null when the recipe has none. Every upload gets a new version, so the
+    /// stored files and their URLs never change once written and caches can keep them forever.
+    /// </summary>
+    public Guid? ImageVersion { get; private set; }
+
+    public void SetImage(Guid version)
+    {
+        if (version == Guid.Empty)
+        {
+            throw new ArgumentException("An image version is required.", nameof(version));
+        }
+
+        ImageVersion = version;
+    }
+
+    public void ClearImage() => ImageVersion = null;
+
     public void Update(string title, string? description, int servings, int? prepMinutes, int? cookMinutes) =>
         Set(title, description, servings, prepMinutes, cookMinutes);
 

@@ -18,6 +18,7 @@ public static class AppProblems
     public const string TagExists = "tag-exists";
     public const string RecipeNotFound = "recipe-not-found";
     public const string RecipeConflict = "recipe-conflict";
+    public const string ImageTooLarge = "image-too-large";
     public const string RecipeInUse = "recipe-in-use";
     public const string MealPlanEntryNotFound = "meal-plan-entry-not-found";
     public const string MealPlanEntryConflict = "meal-plan-entry-conflict";

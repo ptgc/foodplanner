@@ -345,7 +345,7 @@ public sealed class RecipeEndpointTests(AuthDatabase db) : IClassFixture<AuthDat
         Assert.Equal(RecipeEndpoints.DefaultLimit, first.GetProperty("limit").GetInt32());
         var items = first.GetProperty("items").EnumerateArray().ToList();
         Assert.Equal(["aa grøt", "Bb suppe", "Cc suppe", "Dd kake"], items.Select(i => i.GetProperty("title").GetString()));
-        Assert.Equal(["id", "servings", "tags", "title", "totalMinutes"], items[0].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(["cardUrl", "id", "servings", "tags", "thumbUrl", "title", "totalMinutes"], items[0].EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal));
         Assert.Equal(20, items[2].GetProperty("totalMinutes").GetInt32());
         Assert.Equal(JsonValueKind.Null, items[0].GetProperty("totalMinutes").ValueKind);
 

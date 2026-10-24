@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Generates the local SQL SA password once and stores it in .NET user secrets (Api project):
 #   Sql:SaPassword             used by local-up/down/reset
+#   ConnectionStrings:Blobs    UseDevelopmentStorage=true (Azurite, recipe images)
 #   ConnectionStrings:Default  used by the API when it runs on the host (F5 / dotnet run). Uses 127.0.0.1 not localhost: see README troubleshooting
 # Skips keys that are already set. Never prints the password.
 set -euo pipefail
@@ -50,4 +51,12 @@ else
     "Server=127.0.0.1,1433;Database=foodplanner;User Id=sa;Password=$pw;TrustServerCertificate=True" \
     --project src/Api >/dev/null
   echo "Set ConnectionStrings:Default."
+fi
+
+if has ConnectionStrings:Blobs; then
+  echo "ConnectionStrings:Blobs already set, keeping it."
+else
+  # Azurite's documented development account: a shortcut, not a credential. The compose api container sets its own.
+  dotnet user-secrets set ConnectionStrings:Blobs "UseDevelopmentStorage=true" --project src/Api >/dev/null
+  echo "Set ConnectionStrings:Blobs."
 fi

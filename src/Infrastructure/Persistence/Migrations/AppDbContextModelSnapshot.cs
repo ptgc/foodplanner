@@ -1266,6 +1266,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ImageVersion")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int?>("PrepMinutes")
                         .HasColumnType("int");
 

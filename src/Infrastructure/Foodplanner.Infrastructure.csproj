@@ -7,6 +7,10 @@
     <InternalsVisibleTo Include="Foodplanner.Api.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
+    <!-- Image resizing (T-022, Q-014): NetVips (MIT) over libvips (LGPL, dynamically linked native library). Exact pins. -->
+    <PackageReference Include="NetVips" Version="[3.2.0]" />
+    <PackageReference Include="NetVips.Native" Version="[8.18.7]" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.13" />
     <!-- Override the vulnerable 9.0.11 pulled in transitively by SqlClient (NU1902/NU1903). Remove when SqlClient moves on. -->

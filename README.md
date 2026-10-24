@@ -103,6 +103,7 @@ Rules and workflow: `CLAUDE.md`. Decisions, specs and backlog: `docs/`.
 | Part | Where | Runs as |
 | --- | --- | --- |
 | SQL Server 2022 | `docker-compose.yml` | container, `127.0.0.1:1433` |
+| Azurite (Azure Blob emulator, recipe images) | `docker-compose.yml` | container, `127.0.0.1:10000`, volume `blobdata` |
 | API (.NET 10 minimal API) | `src/Api` | container, or on the host in the dev loop |
 | Web (React Router SPA) | `web/` | container (nginx), or Vite dev server |
 
@@ -114,8 +115,19 @@ Prerequisites: what section 1 installs (Git, .NET 10 SDK, Node 22+, jq, a contai
 | http://localhost:5173 | web dev server (Vite; proxies `/api` to http://localhost:5000) |
 | http://localhost:5000 | API on the host (dev loop); `/openapi/v1.json` in Development |
 | `127.0.0.1,1433` | SQL Server (login `sa`, password in user secrets), loopback only |
+| `127.0.0.1:10000` | Azurite blob service (`UseDevelopmentStorage=true`), loopback only |
 
 Always use `localhost` in the browser, not `127.0.0.1` or your machine name, so cookies stay on one origin.
+
+### Recipe images
+
+Recipe pictures go to Azurite (Azure Blob Storage in Azure) and are served by the API to the household's members only.
+Upload limits, all in the `Images` configuration section (env var `Images__MaxUploadBytes`, and so on):
+`MaxUploadBytes` 10485760 (10 MB), `MaxDimension` 8000 pixels on a side, `MaxPixels` 40000000, `WebpQuality` 80.
+Only JPEG, PNG and WebP (decided from the file's bytes) are accepted; animated and corrupt files are refused. All
+metadata, including GPS position, is removed and three WebP sizes are stored (longest side 160, 640 and 1600 px).
+Resizing uses NetVips (MIT) with the libvips native library from the `NetVips.Native` package (LGPL-3.0-or-later,
+dynamically linked, not modified).
 
 ## 3. Run everything in containers
 
@@ -154,7 +166,7 @@ Expected: `status` Healthy, `database` Up.
 | Action | bash | PowerShell |
 | --- | --- | --- |
 | Stop, keep the data | `./scripts/local-down.sh` | `.\scripts\local-down.ps1` |
-| Stop and **delete the SQL volume** (all local data) | `./scripts/local-reset.sh` | `.\scripts\local-reset.ps1` |
+| Stop and **delete the SQL and Azurite volumes** (all local data, including uploaded images) | `./scripts/local-reset.sh` | `.\scripts\local-reset.ps1` |
 
 Reset keeps your user secrets, so the password and the admin login stay the same. The next `local-up` recreates the
 database, the schema (migrations) and the admin.
@@ -261,9 +273,9 @@ npm --prefix web run api:generate
 | `local-secrets` | generates the SQL password and the seeded admin login into user secrets, once (run by `local-up` for you) |
 | `local-migrate` | applies EF migrations to the local database (idempotent; run by `local-up`) |
 | `local-seed` | creates the local admin and the household "Home" (Development only, idempotent; run by `local-up`) |
-| `local-up` | starts the stack, migrates and seeds; `local-up sql` starts only SQL, the database init, migrations and seed |
-| `local-down` | stops, keeps the SQL volume |
-| `local-reset` | stops and deletes the SQL volume |
+| `local-up` | starts the stack, migrates and seeds; `local-up sql` starts only SQL and Azurite, the database init, migrations and seed |
+| `local-down` | stops, keeps the SQL and Azurite volumes |
+| `local-reset` | stops and deletes the SQL and Azurite volumes |
 | `verify` (`.sh` only) | build, lint and test everything |
 | `e2e` | runs the Playwright e2e suite against the running stack |
 | `openapi` | regenerates `openapi/openapi.v1.json` |
@@ -278,6 +290,10 @@ random SQL Server `sa` password (24 letters and digits plus one `-`; meets the S
 - `Sql:SaPassword`: read by `local-up`/`down`/`reset`, passed to compose as `MSSQL_SA_PASSWORD` for that one process only.
 - `ConnectionStrings:Default`: used by the API when it runs on the host (`127.0.0.1,1433`; see troubleshooting).
   Inside containers compose builds the connection string itself.
+- `ConnectionStrings:Blobs`: `UseDevelopmentStorage=true`, Azurite's documented development account (127.0.0.1:10000).
+  It is a well-known public shortcut, not a credential, so nothing needs rotating. The api container gets
+  `UseDevelopmentStorage=true;DevelopmentStorageProxyUri=http://azurite` from compose, which reaches Azurite by service name.
+  Blobs live in the `blobdata` volume; `local-reset` deletes it with the SQL volume.
 
 - `Seed:AdminEmail` (`admin@foodplanner.local`) and `Seed:AdminPassword` (random, 20 letters and digits; T-009 needs at
   least 10 characters): the local admin that `local-seed` creates (T-029).
@@ -336,7 +352,7 @@ The scripts only need a `docker` command with `docker compose`. Check any option
 
 ## 10. Troubleshooting
 
-- **A port is in use** (3000, 5000, 5173, 1433): find the process and stop it.
+- **A port is in use** (3000, 5000, 5173, 1433, 10000): find the process and stop it.
   ```bash
   lsof -i :3000          # macOS, Linux
   ```

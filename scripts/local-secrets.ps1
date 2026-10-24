@@ -57,3 +57,12 @@ if (Get-Secret 'ConnectionStrings:Default') {
     if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
     Write-Host 'Set ConnectionStrings:Default.'
 }
+
+if (Get-Secret 'ConnectionStrings:Blobs') {
+    Write-Host 'ConnectionStrings:Blobs already set, keeping it.'
+} else {
+    # Azurite's documented development account: a shortcut, not a credential. The compose api container sets its own.
+    dotnet user-secrets set ConnectionStrings:Blobs 'UseDevelopmentStorage=true' --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Set ConnectionStrings:Blobs.'
+}
