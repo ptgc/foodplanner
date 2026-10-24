@@ -5,6 +5,8 @@ import type { components } from "../api/schema";
 import { useI18n, type I18n } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import { RecipeImage } from "../recipes/recipe-image";
+import { limits } from "../recipes/recipe-form";
+import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
 import { useSession } from "../session";
 
 type Recipe = components["schemas"]["RecipeResponse"];
@@ -15,17 +17,16 @@ type State =
   | { kind: "notFound" }
   | { kind: "error"; message: "unreachable" | string | undefined };
 
-/** "2 dl", "1,5 kg", or just the number; nothing when the quantity is unknown ("to taste"). */
-export function ingredientAmount(item: Ingredient, i18n: Pick<I18n, "formatNumber">): string {
+/**
+ * "2 dl", "1,5 kg", or just the number; nothing when the quantity is unknown ("to taste"). `scale` multiplies the
+ * stored quantity for display only (the servings scaler); it never changes what is saved.
+ */
+export function ingredientAmount(item: Ingredient, i18n: Pick<I18n, "formatNumber">, scale = 1): string {
   if (item.quantity === null || item.quantity === undefined) return "";
-  const amount = i18n.formatNumber(Number(item.quantity), { maximumFractionDigits: 2 });
+  const amount = i18n.formatNumber(Number(item.quantity) * scale, { maximumFractionDigits: 2 });
   return item.unitCode ? `${amount} ${item.unitCode}` : amount;
 }
 
-/**
- * Minimal read-only recipe page so a tapped card has somewhere to go. T-025 replaces it with the full
- * detail/edit page.
- */
 export default function RecipeDetail() {
   const { t } = useI18n();
   const { session } = useSession();
@@ -36,7 +37,8 @@ export default function RecipeDetail() {
 }
 
 function RecipeView({ householdId, id }: { householdId: string; id: string }) {
-  const { t, formatNumber } = useI18n();
+  const { t } = useI18n();
+  const canEdit = canEditRecipes(useActiveRole());
   const [state, setState] = useState<State | null>(null);
 
   useEffect(() => {
@@ -82,18 +84,66 @@ function RecipeView({ householdId, id }: { householdId: string; id: string }) {
       </section>
     );
 
-  const { recipe } = state;
-  const minutes = recipe.totalMinutes === null || recipe.totalMinutes === undefined ? null : Number(recipe.totalMinutes);
+  return <RecipeArticle recipe={state.recipe} back={back} canEdit={canEdit} />;
+}
+
+function RecipeArticle({ recipe, back, canEdit }: { recipe: Recipe; back: React.ReactNode; canEdit: boolean }) {
+  const { t, formatNumber } = useI18n();
+  const base = Number(recipe.servings);
+  const [servings, setServings] = useState(base);
+  const scale = servings / base;
+  const minutesOf = (value: number | string | null | undefined) => (value === null || value === undefined ? null : Number(value));
+  const prep = minutesOf(recipe.prepMinutes);
+  const cook = minutesOf(recipe.cookMinutes);
+  const total = minutesOf(recipe.totalMinutes);
+
   return (
     <article className="recipe-detail" aria-labelledby="recipe-title">
-      {back}
-      <RecipeImage title={recipe.title} thumbUrl={recipe.image?.thumbUrl} cardUrl={recipe.image?.cardUrl} sizes="(min-width: 40rem) 40rem, 100vw" />
+      <div className="recipe-detail-bar">
+        {back}
+        {canEdit && (
+          <Link to={`/recipes/${recipe.id}/edit`} className="button" data-testid="recipe-edit-link">
+            {t("recipe.edit")}
+          </Link>
+        )}
+      </div>
+      <RecipeImage
+        title={recipe.title}
+        thumbUrl={recipe.image?.thumbUrl}
+        cardUrl={recipe.image?.cardUrl}
+        fullUrl={recipe.image?.fullUrl}
+        sizes="(min-width: 40rem) 40rem, 100vw"
+      />
       <h1 id="recipe-title">{recipe.title}</h1>
-      <p className="recipe-meta">
-        {minutes !== null && <span>{t("recipes.minutes", { minutes })}</span>}
-        <span>{t("recipes.servings", { count: Number(recipe.servings) })}</span>
-      </p>
-      {recipe.description && <p>{recipe.description}</p>}
+      {total !== null && (
+        <dl className="recipe-times" aria-label={t("recipe.times")}>
+          {prep !== null && cook !== null && (
+            <>
+              <div>
+                <dt>{t("recipe.prepTime")}</dt>
+                <dd>{t("recipes.minutes", { minutes: prep })}</dd>
+              </div>
+              <div>
+                <dt>{t("recipe.cookTime")}</dt>
+                <dd>{t("recipes.minutes", { minutes: cook })}</dd>
+              </div>
+            </>
+          )}
+          {(prep === null || cook === null) && (
+            <div>
+              <dt>{prep !== null ? t("recipe.prepTime") : t("recipe.cookTime")}</dt>
+              <dd>{t("recipes.minutes", { minutes: total })}</dd>
+            </div>
+          )}
+          {prep !== null && cook !== null && (
+            <div>
+              <dt>{t("recipe.totalTime")}</dt>
+              <dd>{t("recipes.minutes", { minutes: total })}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+      {recipe.description && <p className="recipe-description">{recipe.description}</p>}
       {recipe.tags.length > 0 && (
         <p className="recipe-card-tags">
           {recipe.tags.map((tag) => (
@@ -103,11 +153,45 @@ function RecipeView({ householdId, id }: { householdId: string; id: string }) {
           ))}
         </p>
       )}
+
+      <div className="servings-scaler" role="group" aria-labelledby="servings-label">
+        <span id="servings-label" className="servings-label">
+          {t("recipe.servingsFor")}
+        </span>
+        <button
+          type="button"
+          className="button button-outline stepper"
+          aria-label={t("recipe.servingsFewer")}
+          disabled={servings <= limits.servingsMin}
+          onClick={() => setServings((s) => Math.max(limits.servingsMin, s - 1))}
+        >
+          &minus;
+        </button>
+        <output className="servings-value" aria-live="polite" data-testid="servings-value">
+          {formatNumber(servings, { useGrouping: false })}
+        </output>
+        <button
+          type="button"
+          className="button button-outline stepper"
+          aria-label={t("recipe.servingsMore")}
+          disabled={servings >= limits.servingsMax}
+          onClick={() => setServings((s) => Math.min(limits.servingsMax, s + 1))}
+        >
+          +
+        </button>
+        {servings !== base && (
+          <button type="button" className="button button-outline" onClick={() => setServings(base)}>
+            {t("recipe.servingsReset", { servings: base })}
+          </button>
+        )}
+      </div>
+      {servings !== base && <p className="recipe-scaled-note">{t("recipe.servingsScaled", { servings: base })}</p>}
+
       <h2>{t("recipes.ingredients")}</h2>
       <ul className="recipe-ingredients">
         {recipe.ingredients.map((item, i) => (
           <li key={`${item.ingredientId}-${i}`}>
-            <span className="recipe-amount">{ingredientAmount(item, { formatNumber })}</span> {item.ingredientName}
+            <span className="recipe-amount">{ingredientAmount(item, { formatNumber }, scale)}</span> {item.ingredientName}
             {item.note ? ` (${item.note})` : ""}
           </li>
         ))}

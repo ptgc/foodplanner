@@ -13,6 +13,7 @@ import {
   type RecipeFilters,
 } from "../recipes/filters";
 import { RecipeImage } from "../recipes/recipe-image";
+import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
 import { useRecipeList, useTags, type Failure, type RecipeSummary, type Tag } from "../recipes/use-recipes";
 import { useSession } from "../session";
 
@@ -40,6 +41,7 @@ function RecipesScreen({ householdId }: { householdId: string }) {
   const tags = useTags(householdId);
   const { list, loadMore, retry } = useRecipeList(householdId, filters);
   const searchId = useId();
+  const canEdit = canEditRecipes(useActiveRole());
 
   // The box shows what is typed; the URL (and the request) follow after a pause. A change that did not come from
   // typing here (back/forward, "clear filters") is copied into the box.
@@ -68,7 +70,14 @@ function RecipesScreen({ householdId }: { householdId: string }) {
 
   return (
     <section className="recipes" aria-labelledby="recipes-heading">
-      <h1 id="recipes-heading">{t("recipes.title")}</h1>
+      <div className="recipes-heading-row">
+        <h1 id="recipes-heading">{t("recipes.title")}</h1>
+        {canEdit && (
+          <Link to="/recipes/new" className="button" data-testid="recipe-new-link">
+            {t("recipe.new")}
+          </Link>
+        )}
+      </div>
 
       <div className="recipes-search">
         <label htmlFor={searchId}>{t("recipes.search")}</label>

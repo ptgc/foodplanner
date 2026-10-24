@@ -16,6 +16,12 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:confirmation-invalid": "problem.confirmationInvalid",
   "urn:foodplanner:problem:meal-plan-entry-not-found": "problem.mealPlanEntryNotFound",
   "urn:foodplanner:problem:meal-plan-entry-conflict": "problem.mealPlanEntryConflict",
+  "urn:foodplanner:problem:recipe-in-use": "recipe.problem.inUse",
+  "urn:foodplanner:problem:recipe-conflict": "recipe.problem.conflict",
+  "urn:foodplanner:problem:recipe-not-found": "recipe.problem.notFound",
+  "urn:foodplanner:problem:ingredient-exists": "recipe.problem.ingredientExists",
+  "urn:foodplanner:problem:tag-exists": "recipe.problem.tagExists",
+  "urn:foodplanner:problem:image-too-large": "recipe.problem.imageTooLarge",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */
