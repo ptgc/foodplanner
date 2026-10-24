@@ -41,6 +41,18 @@ export function isoWeek(monday: string): { week: number; year: number } {
   return { week: Math.floor(dayOfYear / 7) + 1, year };
 }
 
+/** The date `days` after the given `yyyy-MM-dd` date, as `yyyy-MM-dd`. */
+export function addDays(iso: string, days: number): string {
+  const d = parse(iso);
+  d.setDate(d.getDate() + days);
+  return toIsoDate(d);
+}
+
+/** A `yyyy-MM-dd` date as a local Date (no time zone shift). */
+export function dateOf(iso: string): Date {
+  return parse(iso);
+}
+
 export function weekRange(monday: string, format: (date: Date) => string): string {
   const start = parse(monday);
   const end = parse(monday);

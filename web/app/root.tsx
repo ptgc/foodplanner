@@ -4,6 +4,7 @@ import { APP_NAME, useI18n } from "./i18n";
 import { SessionProvider } from "./session";
 import "./app.css";
 import "./recipes/recipes.css";
+import "./planner/planner.css";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
