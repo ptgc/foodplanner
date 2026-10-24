@@ -12,6 +12,7 @@ export default defineConfig({
   use: {
     baseURL,
     headless: true,
+    locale: "en-US",
     trace: "retain-on-failure",
   },
   projects: [
@@ -21,8 +22,21 @@ export default defineConfig({
     {
       name: "mobile-390",
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      testIgnore: /nb\.spec\.ts/,
       dependencies: ["setup"],
     },
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } }, dependencies: ["setup"] },
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
+      testIgnore: /nb\.spec\.ts/,
+      dependencies: ["setup"],
+    },
+    // Norwegian: the browser language is nb-NO (T-038). Only nb.spec.ts runs here; every other spec asserts English.
+    {
+      name: "mobile-390-nb",
+      use: { ...devices["Desktop Chrome"], locale: "nb-NO", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      testMatch: /nb\.spec\.ts/,
+      dependencies: ["setup"],
+    },
   ],
 });

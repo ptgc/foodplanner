@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { safeReturnTo } from "../auth-paths";
+import { useI18n } from "../i18n";
+import { LanguageSwitch } from "../i18n/language-switch";
+import { problemKey } from "../i18n/problems";
 import { useSession, type SignInResult } from "../session";
 
-const messages = {
-  invalid: "Sign in failed. Check your email and password and try again.",
-  "rate-limited": "Too many attempts. Wait a minute and try again.",
-  error: "Something went wrong. Please try again.",
-  "cookie-missing":
-    "Signed in, but the browser did not keep the session cookie. Safari does not store Secure cookies on http://localhost; try Chrome or use https.",
-} as const;
-
 export default function Login() {
+  const { t } = useI18n();
   const { session, signIn } = useSession();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -44,14 +40,22 @@ export default function Login() {
     else setResult(next);
   }
 
-  const message = result && result.kind !== "ok" ? messages[result.kind] : null;
+  const message =
+    result?.kind === "cookie-missing"
+      ? t("login.cookieMissing")
+      : result?.kind === "problem"
+        ? t(problemKey(result.problemType))
+        : null;
 
   return (
     <main id="main" className="login">
-      <h1>Sign in</h1>
+      <div className="login-language">
+        <LanguageSwitch />
+      </div>
+      <h1>{t("common.signIn")}</h1>
       <form onSubmit={onSubmit} aria-busy={submitting}>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t("login.email")}</label>
           <input
             id="email"
             ref={emailRef}
@@ -64,7 +68,7 @@ export default function Login() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t("login.password")}</label>
           <input
             id="password"
             type="password"
@@ -79,7 +83,7 @@ export default function Login() {
           {message}
         </div>
         <button type="submit" className="button" disabled={submitting}>
-          {submitting ? "Signing in..." : "Sign in"}
+          {submitting ? t("login.signingIn") : t("common.signIn")}
         </button>
       </form>
     </main>

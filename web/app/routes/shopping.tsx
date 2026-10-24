@@ -3,20 +3,21 @@ import { Link, useSearchParams } from "react-router";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { useSession } from "../session";
-import { t } from "../shopping/strings";
+import { useI18n, type I18n } from "../i18n";
 import { useShoppingList, type ActionResult } from "../shopping/use-shopping-list";
 import { addWeeks, isMonday, isoWeek, mondayOf, weekRange } from "../shopping/week";
 
 type Item = components["schemas"]["ShoppingListItemResponse"];
 type Unit = components["schemas"]["UnitResponse"];
 
-export function formatQuantities(item: Item): string {
+export function formatQuantities(item: Item, i18n: Pick<I18n, "t" | "formatNumber">): string {
   if (item.quantities.length === 0) return "";
   return item.quantities
     .map((q) => {
-      if (q.amount === null || q.amount === undefined) return t.toTaste;
-      const n = Math.round(Number(q.amount) * 100) / 100;
-      return q.unitCode ? `${n} ${q.unitCode}` : String(n);
+      if (q.amount === null || q.amount === undefined) return i18n.t("shopping.toTaste");
+      // Intl groups and separates by locale: 1.5 in en, 1,5 in nb.
+      const n = i18n.formatNumber(Number(q.amount), { maximumFractionDigits: 2 });
+      return q.unitCode ? `${n} ${q.unitCode}` : n;
     })
     .join(" + ");
 }
@@ -27,14 +28,16 @@ export function checkedLast(items: Item[]): Item[] {
 }
 
 export default function Shopping() {
+  const { t } = useI18n();
   const { session } = useSession();
   if (session.status !== "signedIn") return null;
-  if (!session.activeHouseholdId) return <p>{t.noHousehold}</p>;
+  if (!session.activeHouseholdId) return <p>{t("shopping.noHousehold")}</p>;
   // Keyed so switching household tears down the live connection and starts a fresh one.
   return <ShoppingScreen key={session.activeHouseholdId} householdId={session.activeHouseholdId} />;
 }
 
 function ShoppingScreen({ householdId }: { householdId: string }) {
+  const { t, formatDayMonth, formatNumber } = useI18n();
   const [params, setParams] = useSearchParams();
   const requested = params.get("week");
   const weekStart = isMonday(requested) ? requested : mondayOf(new Date());
@@ -49,7 +52,7 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
   };
 
   const report = (r: ActionResult) => {
-    setMessage(r === "ok" ? null : r === "offline" ? t.needsOnline : t.actionFailed);
+    setMessage(r === "ok" ? null : r === "offline" ? t("shopping.needsOnline") : t("shopping.actionFailed"));
   };
 
   const generate = async () => {
@@ -64,11 +67,11 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
   if (model.forbidden) {
     return (
       <section className="shop">
-        <h1>{t.forbiddenTitle}</h1>
-        <p>{t.forbiddenBody}</p>
+        <h1>{t("shopping.forbiddenTitle")}</h1>
+        <p>{t("shopping.forbiddenBody")}</p>
         {/* A full navigation: the household list is read again when the app loads. */}
         <a className="button shop-link" href="/">
-          {t.forbiddenLink}
+          {t("shopping.chooseHousehold")}
         </a>
       </section>
     );
@@ -79,41 +82,46 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
 
   return (
     <section className="shop" aria-labelledby="shop-title">
-      <h1 id="shop-title">{t.title}</h1>
+      <h1 id="shop-title">{t("shopping.title")}</h1>
 
       <div className="shop-weeks">
         <button type="button" className="button" onClick={() => goToWeek(addWeeks(weekStart, -1))}>
           <span aria-hidden="true">&lsaquo;</span>
-          <span className="visually-hidden">{t.prevWeek}</span>
+          <span className="visually-hidden">{t("shopping.previousWeek")}</span>
         </button>
         <p className="shop-week" aria-live="polite" data-testid="shop-week">
-          <strong>{t.week(week, year)}</strong>
-          <span>{weekRange(weekStart)}</span>
+          <strong>
+            {t("shopping.week", {
+              week: formatNumber(week, { useGrouping: false }),
+              year: formatNumber(year, { useGrouping: false }),
+            })}
+          </strong>
+          <span>{weekRange(weekStart, formatDayMonth)}</span>
         </p>
         <button type="button" className="button" onClick={() => goToWeek(addWeeks(weekStart, 1))}>
           <span aria-hidden="true">&rsaquo;</span>
-          <span className="visually-hidden">{t.nextWeek}</span>
+          <span className="visually-hidden">{t("shopping.nextWeek")}</span>
         </button>
       </div>
 
       {!model.online && (
         <p role="status" className="shop-banner shop-offline" data-testid="offline-banner">
-          {t.offlineBanner}
+          {t("shopping.offlineBanner")}
         </p>
       )}
       {model.online && model.fromCache && (
         <p role="status" className="shop-banner" data-testid="cached-banner">
-          {t.cachedBanner}
+          {t("shopping.cachedBanner")}
         </p>
       )}
       {model.pending > 0 && (
         <p role="status" className="shop-banner shop-pending" data-testid="pending-sync">
-          {t.pending(model.pending)}
+          {t("shopping.pending", { count: model.pending })}
         </p>
       )}
 
       <button type="button" className="button shop-generate" disabled={busy || !model.online} onClick={() => void generate()}>
-        {busy ? t.generating : t.generate}
+        {busy ? t("shopping.generating") : t("shopping.generate")}
       </button>
       {message && (
         <p role="alert" className="form-error">
@@ -121,30 +129,30 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
         </p>
       )}
 
-      {model.loading && <p role="status">{t.loading}</p>}
+      {model.loading && <p role="status">{t("shopping.loading")}</p>}
       {!list && model.loadError === "unauthorized" && (
         <p role="alert" className="form-error">
-          {t.signInAgain} <Link to="/login">Sign in</Link>
+          {t("shopping.signInAgain")} <Link to="/login">{t("common.signIn")}</Link>
         </p>
       )}
       {!list && model.loadError && model.loadError !== "unauthorized" && (
         <p role="alert" className="form-error">
-          {model.loadError === "network" ? t.noCache : t.loadFailed}
+          {model.loadError === "network" ? t("shopping.noCache") : t("shopping.loadFailed")}
         </p>
       )}
 
       {list && (
         <>
-          {empty && <p>{t.emptyList}</p>}
+          {empty && <p>{t("shopping.emptyList")}</p>}
           <ItemSection
-            title={t.sectionMain}
+            title={t("shopping.sectionMain")}
             items={list.main}
             onToggle={model.toggle}
             onRemove={async (id) => report(await model.removeItem(id))}
             canRemove={model.online}
           />
           <ItemSection
-            title={t.sectionStaples}
+            title={t("shopping.sectionStaples")}
             items={list.checkYouHave}
             onToggle={model.toggle}
             onRemove={async (id) => report(await model.removeItem(id))}
@@ -193,9 +201,11 @@ function ItemRow({
   onRemove: (id: string) => Promise<void>;
   canRemove: boolean;
 }) {
+  const i18n = useI18n();
+  const { t } = i18n;
   const nameId = useId();
   const detailId = useId();
-  const quantity = formatQuantities(item);
+  const quantity = formatQuantities(item, i18n);
   const from = item.recipes.map((r) => r.title).join(", ");
   const hasDetail = !!quantity || !!from || item.quantityChangedSinceChecked || item.isManual;
   return (
@@ -216,9 +226,9 @@ function ItemRow({
           {hasDetail && (
             <span id={detailId} className="shop-detail">
               {quantity && <span className="shop-qty">{quantity}</span>}
-              {from && <span>{t.fromRecipes(from)}</span>}
-              {item.isManual && <span>{t.manual}</span>}
-              {item.quantityChangedSinceChecked && <span className="shop-changed">{t.quantityChanged}</span>}
+              {from && <span>{t("shopping.fromRecipes", { titles: from })}</span>}
+              {item.isManual && <span>{t("shopping.manual")}</span>}
+              {item.quantityChangedSinceChecked && <span className="shop-changed">{t("shopping.quantityChanged")}</span>}
             </span>
           )}
         </span>
@@ -228,7 +238,7 @@ function ItemRow({
           type="button"
           className="button shop-remove"
           disabled={!canRemove}
-          aria-label={t.remove(item.name)}
+          aria-label={t("shopping.remove", { name: item.name })}
           onClick={() => void onRemove(item.id)}
         >
           <span aria-hidden="true">&times;</span>
@@ -245,6 +255,7 @@ function AddItemForm({
   disabled: boolean;
   onAdd: (label: string, quantity: number | null, unitId: string | null) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [label, setLabel] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitId, setUnitId] = useState("");
@@ -283,20 +294,20 @@ function AddItemForm({
 
   return (
     <form className="shop-add" onSubmit={(e) => void submit(e)}>
-      <h2>{t.addTitle}</h2>
+      <h2>{t("shopping.addTitle")}</h2>
       <div className="field">
-        <label htmlFor="shop-add-label">{t.addLabel}</label>
+        <label htmlFor="shop-add-label">{t("shopping.addLabel")}</label>
         <input id="shop-add-label" value={label} maxLength={100} onChange={(e) => setLabel(e.target.value)} />
       </div>
       <div className="shop-add-qty">
         <div className="field">
-          <label htmlFor="shop-add-qty">{t.addQuantity}</label>
+          <label htmlFor="shop-add-qty">{t("shopping.addQuantity")}</label>
           <input id="shop-add-qty" inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="shop-add-unit">{t.addUnit}</label>
+          <label htmlFor="shop-add-unit">{t("shopping.addUnit")}</label>
           <select id="shop-add-unit" value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-            <option value="">{t.addNoUnit}</option>
+            <option value="">{t("shopping.addNoUnit")}</option>
             {units.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.code}
@@ -306,9 +317,9 @@ function AddItemForm({
         </div>
       </div>
       <button type="submit" className="button" disabled={disabled || busy || invalid}>
-        {t.add}
+        {t("shopping.add")}
       </button>
-      {disabled && <p className="shop-hint">{t.needsOnline}</p>}
+      {disabled && <p className="shop-hint">{t("shopping.needsOnline")}</p>}
     </form>
   );
 }

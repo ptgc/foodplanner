@@ -1,7 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, resetAntiforgeryToken } from "./api/client";
 import type { components } from "./api/schema";
+import { problemTypeOf } from "./i18n/problems";
 import { clearShoppingStorage } from "./shopping/storage";
+
+const loginFailed = "urn:foodplanner:problem:login-failed";
+const rateLimited = "urn:foodplanner:problem:rate-limited";
 
 type Me = components["schemas"]["MeResponse"];
 type Household = components["schemas"]["HouseholdResponse"];
@@ -13,10 +17,9 @@ export type Session =
 
 export type SignInResult =
   | { kind: "ok" }
-  | { kind: "invalid" }
-  | { kind: "rate-limited" }
   | { kind: "cookie-missing" }
-  | { kind: "error" };
+  // The server refused or something failed; `problemType` is the ProblemDetails `type` code, if known.
+  | { kind: "problem"; problemType: string | undefined };
 
 type SessionApi = {
   session: Session;
@@ -128,18 +131,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string): Promise<SignInResult> => {
     try {
-      const { response } = await api.POST("/api/auth/login", { body: { email, password } });
+      const { response, error } = await api.POST("/api/auth/login", { body: { email, password } });
       // The token used for login was issued to an anonymous caller; get a fresh one for the new identity.
       resetAntiforgeryToken();
-      if (response.status === 429) return { kind: "rate-limited" };
-      if (response.status === 401) return { kind: "invalid" };
-      if (!response.ok) return { kind: "error" };
+      if (!response.ok) {
+        // Prefer the ProblemDetails type; a proxy or older server may only give the status.
+        const byStatus = response.status === 429 ? rateLimited : response.status === 401 ? loginFailed : undefined;
+        return { kind: "problem", problemType: problemTypeOf(error) ?? byStatus };
+      }
       const next = await loadSession();
       if (next.status !== "signedIn") return { kind: "cookie-missing" };
       setSession(next);
       return { kind: "ok" };
     } catch {
-      return { kind: "error" };
+      return { kind: "problem", problemType: undefined };
     }
   }, []);
 

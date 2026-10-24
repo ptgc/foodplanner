@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAntiforgeryToken } from "../api/client";
 import type { components } from "../api/schema";
 import { SessionProvider } from "../session";
+import { n, t } from "../test-i18n";
 import Shopping from "./shopping";
 
 type List = components["schemas"]["ShoppingListResponse"];
@@ -173,26 +174,26 @@ afterEach(() => {
 });
 
 async function ready() {
-  await screen.findByRole("heading", { name: "To buy", level: 2 });
+  await screen.findByRole("heading", { name: t("shopping.sectionMain"), level: 2 });
 }
 
 describe("shopping list rendering", () => {
   it("shows Main and staples sections with quantities, recipes and hints; checked items last", async () => {
     renderPage();
     await ready();
-    const main = screen.getByRole("region", { name: "To buy" });
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
     expect(names(main)).toEqual(["Melk", "Kaffe", "Brod", "Egg"]); // server order, checked moved to the bottom
-    expect(within(main).getByText("1.5 l")).toBeInTheDocument();
-    expect(within(main).getByText("from: Pannekaker")).toBeInTheDocument();
+    expect(within(main).getByText(`${n(1.5)} l`)).toBeInTheDocument();
+    expect(within(main).getByText(t("shopping.fromRecipes", { titles: "Pannekaker" }))).toBeInTheDocument();
     expect(within(main).getByText("6 stk")).toBeInTheDocument();
-    expect(within(main).getByText("Amount changed after you checked this")).toBeInTheDocument();
+    expect(within(main).getByText(t("shopping.quantityChanged"))).toBeInTheDocument();
     expect(within(main).getByRole("checkbox", { name: "Brod" })).toBeChecked();
-    expect(within(main).getByRole("button", { name: "Remove Kaffe" })).toBeInTheDocument();
-    expect(within(main).queryByRole("button", { name: "Remove Melk" })).toBeNull();
+    expect(within(main).getByRole("button", { name: t("shopping.remove", { name: "Kaffe" }) })).toBeInTheDocument();
+    expect(within(main).queryByRole("button", { name: t("shopping.remove", { name: "Melk" }) })).toBeNull();
 
-    const staples = screen.getByRole("region", { name: "Check you have these" });
+    const staples = screen.getByRole("region", { name: t("shopping.sectionStaples") });
     expect(names(staples)).toEqual(["Salt"]);
-    expect(screen.getByTestId("shop-week")).toHaveTextContent("Week 43, 2026");
+    expect(screen.getByTestId("shop-week")).toHaveTextContent(t("shopping.week", { week: 43, year: 2026 }));
   });
 
   it("joins the household and reads state through the hub on connect", async () => {
@@ -217,7 +218,7 @@ describe("check-off", () => {
     await ready();
     await userEvent.click(screen.getByRole("checkbox", { name: "Melk" }));
     await waitFor(() => expect(server.puts).toEqual(["melk:true:tok"]));
-    const main = screen.getByRole("region", { name: "To buy" });
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
     expect(names(main)).toEqual(["Kaffe", "Melk", "Brod", "Egg"]);
   });
 });
@@ -232,11 +233,11 @@ describe("offline", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Melk" })); // back to unchecked: latest intent wins
 
     expect(await screen.findByTestId("offline-banner")).toBeInTheDocument();
-    expect(screen.getByTestId("pending-sync")).toHaveTextContent("2 changes waiting to sync");
+    expect(screen.getByTestId("pending-sync")).toHaveTextContent(t("shopping.pending", { count: 2 }));
     expect(screen.getByRole("checkbox", { name: "Kaffe" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Melk" })).not.toBeChecked();
     expect(server.puts).toEqual([]);
-    expect(screen.getByRole("button", { name: "Generate from meal plan" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: t("shopping.generate") })).toBeDisabled();
 
     server.down = false;
     act(() => {
@@ -260,7 +261,7 @@ describe("offline", () => {
     renderPage();
     await ready();
     expect(screen.getByRole("checkbox", { name: "Melk" })).toBeChecked();
-    expect(screen.getByTestId("pending-sync")).toHaveTextContent("1 change waiting to sync");
+    expect(screen.getByTestId("pending-sync")).toHaveTextContent(t("shopping.pending", { count: 1 }));
     expect(await screen.findByTestId("offline-banner")).toBeInTheDocument();
   });
 
@@ -268,7 +269,7 @@ describe("offline", () => {
     server.down = true;
     renderPage();
     // Session itself is unavailable without a saved one, so nothing renders.
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "Shopping list", level: 1 })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("heading", { name: t("shopping.title"), level: 1 })).toBeNull());
   });
 });
 
@@ -311,13 +312,13 @@ describe("live updates", () => {
       throw new Error("An unexpected error occurred invoking 'GetState' on the server. HubException: forbidden");
     };
     act(() => hub.handlers.get("ShoppingListChanged")!({ householdId: "h1", weekStart: week, kind: "Generated", itemId: null }));
-    expect(await screen.findByRole("heading", { name: "No access to this household" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Choose household" })).toHaveAttribute("href", "/");
+    expect(await screen.findByRole("heading", { name: t("shopping.forbiddenTitle") })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: t("shopping.chooseHousehold") })).toHaveAttribute("href", "/");
   });
 
   it("shows the no-access screen when the REST list answers 403", async () => {
     server.listStatus = 403;
     renderPage();
-    expect(await screen.findByRole("heading", { name: "No access to this household" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: t("shopping.forbiddenTitle") })).toBeInTheDocument();
   });
 });

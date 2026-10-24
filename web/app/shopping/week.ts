@@ -41,10 +41,9 @@ export function isoWeek(monday: string): { week: number; year: number } {
   return { week: Math.floor(dayOfYear / 7) + 1, year };
 }
 
-export function weekRange(monday: string): string {
+export function weekRange(monday: string, format: (date: Date) => string): string {
   const start = parse(monday);
   const end = parse(monday);
   end.setDate(end.getDate() + 6);
-  const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.`;
-  return `${fmt(start)} - ${fmt(end)}`;
+  return `${format(start)} – ${format(end)}`;
 }
