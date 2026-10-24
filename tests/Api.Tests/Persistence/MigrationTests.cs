@@ -253,6 +253,67 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddShoppingLists_migration_applies_enforces_uniqueness_and_deleting_a_household_removes_its_lists()
+    {
+        var connectionString = await server.CreateDatabaseAsync("shoppinglists", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddShoppingLists'"));
+        foreach (var table in new[] { "ShoppingLists", "ShoppingListItems", "ShoppingListItemQuantities", "ShoppingListItemSources" })
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('{table}') AND name = 'HouseholdId'"));
+        }
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('ShoppingListItems') AND name = 'RowVersion' AND system_type_id = TYPE_ID('timestamp')"));
+
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID(), @l uniqueidentifier = NEWID(), @i uniqueidentifier = NEWID();
+            DECLARE @ing uniqueidentifier = (SELECT TOP 1 Id FROM Ingredients), @unit uniqueidentifier = (SELECT TOP 1 Id FROM Units);
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'R', 4, @now, @now);
+            INSERT INTO ShoppingLists (Id, HouseholdId, WeekStart, CreatedAt, UpdatedAt) VALUES (@l, @h, '2026-10-26', @now, @now);
+            INSERT INTO ShoppingListItems (Id, HouseholdId, ShoppingListId, Section, IngredientId, Checked, QuantityChangedSinceChecked, CreatedAt, UpdatedAt)
+                VALUES (@i, @h, @l, 'Main', @ing, 0, 0, @now, @now);
+            INSERT INTO ShoppingListItemQuantities (Id, HouseholdId, ShoppingListItemId, Position, Amount, UnitId, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, @i, 0, 2.5, @unit, @now, @now);
+            INSERT INTO ShoppingListItemSources (Id, HouseholdId, ShoppingListItemId, RecipeId, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, @i, @r, @now, @now);
+            INSERT INTO ShoppingListItems (Id, HouseholdId, ShoppingListId, Section, Label, Checked, QuantityChangedSinceChecked, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, @l, 'Main', N'Manual', 0, 0, @now, @now);
+            """);
+
+        // One list per household and week; one generated item per ingredient and list (manual items have no ingredient and are not limited).
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, """
+            INSERT INTO ShoppingLists (Id, HouseholdId, WeekStart, CreatedAt, UpdatedAt)
+                SELECT NEWID(), HouseholdId, WeekStart, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM ShoppingLists
+            """));
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, """
+            INSERT INTO ShoppingListItems (Id, HouseholdId, ShoppingListId, Section, IngredientId, Checked, QuantityChangedSinceChecked, CreatedAt, UpdatedAt)
+                SELECT NEWID(), HouseholdId, ShoppingListId, Section, IngredientId, 0, 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET()
+                FROM ShoppingListItems WHERE IngredientId IS NOT NULL
+            """));
+        await ScalarAsync(connectionString, """
+            INSERT INTO ShoppingListItems (Id, HouseholdId, ShoppingListId, Section, Label, Checked, QuantityChangedSinceChecked, CreatedAt, UpdatedAt)
+                SELECT NEWID(), HouseholdId, ShoppingListId, Section, N'Second manual', 0, 0, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET()
+                FROM ShoppingListItems WHERE Label IS NOT NULL
+            """);
+
+        // A recipe named as a source cannot be deleted directly (NO ACTION), but deleting the household removes the lot.
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, "DELETE FROM Recipes"));
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+
+        foreach (var table in new[] { "ShoppingLists", "ShoppingListItems", "ShoppingListItemQuantities", "ShoppingListItemSources", "Recipes" })
+        {
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM {table}"));
+        }
+
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);

@@ -1,6 +1,7 @@
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
+using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Tenancy;
 
 namespace Foodplanner.Api.Tests.TenantIsolation;
@@ -100,7 +101,49 @@ public static class TenantIsolationRegistry
                 return new MealPlanEntry(plan.Id, plan.WeekStart, plan.WeekStart.AddDays(1), recipe.Id, 4, await env.NewUserAsync());
             },
             entry => entry.Property(e => e.Servings).CurrentValue = 6),
+
+        // Shopping lists (T-033). A list is one row per week; items, quantity lines and sources point to their parent by id.
+        // The unit and ingredient are seeded global rows, which every household may reference.
+        TenantIsolationCase.For<ShoppingList>(
+            (_, _) => Task.FromResult(new ShoppingList(RandomMonday())),
+            entry => entry.Property(l => l.WeekStart).CurrentValue = new DateOnly(2026, 11, 2)),
+
+        TenantIsolationCase.For<ShoppingListItem>(
+            async (env, household) =>
+            {
+                var list = new ShoppingList(RandomMonday());
+                await env.SaveAsync(household, list);
+                return ShoppingListItem.Manual(list.Id, "Isolation " + Guid.NewGuid().ToString("N"));
+            },
+            entry => entry.Property(i => i.Label).CurrentValue = "Changed"),
+
+        TenantIsolationCase.For<ShoppingListItemQuantity>(
+            async (env, household) =>
+            {
+                var item = await NewItemAsync(env, household);
+                return new ShoppingListItemQuantity(item.Id, 0, 2.5m, UnitSeed.All[0].Id);
+            },
+            entry => entry.Property(q => q.Amount).CurrentValue = 3m),
+
+        TenantIsolationCase.For<ShoppingListItemSource>(
+            async (env, household) =>
+            {
+                var item = await NewItemAsync(env, household);
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new ShoppingListItemSource(item.Id, recipe.Id);
+            },
+            entry => entry.Property(s => s.RecipeId).CurrentValue = Guid.NewGuid()), // never saved: every update of another household's row is refused before or in the UPDATE
     ];
+
+    private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)
+    {
+        var list = new ShoppingList(RandomMonday());
+        await env.SaveAsync(household, list);
+        var item = ShoppingListItem.Generated(list.Id, IngredientSeed.All[0].Id, ShoppingSection.Main);
+        await env.SaveAsync(household, item);
+        return item;
+    }
 
     private static DateOnly RandomMonday() => new DateOnly(2026, 10, 26).AddDays(7 * Random.Shared.Next(2, 100_000));
 
