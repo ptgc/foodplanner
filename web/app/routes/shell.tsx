@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { loginPathFor } from "../auth-paths";
+import { APP_NAME, useI18n } from "../i18n";
+import { LanguageSwitch } from "../i18n/language-switch";
 import { useSession } from "../session";
-import { t as shopping } from "../shopping/strings";
 
 export default function Shell() {
+  const { t } = useI18n();
   const { session, signOut, setActiveHousehold } = useSession();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
@@ -15,7 +17,7 @@ export default function Shell() {
     if (signedIn) mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname, signedIn]);
 
-  if (session.status === "loading") return <p role="status">Loading...</p>;
+  if (session.status === "loading") return <p role="status">{t("common.loading")}</p>;
   if (session.status === "signedOut") return <Navigate to={loginPathFor(location)} replace />;
 
   const active = session.households.find((h) => h.id === session.activeHouseholdId);
@@ -23,10 +25,10 @@ export default function Shell() {
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
-        Skip to content
+        {t("common.skipToContent")}
       </a>
       <header className="shell-header">
-        <span className="shell-title">Foodplanner</span>
+        <span className="shell-title">{APP_NAME}</span>
         <div className="shell-session">
           <span className="shell-email" data-testid="user-email">
             {session.user.email}
@@ -34,7 +36,7 @@ export default function Shell() {
           {session.households.length > 1 ? (
             <>
               <label htmlFor="household" className="visually-hidden">
-                Household
+                {t("shell.household")}
               </label>
               <select
                 id="household"
@@ -49,18 +51,19 @@ export default function Shell() {
               </select>
             </>
           ) : (
-            <span data-testid="household-name">{active?.name ?? "No household"}</span>
+            <span data-testid="household-name">{active?.name ?? t("shell.noHousehold")}</span>
           )}
+          <LanguageSwitch />
           <button type="button" className="button button-light" onClick={() => void signOut()}>
-            Log out
+            {t("shell.logOut")}
           </button>
         </div>
       </header>
-      <nav className="shell-nav" aria-label="Main">
+      <nav className="shell-nav" aria-label={t("shell.mainNavigation")}>
         <NavLink to="/" end>
-          Home
+          {t("nav.home")}
         </NavLink>
-        <NavLink to="/shopping">{shopping.nav}</NavLink>
+        <NavLink to="/shopping">{t("nav.shopping")}</NavLink>
       </nav>
       <main id="main" ref={mainRef} tabIndex={-1} className="shell-main">
         <Outlet />

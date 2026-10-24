@@ -1,7 +1,7 @@
 # e2e tests (Playwright)
 
 Runs against the running docker compose stack through the web container (same-origin `/api` proxy).
-Two projects: `mobile-390` (390x844, touch) and `desktop` (1280x800). Headless chromium only.
+Three projects: `mobile-390` (390x844, touch, en-US) and `desktop` (1280x800, en-US), plus `mobile-390-nb` (browser language nb-NO, runs only `nb.spec.ts`). Headless chromium only.
 Traces are kept on failure (`trace: 'retain-on-failure'`); `test-results/` and `playwright-report/` are gitignored.
 
 ## Run locally

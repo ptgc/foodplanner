@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { t } from "../test-i18n";
 import Home from "./home";
 
 function json(body: unknown, init: ResponseInit & { type?: string } = {}) {
@@ -10,8 +11,8 @@ function json(body: unknown, init: ResponseInit & { type?: string } = {}) {
   });
 }
 
-const problem = (title: string, status: number) =>
-  json({ title, status }, { status, type: "application/problem+json" });
+const problem = (title: string, status: number, type?: string) =>
+  json({ title, status, type }, { status, type: "application/problem+json" });
 
 /** Answers each request by pathname; a handler may throw to simulate a network failure. */
 function stubApi(routes: Record<string, () => Response>) {
@@ -37,9 +38,9 @@ describe("Home health page", () => {
     const fetchMock = stubApi({ "/api/health": healthy, "/api/health/ready": dbUp });
 
     render(<Home />);
-    expect(screen.getByText(/checking the api/i)).toBeInTheDocument();
-    expect(await screen.findByText("API is Healthy.")).toBeInTheDocument();
-    expect(await screen.findByText("Database: Up")).toBeInTheDocument();
+    expect(screen.getByText(t("home.checkingApi"))).toBeInTheDocument();
+    expect(await screen.findByText(t("home.apiStatus", { status: t("home.status.healthy") }))).toBeInTheDocument();
+    expect(await screen.findByText(t("home.databaseUp"))).toBeInTheDocument();
 
     const paths = fetchMock.mock.calls.map(([request]) => new URL(request.url).pathname);
     expect(paths).toEqual(["/api/health", "/api/health/ready"]);
@@ -49,14 +50,27 @@ describe("Home health page", () => {
   it("shows database Down when readiness returns 503", async () => {
     stubApi({ "/api/health": healthy, "/api/health/ready": dbDown });
     render(<Home />);
-    expect(await screen.findByText("API is Healthy.")).toBeInTheDocument();
-    expect(await screen.findByText("Database: Down")).toBeInTheDocument();
+    expect(await screen.findByText(t("home.apiStatus", { status: t("home.status.healthy") }))).toBeInTheDocument();
+    expect(await screen.findByText(t("home.databaseDown"))).toBeInTheDocument();
   });
 
-  it("shows an error from a ProblemDetails response", async () => {
-    stubApi({ "/api/health": () => problem("Boom", 500), "/api/health/ready": dbDown });
+  it("shows a translated message for a known ProblemDetails type, never the server title", async () => {
+    stubApi({
+      "/api/health": () => problem("Boom", 429, "urn:foodplanner:problem:rate-limited"),
+      "/api/health/ready": dbDown,
+    });
     render(<Home />);
-    expect(await screen.findByText(/API check failed: Boom/)).toBeInTheDocument();
+    expect(await screen.findByText(t("home.apiFailed", { reason: t("problem.rateLimited") }))).toBeInTheDocument();
+    expect(screen.queryByText(/Boom/)).toBeNull();
+  });
+
+  it("falls back to the generic message for an unknown ProblemDetails type", async () => {
+    stubApi({
+      "/api/health": () => problem("Boom", 500, "urn:foodplanner:problem:something-new"),
+      "/api/health/ready": dbDown,
+    });
+    render(<Home />);
+    expect(await screen.findByText(t("home.apiFailed", { reason: t("problem.generic") }))).toBeInTheDocument();
   });
 
   it("shows an error when the API is unreachable, database Unknown, and retries", async () => {
@@ -70,11 +84,11 @@ describe("Home health page", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<Home />);
-    expect(await screen.findByText(/could not reach the api/i)).toBeInTheDocument();
-    expect(await screen.findByText("Database: Unknown")).toBeInTheDocument();
+    expect(await screen.findByText(t("home.apiFailed", { reason: t("problem.unreachable") }))).toBeInTheDocument();
+    expect(await screen.findByText(t("home.databaseUnknown"))).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /check again/i }));
-    expect(await screen.findByText("API is Healthy.")).toBeInTheDocument();
-    expect(await screen.findByText("Database: Up")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: t("home.checkAgain") }));
+    expect(await screen.findByText(t("home.apiStatus", { status: t("home.status.healthy") }))).toBeInTheDocument();
+    expect(await screen.findByText(t("home.databaseUp"))).toBeInTheDocument();
   });
 });

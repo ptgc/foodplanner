@@ -341,3 +341,16 @@ body {
 .shop-hint {
   font-size: 0.9rem;
 }
+
+/* Language switch (T-038): a native select, 44px high, shown in the shell header and on the login page. */
+.language-switch {
+  min-height: var(--touch);
+  min-width: var(--touch);
+  font: inherit;
+  padding: 0 0.5rem;
+}
+
+.login-language {
+  display: flex;
+  justify-content: flex-end;
+}

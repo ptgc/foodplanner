@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAntiforgeryToken } from "../api/client";
+import { t } from "../test-i18n";
 import { SessionProvider } from "../session";
 import Login from "./login";
 import Shell from "./shell";
@@ -17,7 +18,7 @@ const user = { userId: "11111111-1111-1111-1111-111111111111", email: "admin@exa
 const home = { id: "h1", name: "Home", role: "Owner" };
 const cabin = { id: "h2", name: "Cabin", role: "Adult" };
 
-type Backend = { signedIn: boolean; loginStatus: number; households: unknown[]; cookieWorks: boolean };
+type Backend = { signedIn: boolean; loginStatus: number; loginType?: string | null; households: unknown[]; cookieWorks: boolean };
 let backend: Backend;
 let requests: Request[];
 
@@ -38,7 +39,7 @@ beforeEach(() => {
           if (backend.loginStatus === 204) backend.signedIn = backend.cookieWorks;
           return backend.loginStatus === 204
             ? new Response(null, { status: 204 })
-            : json({ type: "urn:foodplanner:problem:login-failed", title: "Login failed", status: backend.loginStatus }, backend.loginStatus);
+            : json({ type: backend.loginType !== undefined ? (backend.loginType ?? undefined) : backend.loginStatus === 429 ? "urn:foodplanner:problem:rate-limited" : "urn:foodplanner:problem:login-failed", title: "Login failed", status: backend.loginStatus }, backend.loginStatus);
         case "/api/auth/logout":
           backend.signedIn = false;
           return new Response(null, { status: 204 });
@@ -77,9 +78,9 @@ function renderApp(initial: string) {
 }
 
 async function fillAndSubmit(email = "admin@example.test", password = "pw") {
-  await userEvent.type(await screen.findByLabelText("Email"), email);
-  await userEvent.type(screen.getByLabelText("Password"), password);
-  await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+  await userEvent.type(await screen.findByLabelText(t("login.email")), email);
+  await userEvent.type(screen.getByLabelText(t("login.password")), password);
+  await userEvent.click(screen.getByRole("button", { name: t("common.signIn") }));
 }
 
 describe("route guard and login", () => {
@@ -97,8 +98,8 @@ describe("route guard and login", () => {
     renderApp("/login");
     await fillAndSubmit();
     await screen.findByRole("heading", { name: "Start" });
-    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
-    await screen.findByRole("heading", { name: "Sign in" });
+    await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
+    await screen.findByRole("heading", { name: t("common.signIn") });
     const posts = requests.filter((r) => r.method === "POST");
     expect(posts.map((r) => new URL(r.url).pathname)).toEqual(["/api/auth/login", "/api/auth/logout"]);
     expect(posts.every((r) => r.headers.get("X-XSRF-TOKEN") === "t")).toBe(true);
@@ -117,33 +118,52 @@ describe("route guard and login", () => {
     backend.loginStatus = 401;
     renderApp("/login");
     await fillAndSubmit("nobody@example.test", "wrong");
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Sign in failed. Check your email and password and try again.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("problem.loginFailed"));
     expect(screen.getByTestId("where")).toHaveTextContent("/login");
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: t("common.signIn") })).toBeEnabled();
   });
 
   it("shows a rate-limit message on 429", async () => {
     backend.loginStatus = 429;
     renderApp("/login");
     await fillAndSubmit();
-    expect(await screen.findByRole("alert")).toHaveTextContent(/too many attempts/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("problem.rateLimited"));
+  });
+
+  it("maps the ProblemDetails type, not the status, and falls back to the status without a type", async () => {
+    backend.loginStatus = 403;
+    backend.loginType = "urn:foodplanner:problem:antiforgery-invalid";
+    renderApp("/login");
+    await fillAndSubmit();
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("problem.antiforgeryInvalid"));
+
+    backend.loginStatus = 429;
+    backend.loginType = null; // a proxy answered with a bare 429
+    await userEvent.click(screen.getByRole("button", { name: t("common.signIn") }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(t("problem.rateLimited")));
+  });
+
+  it("shows the generic message for an unknown problem type", async () => {
+    backend.loginStatus = 500;
+    backend.loginType = "urn:foodplanner:problem:from-the-future";
+    renderApp("/login");
+    await fillAndSubmit();
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("problem.generic"));
   });
 
   it("shows the Safari hint only when login succeeds but /me is 401", async () => {
     backend.cookieWorks = false;
     renderApp("/login");
     await fillAndSubmit();
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Safari/);
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("login.cookieMissing"));
   });
 
   it("disables the button while submitting", async () => {
     renderApp("/login");
-    await userEvent.type(await screen.findByLabelText("Email"), "a@b.c");
-    await userEvent.type(screen.getByLabelText("Password"), "pw");
-    const click = userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(await screen.findByRole("button", { name: "Signing in..." })).toBeDisabled();
+    await userEvent.type(await screen.findByLabelText(t("login.email")), "a@b.c");
+    await userEvent.type(screen.getByLabelText(t("login.password")), "pw");
+    const click = userEvent.click(screen.getByRole("button", { name: t("common.signIn") }));
+    expect(await screen.findByRole("button", { name: t("login.signingIn") })).toBeDisabled();
     await click;
   });
 });
@@ -153,7 +173,7 @@ describe("shell", () => {
     backend.signedIn = true;
     renderApp("/");
     expect(await screen.findByTestId("user-email")).toHaveTextContent("admin@example.test");
-    await userEvent.click(screen.getByRole("button", { name: "Log out" }));
+    await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/login"));
   });
 
@@ -161,7 +181,7 @@ describe("shell", () => {
     backend.signedIn = true;
     backend.households = [home, cabin];
     const first = renderApp("/");
-    const select = await screen.findByLabelText("Household");
+    const select = await screen.findByLabelText(t("shell.household"));
     expect(select).toHaveValue("h1");
     await userEvent.selectOptions(select, "h2");
     expect(select).toHaveValue("h2");
@@ -169,6 +189,6 @@ describe("shell", () => {
     first.unmount();
 
     renderApp("/");
-    expect(await screen.findByLabelText("Household")).toHaveValue("h2");
+    expect(await screen.findByLabelText(t("shell.household"))).toHaveValue("h2");
   });
 });
