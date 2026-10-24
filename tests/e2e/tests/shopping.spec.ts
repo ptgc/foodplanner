@@ -1,5 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { expect, signIn, test } from "./fixtures";
+import { adminState, expect, test } from "./fixtures";
+
+test.use({ storageState: adminState });
 
 // Each test works in its own far-future week with its own manual items, so it does not depend on demo data
 // and the two projects (mobile-390, desktop) can run side by side. Items are removed afterwards.
@@ -49,7 +51,7 @@ async function isChecked(request: APIRequestContext, h: string, week: string, id
 
 const box = (page: Page, label: string) => page.getByRole("checkbox", { name: label });
 
-test("shopping list shows the week, large rows and the add form", async ({ adminPage: page }, testInfo) => {
+test("shopping list shows the week, large rows and the add form", async ({ page }, testInfo) => {
   const week = weekFor(testInfo.project.name, 0);
   const h = await householdId(page.request);
   const label = `E2E melk ${Date.now()}`;
@@ -79,15 +81,14 @@ test("shopping list shows the week, large rows and the add form", async ({ admin
   }
 });
 
-test("Live update visible across two sessions", async ({ adminPage: pageA, browser }, testInfo) => {
+test("Live update visible across two sessions", async ({ page: pageA, browser }, testInfo) => {
   const week = weekFor(testInfo.project.name, 1);
   const h = await householdId(pageA.request);
   const label = `E2E live ${Date.now()}`;
-  const contextB = await browser.newContext({ viewport: pageA.viewportSize() ?? undefined });
+  const contextB = await browser.newContext({ storageState: adminState, viewport: pageA.viewportSize() ?? undefined });
   try {
     await addItem(pageA.request, h, week, label);
     const pageB = await contextB.newPage();
-    await signIn(pageB);
 
     await pageA.goto(`/shopping?week=${week}`);
     await pageB.goto(`/shopping?week=${week}`);
@@ -105,7 +106,7 @@ test("Live update visible across two sessions", async ({ adminPage: pageA, brows
   }
 });
 
-test("Works offline for read and check-off with sync on reconnect", async ({ adminPage: page }, testInfo) => {
+test("Works offline for read and check-off with sync on reconnect", async ({ page }, testInfo) => {
   const week = weekFor(testInfo.project.name, 2);
   const h = await householdId(page.request);
   const stamp = Date.now();

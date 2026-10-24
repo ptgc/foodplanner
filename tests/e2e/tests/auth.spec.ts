@@ -1,13 +1,11 @@
-import { adminCredentials, expect, signIn, test } from "./fixtures";
+import { adminCredentials, adminState, expect, expectActiveHousehold, signIn, test } from "./fixtures";
 
-test("signed-out visit to an app route goes to /login and returns after sign-in", async ({ page }) => {
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/login$/);
-  await signIn(page);
-  await expect(page).toHaveURL(/\/$/);
-});
+// Login is rate limited (10/min per email), so the login-flow tests are kept few: the full flow runs in both
+// projects, the wrong-password check once. Everything else reuses the session from auth.setup.ts.
+test.setTimeout(90_000);
 
 test("wrong password shows the generic error", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop", "one failed login per run is enough");
   await page.goto("/login");
   await page.getByLabel("Email").fill(adminCredentials().email);
   await page.getByLabel("Password").fill("definitely-wrong-password");
@@ -16,13 +14,16 @@ test("wrong password shows the generic error", async ({ page }) => {
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("sign in, see Home and email, reload stays signed in, logout returns to /login", async ({ page }) => {
+test("signed-out visit goes to /login and returns after sign-in, shows Home and email, reload stays signed in, logout returns to /login", async ({ page }) => {
   const { email } = adminCredentials();
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/login$/);
   await signIn(page);
+  await expect(page).toHaveURL(/\/$/);
 
   const shell = page.getByRole("banner");
   await expect(shell.getByTestId("user-email")).toHaveText(email);
-  await expect(shell.getByText("Home", { exact: true })).toBeVisible();
+  await expectActiveHousehold(page, "Home");
 
   if ((page.viewportSize()?.width ?? 0) <= 390) {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -45,6 +46,12 @@ test("sign in, see Home and email, reload stays signed in, logout returns to /lo
   await expect(page).toHaveURL(/\/login/);
 });
 
-test("fixture: adminPage is signed in", async ({ adminPage }) => {
-  await expect(adminPage.getByRole("button", { name: "Log out" })).toBeVisible();
+test.describe("saved session", () => {
+  test.use({ storageState: adminState });
+
+  test("storageState from the setup project is signed in without logging in again", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("user-email")).toHaveText(adminCredentials().email);
+    await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  });
 });

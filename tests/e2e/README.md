@@ -24,8 +24,12 @@ use `npx playwright install --with-deps chromium` once), then `npx playwright te
 
 Sign-in tests use the seeded admin (T-029). The scripts read `Seed:AdminEmail` / `Seed:AdminPassword` from
 `dotnet user-secrets` (without printing) into `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`; set those two variables
-yourself to override. Fixtures are in `tests/fixtures.ts` (`adminPage` is already signed in). Login is rate limited
-(429), so avoid many repeated full runs in a minute against the same account.
+yourself to override. Login is rate limited (429, 10/min per email), so the suite signs in ONCE per run: the `setup`
+project (`tests/auth.setup.ts`) saves the session to `.auth/admin.json` (gitignored) and the other projects depend on it.
+Tests that only need a signed-in user use `test.use({ storageState: adminState })`; a second session is
+`browser.newContext({ storageState: adminState })`. Only auth.spec exercises the login form (about 4 logins per run);
+`signIn` waits and retries on a 429. Use `expectActiveHousehold(page, "Home")` for the household, since the admin may
+have several households locally (text vs. switcher).
 
 Open a kept trace: `npx playwright show-trace test-results/<test-dir>/trace.zip` (run in `tests/e2e`).
 
@@ -46,4 +50,4 @@ In the CI job that runs `verify.sh`:
 
 ## Auth fixtures
 
-None yet. T-028 adds sign-in as the seeded admin (see the placeholder comment in `tests/smoke.spec.ts`).
+See above: `tests/fixtures.ts` has `adminState`, `signIn`, `adminCredentials`, `expectActiveHousehold`.
