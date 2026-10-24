@@ -20,7 +20,6 @@ React Router v7 SPA (ssr: false), TypeScript strict.
 - Filters live in the URL: `?q=text&tag=<id>&tag=<id>&max=30`. Chips and "clear filters" add a history entry (back undoes them), typing replaces the entry after a 300 ms pause. Several tags are AND (T-023). Malformed values in the URL are ignored.
 - Paging is a "Show more" button (offset paging, 12 per page). Two columns at 390px (cards are 2 x 173px), more on wider screens; chips, cards and buttons are at least 44px.
 - `RecipeImage` shows the card/thumb image (lazy, async decode, `srcset` 160w/640w, 4:3 box so nothing shifts) or, without one (or if it fails to load), a coloured tile with the initial. Decorative (`alt=""`, the title is beside it).
-- Contract note: the generated schema does not declare the `{householdId}` route parameter on the list and tags endpoints (OpenAPI generator), so `householdPath()` in `use-recipes.ts` is the one typed cast. Declare it in the API and the cast goes away.
 
 ### Performance budget (Lighthouse, mobile preset)
 Measured 2026-10-24 with `lighthouse@12` (mobile preset: Moto G Power emulation, simulated slow 4G, 4x CPU), headless Chromium, against the Docker stack at http://localhost:3000/recipes, signed in by sending the saved Playwright session cookie (`--extra-headers`), 3 runs, 3 demo recipes in the household.

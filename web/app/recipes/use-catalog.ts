@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { problemTypeOf } from "../i18n/problems";
 import { useSession } from "../session";
-import { householdPath, type Failure } from "./use-recipes";
+import type { Failure } from "./use-recipes";
 
 export type Unit = components["schemas"]["UnitResponse"];
 export type Ingredient = components["schemas"]["IngredientResponse"];
@@ -50,7 +50,7 @@ const unreachable = { ok: false, failure: "unreachable" } as const;
 export async function searchIngredients(householdId: string, term: string): Promise<Result<Ingredient[]>> {
   try {
     const { data, error } = await api.GET("/api/households/{householdId}/ingredients", {
-      params: { path: householdPath(householdId), query: { search: term, limit: 8 } },
+      params: { path: { householdId: householdId }, query: { search: term, limit: 8 } },
     });
     return data ? { ok: true, value: data } : { ok: false, failure: { problemType: problemTypeOf(error) } };
   } catch {
@@ -64,7 +64,7 @@ export async function createIngredient(
 ): Promise<Result<Ingredient>> {
   try {
     const { data, error } = await api.POST("/api/households/{householdId}/ingredients", {
-      params: { path: householdPath(householdId) },
+      params: { path: { householdId: householdId } },
       body,
     });
     return data ? { ok: true, value: data } : { ok: false, failure: { problemType: problemTypeOf(error) } };
@@ -76,7 +76,7 @@ export async function createIngredient(
 export async function createTag(householdId: string, name: string): Promise<Result<Tag>> {
   try {
     const { data, error } = await api.POST("/api/households/{householdId}/tags", {
-      params: { path: householdPath(householdId) },
+      params: { path: { householdId: householdId } },
       body: { name, kind: "Tag" },
     });
     return data ? { ok: true, value: data } : { ok: false, failure: { problemType: problemTypeOf(error) } };

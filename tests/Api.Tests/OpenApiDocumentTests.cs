@@ -120,6 +120,36 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
     }
 
     [Fact]
+    public async Task Every_path_template_parameter_is_declared_and_vice_versa()
+    {
+        var generated = await GenerateAsync("Development");
+        var (document, _) = OpenApiDocument.Parse(generated, "json");
+        Assert.NotNull(document);
+
+        var problems = new List<string>();
+        foreach (var (path, item) in document.Paths)
+        {
+            var inTemplate = System.Text.RegularExpressions.Regex.Matches(path, @"\{([^}]+)\}")
+                .Select(m => m.Groups[1].Value).ToHashSet();
+            foreach (var (method, operation) in item.Operations ?? [])
+            {
+                var declared = (operation.Parameters ?? []).Where(p => p.In == ParameterLocation.Path).ToList();
+                problems.AddRange(inTemplate.Where(n => declared.All(p => p.Name != n))
+                    .Select(n => $"{method} {path}: {{{n}}} is not declared as a path parameter."));
+                problems.AddRange(declared.Where(p => !inTemplate.Contains(p.Name!))
+                    .Select(p => $"{method} {path}: path parameter {p.Name} is not in the template."));
+                problems.AddRange(declared.Where(p => p.Required != true)
+                    .Select(p => $"{method} {path}: path parameter {p.Name} is not required."));
+                problems.AddRange(declared.Where(p => p.Name is "householdId" or "recipeId" or "entryId" or "itemId"
+                        && p.Schema?.Format != "uuid")
+                    .Select(p => $"{method} {path}: {p.Name} should be a uuid."));
+            }
+        }
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
     public async Task Committed_document_is_valid()
     {
         var committed = await File.ReadAllTextAsync(CommittedPath, TestContext.Current.CancellationToken);
