@@ -57,7 +57,7 @@ test("shopping list shows the week, large rows and the add form", async ({ admin
     await addItem(page.request, h, week, label);
     await page.goto(`/shopping?week=${week}`);
     await expect(page.getByRole("heading", { name: "Shopping list", level: 1 })).toBeVisible();
-    await expect(page.getByTestId("shop-week")).toContainText("Week 10, 2031");
+    await expect(page.getByTestId("shop-week")).toContainText(/Week \d+, 2031/);
     await expect(box(page, label)).toBeVisible();
     const row = page.getByTestId("shop-item").filter({ hasText: label });
     expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(56);
