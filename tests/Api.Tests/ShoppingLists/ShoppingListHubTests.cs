@@ -83,7 +83,14 @@ internal sealed class HubTestClient : IAsyncDisposable
     public async Task<bool> StaysSilentAsync(TimeSpan window)
     {
         await Task.Delay(window, Ct);
-        return !_events.Reader.TryPeek(out _);
+        // Drain, so a late event cannot leak into a later assertion.
+        var any = false;
+        while (_events.Reader.TryRead(out _))
+        {
+            any = true;
+        }
+
+        return !any;
     }
 
     public async ValueTask DisposeAsync() => await Connection.DisposeAsync();
@@ -161,6 +168,97 @@ public sealed class ShoppingListHubTests(AuthDatabase db) : IClassFixture<AuthDa
         await using var own = new HubTestClient(host, user.Client.AuthCookie, origin: "https://localhost");
         await own.StartAsync();
         Assert.Equal(HubConnectionState.Connected, own.Connection.State);
+    }
+
+    [Fact]
+    public async Task Negotiate_origin_rules_null_is_refused_missing_and_other_port_are_accepted_and_refusal_is_problem_details()
+    {
+        await using var host = Host();
+        var user = await host.SignInAsync();
+        const string url = "/api/hubs/shopping-list/negotiate?negotiateVersion=1";
+
+        using var foreign = await user.Client.PostAsync(url, null, new Dictionary<string, string> { ["Origin"] = "https://evil.example" });
+        await foreign.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden-origin");
+
+        using var opaque = await user.Client.PostAsync(url, null, new Dictionary<string, string> { ["Origin"] = "null" });
+        await opaque.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden-origin");
+
+        using var missing = await user.Client.PostAsync(url);
+        Assert.Equal(HttpStatusCode.OK, missing.StatusCode);
+
+        // Documented decision: the port is not compared (nginx forwards $host without one).
+        using var otherPort = await user.Client.PostAsync(url, null, new Dictionary<string, string> { ["Origin"] = "https://localhost:9999" });
+        Assert.Equal(HttpStatusCode.OK, otherPort.StatusCode);
+    }
+
+    [Fact]
+    public async Task One_connection_in_two_households_gets_each_households_own_list_per_call()
+    {
+        await using var host = Host();
+        var user = await host.SignInAsync();
+        var a = await user.Client.CreateHouseholdAsync("A");
+        var b = await user.Client.CreateHouseholdAsync("B");
+        await AddManualAsync(user.Client, a, "Only in A");
+        await AddManualAsync(user.Client, b, "Only in B");
+        await using var hub = new HubTestClient(host, user.Client.AuthCookie);
+        await hub.StartAsync();
+
+        static string[] Names(JsonElement state) =>
+            [.. state.GetProperty("list").GetProperty("main").EnumerateArray().Select(i => i.GetProperty("name").GetString()!)];
+
+        Assert.Equal(["Only in A"], Names(await hub.GetStateAsync(a, Monday)));
+        Assert.Equal(["Only in B"], Names(await hub.GetStateAsync(b, Monday)));
+        Assert.Equal(["Only in A"], Names(await hub.GetStateAsync(a, Monday)));
+    }
+
+    [Fact]
+    public async Task After_leaving_one_of_two_joined_households_only_the_other_delivers_events()
+    {
+        await using var host = Host();
+        var user = await host.SignInAsync();
+        var a = await user.Client.CreateHouseholdAsync("A");
+        var b = await user.Client.CreateHouseholdAsync("B");
+        await using var hub = new HubTestClient(host, user.Client.AuthCookie);
+        await hub.StartAsync();
+        await hub.JoinAsync(a);
+        await hub.JoinAsync(b);
+        await hub.Connection.InvokeAsync("LeaveHousehold", a, TestContext.Current.CancellationToken);
+
+        await AddManualAsync(user.Client, a, "In A");
+        await AddManualAsync(user.Client, b, "In B");
+
+        Assert.Equal(b, (await hub.NextAsync()).HouseholdId);
+        Assert.True(await hub.StaysSilentAsync(TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
+    public async Task A_revoked_member_who_already_joined_keeps_getting_content_free_signals_until_disconnect()
+    {
+        // Pins the documented residual window (docs/domain.md): a joined connection stays in its group.
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var member = await host.JoinAsync(owner, household, "Adult");
+        await using var hub = new HubTestClient(host, member.Client.AuthCookie);
+        await hub.StartAsync();
+        await hub.JoinAsync(household);
+
+        await HouseholdScenario.ScalarAsync(
+            db.ConnectionString,
+            "DELETE FROM Memberships WHERE HouseholdId = @h AND UserId = @u; SELECT @@ROWCOUNT",
+            ("@h", household), ("@u", member.User.Id));
+        await AddManualAsync(owner.Client, household, "After revocation");
+
+        var signal = await hub.NextAsync();
+        Assert.Equal(ShoppingListChangeKind.ManualItemAdded, signal.Kind); // metadata only
+        await Assert.ThrowsAsync<HubException>(() => hub.GetStateAsync(household, Monday)); // content stays closed
+
+        await hub.StopAsync();
+        await hub.StartAsync();
+        Assert.True(await hub.StaysSilentAsync(TimeSpan.FromSeconds(1)));
+        await AddManualAsync(owner.Client, household, "After disconnect");
+        await Assert.ThrowsAsync<HubException>(() => hub.JoinAsync(household));
+        Assert.True(await hub.StaysSilentAsync(TimeSpan.FromSeconds(1)));
     }
 
     [Fact]

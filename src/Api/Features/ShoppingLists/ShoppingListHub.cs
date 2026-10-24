@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authorization;
@@ -87,8 +88,12 @@ internal sealed class HubOriginMiddleware(RequestDelegate next)
     {
         if (context.Request.Path.StartsWithSegments(ShoppingListHub.Path) && !IsSameOrigin(context.Request))
         {
-            context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
+            return AppProblems.WriteAsync(
+                context,
+                StatusCodes.Status403Forbidden,
+                AppProblems.ForbiddenOrigin,
+                "Forbidden origin",
+                "The hub accepts browser connections from its own origin only.");
         }
 
         return next(context);
