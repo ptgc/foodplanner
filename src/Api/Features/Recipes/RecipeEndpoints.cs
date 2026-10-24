@@ -288,6 +288,11 @@ public static class RecipeEndpoints
             return RecipeInUse();
         }
 
+        // A shopping list may still name the recipe as a source of an item (T-033); the list is stale until it is
+        // regenerated, so the source rows go with the recipe.
+        var sources = await db.ShoppingListItemSources.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken);
+        db.ShoppingListItemSources.RemoveRange(sources);
+
         // Steps and ingredient lines go with the recipe (database cascade).
         db.Recipes.Remove(recipe);
         try

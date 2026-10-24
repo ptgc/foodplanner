@@ -21,6 +21,9 @@ public static class AppProblems
     public const string RecipeInUse = "recipe-in-use";
     public const string MealPlanEntryNotFound = "meal-plan-entry-not-found";
     public const string MealPlanEntryConflict = "meal-plan-entry-conflict";
+    public const string ShoppingListItemNotFound = "shopping-list-item-not-found";
+    public const string ShoppingListItemGenerated = "shopping-list-item-generated";
+    public const string ShoppingListConflict = "shopping-list-conflict";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
 

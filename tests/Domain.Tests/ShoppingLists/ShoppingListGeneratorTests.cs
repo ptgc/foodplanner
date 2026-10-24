@@ -22,7 +22,7 @@ public class ShoppingListGeneratorTests
     private static PlannedMeal Meal(Guid recipe, int recipeServings, int planned, params PlannedIngredient[] ings) =>
         new(recipe, recipeServings, planned, ings);
 
-    private static ShoppingList Plan(params PlannedMeal[] meals) => ShoppingListGenerator.Generate(meals, Catalog);
+    private static GeneratedList Plan(params PlannedMeal[] meals) => ShoppingListGenerator.Generate(meals, Catalog);
 
     [Theory]
     [InlineData(2, 4, 400)]
@@ -189,7 +189,7 @@ public class ShoppingListGeneratorTests
         });
     }
 
-    private static bool Same(ShoppingList a, ShoppingList b) =>
+    private static bool Same(GeneratedList a, GeneratedList b) =>
         a.Items.Count == b.Items.Count
         && a.CheckYouHave.Count == b.CheckYouHave.Count
         && a.Items.Zip(b.Items).All(p =>

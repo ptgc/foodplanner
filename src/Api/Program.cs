@@ -5,6 +5,7 @@ using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.Features.MealPlans;
 using Foodplanner.Api.Features.Recipes;
+using Foodplanner.Api.Features.ShoppingLists;
 using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.OpenApi;
 using Foodplanner.Api.Security;
@@ -13,6 +14,7 @@ using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure;
 using Foodplanner.Infrastructure.Email;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,8 @@ builder.Services.AddOptions<HouseholdOptions>().BindConfiguration(HouseholdOptio
 // One light per-request instance, set by HouseholdContextMiddleware (Q-004).
 builder.Services.AddScoped<RequestCurrentHousehold>();
 builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredService<RequestCurrentHousehold>());
+// T-034 replaces this with the SignalR broadcast.
+builder.Services.TryAddSingleton<IShoppingListNotifier, NoOpShoppingListNotifier>();
 
 var app = builder.Build();
 
@@ -88,6 +92,7 @@ api.MapCatalogEndpoints();
 api.MapRecipeEndpoints();
 api.MapTagEndpoints();
 api.MapMealPlanEndpoints();
+api.MapShoppingListEndpoints();
 
 app.Run();
 return 0;
