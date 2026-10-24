@@ -1,9 +1,12 @@
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Persistence;
+using Foodplanner.Infrastructure.Persistence.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.Tags;
@@ -36,12 +39,15 @@ public static class TagEndpoints
         return api;
     }
 
-    public static TagResponse ToResponse(Tag t) => new(t.Id, t.Name, t.Kind, t.HouseholdId is null);
+    public static TagResponse ToResponse(Tag t, string name) => new(t.Id, name, t.Kind, t.HouseholdId is null);
 
-    /// <summary>All categories first, then tags, each by name (the set is small, so it is not paged).</summary>
-    private static async Task<IResult> ListTags(AppDbContext db, CancellationToken cancellationToken)
+    public static TagResponse ToResponse(Named<Tag> t) => ToResponse(t.Row, t.Name);
+
+    /// <summary>All categories first, then tags, each by name in the request language (the set is small, so it is not paged).</summary>
+    private static async Task<IResult> ListTags(RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
-        var rows = await db.Tags.AsNoTracking().OrderBy(t => t.Kind).ThenBy(t => t.Name).ThenBy(t => t.Id).ToListAsync(cancellationToken);
+        var rows = await db.Tags.AsNoTracking().WithNames(db, CatalogTranslation.KindTag, locale.Code)
+            .OrderBy(t => t.Row.Kind).ThenByName(locale.Code).ToListAsync(cancellationToken);
         return Results.Ok(rows.Select(ToResponse).ToArray());
     }
 
@@ -71,7 +77,8 @@ public static class TagEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        if (await db.Tags.AnyAsync(t => t.Name == name, cancellationToken))
+        if (await db.Tags.AnyAsync(t => t.Name == name, cancellationToken)
+            || await db.AnyGlobalNameAsync(CatalogTranslation.KindTag, name!, cancellationToken))
         {
             return Duplicate(name!);
         }
@@ -87,7 +94,7 @@ public static class TagEndpoints
             return Duplicate(name!);
         }
 
-        return Results.Created((string?)null, ToResponse(tag));
+        return Results.Created((string?)null, ToResponse(tag, tag.Name));
     }
 
     private static IResult Duplicate(string name) =>

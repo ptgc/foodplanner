@@ -24,7 +24,13 @@ public sealed class RecipeEndpointTests(AuthDatabase db) : IClassFixture<AuthDat
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AuthHost Host() => HouseholdHost.Create(db.ConnectionString);
+    // The seeded names asserted in this class are the Norwegian ones; English and the fallbacks are tested in CatalogTranslationTests.
+    private AuthHost Host()
+    {
+        var host = HouseholdHost.Create(db.ConnectionString);
+        host.DefaultLanguage = "nb";
+        return host;
+    }
 
     private static string Url(Guid household, string rest = "") => $"/api/households/{household}/recipes{rest}";
 

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.Configuration;
 
 namespace Foodplanner.Api.Tests.Persistence;
@@ -108,6 +110,29 @@ public sealed class MigrationTests(SqlServerFixture server)
         Assert.Equal(ingredients, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
         Assert.Equal(units, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Units"));
         Assert.Equal(fingerprint, await ScalarAsync(connectionString, "SELECT CHECKSUM_AGG(CHECKSUM(Id, Name, IsStaple, Dimension)) FROM Ingredients"));
+    }
+
+    [Fact]
+    public async Task AddCatalogTranslations_upgrades_an_existing_database_keeping_ids_and_renaming_to_english()
+    {
+        var connectionString = await server.CreateDatabaseAsync("translations", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261024200239_AddRecipeImage", Ct); // the database as it was before T-039: names in Norwegian
+        var onion = Foodplanner.Domain.Catalog.IngredientSeed.All.Single(r => r.Key == "loek");
+        Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM Ingredients WHERE Id = '{onion.Id}' AND Name = N'Løk'"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.tables WHERE name = 'CatalogTranslations'"));
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM Ingredients WHERE Id = '{onion.Id}' AND Name = N'Onion'")); // same id, English name
+        var expected = Foodplanner.Domain.Catalog.CatalogTranslation.SeedRows().Count();
+        Assert.Equal(expected, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM CatalogTranslations"));
+        Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM CatalogTranslations WHERE Kind = 'ingredient' AND EntityId = '{onion.Id}' AND Locale = 'nb' AND Name = N'Løk'"));
+        Assert.Equal(Foodplanner.Domain.Catalog.IngredientSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+        Assert.Equal(Foodplanner.Domain.Recipes.TagSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
     }
 
     [Fact]

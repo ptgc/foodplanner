@@ -20,6 +20,22 @@ internal sealed class UnitConfiguration : IEntityTypeConfiguration<Unit>
     }
 }
 
+/// <summary>Global translations (T-039): keyed by kind, row id and locale. No foreign key (the kind selects the table); the seed keeps them whole.</summary>
+internal sealed class CatalogTranslationConfiguration : IEntityTypeConfiguration<CatalogTranslation>
+{
+    public void Configure(EntityTypeBuilder<CatalogTranslation> translation)
+    {
+        translation.ToTable("CatalogTranslations");
+        translation.HasKey(t => new { t.Kind, t.EntityId, t.Locale });
+        translation.Property(t => t.Kind).HasMaxLength(CatalogTranslation.MaxKindLength).IsRequired();
+        translation.Property(t => t.Locale).HasMaxLength(CatalogTranslation.MaxLocaleLength).IsRequired();
+        translation.Property(t => t.Name).HasMaxLength(CatalogTranslation.MaxNameLength).IsRequired();
+
+        // Duplicate-name checks look a typed name up across locales.
+        translation.HasIndex(t => new { t.Kind, t.Name });
+    }
+}
+
 internal sealed class IngredientConfiguration : IEntityTypeConfiguration<Ingredient>
 {
     public void Configure(EntityTypeBuilder<Ingredient> ingredient)
@@ -73,6 +89,14 @@ internal static class CatalogSeedData
             i.Dimension,
             CreatedAt = SeededAt,
             UpdatedAt = SeededAt,
+        }));
+
+        modelBuilder.Entity<CatalogTranslation>().HasData(CatalogTranslation.SeedRows().Select(t => new
+        {
+            t.Kind,
+            t.EntityId,
+            t.Locale,
+            t.Name,
         }));
 
         modelBuilder.Entity<Tag>().HasData(TagSeed.All.Select(t => new

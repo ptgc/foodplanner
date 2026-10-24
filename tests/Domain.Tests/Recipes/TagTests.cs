@@ -18,8 +18,8 @@ public class TagTests
             Assert.Matches("^[a-z0-9_]+$", r.Key);
             Assert.True(Enum.IsDefined(r.Kind));
         });
-        Assert.Contains(all, r => r.Kind == TagKind.Category && r.Name == "Middag");
-        Assert.Contains(all, r => r.Kind == TagKind.Tag && r.Name == "Barnevennlig");
+        Assert.Contains(all, r => r.Kind == TagKind.Category && r.Name == "Dinner" && r.Nb == "Middag");
+        Assert.Contains(all, r => r.Kind == TagKind.Tag && r.Name == "Kid friendly" && r.Nb == "Barnevennlig");
     }
 
     [Theory]

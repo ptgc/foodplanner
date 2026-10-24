@@ -27,7 +27,13 @@ public sealed class ShoppingListEndpointTests(AuthDatabase db) : IClassFixture<A
 
     private static Guid Unit(string code) => UnitSeed.All.Single(r => r.Code == code).Id;
 
-    private AuthHost Host() => HouseholdHost.Create(db.ConnectionString);
+    // The names in these tests are the Norwegian ones; the language tests below ask for the others explicitly.
+    private AuthHost Host()
+    {
+        var host = HouseholdHost.Create(db.ConnectionString);
+        host.DefaultLanguage = "nb";
+        return host;
+    }
 
     private static string ListUrl(Guid household, DateOnly week, string rest = "") =>
         $"/api/households/{household}/shopping-lists/{week:yyyy-MM-dd}{rest}";
@@ -691,6 +697,7 @@ public sealed class ShoppingListEndpointTests(AuthDatabase db) : IClassFixture<A
         var recorder = new RecordingNotifier();
         await using var host = AuthHost.Create(
             db.ConnectionString, configureServices: services => services.AddSingleton<IShoppingListNotifier>(recorder));
+        host.DefaultLanguage = "nb";
         var owner = await host.SignInAsync();
         var household = await owner.Client.CreateHouseholdAsync();
         var recipe = await CreateRecipeAsync(owner.Client, household, "Hooked", 2, new Line(Rice, 100, Gram));

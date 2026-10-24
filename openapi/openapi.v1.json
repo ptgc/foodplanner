@@ -2884,6 +2884,7 @@
           "quantity",
           "unitId",
           "unitCode",
+          "unitName",
           "note"
         ],
         "type": "object",
@@ -2912,6 +2913,12 @@
             "format": "uuid"
           },
           "unitCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitName": {
             "type": [
               "null",
               "string"
@@ -3378,7 +3385,8 @@
       "ShoppingQuantityResponse": {
         "required": [
           "amount",
-          "unitCode"
+          "unitCode",
+          "unitName"
         ],
         "type": "object",
         "properties": {
@@ -3392,6 +3400,12 @@
             "format": "double"
           },
           "unitCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitName": {
             "type": [
               "null",
               "string"

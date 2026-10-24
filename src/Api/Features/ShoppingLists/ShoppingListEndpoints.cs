@@ -1,13 +1,16 @@
 using System.Globalization;
+using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Localization;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Quantities;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence;
+using Foodplanner.Infrastructure.Persistence.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.ShoppingLists;
@@ -19,7 +22,8 @@ public sealed record AddManualShoppingItemRequest(string? Label, decimal? Quanti
 public sealed record CheckShoppingItemRequest(bool? Checked);
 
 /// <summary>An amount in a unit; both null means "to taste".</summary>
-public sealed record ShoppingQuantityResponse(decimal? Amount, string? UnitCode);
+/// <summary><c>UnitCode</c> is the stable unit code; <c>UnitName</c> is the unit's name in the request language.</summary>
+public sealed record ShoppingQuantityResponse(decimal? Amount, string? UnitCode, string? UnitName);
 
 public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 
@@ -56,7 +60,8 @@ public static class ShoppingListEndpoints
     private const int MaxAttempts = 5;
     private const int MaxManualItems = 200;
 
-    private static readonly StringComparer DisplayComparer = CreateDisplayComparer();
+    private static readonly StringComparer NorwegianComparer = CreateDisplayComparer("nb-NO");
+    private static readonly StringComparer EnglishComparer = CreateDisplayComparer("en-US");
 
     public static IEndpointRouteBuilder MapShoppingListEndpoints(this IEndpointRouteBuilder api)
     {
@@ -103,7 +108,7 @@ public static class ShoppingListEndpoints
 
     // ---- GET -------------------------------------------------------------------------------------------------------
 
-    private static async Task<IResult> GetList(string weekStart, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> GetList(string weekStart, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -112,13 +117,13 @@ public static class ShoppingListEndpoints
         }
 
         var list = await db.ShoppingLists.AsNoTracking().FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
-        return Results.Ok(await BuildResponseAsync(db, list, monday, cancellationToken));
+        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, cancellationToken));
     }
 
     // ---- Generate / regenerate -------------------------------------------------------------------------------------
 
     private static async Task<IResult> Generate(
-        Guid householdId, string weekStart, AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log,
+        Guid householdId, string weekStart, RequestLocale locale, AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -152,7 +157,7 @@ public static class ShoppingListEndpoints
 
         await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
         var list = await db.ShoppingLists.AsNoTracking().FirstAsync(l => l.WeekStart == monday, cancellationToken);
-        return Results.Ok(await BuildResponseAsync(db, list, monday, cancellationToken));
+        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, cancellationToken));
     }
 
     /// <summary>
@@ -322,7 +327,7 @@ public static class ShoppingListEndpoints
     // ---- Manual items ----------------------------------------------------------------------------------------------
 
     private static async Task<IResult> AddManualItem(
-        Guid householdId, string weekStart, AddManualShoppingItemRequest? request, AppDbContext db,
+        Guid householdId, string weekStart, AddManualShoppingItemRequest? request, RequestLocale locale, AppDbContext db,
         IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -391,7 +396,7 @@ public static class ShoppingListEndpoints
         }
 
         await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.ManualItemAdded, item.Id), cancellationToken);
-        var created = (await LoadItemsAsync(db, item.ShoppingListId, item.Id, cancellationToken)).Single();
+        var created = (await LoadItemsAsync(db, item.ShoppingListId, item.Id, locale.Code, cancellationToken)).Single();
         return Results.Created($"/api/households/{householdId}/shopping-lists/{monday:yyyy-MM-dd}", created);
     }
 
@@ -449,7 +454,7 @@ public static class ShoppingListEndpoints
     /// last, with checker and time always from one writer. The response is the state after this request.
     /// </summary>
     private static async Task<IResult> CheckItem(
-        Guid householdId, string weekStart, Guid itemId, CheckShoppingItemRequest? request, ICurrentUser user,
+        Guid householdId, string weekStart, Guid itemId, CheckShoppingItemRequest? request, RequestLocale locale, ICurrentUser user,
         TimeProvider time, AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log,
         CancellationToken cancellationToken)
     {
@@ -481,7 +486,7 @@ public static class ShoppingListEndpoints
             if (!item.SetChecked(wanted, userId, time.GetUtcNow()))
             {
                 // Already in the wanted state (maybe because another member just did it): nothing to write.
-                return Results.Ok((await LoadItemsAsync(db, item.ShoppingListId, item.Id, cancellationToken)).Single());
+                return Results.Ok((await LoadItemsAsync(db, item.ShoppingListId, item.Id, locale.Code, cancellationToken)).Single());
             }
 
             try
@@ -499,7 +504,7 @@ public static class ShoppingListEndpoints
                 log,
                 new ShoppingListChange(householdId, monday, wanted ? ShoppingListChangeKind.ItemChecked : ShoppingListChangeKind.ItemUnchecked, itemId),
                 cancellationToken);
-            return Results.Ok((await LoadItemsAsync(db, item.ShoppingListId, item.Id, cancellationToken)).Single());
+            return Results.Ok((await LoadItemsAsync(db, item.ShoppingListId, item.Id, locale.Code, cancellationToken)).Single());
         }
 
         return Conflict();
@@ -528,21 +533,21 @@ public static class ShoppingListEndpoints
             i => i.Id == itemId && db.ShoppingLists.Any(l => l.Id == i.ShoppingListId && l.WeekStart == monday), cancellationToken);
 
     /// <summary>The current list of a week as GET returns it (an empty shape when there is none). Used by the hub's GetState.</summary>
-    internal static async Task<ShoppingListResponse> ReadAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    internal static async Task<ShoppingListResponse> ReadAsync(AppDbContext db, DateOnly monday, string locale, CancellationToken cancellationToken)
     {
         var list = await db.ShoppingLists.AsNoTracking().FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
-        return await BuildResponseAsync(db, list, monday, cancellationToken);
+        return await BuildResponseAsync(db, list, monday, locale, cancellationToken);
     }
 
     private static async Task<ShoppingListResponse> BuildResponseAsync(
-        AppDbContext db, ShoppingList? list, DateOnly monday, CancellationToken cancellationToken)
+        AppDbContext db, ShoppingList? list, DateOnly monday, string locale, CancellationToken cancellationToken)
     {
         if (list is null)
         {
             return new ShoppingListResponse(null, monday, [], []);
         }
 
-        var items = await LoadItemsAsync(db, list.Id, itemId: null, cancellationToken);
+        var items = await LoadItemsAsync(db, list.Id, itemId: null, locale, cancellationToken);
         return new ShoppingListResponse(
             list.Id,
             monday,
@@ -551,17 +556,18 @@ public static class ShoppingListEndpoints
     }
 
     /// <summary>
-    /// Items with display data, ordered by name (Norwegian culture comparison, so å sorts after z and æ ø å in that
-    /// order) then id. Pass <paramref name="itemId"/> for one item.
+    /// Items with display data in the request language, ordered by name (Norwegian culture comparison, so å sorts after z and æ ø å in that
+    /// order) then id. Generated items are stored by ingredient id, so the name is looked up per request: a language switch re-labels the list. Pass <paramref name="itemId"/> for one item.
     /// </summary>
     private static async Task<ShoppingListItemResponse[]> LoadItemsAsync(
-        AppDbContext db, Guid listId, Guid? itemId, CancellationToken cancellationToken)
+        AppDbContext db, Guid listId, Guid? itemId, string locale, CancellationToken cancellationToken)
     {
         var items = await db.ShoppingListItems.AsNoTracking()
             .Where(i => i.ShoppingListId == listId && (itemId == null || i.Id == itemId)).ToListAsync(cancellationToken);
         var itemIds = items.Select(i => i.Id).ToList();
 
-        var units = await db.Units.AsNoTracking().ToDictionaryAsync(u => u.Id, u => u.Code, cancellationToken);
+        var units = await db.Units.AsNoTracking().WithNames(db, CatalogTranslation.KindUnit, locale)
+            .ToDictionaryAsync(u => u.Row.Id, u => (u.Row.Code, u.Name), cancellationToken);
         var quantities = (await db.ShoppingListItemQuantities.AsNoTracking().Where(q => itemIds.Contains(q.ShoppingListItemId))
             .OrderBy(q => q.Position).ToListAsync(cancellationToken)).ToLookup(q => q.ShoppingListItemId);
         var sources = (await db.ShoppingListItemSources.AsNoTracking().Where(s => itemIds.Contains(s.ShoppingListItemId))
@@ -569,7 +575,7 @@ public static class ShoppingListEndpoints
 
         var ingredientIds = items.Where(i => i.IngredientId != null).Select(i => i.IngredientId!.Value).Distinct().ToList();
         var ingredientNames = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
-            .ToDictionaryAsync(i => i.Id, i => i.Name, cancellationToken);
+            .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
         var recipeIds = sources.SelectMany(g => g).Select(s => s.RecipeId).Distinct().ToList();
         var recipeTitles = await db.Recipes.AsNoTracking().Where(r => recipeIds.Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, r => r.Title, cancellationToken);
@@ -577,6 +583,7 @@ public static class ShoppingListEndpoints
         var emails = await db.Users.AsNoTracking().Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
 
+        var comparer = locale == Locales.Norwegian ? NorwegianComparer : EnglishComparer;
         return [.. items
             .Select(i => new ShoppingListItemResponse(
                 i.Id,
@@ -584,26 +591,27 @@ public static class ShoppingListEndpoints
                 i.IsManual,
                 i.IngredientId,
                 i.Section,
-                [.. quantities[i.Id].Select(q => new ShoppingQuantityResponse(q.Amount, q.UnitId is { } u ? units.GetValueOrDefault(u) : null))],
+                [.. quantities[i.Id].Select(q => new ShoppingQuantityResponse(
+                    q.Amount, q.UnitId is { } u ? units.GetValueOrDefault(u).Code : null, q.UnitId is { } n ? units.GetValueOrDefault(n).Name : null))],
                 [.. sources[i.Id]
                     .Where(s => recipeTitles.ContainsKey(s.RecipeId))
                     .Select(s => new ShoppingRecipeResponse(s.RecipeId, recipeTitles[s.RecipeId]))
-                    .OrderBy(r => r.Title, DisplayComparer).ThenBy(r => r.Id)],
+                    .OrderBy(r => r.Title, comparer).ThenBy(r => r.Id)],
                 i.Checked,
                 i.CheckedByUserId,
                 i.CheckedByUserId is { } by ? emails.GetValueOrDefault(by) : null,
                 i.CheckedAt,
                 i.QuantityChangedSinceChecked))
-            .OrderBy(r => r.Name, DisplayComparer)
+            .OrderBy(r => r.Name, comparer)
             .ThenBy(r => r.Id)];
     }
 
-    /// <summary>Norwegian bokmål ordering when the runtime has the culture; ordinal ignoring case when it does not (invariant globalization).</summary>
-    private static StringComparer CreateDisplayComparer()
+    /// <summary>The request language's ordering (nb-NO or en-US) when the runtime has the culture; ordinal ignoring case when it does not (invariant globalization).</summary>
+    private static StringComparer CreateDisplayComparer(string culture)
     {
         try
         {
-            return StringComparer.Create(CultureInfo.GetCultureInfo("nb-NO"), ignoreCase: true);
+            return StringComparer.Create(CultureInfo.GetCultureInfo(culture), ignoreCase: true);
         }
         catch (CultureNotFoundException)
         {

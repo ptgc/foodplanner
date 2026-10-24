@@ -60,6 +60,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>Global only. Not household data, so no filter; nothing writes it at request time.</summary>
     public DbSet<Unit> Units => Set<Unit>();
 
+    /// <summary>Global names of units, ingredients and tags per locale (T-039). Not household data; written only by the seed.</summary>
+    public DbSet<CatalogTranslation> CatalogTranslations => Set<CatalogTranslation>();
+
     public DbSet<Recipe> Recipes => Set<Recipe>();
 
     public DbSet<RecipeStep> RecipeSteps => Set<RecipeStep>();

@@ -1,3 +1,5 @@
+using Foodplanner.Domain.Localization;
+
 namespace Foodplanner.Domain.Catalog;
 
 /// <summary>
@@ -9,8 +11,11 @@ namespace Foodplanner.Domain.Catalog;
 /// </summary>
 public static class UnitSeed
 {
-    public sealed record Row(string Code, string Name, UnitDimension Dimension, decimal FactorToBase)
+    /// <summary>Code is the stable identity and never translated. Name is the English name (the row stores it); Nb is the bokmål name (T-039).</summary>
+    public sealed record Row(string Code, string Name, string Nb, UnitDimension Dimension, decimal FactorToBase)
     {
+        public IReadOnlyDictionary<string, string> Names => new Dictionary<string, string> { [Locales.English] = Name, [Locales.Norwegian] = Nb };
+
         public Guid Id => SeedIds.For("unit", Code);
 
         public Unit ToUnit() => new(Code, Name, Dimension, FactorToBase);
@@ -18,16 +23,16 @@ public static class UnitSeed
 
     public static IReadOnlyList<Row> All { get; } =
     [
-        new("g", "gram", UnitDimension.Mass, 1m),
-        new("kg", "kilogram", UnitDimension.Mass, 1000m),
-        new("ml", "milliliter", UnitDimension.Volume, 1m),
-        new("dl", "desiliter", UnitDimension.Volume, 100m),
-        new("l", "liter", UnitDimension.Volume, 1000m),
-        new("ts", "teskje", UnitDimension.Volume, 5m),
-        new("ss", "spiseskje", UnitDimension.Volume, 15m),
-        new("kopp", "kopp", UnitDimension.Volume, 250m),
-        new("stk", "stykk", UnitDimension.Count, 1m),
-        new("fedd", "fedd", UnitDimension.Count, 1m),
-        new("klype", "klype", UnitDimension.Count, 1m),
+        new("g", "gram", "gram", UnitDimension.Mass, 1m),
+        new("kg", "kilogram", "kilogram", UnitDimension.Mass, 1000m),
+        new("ml", "milliliter", "milliliter", UnitDimension.Volume, 1m),
+        new("dl", "deciliter", "desiliter", UnitDimension.Volume, 100m),
+        new("l", "liter", "liter", UnitDimension.Volume, 1000m),
+        new("ts", "teaspoon", "teskje", UnitDimension.Volume, 5m),
+        new("ss", "tablespoon", "spiseskje", UnitDimension.Volume, 15m),
+        new("kopp", "cup", "kopp", UnitDimension.Volume, 250m),
+        new("stk", "piece", "stykk", UnitDimension.Count, 1m),
+        new("fedd", "clove", "fedd", UnitDimension.Count, 1m),
+        new("klype", "pinch", "klype", UnitDimension.Count, 1m),
     ];
 }

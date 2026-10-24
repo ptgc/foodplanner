@@ -575,6 +575,7 @@ export interface components {
             /** Format: uuid */
             unitId: null | string;
             unitCode: null | string;
+            unitName: null | string;
             note: null | string;
         };
         RecipeListResponse: {
@@ -674,6 +675,7 @@ export interface components {
             /** Format: double */
             amount: null | number | string;
             unitCode: null | string;
+            unitName: null | string;
         };
         ShoppingRecipeResponse: {
             /** Format: uuid */

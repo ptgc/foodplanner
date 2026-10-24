@@ -8,7 +8,7 @@ namespace Foodplanner.Domain.Recipes;
 /// household created (T-023). Same global-or-household pattern as <see cref="Ingredient"/>. Recipes link to tags through
 /// <see cref="RecipeTag"/>.
 /// </summary>
-public sealed class Tag : Entity, ICatalogEntity
+public sealed class Tag : Entity, ICatalogEntity, ICatalogNamed
 {
     public const int MaxNameLength = 50;
 

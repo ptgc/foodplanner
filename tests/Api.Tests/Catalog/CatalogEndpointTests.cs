@@ -15,7 +15,13 @@ public sealed class CatalogEndpointTests(AuthDatabase db) : IClassFixture<AuthDa
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AuthHost Host() => HouseholdHost.Create(db.ConnectionString);
+    // The seeded names asserted in this class are the Norwegian ones; English and the fallbacks are tested in CatalogTranslationTests.
+    private AuthHost Host()
+    {
+        var host = HouseholdHost.Create(db.ConnectionString);
+        host.DefaultLanguage = "nb";
+        return host;
+    }
 
     private static string NewName(string prefix = "Surdeig") => $"{prefix} {Guid.NewGuid():N}"[..40];
 

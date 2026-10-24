@@ -1,10 +1,13 @@
 using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Tags;
+using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Images;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Infrastructure.Persistence;
+using Foodplanner.Infrastructure.Persistence.Localization;
 using Foodplanner.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,8 +35,9 @@ public sealed record RecipeListResponse(RecipeSummaryResponse[] Items, int Total
 
 public sealed record RecipeStepResponse(int Position, string Text);
 
+/// <summary>Names are in the request language (Accept-Language); <c>UnitCode</c> is the stable code, <c>UnitName</c> its name.</summary>
 public sealed record RecipeIngredientResponse(
-    Guid IngredientId, string IngredientName, decimal? Quantity, Guid? UnitId, string? UnitCode, string? Note);
+    Guid IngredientId, string IngredientName, decimal? Quantity, Guid? UnitId, string? UnitCode, string? UnitName, string? Note);
 
 public sealed record RecipeResponse(
     Guid Id,
@@ -108,7 +112,7 @@ public static class RecipeEndpoints
     /// </summary>
     private static async Task<IResult> ListRecipes(
         Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, int? limit, int? offset,
-        AppDbContext db, CancellationToken cancellationToken)
+        RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var term = search?.Trim();
@@ -179,7 +183,7 @@ public static class RecipeEndpoints
             .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes, r.ImageVersion })
             .ToListAsync(cancellationToken);
 
-        var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), cancellationToken);
+        var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), locale.Code, cancellationToken);
         var items = rows.Select(r => new RecipeSummaryResponse(
             r.Id, r.Title, r.Servings,
             r.PrepMinutes is null && r.CookMinutes is null ? null : (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0),
@@ -191,29 +195,33 @@ public static class RecipeEndpoints
 
     /// <summary>The tags of the given recipes, categories first, then by name.</summary>
     private static async Task<Dictionary<Guid, TagResponse[]>> LoadTagsAsync(
-        AppDbContext db, List<Guid> recipeIds, CancellationToken cancellationToken)
+        AppDbContext db, List<Guid> recipeIds, string locale, CancellationToken cancellationToken)
     {
         if (recipeIds.Count == 0)
         {
             return [];
         }
 
-        var rows = await (from link in db.RecipeTags.AsNoTracking()
-                          join tag in db.Tags.AsNoTracking() on link.TagId equals tag.Id
-                          where recipeIds.Contains(link.RecipeId)
-                          orderby tag.Kind, tag.Name, tag.Id
-                          select new { link.RecipeId, Tag = tag }).ToListAsync(cancellationToken);
-        return rows.GroupBy(r => r.RecipeId).ToDictionary(g => g.Key, g => g.Select(r => TagEndpoints.ToResponse(r.Tag)).ToArray());
+        var links = await db.RecipeTags.AsNoTracking().Where(l => recipeIds.Contains(l.RecipeId))
+            .Select(l => new { l.RecipeId, l.TagId }).ToListAsync(cancellationToken);
+        var tagIds = links.Select(l => l.TagId).Distinct().ToList();
+        var tags = await db.Tags.AsNoTracking().Where(t => tagIds.Contains(t.Id)).WithNames(db, CatalogTranslation.KindTag, locale)
+            .OrderBy(t => t.Row.Kind).ThenByName(locale).ToListAsync(cancellationToken);
+        var order = tags.Select((t, index) => (t.Row.Id, index)).ToDictionary(x => x.Id, x => x.index);
+        var byId = tags.ToDictionary(t => t.Row.Id);
+        return links.GroupBy(l => l.RecipeId).ToDictionary(
+            g => g.Key,
+            g => g.Where(l => byId.ContainsKey(l.TagId)).OrderBy(l => order[l.TagId]).Select(l => TagEndpoints.ToResponse(byId[l.TagId])).ToArray());
     }
 
-    private static async Task<IResult> GetRecipe(Guid recipeId, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> GetRecipe(Guid recipeId, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var recipe = await db.Recipes.AsNoTracking().FirstOrDefaultAsync(r => r.Id == recipeId, cancellationToken);
-        return recipe is null ? NotFound() : Results.Ok(await LoadAsync(db, recipe, cancellationToken));
+        return recipe is null ? NotFound() : Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
     }
 
     private static async Task<IResult> CreateRecipe(
-        Guid householdId, RecipeRequest? request, AppDbContext db, CancellationToken cancellationToken)
+        Guid householdId, RecipeRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var valid = Validate(request, errors);
@@ -237,12 +245,12 @@ public static class RecipeEndpoints
         await transaction.CommitAsync(cancellationToken);
 
         return Results.Created(
-            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, cancellationToken));
+            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, locale.Code, cancellationToken));
     }
 
     /// <summary>Replaces the recipe's fields, steps and ingredients (tracked deletes and inserts, in one save).</summary>
     private static async Task<IResult> UpdateRecipe(
-        Guid recipeId, RecipeRequest? request, AppDbContext db, CancellationToken cancellationToken)
+        Guid recipeId, RecipeRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var valid = Validate(request, errors);
@@ -276,7 +284,7 @@ public static class RecipeEndpoints
             return conflict;
         }
 
-        return Results.Ok(await LoadAsync(db, recipe, cancellationToken));
+        return Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
     }
 
     private static async Task<IResult> DeleteRecipe(
@@ -556,7 +564,7 @@ public static class RecipeEndpoints
         return errors.Count == 0;
     }
 
-    private static async Task<RecipeResponse> LoadAsync(AppDbContext db, Recipe recipe, CancellationToken cancellationToken)
+    private static async Task<RecipeResponse> LoadAsync(AppDbContext db, Recipe recipe, string locale, CancellationToken cancellationToken)
     {
         var steps = await db.RecipeSteps.AsNoTracking().Where(s => s.RecipeId == recipe.Id)
             .OrderBy(s => s.Position).Select(s => new RecipeStepResponse(s.Position, s.Text)).ToListAsync(cancellationToken);
@@ -565,21 +573,24 @@ public static class RecipeEndpoints
 
         var ingredientIds = lines.Select(l => l.IngredientId).Distinct().ToList();
         var unitIds = lines.Where(l => l.UnitId is not null).Select(l => l.UnitId!.Value).Distinct().ToList();
-        var names = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, i => i.Name, cancellationToken);
-        var codes = await db.Units.AsNoTracking().Where(u => unitIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Code, cancellationToken);
+        var names = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
+            .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
+        var units = await db.Units.AsNoTracking().Where(u => unitIds.Contains(u.Id)).WithNames(db, CatalogTranslation.KindUnit, locale)
+            .ToDictionaryAsync(u => u.Row.Id, u => (u.Row.Code, u.Name), cancellationToken);
 
         var ingredients = lines.Select(l => new RecipeIngredientResponse(
             l.IngredientId,
             names.GetValueOrDefault(l.IngredientId, string.Empty),
             l.Quantity,
             l.UnitId,
-            l.UnitId is { } unitId ? codes.GetValueOrDefault(unitId) : null,
+            l.UnitId is { } unitId ? units.GetValueOrDefault(unitId).Code : null,
+            l.UnitId is { } unitId2 ? units.GetValueOrDefault(unitId2).Name : null,
             l.Note)).ToArray();
 
         return new RecipeResponse(
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,
             recipe.TotalMinutes, [.. steps], ingredients,
-            (await LoadTagsAsync(db, [recipe.Id], cancellationToken)).GetValueOrDefault(recipe.Id, []),
+            (await LoadTagsAsync(db, [recipe.Id], locale, cancellationToken)).GetValueOrDefault(recipe.Id, []),
             RecipeImageUrls.All(recipe));
     }
 
