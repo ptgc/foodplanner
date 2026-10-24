@@ -3,6 +3,7 @@ using Foodplanner.Api.Features.Auth;
 using Foodplanner.Api.Features.Catalog;
 using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
+using Foodplanner.Api.Features.MealPlans;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.OpenApi;
@@ -86,6 +87,7 @@ api.MapHouseholdEndpoints();
 api.MapCatalogEndpoints();
 api.MapRecipeEndpoints();
 api.MapTagEndpoints();
+api.MapMealPlanEndpoints();
 
 app.Run();
 return 0;

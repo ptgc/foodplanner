@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Identity;
@@ -68,6 +69,10 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     public DbSet<Tag> Tags => Set<Tag>();
 
     public DbSet<RecipeTag> RecipeTags => Set<RecipeTag>();
+
+    public DbSet<MealPlan> MealPlans => Set<MealPlan>();
+
+    public DbSet<MealPlanEntry> MealPlanEntries => Set<MealPlanEntry>();
 
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;

@@ -210,6 +210,49 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddMealPlans_migration_applies_enforces_one_plan_per_week_and_deleting_a_household_removes_its_plans()
+    {
+        var connectionString = await server.CreateDatabaseAsync("mealplans", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddMealPlans'"));
+        foreach (var table in new[] { "MealPlans", "MealPlanEntries" })
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('{table}') AND name = 'HouseholdId'"));
+        }
+
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID(), @p uniqueidentifier = NEWID(), @u uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO AspNetUsers (Id, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES (@u, 0, 0, 0, 0, 0);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'R', 4, @now, @now);
+            INSERT INTO MealPlans (Id, HouseholdId, WeekStart, CreatedAt, UpdatedAt) VALUES (@p, @h, '2026-10-26', @now, @now);
+            INSERT INTO MealPlanEntries (Id, HouseholdId, MealPlanId, Date, RecipeId, Servings, PickedByUserId, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, @p, '2026-10-27', @r, 4, @u, @now, @now);
+            """);
+
+        // One plan per household and week.
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, """
+            INSERT INTO MealPlans (Id, HouseholdId, WeekStart, CreatedAt, UpdatedAt)
+                SELECT NEWID(), HouseholdId, WeekStart, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM MealPlans
+            """));
+
+        // A planned recipe cannot be deleted directly (NO ACTION), but deleting the household removes the lot.
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, "DELETE FROM Recipes"));
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+
+        foreach (var table in new[] { "MealPlans", "MealPlanEntries", "Recipes" })
+        {
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM {table}"));
+        }
+
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);
