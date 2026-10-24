@@ -41,6 +41,24 @@ public sealed class EndpointPolicyTests
     }
 
     [Theory]
+    [InlineData("Development")]
+    [InlineData("Production")]
+    public void Every_hub_endpoint_requires_an_authenticated_user_and_none_is_anonymous(string environment)
+    {
+        // SignalR maps negotiate without an HTTP method, so All_unsafe_endpoints_validate_antiforgery does not see it. That
+        // is deliberate (T-034): negotiate changes no state, needs the SameSite=Lax auth cookie, and HubOriginMiddleware
+        // rejects a foreign Origin; see docs/domain.md, shopping list sync. This test pins what must hold instead.
+        var hubEndpoints = Endpoints(environment).Where(e => e.RoutePattern.RawText?.StartsWith("/api/hubs/", StringComparison.Ordinal) == true).ToList();
+
+        Assert.NotEmpty(hubEndpoints); // not vacuous: negotiate and the socket endpoint
+        Assert.All(hubEndpoints, e =>
+        {
+            Assert.Null(e.Metadata.GetMetadata<IAllowAnonymous>());
+            Assert.NotEmpty(e.Metadata.GetOrderedMetadata<IAuthorizeData>());
+        });
+    }
+
+    [Theory]
     [InlineData("Production", new string[0])]
     [InlineData("Development", new[] { "GET /openapi/{documentName}.json" })]
     public void Anonymous_endpoints_match_allow_list(string environment, string[] extraInEnvironment)

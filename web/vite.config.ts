@@ -10,7 +10,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": { target: apiTarget, changeOrigin: true },
+      // ws: true lets the SignalR hub (/api/hubs/...) upgrade to a WebSocket through the dev proxy.
+      "/api": { target: apiTarget, changeOrigin: true, ws: true },
     },
   },
 });

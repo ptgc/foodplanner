@@ -91,6 +91,8 @@ public sealed class AuthHost : IAsyncDisposable
 
     public IServiceProvider Services => _factory.Services;
 
+    public Microsoft.AspNetCore.TestHost.TestServer Server => _factory.Server;
+
     public RecordingEmailSender Email => Services.GetRequiredService<RecordingEmailSender>();
 
     /// <summary>Limits are high by default so only the rate-limit tests hit them.</summary>
@@ -218,8 +220,20 @@ public sealed class ApiClient(HttpClient http) : IDisposable
     public async Task<HttpResponseMessage> PostWithTokenAsync(string url, object? body, string? token)
         => await SendPostAsync(url, body, token, null);
 
-    public Task<HttpResponseMessage> LoginAsync(string email, string password) =>
-        PostAsync("/api/auth/login", new { email, password });
+    /// <summary>The auth cookie of the last successful login, as a Cookie header value (for hub connections, which do not share this client's jar).</summary>
+    public string? AuthCookie { get; private set; }
+
+    public async Task<HttpResponseMessage> LoginAsync(string email, string password)
+    {
+        var response = await PostAsync("/api/auth/login", new { email, password });
+        var cookie = response.SetCookies().FirstOrDefault(c => c.StartsWith("__Host-foodplanner=", StringComparison.Ordinal));
+        if (cookie is not null)
+        {
+            AuthCookie = cookie.Split(';')[0];
+        }
+
+        return response;
+    }
 
     private async Task<HttpResponseMessage> SendPostAsync(string url, object? body, string? token, IDictionary<string, string>? headers)
     {
