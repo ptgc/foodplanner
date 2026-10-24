@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import { Navigate, Outlet, useLocation } from "react-router";
+import { NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { loginPathFor } from "../auth-paths";
 import { useSession } from "../session";
+import { t as shopping } from "../shopping/strings";
 
 export default function Shell() {
   const { session, signOut, setActiveHousehold } = useSession();
@@ -55,6 +56,12 @@ export default function Shell() {
           </button>
         </div>
       </header>
+      <nav className="shell-nav" aria-label="Main">
+        <NavLink to="/" end>
+          Home
+        </NavLink>
+        <NavLink to="/shopping">{shopping.nav}</NavLink>
+      </nav>
       <main id="main" ref={mainRef} tabIndex={-1} className="shell-main">
         <Outlet />
       </main>

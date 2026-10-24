@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, resetAntiforgeryToken } from "./api/client";
 import type { components } from "./api/schema";
+import { clearShoppingStorage } from "./shopping/storage";
 
 type Me = components["schemas"]["MeResponse"];
 type Household = components["schemas"]["HouseholdResponse"];
@@ -49,12 +50,55 @@ function pickActive(userId: string, households: Household[]): string | null {
   return households[0]?.id ?? null;
 }
 
+const sessionKey = "foodplanner.session";
+
+type SavedSession = { user: Me; households: Household[] };
+
+function saveSession(value: SavedSession) {
+  try {
+    window.localStorage.setItem(sessionKey, JSON.stringify(value));
+  } catch {
+    // Without storage the app just cannot start while the API is unreachable.
+  }
+}
+
+function clearSavedSession() {
+  try {
+    window.localStorage.removeItem(sessionKey);
+  } catch {
+    // Nothing to clear.
+  }
+}
+
+/** The last session the server confirmed, used only when the API cannot be reached (offline shopping list). */
+function readSavedSession(): Session | null {
+  try {
+    const raw = window.localStorage.getItem(sessionKey);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Partial<SavedSession> | null;
+    if (!saved?.user?.userId || !Array.isArray(saved.households)) return null;
+    return {
+      status: "signedIn",
+      user: saved.user,
+      households: saved.households,
+      activeHouseholdId: pickActive(saved.user.userId, saved.households),
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function loadSession(): Promise<Session> {
   try {
     const me = await api.GET("/api/auth/me");
-    if (!me.data) return { status: "signedOut" };
+    if (!me.data) {
+      // The server answered: not signed in. Do not keep a stale offline identity.
+      clearSavedSession();
+      return { status: "signedOut" };
+    }
     const list = await api.GET("/api/households");
     const households = list.data ?? [];
+    saveSession({ user: me.data, households });
     return {
       status: "signedIn",
       user: me.data,
@@ -62,7 +106,8 @@ async function loadSession(): Promise<Session> {
       activeHouseholdId: pickActive(me.data.userId, households),
     };
   } catch {
-    return { status: "signedOut" };
+    // Network failure (not a 401): fall back to the saved session so cached pages can render offline.
+    return readSavedSession() ?? { status: "signedOut" };
   }
 }
 
@@ -102,6 +147,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       await api.POST("/api/auth/logout");
     } finally {
+      clearSavedSession();
+      clearShoppingStorage();
       resetAntiforgeryToken();
       setSession({ status: "signedOut" });
     }
