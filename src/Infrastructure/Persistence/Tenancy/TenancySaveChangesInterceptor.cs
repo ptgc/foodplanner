@@ -4,12 +4,15 @@ using Foodplanner.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Foodplanner.Infrastructure.Persistence.Tenancy;
 
 /// <summary>
-/// Write guard and audit timestamps. Runs before SaveChanges sends any SQL. Every tracked
-/// <see cref="ITenantEntity"/> is checked first; only when all pass are household ids and timestamps assigned.
+/// Write guard, reference check and audit timestamps. Runs before SaveChanges sends any SQL. Every tracked
+/// <see cref="ITenantEntity"/> is checked first, then its new or changed foreign keys to other tenant or catalog rows
+/// (<see cref="TenancyReferenceCheck"/>: at most one read per principal type); only when all pass are household ids and
+/// timestamps assigned.
 /// Stateless: it reads the household, write scope and clock from the <see cref="AppDbContext"/> being saved.
 /// </summary>
 internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
@@ -22,38 +25,83 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
 
     public override InterceptionResult<int> SavingChanges(DbContextEventData eventData, InterceptionResult<int> result)
     {
-        Apply(eventData.Context);
+        if (eventData.Context is AppDbContext context)
+        {
+            var plan = Prepare(context);
+            var owners = new Dictionary<IEntityType, List<ReferencedRowOwner>>();
+            foreach (var (principal, keyName, ids) in TenancyReferenceCheck.Batches(plan.References))
+            {
+                owners[principal] = ReferenceOwnerLookup.Find(context, principal.ClrType, keyName, ids);
+            }
+
+            TenancyReferenceCheck.Verify(plan.References, owners);
+            Complete(context, plan);
+        }
+
         return result;
     }
 
-    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+    public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
         DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
     {
-        Apply(eventData.Context);
-        return ValueTask.FromResult(result);
-    }
-
-    private static void Apply(DbContext? dbContext)
-    {
-        if (dbContext is not AppDbContext context)
+        if (eventData.Context is AppDbContext context)
         {
-            return;
+            var plan = Prepare(context);
+            var owners = new Dictionary<IEntityType, List<ReferencedRowOwner>>();
+            foreach (var (principal, keyName, ids) in TenancyReferenceCheck.Batches(plan.References))
+            {
+                owners[principal] = await ReferenceOwnerLookup.FindAsync(context, principal.ClrType, keyName, ids, cancellationToken);
+            }
+
+            TenancyReferenceCheck.Verify(plan.References, owners);
+            Complete(context, plan);
         }
 
+        return result;
+    }
+
+    private sealed record SavePlan(
+        List<EntityEntry> Entries,
+        List<(PropertyEntry Property, Guid HouseholdId)> Assignments,
+        List<TenancyReferenceCheck.Reference> References);
+
+    /// <summary>
+    /// Runs the write guard on every tracked tenant or catalog row and collects the foreign keys to check. Changes
+    /// nothing: ids and timestamps are assigned by <see cref="Complete"/> only after every check, including the
+    /// reference check (T-073), has passed.
+    /// </summary>
+    private static SavePlan Prepare(AppDbContext context)
+    {
         // The interceptor runs before SaveChanges' own DetectChanges; detect here so the guard sees every change.
         context.ChangeTracker.DetectChanges();
         var entries = context.ChangeTracker.Entries().ToList();
 
         var assignments = new List<(PropertyEntry Property, Guid HouseholdId)>();
-        foreach (var entry in entries)
+        var savingRows = new List<(EntityEntry Entry, Guid Household)>();
+        foreach (var entry in entries.Where(e => e.Entity is ITenantEntity or ICatalogEntity))
         {
-            if (entry.Entity is ITenantEntity or ICatalogEntity && Check(entry, context) is { } assign)
+            var assign = Check(entry, context);
+            var property = entry.Property(nameof(ITenantEntity.HouseholdId));
+            if (assign is { } stamped)
             {
-                assignments.Add((entry.Property(nameof(ITenantEntity.HouseholdId)), assign));
+                assignments.Add((property, stamped));
+            }
+
+            // The household the row has once saved: the stamped one, the one it carries, or the stored one.
+            var effective = assign ?? (Guid?)(entry.State == EntityState.Added ? property.CurrentValue : property.OriginalValue);
+            if (entry.State is EntityState.Added or EntityState.Modified && effective is { } owner)
+            {
+                savingRows.Add((entry, owner));
             }
         }
 
-        foreach (var (property, householdId) in assignments)
+        return new(entries, assignments, TenancyReferenceCheck.Collect(savingRows, entries));
+    }
+
+    private static void Complete(AppDbContext context, SavePlan plan)
+    {
+        var entries = plan.Entries;
+        foreach (var (property, householdId) in plan.Assignments)
         {
             property.CurrentValue = householdId;
         }

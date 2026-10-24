@@ -102,3 +102,34 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
         return new InviteRedemptionResult(InviteRedemptionOutcome.Joined, invite.HouseholdId, invite.Role);
     }
 }
+
+/// <summary>One referenced row: its key and the household that owns it (<c>null</c>: a global catalog row).</summary>
+internal sealed record ReferencedRowOwner(Guid Key, Guid? HouseholdId);
+
+/// <summary>
+/// The save-time reference check's lookup (T-073, Q-012 option 3). It lives in this file because this is the one file
+/// that may bypass the tenant filter (Q-006; the architecture rule is per file). The bypass is narrow: the named
+/// <c>Tenant</c> filter only, one batched read per principal type keyed by an explicit list of ids, projecting only the
+/// key and the owner, never entities, never tracked.
+/// </summary>
+internal static class ReferenceOwnerLookup
+{
+    private static readonly System.Reflection.MethodInfo QueryMethod =
+        typeof(ReferenceOwnerLookup).GetMethod(nameof(Query), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
+    public static List<ReferencedRowOwner> Find(AppDbContext context, Type principalType, string keyName, List<Guid> ids) =>
+        Build(context, principalType, keyName, ids).ToList();
+
+    public static Task<List<ReferencedRowOwner>> FindAsync(
+        AppDbContext context, Type principalType, string keyName, List<Guid> ids, CancellationToken cancellationToken) =>
+        Build(context, principalType, keyName, ids).ToListAsync(cancellationToken);
+
+    private static IQueryable<ReferencedRowOwner> Build(AppDbContext context, Type principalType, string keyName, List<Guid> ids) =>
+        (IQueryable<ReferencedRowOwner>)QueryMethod.MakeGenericMethod(principalType).Invoke(null, [context, keyName, ids])!;
+
+    private static IQueryable<ReferencedRowOwner> Query<T>(AppDbContext context, string keyName, List<Guid> ids)
+        where T : class =>
+        context.Set<T>().IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking()
+            .Where(e => ids.Contains(EF.Property<Guid>(e, keyName)))
+            .Select(e => new ReferencedRowOwner(EF.Property<Guid>(e, keyName), EF.Property<Guid?>(e, nameof(ITenantEntity.HouseholdId))));
+}

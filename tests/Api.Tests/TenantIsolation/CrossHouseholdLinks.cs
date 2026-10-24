@@ -7,10 +7,15 @@ using Microsoft.EntityFrameworkCore.Metadata;
 namespace Foodplanner.Api.Tests.TenantIsolation;
 
 /// <summary>
+/// BACKSTOP AND TEST HELPER (since T-073 the save guard refuses a new or changed foreign key to another household's row, so
+/// this walks the database for links that got in some other way: raw SQL, a migration, a bug in the guard). The rule
+/// below still holds for handlers: they answer 400/404 first, the save guard is only the last line.
 /// RULE FOR EVERY FEATURE THAT ADDS A FOREIGN KEY BETWEEN TENANT ENTITIES (T-021 recipes, T-022 planner, T-024 list
-/// and later): the query filter and the write guard protect a row's own HouseholdId, not the keys it points at. A
-/// tenant row can be saved with a foreign key to another household's row, because the database only checks that the
-/// target exists. The same holds for the rows of a many-to-many join table.
+/// and later): the query filter and the household write guard protect a row's own HouseholdId; the reference check of
+/// the save guard (TenancyReferenceCheck, T-073) protects the keys it points at. Before T-073 a
+/// tenant row could be saved with a foreign key to another household's row, because the database only checks that the
+/// target exists. The save guard covers explicit join entities (ITenantEntity); an implicit (shared-type) many-to-many
+/// join is not seen by it, which is why the model rules forbid one between tenant entities.
 /// <list type="number">
 /// <item>Resolve every referenced id through the filtered set first (<c>db.Set&lt;T&gt;().FindAsync</c> or a filtered
 /// query). From household A, B's row is simply not found, so answer 404 and never write the id.</item>

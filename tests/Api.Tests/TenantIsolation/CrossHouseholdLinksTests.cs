@@ -66,18 +66,29 @@ public sealed class CrossHouseholdLinksTests(SqlServerFixture server)
     }
 
     [Fact]
-    public async Task A_foreign_key_to_another_households_row_is_not_stopped_by_EF_and_is_found_by_the_check()
+    public async Task A_foreign_key_to_another_households_row_is_refused_on_save_and_a_planted_one_is_found_by_the_check()
     {
         var cs = await NewDatabaseAsync();
         var a = Guid.NewGuid();
         var b = Guid.NewGuid();
         var projectOfB = await AddProjectAsync(cs, b);
 
-        // This is what a careless endpoint does with a client-supplied id. It succeeds: this is the hole.
+        // This is what a careless endpoint does with a client-supplied id. Since T-073 the save guard refuses it.
         await using (var context = CrossReferenceContext.Create(cs, a))
         {
             context.Add(new XTask { ProjectId = projectOfB });
-            await context.SaveChangesAsync(Ct);
+            await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+        }
+
+        // The finder is the backstop's own check (and a test helper), so plant the link with raw SQL, bypassing EF.
+        await using (var connection = new Microsoft.Data.SqlClient.SqlConnection(cs))
+        {
+            await connection.OpenAsync(Ct);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO XTasks (Id, HouseholdId, ProjectId, CreatedAt, UpdatedAt) VALUES (NEWID(), @household, @project, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())";
+            command.Parameters.AddWithValue("@household", a);
+            command.Parameters.AddWithValue("@project", projectOfB);
+            await command.ExecuteNonQueryAsync(Ct);
         }
 
         await using var model = CrossReferenceContext.Create(cs, null);
