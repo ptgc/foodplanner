@@ -12,6 +12,7 @@
     "api:check": "node scripts/api-types.mjs check"
   },
   "dependencies": {
+    "@microsoft/signalr": "10.0.11",
     "@react-router/node": "7.18.4",
     "isbot": "5.2.2",
     "openapi-fetch": "0.17.0",
