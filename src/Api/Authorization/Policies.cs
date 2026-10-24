@@ -18,6 +18,9 @@ public static class Policies
 
     /// <summary>Owner.</summary>
     public const string HouseholdOwner = "HouseholdOwner";
+
+    /// <summary>Resource policy (T-030): Adult or Owner, or the member who picked the meal plan entry. Evaluated with the entry as resource.</summary>
+    public const string MealPlanEntryOwnerOrAdult = "MealPlanEntryOwnerOrAdult";
 }
 
 /// <summary>Satisfied when the caller's role in the current household is at least <see cref="Minimum"/>.</summary>
@@ -48,8 +51,13 @@ public static class AuthorizationSetup
     public static IServiceCollection AddHouseholdPolicies(this IServiceCollection services)
     {
         services.AddScoped<IAuthorizationHandler, HouseholdRoleHandler>();
+        services.AddScoped<IAuthorizationHandler, MealPlanEntryOwnerOrAdultHandler>();
+        services.AddScoped<IMealPlanEntryAccess, MealPlanEntryAccess>();
         services.AddAuthorization(authorization =>
         {
+            authorization.AddPolicy(
+                Policies.MealPlanEntryOwnerOrAdult,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser().AddRequirements(new MealPlanEntryOwnerOrAdultRequirement()).Build());
             authorization.AddPolicy(Policies.HouseholdMember, Build(HouseholdRole.Child));
             authorization.AddPolicy(Policies.HouseholdAdult, Build(HouseholdRole.Adult));
             authorization.AddPolicy(Policies.HouseholdOwner, Build(HouseholdRole.Owner));

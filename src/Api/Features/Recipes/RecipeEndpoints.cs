@@ -282,10 +282,37 @@ public static class RecipeEndpoints
             return NotFound();
         }
 
+        // A recipe on a meal plan is in use (T-030): the planned meals would lose their recipe, so it is refused (409).
+        if (await db.MealPlanEntries.AnyAsync(e => e.RecipeId == recipeId, cancellationToken))
+        {
+            return RecipeInUse();
+        }
+
         // Steps and ingredient lines go with the recipe (database cascade).
         db.Recipes.Remove(recipe);
-        return await TrySaveAsync(db, cancellationToken) ?? Results.NoContent();
+        try
+        {
+            return await TrySaveAsync(db, cancellationToken) ?? Results.NoContent();
+        }
+        catch (DbUpdateException)
+        {
+            // Planned between the check and the delete: the NO ACTION foreign key refused it.
+            db.ChangeTracker.Clear();
+            if (await db.MealPlanEntries.AnyAsync(e => e.RecipeId == recipeId, cancellationToken))
+            {
+                return RecipeInUse();
+            }
+
+            throw;
+        }
     }
+
+    private static IResult RecipeInUse() =>
+        AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.RecipeInUse,
+            "Recipe is planned",
+            "The recipe is on a meal plan. Remove it from the plan first.");
 
     /// <summary>
     /// Saves; a <see cref="DbUpdateConcurrencyException"/> means the row is gone or no longer belongs to this household

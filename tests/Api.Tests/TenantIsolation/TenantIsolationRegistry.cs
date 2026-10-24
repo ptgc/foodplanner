@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
 
@@ -82,7 +83,26 @@ public static class TenantIsolationRegistry
                 return new RecipeTag(recipe.Id, TagSeed.All[5].Id);
             },
             entry => entry.Property(l => l.TagId).CurrentValue = TagSeed.All[6].Id),
+
+        // Meal plans (T-030). A plan is one row per week; an entry points to its plan, a recipe of the same household and the user who picked it.
+        TenantIsolationCase.For<MealPlan>(
+            (_, _) => Task.FromResult(new MealPlan(RandomMonday())),
+            entry => entry.Property(p => p.WeekStart).CurrentValue = new DateOnly(2026, 11, 2)),
+
+        TenantIsolationCase.For<MealPlanEntry>(
+            async (env, household) =>
+            {
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                // A random week: the factory may run more than once for a household, and a household has one plan per week.
+                var plan = new MealPlan(RandomMonday());
+                await env.SaveAsync(household, plan);
+                return new MealPlanEntry(plan.Id, plan.WeekStart, plan.WeekStart.AddDays(1), recipe.Id, 4, await env.NewUserAsync());
+            },
+            entry => entry.Property(e => e.Servings).CurrentValue = 6),
     ];
+
+    private static DateOnly RandomMonday() => new DateOnly(2026, 10, 26).AddDays(7 * Random.Shared.Next(2, 100_000));
 
     /// <summary>The registered catalog entities, for the global-row checks.</summary>
     public static IEnumerable<string> CatalogNames => Cases.Where(c => c.IsCatalog).Select(c => c.Name);
