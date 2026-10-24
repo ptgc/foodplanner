@@ -1164,7 +1164,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: {
@@ -1218,7 +1220,9 @@ export interface operations {
                 limit?: number | string;
             };
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1265,7 +1269,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: {
@@ -1436,6 +1442,7 @@ export interface operations {
             header?: never;
             path: {
                 recipeId: string;
+                householdId: string;
             };
             cookie?: never;
         };
@@ -1485,6 +1492,7 @@ export interface operations {
             header?: never;
             path: {
                 recipeId: string;
+                householdId: string;
             };
             cookie?: never;
         };
@@ -1611,7 +1619,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -1649,7 +1659,9 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                householdId: string;
+            };
             cookie?: never;
         };
         requestBody?: {
@@ -1711,6 +1723,7 @@ export interface operations {
             header?: never;
             path: {
                 weekStart: string;
+                householdId: string;
             };
             cookie?: never;
         };
@@ -1815,6 +1828,7 @@ export interface operations {
             path: {
                 weekStart: string;
                 entryId: string;
+                householdId: string;
             };
             cookie?: never;
         };
@@ -1887,6 +1901,7 @@ export interface operations {
             path: {
                 weekStart: string;
                 entryId: string;
+                householdId: string;
             };
             cookie?: never;
         };
@@ -1952,6 +1967,7 @@ export interface operations {
             header?: never;
             path: {
                 weekStart: string;
+                householdId: string;
             };
             cookie?: never;
         };

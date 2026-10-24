@@ -32,20 +32,11 @@ export type RecipeList =
       moreFailure: Failure | null;
     };
 
-/**
- * The generated schema does not declare the `{householdId}` route parameter on the list endpoints (the OpenAPI
- * generator only lists `{recipeId}` etc.), so its path type is `undefined`. The client still fills the template
- * from `params.path`; this is the one cast, and it goes away when the contract declares the parameter.
- */
-export function householdPath(householdId: string): never {
-  return { householdId } as never;
-}
-
 type Page = { ok: true; items: RecipeSummary[]; total: number } | { ok: false; failure: Failure };
 
 async function fetchPage(request: Request, offset: number): Promise<Page> {
   const { data, error } = await api.GET("/api/households/{householdId}/recipes", {
-    params: { path: householdPath(request.householdId), query: toListQuery(request.filters, pageSize, offset) },
+    params: { path: { householdId: request.householdId }, query: toListQuery(request.filters, pageSize, offset) },
   });
   if (!data) return { ok: false, failure: { problemType: problemTypeOf(error) } };
   return { ok: true, items: data.items, total: Number(data.total) };
@@ -127,7 +118,7 @@ export function useTags(householdId: string): Tag[] {
       let tags: Tag[] = [];
       try {
         const { data } = await api.GET("/api/households/{householdId}/tags", {
-          params: { path: householdPath(householdId) },
+          params: { path: { householdId: householdId } },
         });
         tags = data ?? [];
       } catch {
