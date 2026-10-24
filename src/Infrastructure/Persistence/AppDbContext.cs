@@ -1,5 +1,7 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Identity;
+using Foodplanner.Infrastructure.Persistence.Configurations;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +51,12 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<Invite> Invites => Set<Invite>();
 
+    /// <summary>Global-or-household catalog (<see cref="ICatalogEntity"/>): reads see global rows and the current household's.</summary>
+    public DbSet<Ingredient> Ingredients => Set<Ingredient>();
+
+    /// <summary>Global only. Not household data, so no filter; nothing writes it at request time.</summary>
+    public DbSet<Unit> Units => Set<Unit>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 
@@ -71,6 +79,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
         // Last, so it covers every entity configured above.
         TenancyModelConventions.Apply(modelBuilder, this);
+
+        // After the conventions: the seed rows carry the audit columns the conventions add.
+        CatalogSeedData.Apply(modelBuilder);
     }
 
     /// <summary>Hook for test-only subclasses to add entities before the tenancy conventions run.</summary>

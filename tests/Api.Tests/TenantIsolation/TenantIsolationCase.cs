@@ -1,5 +1,7 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Common;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -34,7 +36,38 @@ public abstract class TenantIsolationCase
         Func<TenantIsolationEnvironment, Guid, Task<TEntity>> create,
         Action<EntityEntry<TEntity>> mutate)
         where TEntity : Entity, ITenantEntity =>
-        new TenantIsolationCase<TEntity>(create, mutate);
+        new TenantIsolationCase<TEntity>(create, mutate, isCatalog: false);
+
+    /// <summary>
+    /// Registers a catalog entity (<see cref="ICatalogEntity"/>: global rows with a null household, plus rows a household
+    /// owns). The household-row checks are the same as for a tenant entity, with global rows allowed in the results; the
+    /// harness adds the global-row checks. <paramref name="create"/> must give each new row a unique name or key
+    /// (the harness makes a row global with raw SQL, to stand for a seeded row) and may use the household it is given
+    /// (or ignore it: the harness stamps it).
+    /// </summary>
+    public static TenantIsolationCase ForCatalog<TEntity>(
+        Func<TenantIsolationEnvironment, Guid, Task<TEntity>> create,
+        Action<EntityEntry<TEntity>> mutate)
+        where TEntity : Entity, ICatalogEntity =>
+        new TenantIsolationCase<TEntity>(create, mutate, isCatalog: true);
+
+    public abstract bool IsCatalog { get; }
+
+    /// <summary>Catalog only. Global rows are visible to every household and to a request without a household; households' own rows stay isolated.</summary>
+    public abstract Task GlobalRowsAreVisibleToEveryoneAsync(TenantIsolationEnvironment env);
+
+    /// <summary>
+    /// Catalog only. A household cannot create a row without a household, nor update, delete, re-home or claim a global
+    /// row, in any of the ways a tenant row is protected; the global row is unchanged by raw SQL afterwards.
+    /// </summary>
+    public abstract Task GlobalRowsAreReadOnlyAsync(TenantIsolationEnvironment env);
+
+    /// <summary>
+    /// Catalog only, a pinned known gap: ExecuteUpdate/ExecuteDelete never reach the save guard, and the catalog filter
+    /// admits global rows, so a bulk operation from a household DOES reach them. Architecture.Tests forbids both in
+    /// production code instead (<c>TenantSourceRules.BulkWrites</c>).
+    /// </summary>
+    public abstract Task BulkOperationsReachGlobalRowsAsync(TenantIsolationEnvironment env);
 
     /// <summary>A's reads (list, Find, AsNoTracking, projection, count, Include) never see B's row; no household sees nothing.</summary>
     public abstract Task ReadsAreFilteredAsync(TenantIsolationEnvironment env);
@@ -57,12 +90,31 @@ public abstract class TenantIsolationCase
 
 internal sealed class TenantIsolationCase<TEntity>(
     Func<TenantIsolationEnvironment, Guid, Task<TEntity>> create,
-    Action<EntityEntry<TEntity>> mutate) : TenantIsolationCase
-    where TEntity : Entity, ITenantEntity
+    Action<EntityEntry<TEntity>> mutate,
+    bool isCatalog) : TenantIsolationCase
+    where TEntity : Entity
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public override Type EntityType => typeof(TEntity);
+
+    public override bool IsCatalog => isCatalog;
+
+    private static readonly System.Reflection.PropertyInfo HouseholdIdProperty =
+        typeof(TEntity).GetProperty(nameof(ITenantEntity.HouseholdId), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException($"{typeof(TEntity).Name} has no HouseholdId property.");
+
+    private static Guid? HouseholdOf(TEntity row) => (Guid?)HouseholdIdProperty.GetValue(row);
+
+    /// <summary>
+    /// Sets the household of an unsaved row through the EF change tracker's entry (the backing field), so it works for
+    /// a get-only property, a private setter and a nullable one alike. <c>null</c> makes the row look global.
+    /// </summary>
+    private static void Stamp(TenantIsolationEnvironment env, TEntity row, Guid? household)
+    {
+        using var context = env.ContextFor(null);
+        context.Entry(row).Property(nameof(ITenantEntity.HouseholdId)).CurrentValue = household;
+    }
 
     /// <summary>Two fresh households, each with one row.</summary>
     private async Task<Scenario> StartAsync(TenantIsolationEnvironment env)
@@ -82,17 +134,17 @@ internal sealed class TenantIsolationCase<TEntity>(
     private async Task<TEntity> NewRowAsync(TenantIsolationEnvironment env, Guid household)
     {
         var row = await create(env, household);
-        for (var type = typeof(TEntity); type is not null; type = type.BaseType)
-        {
-            if (type.GetProperty(nameof(ITenantEntity.HouseholdId), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly) is { } property)
-            {
-                property.SetValue(row, household);
-                return row;
-            }
-        }
+        Stamp(env, row, household);
+        return row;
+    }
 
-        throw new InvalidOperationException($"{typeof(TEntity).Name} has no HouseholdId property.");
+    /// <summary>A seeded stand-in: a row saved for a throwaway household, then made global with raw SQL (request code cannot do that).</summary>
+    private async Task<(Guid Id, string? Snapshot)> NewGlobalRowAsync(TenantIsolationEnvironment env)
+    {
+        var owner = await env.NewHouseholdAsync();
+        var id = await SeedAsync(env, owner);
+        await env.MakeGlobalAsync(typeof(TEntity), id);
+        return (id, await env.SnapshotAsync(typeof(TEntity), id));
     }
 
     private async Task<Guid> SeedAsync(TenantIsolationEnvironment env, Guid household)
@@ -102,7 +154,7 @@ internal sealed class TenantIsolationCase<TEntity>(
         return row.Id;
     }
 
-    private static async Task<TEntity> LoadDetachedAsync(TenantIsolationEnvironment env, Guid household, Guid id)
+    private static async Task<TEntity> LoadDetachedAsync(TenantIsolationEnvironment env, Guid? household, Guid id)
     {
         await using var context = env.ContextFor(household);
         return await context.Set<TEntity>().AsNoTracking().SingleAsync(e => e.Id == id, Ct);
@@ -134,7 +186,8 @@ internal sealed class TenantIsolationCase<TEntity>(
             var all = await a.Set<TEntity>().ToListAsync(Ct);
             Assert.DoesNotContain(all, e => e.Id == s.IdB);
             Assert.Contains(all, e => e.Id == s.IdA); // not vacuous: A sees its own row
-            Assert.All(all, e => Assert.Equal(s.A, e.HouseholdId));
+            // Only A's rows, plus (catalog entities) the global ones.
+            Assert.All(all, e => Assert.True(HouseholdOf(e) == s.A || (isCatalog && HouseholdOf(e) is null), $"{name}: A saw a row of {HouseholdOf(e)}"));
 
             Assert.Null(await a.Set<TEntity>().FindAsync([s.IdB], Ct));
             Assert.Null(await a.Set<TEntity>().SingleOrDefaultAsync(e => e.Id == s.IdB, Ct));
@@ -161,6 +214,152 @@ internal sealed class TenantIsolationCase<TEntity>(
         await using var none = env.ContextFor(null);
         Assert.Empty(await none.Set<TEntity>().Where(e => e.Id == s.IdA || e.Id == s.IdB).ToListAsync(Ct));
         await AssertUntouchedAsync(env, s);
+    }
+
+    public override async Task GlobalRowsAreVisibleToEveryoneAsync(TenantIsolationEnvironment env)
+    {
+        EnsureCatalog();
+        var s = await StartAsync(env);
+        var (globalId, _) = await NewGlobalRowAsync(env);
+
+        foreach (var household in new Guid?[] { s.A, s.B, null })
+        {
+            await using var context = env.ContextFor(household);
+            var row = await context.Set<TEntity>().SingleOrDefaultAsync(e => e.Id == globalId, Ct);
+            Assert.NotNull(row);
+            Assert.Null(HouseholdOf(row));
+            Assert.NotNull(await context.Set<TEntity>().FindAsync([globalId], Ct));
+            Assert.True(await context.Set<TEntity>().AsNoTracking().AnyAsync(e => e.Id == globalId, Ct));
+            Assert.Contains(globalId, await context.Set<TEntity>().Select(e => e.Id).ToListAsync(Ct));
+        }
+
+        // And the households' own rows stay private, including from a request with no household.
+        await using var a = env.ContextFor(s.A);
+        Assert.False(await a.Set<TEntity>().AnyAsync(e => e.Id == s.IdB, Ct));
+        await using var nobody = env.ContextFor(null);
+        Assert.Empty(await nobody.Set<TEntity>().Where(e => e.Id == s.IdA || e.Id == s.IdB).ToListAsync(Ct));
+    }
+
+    public override async Task GlobalRowsAreReadOnlyAsync(TenantIsolationEnvironment env)
+    {
+        EnsureCatalog();
+        var s = await StartAsync(env);
+        var (globalId, before) = await NewGlobalRowAsync(env);
+        var snapshotA = await env.SnapshotAsync(typeof(TEntity), s.IdA);
+
+        async Task AssertGlobalUntouchedAsync()
+        {
+            Assert.Equal(before, await env.SnapshotAsync(typeof(TEntity), globalId));
+            Assert.Equal(snapshotA, await env.SnapshotAsync(typeof(TEntity), s.IdA));
+        }
+
+        foreach (var caller in new Guid?[] { s.A, s.B, null })
+        {
+            // Create a row with no household, i.e. a global one.
+            await using (var context = env.ContextFor(caller))
+            {
+                var global = await NewRowAsync(env, s.A);
+                Stamp(env, global, null);
+                context.Add(global);
+                await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                Assert.Null(await env.SnapshotAsync(typeof(TEntity), global.Id));
+            }
+
+            // Update: a real detached copy, through DbSet.Update, and a forged one (null household, the global row's id).
+            if (caller is not null)
+            {
+                await using (var context = env.ContextFor(caller))
+                {
+                    mutate(context.Attach(await LoadDetachedAsync(env, null, globalId)));
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                await using (var context = env.ContextFor(caller))
+                {
+                    var row = await LoadDetachedAsync(env, null, globalId);
+                    mutate(context.Attach(row));
+                    context.Update(row);
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                await using (var context = env.ContextFor(caller))
+                {
+                    var forged = await NewRowAsync(env, s.A);
+                    Stamp(env, forged, null);
+                    typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(forged, globalId);
+                    var entry = context.Entry(forged);
+                    entry.State = EntityState.Unchanged;
+                    mutate(entry);
+                    entry.State = EntityState.Modified;
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                // Delete: tracked from a query (the household sees the row), and forged.
+                await using (var context = env.ContextFor(caller))
+                {
+                    context.Remove(await context.Set<TEntity>().SingleAsync(e => e.Id == globalId, Ct));
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                await using (var context = env.ContextFor(caller))
+                {
+                    var forged = await NewRowAsync(env, s.A);
+                    Stamp(env, forged, null);
+                    typeof(Entity).GetProperty(nameof(Entity.Id))!.SetValue(forged, globalId);
+                    context.Entry(forged).State = EntityState.Unchanged;
+                    context.Remove(forged);
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                // Claim the global row for the household, and release the household's own row into the global pool.
+                await using (var context = env.ContextFor(caller))
+                {
+                    var row = await context.Set<TEntity>().SingleAsync(e => e.Id == globalId, Ct);
+                    context.Entry(row).Property(nameof(ITenantEntity.HouseholdId)).CurrentValue = caller;
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+
+                await using (var context = env.ContextFor(caller))
+                {
+                    var own = await context.Set<TEntity>().SingleAsync(e => e.Id == (caller == s.A ? s.IdA : s.IdB), Ct);
+                    context.Entry(own).Property(nameof(ITenantEntity.HouseholdId)).CurrentValue = null;
+                    await Assert.ThrowsAsync<TenancyViolationException>(() => context.SaveChangesAsync(Ct));
+                }
+            }
+
+            await AssertGlobalUntouchedAsync();
+            Assert.NotNull(await env.SnapshotAsync(typeof(TEntity), s.IdB));
+        }
+    }
+
+    public override async Task BulkOperationsReachGlobalRowsAsync(TenantIsolationEnvironment env)
+    {
+        EnsureCatalog();
+        var (globalId, before) = await NewGlobalRowAsync(env);
+        var household = await env.NewHouseholdAsync();
+        var marker = DateTimeOffset.UtcNow.AddYears(1);
+
+        await using var context = env.ContextFor(household);
+        var updated = await context.Set<TEntity>().Where(e => e.Id == globalId)
+            .ExecuteUpdateAsync(set => set.SetProperty(e => EF.Property<DateTimeOffset>(e, "UpdatedAt"), marker), Ct);
+
+        Assert.Equal(1, updated); // the hole: a household reached a global row
+        Assert.NotEqual(before, await env.SnapshotAsync(typeof(TEntity), globalId));
+        Assert.Equal(1, await context.Set<TEntity>().Where(e => e.Id == globalId).ExecuteDeleteAsync(Ct));
+        Assert.Null(await env.SnapshotAsync(typeof(TEntity), globalId));
+    }
+
+    private IQueryable<TEntity> Mine(AppDbContext context, Guid household) =>
+        isCatalog
+            ? context.Set<TEntity>().Where(e => EF.Property<Guid?>(e, nameof(ITenantEntity.HouseholdId)) == household)
+            : context.Set<TEntity>();
+
+    private void EnsureCatalog()
+    {
+        if (!isCatalog)
+        {
+            throw new InvalidOperationException($"{typeof(TEntity).Name} is not registered as a catalog entity.");
+        }
     }
 
     public override async Task InsertForOtherHouseholdIsRejectedAsync(TenantIsolationEnvironment env)
@@ -300,13 +499,13 @@ internal sealed class TenantIsolationCase<TEntity>(
             Assert.Equal(0, await a.Set<TEntity>().Where(e => e.Id == s.IdB).ExecuteDeleteAsync(Ct));
             await AssertUntouchedAsync(env, s);
 
-            // Aimed at everything: only A's rows are affected.
-            Assert.Equal(1, await a.Set<TEntity>()
+            // Aimed at everything of A's: only A's rows are affected. (A catalog set also admits global rows, which a bulk operation would reach: pinned separately, so aim at A's own rows.)
+            Assert.Equal(1, await Mine(a, s.A)
                 .ExecuteUpdateAsync(set => set.SetProperty(e => EF.Property<DateTimeOffset>(e, "UpdatedAt"), marker), Ct));
             Assert.NotEqual(snapshotA, await env.SnapshotAsync(typeof(TEntity), s.IdA)); // not vacuous: A's row did change
             await AssertUntouchedAsync(env, s);
 
-            Assert.Equal(1, await a.Set<TEntity>().ExecuteDeleteAsync(Ct));
+            Assert.Equal(1, await Mine(a, s.A).ExecuteDeleteAsync(Ct));
             Assert.Null(await env.SnapshotAsync(typeof(TEntity), s.IdA)); // not vacuous: A's row is gone
             await AssertUntouchedAsync(env, s);
         }

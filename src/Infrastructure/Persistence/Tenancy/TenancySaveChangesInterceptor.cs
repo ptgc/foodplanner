@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Common;
 using Foodplanner.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -46,7 +47,7 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
         var assignments = new List<(PropertyEntry Property, Guid HouseholdId)>();
         foreach (var entry in entries)
         {
-            if (entry.Entity is ITenantEntity && Check(entry, context) is { } assign)
+            if (entry.Entity is ITenantEntity or ICatalogEntity && Check(entry, context) is { } assign)
             {
                 assignments.Add((entry.Property(nameof(ITenantEntity.HouseholdId)), assign));
             }
@@ -76,10 +77,16 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
         }
     }
 
-    /// <summary>Throws on a violation. Returns the household id to assign to an Added entity, if any.</summary>
+    /// <summary>
+    /// Throws on a violation. Returns the household id to assign to an Added entity, if any. A catalog entity
+    /// (<see cref="ICatalogEntity"/>) follows the tenant rules and two more: a row can never be added without a household,
+    /// so request code can never create a global row, and a global row (null household) can never be updated or
+    /// deleted. Global rows come from the seed (migration data), which does not pass through SaveChanges.
+    /// </summary>
     private static Guid? Check(EntityEntry entry, AppDbContext context)
     {
         var property = entry.Property(nameof(ITenantEntity.HouseholdId));
+        var isCatalog = entry.Entity is ICatalogEntity;
         var entityName = entry.Metadata.ClrType.Name;
         var current = context.CurrentHouseholdId;
         var forWrite = context.WriteScope.HouseholdId ?? current;
@@ -93,7 +100,12 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
                         throw new TenancyViolationException($"Cannot add {entityName} without a household context.");
                     }
 
-                    var value = (Guid)property.CurrentValue!;
+                    var value = (Guid?)property.CurrentValue;
+                    if (value is null)
+                    {
+                        throw new TenancyViolationException($"Cannot add {entityName} without a household: global rows are written only by the seed.");
+                    }
+
                     if (value == Guid.Empty)
                     {
                         return household;
@@ -109,12 +121,12 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
 
             case EntityState.Modified:
                 EnsureHouseholdUnchanged(property, entityName);
-                EnsureOwnedBy(property, forWrite, entityName, "update");
+                EnsureOwnedBy(property, forWrite, entityName, "update", isCatalog);
                 return null;
 
             case EntityState.Deleted:
                 EnsureHouseholdUnchanged(property, entityName);
-                EnsureOwnedBy(property, current, entityName, "delete");
+                EnsureOwnedBy(property, current, entityName, "delete", isCatalog);
                 return null;
 
             default:
@@ -133,8 +145,13 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
         property.IsModified = false;
     }
 
-    private static void EnsureOwnedBy(PropertyEntry property, Guid? household, string entityName, string action)
+    private static void EnsureOwnedBy(PropertyEntry property, Guid? household, string entityName, string action, bool isCatalog)
     {
+        if (isCatalog && property.OriginalValue is null)
+        {
+            throw new TenancyViolationException($"Cannot {action} {entityName}: it is a global catalog row, read-only to households.");
+        }
+
         if (household is null)
         {
             throw new TenancyViolationException($"Cannot {action} {entityName} without a household context.");

@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Common;
 using Foodplanner.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,15 @@ internal static class TenancyModelConventions
                     ?? entityType.AddProperty(nameof(ITenantEntity.HouseholdId));
                 householdId.IsConcurrencyToken = true;
             }
+            else if (typeof(ICatalogEntity).IsAssignableFrom(clrType))
+            {
+                // Same filter name as tenant entities (one name, so the bypass rules and the architecture rules cover
+                // both), but the expression admits the global rows: HouseholdId is null or the current household.
+                entityType.SetQueryFilter(AppDbContext.TenantFilterName, CatalogFilter(clrType, context));
+                var householdId = entityType.FindProperty(nameof(ICatalogEntity.HouseholdId))
+                    ?? entityType.AddProperty(nameof(ICatalogEntity.HouseholdId), typeof(Guid?));
+                householdId.IsConcurrencyToken = true;
+            }
 
             if (typeof(Entity).IsAssignableFrom(clrType))
             {
@@ -52,6 +62,19 @@ internal static class TenancyModelConventions
                 _ = entityType.FindProperty(UpdatedAt) ?? entityType.AddProperty(UpdatedAt, typeof(DateTimeOffset));
             }
         }
+    }
+
+    /// <summary>
+    /// Builds <c>e =&gt; e.HouseholdId == null || e.HouseholdId == context.CurrentHouseholdId</c> for a catalog entity.
+    /// With no household context only the global rows remain.
+    /// </summary>
+    private static LambdaExpression CatalogFilter(Type clrType, AppDbContext context)
+    {
+        var entity = Expression.Parameter(clrType, "e");
+        var householdId = Expression.Property(entity, nameof(ICatalogEntity.HouseholdId));
+        var current = Expression.Property(Expression.Constant(context), nameof(AppDbContext.CurrentHouseholdId));
+        var isGlobal = Expression.Equal(householdId, Expression.Constant(null, typeof(Guid?)));
+        return Expression.Lambda(Expression.OrElse(isGlobal, Expression.Equal(householdId, current)), entity);
     }
 
     /// <summary>

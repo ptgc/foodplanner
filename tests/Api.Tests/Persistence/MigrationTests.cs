@@ -80,6 +80,57 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddCatalog_migration_seeds_the_catalog_and_applying_again_changes_nothing()
+    {
+        var connectionString = await server.CreateDatabaseAsync("catalog", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddCatalog'"));
+        var ingredients = (int)(await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"))!;
+        var units = (int)(await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Units"))!;
+        Assert.Equal(Foodplanner.Domain.Catalog.IngredientSeed.All.Count, ingredients);
+        Assert.Equal(Foodplanner.Domain.Catalog.UnitSeed.All.Count, units);
+        Assert.Equal(ingredients, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients WHERE HouseholdId IS NULL"));
+        Assert.InRange(ingredients, 90, 130);
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients WHERE Name = N'Salt' AND IsStaple = 1"));
+        var fingerprint = await ScalarAsync(connectionString, "SELECT CHECKSUM_AGG(CHECKSUM(Id, Name, IsStaple, Dimension)) FROM Ingredients");
+
+        // Idempotent: a second migrate is a no-op (the migration is recorded), counts and content are unchanged.
+        await context.Database.MigrateAsync(Ct);
+        await using (var again = TenancyDatabase.CreateProductionContext(connectionString))
+        {
+            await again.Database.MigrateAsync(Ct);
+            Assert.Empty(await again.Database.GetPendingMigrationsAsync(Ct));
+        }
+
+        Assert.Equal(ingredients, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+        Assert.Equal(units, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Units"));
+        Assert.Equal(fingerprint, await ScalarAsync(connectionString, "SELECT CHECKSUM_AGG(CHECKSUM(Id, Name, IsStaple, Dimension)) FROM Ingredients"));
+    }
+
+    [Fact]
+    public async Task Seed_rows_are_keyed_by_fixed_ids_so_a_replay_conflicts_instead_of_duplicating()
+    {
+        var connectionString = await server.CreateDatabaseAsync("catalogreplay", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        await context.Database.MigrateAsync(Ct);
+        var salt = Foodplanner.Domain.Catalog.IngredientSeed.All.Single(r => r.Key == "salt");
+
+        // The unique name index (also among global rows) and the primary key both refuse a replayed seed row.
+        var exception = await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(
+            connectionString,
+            $"INSERT INTO Ingredients (Id, HouseholdId, Name, IsStaple, Dimension, CreatedAt, UpdatedAt) VALUES ('{salt.Id}', NULL, N'Salt', 1, 'Mass', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())"));
+        Assert.Contains(exception.Number, new[] { 2601, 2627 });
+        var other = await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(
+            connectionString,
+            $"INSERT INTO Ingredients (Id, HouseholdId, Name, IsStaple, Dimension, CreatedAt, UpdatedAt) VALUES (NEWID(), NULL, N'SALT', 1, 'Mass', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())"));
+        Assert.Contains(other.Number, new[] { 2601, 2627 }); // a second global "salt" under another id: the global names are unique too
+        Assert.Equal(Foodplanner.Domain.Catalog.IngredientSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);

@@ -1,5 +1,6 @@
 using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Auth;
+using Foodplanner.Api.Features.Catalog;
 using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.OpenApi;
@@ -80,6 +81,7 @@ var api = app.MapApiRoot();
 api.MapHealthEndpoints();
 api.MapAuthEndpoints();
 api.MapHouseholdEndpoints();
+api.MapCatalogEndpoints();
 
 app.Run();
 return 0;

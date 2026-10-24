@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Tenancy;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -54,9 +55,9 @@ public static class CrossHouseholdLinks
         var queries = new List<(string, string)>();
         foreach (var dependent in model.GetEntityTypes().Where(e => !e.IsOwned() && e.GetTableName() is not null))
         {
-            var dependentIsTenant = typeof(ITenantEntity).IsAssignableFrom(dependent.ClrType);
+            var dependentIsTenant = IsScoped(dependent.ClrType);
             var tenantForeignKeys = dependent.GetDeclaredForeignKeys()
-                .Where(fk => typeof(ITenantEntity).IsAssignableFrom(fk.PrincipalEntityType.ClrType)
+                .Where(fk => IsScoped(fk.PrincipalEntityType.ClrType)
                     && fk.PrincipalEntityType.GetTableName() is not null
                     && fk.Properties.All(p => p.Name != nameof(ITenantEntity.HouseholdId)))
                 .ToList();
@@ -67,7 +68,7 @@ public static class CrossHouseholdLinks
                 {
                     queries.Add((
                         $"{dependent.DisplayName()}.{string.Join("+", fk.Properties.Select(p => p.Name))} -> {fk.PrincipalEntityType.DisplayName()}",
-                        $"SELECT COUNT(*) FROM {Table(dependent)} c JOIN {Table(fk.PrincipalEntityType)} p ON {On(fk, "c", "p")} WHERE c.[HouseholdId] <> p.[HouseholdId]"));
+                        $"SELECT COUNT(*) FROM {Table(dependent)} c JOIN {Table(fk.PrincipalEntityType)} p ON {On(fk, "c", "p")} WHERE p.[HouseholdId] IS NOT NULL AND (c.[HouseholdId] IS NULL OR c.[HouseholdId] <> p.[HouseholdId])"));
                 }
             }
             else
@@ -89,6 +90,14 @@ public static class CrossHouseholdLinks
 
         return queries;
     }
+
+    /// <summary>
+    /// A tenant entity, or a catalog entity (T-020). A catalog row with a NULL household is global: pointing at it is
+    /// allowed from anywhere (so a NULL principal is never a violation), but a global row pointing at a household's row
+    /// is one, and so is a household row pointing at another household's.
+    /// </summary>
+    private static bool IsScoped(Type clrType) =>
+        typeof(ITenantEntity).IsAssignableFrom(clrType) || typeof(ICatalogEntity).IsAssignableFrom(clrType);
 
     private static string Table(IEntityType entityType) => $"[{entityType.GetSchema() ?? "dbo"}].[{entityType.GetTableName()}]";
 

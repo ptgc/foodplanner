@@ -144,6 +144,28 @@ public class TenantBypassTests
     }
 
     [Fact]
+    public void ExecuteUpdate_and_ExecuteDelete_are_not_used_in_src_outside_the_resolution()
+    {
+        var src = SourceScanner.Load("src");
+        Assert.Contains(src, f => f.Path == TenantSourceRules.TenantResolutionFile && f.Code.Contains("ExecuteUpdate", StringComparison.Ordinal)); // not vacuous
+        Assert.Empty(TenantSourceRules.BulkWrites(src));
+        Assert.All(TenantSourceRules.BulkWriteAllowed, a => Assert.False(string.IsNullOrWhiteSpace(a.Value)));
+
+        string[] mutants =
+        [
+            "class Q { Task M(Db d) => d.Ingredients.ExecuteDeleteAsync(); }",
+            "class Q { Task M(Db d) => d.Ingredients.ExecuteUpdateAsync(s => s.SetProperty(i => i.Name, \"x\")); }",
+            "class Q { int M(Db d) => d.Ingredients.ExecuteDelete(); }",
+        ];
+        foreach (var mutant in mutants)
+        {
+            Assert.NotEmpty(TenantSourceRules.BulkWrites([SourceFile.FromText(FeatureFile, mutant)]));
+        }
+
+        Assert.Empty(TenantSourceRules.BulkWrites([SourceFile.FromText(TenantSourceRules.TenantResolutionFile, mutants[0])]));
+    }
+
+    [Fact]
     public void Raw_SQL_is_not_used_in_production_code_outside_migrations()
     {
         // The exemption is pinned to the one generated-migrations folder, not any folder named Migrations.
