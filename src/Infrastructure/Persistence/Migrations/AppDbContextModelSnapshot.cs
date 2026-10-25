@@ -3727,6 +3727,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<DateTimeOffset?>("RegisteredAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
@@ -3746,6 +3749,10 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("RegisteredAt")
+                        .HasDatabaseName("IX_AspNetUsers_RegisteredAt_Unconfirmed")
+                        .HasFilter("[EmailConfirmed] = 0");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });

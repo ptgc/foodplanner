@@ -77,7 +77,6 @@ public static class AuthEndpoints
         EmailConfirmationTokens tokens,
         IOptions<AuthOptions> options,
         TimeProvider time,
-        AppDbContext db,
         CancellationToken ct)
     {
         var errors = new Dictionary<string, string[]>();
@@ -93,11 +92,10 @@ public static class AuthEndpoints
         if (existing is null)
         {
             // No password: register only records the address (Q-011). Whoever opens the emailed link chooses it.
-            var user = new AppUser { Id = Guid.NewGuid(), UserName = address, Email = address };
+            var user = new AppUser { Id = Guid.NewGuid(), UserName = address, Email = address, RegisteredAt = time.GetUtcNow() };
             var created = await users.CreateAsync(user);
             if (created.Succeeded)
             {
-                await RegistrationClaim.StampAsync(db, user.Id, time.GetUtcNow());
                 await SendSetPasswordLinkAsync(email, tokens, options.Value, user, ct);
             }
 
@@ -125,14 +123,14 @@ public static class AuthEndpoints
         // refreshed on every link that is sent (the cleanup window restarts): the owner can always register again,
         // so keeping an account alive gives a squatter nothing.
         var now = time.GetUtcNow();
-        var last = await RegistrationClaim.LatestAsync(db, existing.Id);
-        if (last is not null && string.CompareOrdinal(last, RegistrationClaim.Value(now.AddMinutes(-options.Value.ResendCooldownMinutes))) > 0)
+        if (existing.RegisteredAt is { } last && last > now.AddMinutes(-options.Value.ResendCooldownMinutes))
         {
             return accepted;
         }
 
-        // Refresh the registration time first, so the cleanup job cannot delete the account between the two steps.
-        await RegistrationClaim.StampAsync(db, existing.Id, now);
+        // The registration time and the new security stamp go in one save, guarded by Identity's concurrency stamp:
+        // the cleanup job cannot delete the account between two steps, and two parallel registers cannot both win.
+        existing.RegisteredAt = now;
         var stamped = await users.UpdateSecurityStampAsync(existing);
         if (stamped.Succeeded)
         {
@@ -148,8 +146,7 @@ public static class AuthEndpoints
         ConfirmEmailRequest request,
         UserManager<AppUser> users,
         EmailConfirmationTokens tokens,
-        IOptions<AuthOptions> options,
-        AppDbContext db)
+        IOptions<AuthOptions> options)
     {
         var invalid = AppProblems.Problem(
             StatusCodes.Status400BadRequest,
@@ -195,13 +192,13 @@ public static class AuthEndpoints
         user.PasswordHash = users.PasswordHasher.HashPassword(user, request.Password!);
         user.EmailConfirmed = true;
         user.SecurityStamp = Guid.NewGuid().ToString();
+        user.RegisteredAt = null; // only meaningful while unconfirmed
         var result = await users.UpdateAsync(user);
         if (!result.Succeeded)
         {
             return invalid;
         }
 
-        await RegistrationClaim.ClearAsync(db, user.Id);
         return Results.NoContent();
     }
 
