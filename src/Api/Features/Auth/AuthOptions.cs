@@ -25,6 +25,12 @@ public sealed class AuthOptions
     /// </summary>
     public int ConfirmationTokenLifetimeHours { get; set; } = 24;
 
+    /// <summary>
+    /// A repeat registration of an unconfirmed address sends a new link (and invalidates the old one) at most this
+    /// often per address; in between it answers the same 202 and does nothing (T-072).
+    /// </summary>
+    public int ResendCooldownMinutes { get; set; } = 5;
+
     /// <summary>How often the cleanup job looks for expired unconfirmed accounts (T-072).</summary>
     public int UnconfirmedCleanupIntervalMinutes { get; set; } = 15;
 

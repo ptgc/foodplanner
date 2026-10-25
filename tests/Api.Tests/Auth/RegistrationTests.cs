@@ -18,7 +18,8 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
 
     public ValueTask InitializeAsync()
     {
-        _host = AuthHost.Create(db.ConnectionString);
+        // No resend cooldown by default, so tests can register twice in a row; the cooldown has its own test.
+        _host = AuthHost.Create(db.ConnectionString, new Dictionary<string, string?> { ["Auth:ResendCooldownMinutes"] = "0" });
         return ValueTask.CompletedTask;
     }
 
@@ -407,6 +408,56 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
         {
             Assert.Null(await FindUserOrNullAsync(host, email));
         }
+    }
+
+    [Fact]
+    public async Task Repeat_register_within_the_cooldown_does_nothing_and_after_it_sends_a_fresh_link()
+    {
+        await using var host = AuthHost.Create(db.ConnectionString); // default cooldown: 5 minutes
+        var email = AuthHost.NewEmail();
+        using var client = host.CreateClient();
+        using var first = await RegisterAsync(client, email);
+        var firstLink = ParseLink(Assert.Single(host.Email.Messages, m => m.To == email).TextBody);
+
+        host.Time.Now = host.Time.Now.AddMinutes(4);
+        using var tooSoon = await RegisterAsync(client, email);
+
+        Assert.Equal(HttpStatusCode.Accepted, tooSoon.StatusCode);
+        Assert.Equal(
+            await first.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            await tooSoon.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Single(host.Email.Messages, m => m.To == email); // no new mail, the first link was not killed
+        host.Time.Now = host.Time.Now.AddMinutes(2);
+        using var later = await RegisterAsync(client, email);
+        Assert.Equal(2, host.Email.Messages.Count(m => m.To == email));
+        using var oldLink = await SetPasswordAsync(client, firstLink, VictimPassword);
+        await oldLink.AssertProblemAsync(HttpStatusCode.BadRequest, "confirmation-invalid");
+    }
+
+    [Fact]
+    public async Task Cleanup_goes_by_the_newest_registration_claim_when_there_are_duplicates()
+    {
+        var email = AuthHost.NewEmail();
+        using var client = _host.CreateClient();
+        using var register = await RegisterAsync(client, email);
+        var user = await _host.FindUserAsync(email);
+        using (var scope = _host.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            // An old duplicate, as an earlier version or a race could have left behind.
+            await users.AddClaimAsync(user, new System.Security.Claims.Claim("foodplanner:registered-at", _host.Time.Now.AddDays(-10).ToUnixTimeSeconds().ToString("D12")));
+        }
+
+        var cleanup = _host.Services.GetServices<IHostedService>().OfType<UnconfirmedAccountCleanup>().Single();
+        _host.Time.Now = _host.Time.Now.AddHours(1);
+        await cleanup.SweepAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotNull(await FindOrNullAsync(email)); // the newest claim is one hour old
+        using var again = await RegisterAsync(client, email);
+        using var scope2 = _host.Services.CreateScope();
+        var users2 = scope2.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var claims = await users2.GetClaimsAsync((await users2.FindByEmailAsync(email))!);
+        Assert.Single(claims, c => c.Type == "foodplanner:registered-at"); // a refresh leaves exactly one
     }
 
     [Fact]

@@ -111,6 +111,21 @@ describe("set password", () => {
     ]);
   });
 
+  it("removes the token from the URL after mount but still submits it", async () => {
+    renderAt(link);
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/set-password$/));
+    expect(screen.getByTestId("where").textContent).not.toContain("token");
+    await fill("a long enough password");
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].body).toMatchObject({ token: "abc" });
+  });
+
+  it("asks the browser not to send a referrer", async () => {
+    renderAt(link);
+    await screen.findByLabelText(t("setPassword.password"));
+    expect(document.querySelector('meta[name="referrer"][content="no-referrer"]')).not.toBeNull();
+  });
+
   it("does not post when the passwords differ or are too short", async () => {
     renderAt(link);
     await fill("a long enough password", "something different");

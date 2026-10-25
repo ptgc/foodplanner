@@ -4,6 +4,7 @@ using Foodplanner.Api.Security;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Email;
 using Foodplanner.Infrastructure.Identity;
+using Foodplanner.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -76,6 +77,7 @@ public static class AuthEndpoints
         EmailConfirmationTokens tokens,
         IOptions<AuthOptions> options,
         TimeProvider time,
+        AppDbContext db,
         CancellationToken ct)
     {
         var errors = new Dictionary<string, string[]>();
@@ -95,7 +97,7 @@ public static class AuthEndpoints
             var created = await users.CreateAsync(user);
             if (created.Succeeded)
             {
-                await RegistrationClaim.StampAsync(users, user, time.GetUtcNow());
+                await RegistrationClaim.StampAsync(db, user.Id, time.GetUtcNow());
                 await SendSetPasswordLinkAsync(email, tokens, options.Value, user, ct);
             }
 
@@ -117,13 +119,28 @@ public static class AuthEndpoints
         // Unconfirmed: send a fresh link and kill the earlier ones by rotating the security stamp. This is safe now
         // because a link confirms nobody's chosen password: whoever opens it sets the password, and only the inbox
         // owner can open it. A registrant who never sees the inbox gets nothing from it.
+        //
+        // At most one fresh link per address per ResendCooldownMinutes, answered with the same 202: this bounds how
+        // often anyone can kill the owner's link and how much mail one address gets. The registration time is
+        // refreshed on every link that is sent (the cleanup window restarts): the owner can always register again,
+        // so keeping an account alive gives a squatter nothing.
+        var now = time.GetUtcNow();
+        var last = await RegistrationClaim.LatestAsync(db, existing.Id);
+        if (last is not null && string.CompareOrdinal(last, RegistrationClaim.Value(now.AddMinutes(-options.Value.ResendCooldownMinutes))) > 0)
+        {
+            return accepted;
+        }
+
+        // Refresh the registration time first, so the cleanup job cannot delete the account between the two steps.
+        await RegistrationClaim.StampAsync(db, existing.Id, now);
         var stamped = await users.UpdateSecurityStampAsync(existing);
         if (stamped.Succeeded)
         {
-            await RegistrationClaim.StampAsync(users, existing, time.GetUtcNow());
             await SendSetPasswordLinkAsync(email, tokens, options.Value, existing, ct);
         }
 
+        // Otherwise the account changed under us (a concurrent register or confirm won). The answer is still the same
+        // 202; if the other request sent a link, that one is the usable one. Nothing is lost: the owner can register again.
         return accepted;
     }
 
@@ -131,7 +148,8 @@ public static class AuthEndpoints
         ConfirmEmailRequest request,
         UserManager<AppUser> users,
         EmailConfirmationTokens tokens,
-        IOptions<AuthOptions> options)
+        IOptions<AuthOptions> options,
+        AppDbContext db)
     {
         var invalid = AppProblems.Problem(
             StatusCodes.Status400BadRequest,
@@ -183,7 +201,7 @@ public static class AuthEndpoints
             return invalid;
         }
 
-        await RegistrationClaim.ClearAsync(users, user);
+        await RegistrationClaim.ClearAsync(db, user.Id);
         return Results.NoContent();
     }
 

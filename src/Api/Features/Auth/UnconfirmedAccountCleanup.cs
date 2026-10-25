@@ -4,6 +4,7 @@ using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+// IdentityUserClaim lives in Microsoft.AspNetCore.Identity.
 using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Features.Auth;
@@ -20,21 +21,27 @@ internal static class RegistrationClaim
 
     public static Claim Create(DateTimeOffset at) => new(Type, Value(at));
 
-    /// <summary>Records <paramref name="at"/> as the registration time, replacing any earlier one.</summary>
-    public static async Task StampAsync(UserManager<AppUser> users, AppUser user, DateTimeOffset at)
+    /// <summary>
+    /// Records <paramref name="at"/> as the registration time: removes every earlier claim of this type (duplicates
+    /// included) and adds one, in a single save.
+    /// </summary>
+    public static async Task StampAsync(AppDbContext db, Guid userId, DateTimeOffset at)
     {
-        await ClearAsync(users, user);
-        await users.AddClaimAsync(user, Create(at));
+        db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
+        db.UserClaims.Add(new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = Value(at) });
+        await db.SaveChangesAsync();
     }
 
-    public static async Task ClearAsync(UserManager<AppUser> users, AppUser user)
+    /// <summary>Removes the claim once the account is confirmed. A claim left behind is ignored anyway: the cleanup only looks at unconfirmed users.</summary>
+    public static async Task ClearAsync(AppDbContext db, Guid userId)
     {
-        var existing = (await users.GetClaimsAsync(user)).Where(c => c.Type == Type).ToList();
-        if (existing.Count > 0)
-        {
-            await users.RemoveClaimsAsync(user, existing);
-        }
+        db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
+        await db.SaveChangesAsync();
     }
+
+    /// <summary>The newest recorded time as text, or null if none (an account from before T-072).</summary>
+    public static Task<string?> LatestAsync(AppDbContext db, Guid userId) =>
+        db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).MaxAsync(c => c.ClaimValue);
 }
 
 /// <summary>
@@ -106,10 +113,12 @@ public sealed class UnconfirmedAccountCleanup(
         var deleted = 0;
         for (var round = 0; round < MaxBatchesPerPass; round++)
         {
-            var expired = await db.UserClaims
-                .Where(c => c.ClaimType == RegistrationClaim.Type && c.ClaimValue!.CompareTo(cutoff) < 0)
-                .Join(db.Users.Where(u => !u.EmailConfirmed), c => c.UserId, u => u.Id, (c, u) => u.Id)
-                .OrderBy(id => id)
+            // The newest claim per user decides, so a duplicate old claim cannot get a refreshed account deleted.
+            var expired = await db.Users
+                .Where(u => !u.EmailConfirmed
+                    && db.UserClaims.Where(c => c.UserId == u.Id && c.ClaimType == RegistrationClaim.Type).Max(c => c.ClaimValue)!.CompareTo(cutoff) < 0)
+                .OrderBy(u => u.Id)
+                .Select(u => u.Id)
                 .Take(batch)
                 .ToListAsync(ct);
             if (expired.Count == 0)

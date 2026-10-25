@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api/client";
 import { useI18n } from "../i18n";
 import { LanguageSwitch } from "../i18n/language-switch";
@@ -16,8 +16,14 @@ export default function SetPassword() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const userId = params.get("userId") ?? "";
-  const token = params.get("token") ?? "";
+  const location = useLocation();
+  const kept = location.state as { userId?: string; token?: string } | null;
+  // Taken once from the emailed link, or from history state after the URL was cleaned (a reload keeps that state).
+  const [link] = useState(() => ({
+    userId: params.get("userId") ?? kept?.userId ?? "",
+    token: params.get("token") ?? kept?.token ?? "",
+  }));
+  const { userId, token } = link;
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -29,6 +35,16 @@ export default function SetPassword() {
 
   useEffect(() => {
     passwordRef.current?.focus();
+  }, []);
+
+  // Take the one-time token out of the address bar and the history entry: it would otherwise stay in history, be
+  // shown on screen and leak through Referer. The values live in component state and in this entry's history state.
+  useEffect(() => {
+    if (params.has("userId") || params.has("token")) {
+      void navigate("/set-password", { replace: true, state: link });
+    }
+    // Runs once for the URL the page was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -71,6 +87,7 @@ export default function SetPassword() {
 
   return (
     <main id="main" className="login">
+      <meta name="referrer" content="no-referrer" />
       <div className="login-language">
         <LanguageSwitch />
       </div>

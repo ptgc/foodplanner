@@ -37,8 +37,15 @@ test("set password: rules, mismatch, then success goes to login with a message",
     await route.fulfill({ status: 204 });
   });
 
-  await page.goto("/set-password?userId=11111111-1111-1111-1111-111111111111&token=abc");
+  const opened = await page.goto("/set-password?userId=11111111-1111-1111-1111-111111111111&token=abc");
   await expect(page.getByRole("heading", { name: "Choose your password" })).toBeVisible();
+  // The one-time token must not stay in the address bar or history, and must not leak through Referer.
+  await expect(page).toHaveURL(/\/set-password$/);
+  expect(page.url()).not.toContain("token");
+  expect(opened?.headers()["referrer-policy"]).toBe("no-referrer");
+  await expect(page.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
+  await page.reload();
+  await expect(page.getByLabel("New password")).toBeVisible(); // still usable after a reload (history state)
   await expect(page.getByText("At least 10 characters.")).toBeVisible();
   await expectTouchTarget(page.getByLabel("New password"));
   await expectTouchTarget(page.getByLabel("Repeat the password"));
