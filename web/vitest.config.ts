@@ -11,6 +11,9 @@ export default defineConfig({
   esbuild: { jsx: "automatic" },
   test: {
     environment: "jsdom",
+    // Heavy form tests take 2-3 s on an idle machine (many user-event typings); the 5 s default is hit when the
+    // machine is busy. A passing test still ends as soon as it is done, so this only delays real failures.
+    testTimeout: 20_000,
     setupFiles: ["./vitest.setup.ts"],
     include: ["app/**/*.test.{ts,tsx}", "eslint-rules/**/*.test.ts"],
     projects: [project("en"), project("nb")],

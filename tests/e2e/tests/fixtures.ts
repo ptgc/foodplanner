@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from "@playwright/test";
+import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 
 /** Credentials of the seeded local admin (T-029). scripts/e2e.sh and e2e.ps1 fill them from user secrets. */
 export function adminCredentials(): { email: string; password: string } {
@@ -45,6 +45,22 @@ export async function expectActiveHousehold(page: Page, name: string) {
   } else {
     await expect(shell.getByTestId("household-name")).toHaveText(name);
   }
+}
+
+/**
+ * A Monday that no other running test uses. Projects (mobile-390, desktop), `--repeat-each` copies and the tests of
+ * a spec all run in parallel against the same household, and a spec's cleanup deletes everything in its week, so two
+ * tests sharing a week delete each other's data. Slots: 4 tests per repeat, 100 weeks per project.
+ */
+export function uniqueWeek(testInfo: TestInfo, firstMonday: number, n: number): string {
+  const projectSlot = testInfo.project.name === "desktop" ? 100 : 0;
+  const weeks = projectSlot + testInfo.repeatEachIndex * 4 + n;
+  return new Date(firstMonday + weeks * 7 * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** A name that differs between parallel copies of the same test (Date.now() alone can collide). */
+export function uniqueStamp(testInfo: TestInfo): string {
+  return `${Date.now()}-${testInfo.parallelIndex}-${testInfo.repeatEachIndex}`;
 }
 
 export const test = base;

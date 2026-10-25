@@ -1,15 +1,14 @@
-import type { APIRequestContext, Page } from "@playwright/test";
-import { adminState, expect, test } from "./fixtures";
+import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
+import { adminState, expect, test, uniqueStamp, uniqueWeek } from "./fixtures";
 
 test.use({ storageState: adminState });
 
 // Each test works in its own far-future week with its own manual items, so it does not depend on demo data
-// and the two projects (mobile-390, desktop) can run side by side. Items are removed afterwards.
+// and projects and `--repeat-each` copies can run side by side (uniqueWeek). Items are removed afterwards.
 const baseMonday = Date.UTC(2031, 2, 3); // 2031-03-03 is a Monday
 
-function weekFor(project: string, n: number): string {
-  const offsetWeeks = n + (project === "desktop" ? 10 : 0);
-  return new Date(baseMonday + offsetWeeks * 7 * 86_400_000).toISOString().slice(0, 10);
+function weekFor(testInfo: TestInfo, n: number): string {
+  return uniqueWeek(testInfo, baseMonday, n);
 }
 
 async function householdId(request: APIRequestContext): Promise<string> {
@@ -49,17 +48,36 @@ async function isChecked(request: APIRequestContext, h: string, week: string, id
   return list.main.find((i) => i.id === id)?.checked ?? false;
 }
 
+/**
+ * Resolves when the page's SignalR socket has answered two invocations (JoinHousehold, then GetState: JSON protocol
+ * completion messages, `"type":3`). Call it before `goto`, await it after.
+ */
+function hubReady(page: Page): Promise<void> {
+  return new Promise((resolve) => {
+    let completions = 0;
+    page.on("websocket", (ws) => {
+      if (!ws.url().includes("/api/hubs/shopping-list")) return;
+      ws.on("framereceived", ({ payload }) => {
+        if (String(payload).includes('"type":3') && ++completions === 2) resolve();
+      });
+    });
+  });
+}
+
+/** ISO year of a Monday (the year of its Thursday). */
+const isoYear = (monday: string) => new Date(Date.parse(monday) + 3 * 86_400_000).getUTCFullYear();
+
 const box = (page: Page, label: string) => page.getByRole("checkbox", { name: label });
 
 test("shopping list shows the week, large rows and the add form", async ({ page }, testInfo) => {
-  const week = weekFor(testInfo.project.name, 0);
+  const week = weekFor(testInfo, 0);
   const h = await householdId(page.request);
-  const label = `E2E melk ${Date.now()}`;
+  const label = `E2E melk ${uniqueStamp(testInfo)}`;
   try {
     await addItem(page.request, h, week, label);
     await page.goto(`/shopping?week=${week}`);
     await expect(page.getByRole("heading", { name: "Shopping list", level: 1 })).toBeVisible();
-    await expect(page.getByTestId("shop-week")).toContainText(/Week \d+, 2031/);
+    await expect(page.getByTestId("shop-week")).toContainText(new RegExp(`Week \\d+, ${isoYear(week)}`));
     await expect(box(page, label)).toBeVisible();
     const row = page.getByTestId("shop-item").filter({ hasText: label });
     expect((await row.boundingBox())!.height).toBeGreaterThanOrEqual(56);
@@ -70,7 +88,7 @@ test("shopping list shows the week, large rows and the add form", async ({ page 
     }
 
     // Add and remove through the UI.
-    const added = `E2E ost ${Date.now()}`;
+    const added = `E2E ost ${uniqueStamp(testInfo)}`;
     await page.getByLabel("Item", { exact: true }).fill(added);
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(box(page, added)).toBeVisible();
@@ -82,24 +100,30 @@ test("shopping list shows the week, large rows and the add form", async ({ page 
 });
 
 test("Live update visible across two sessions", async ({ page: pageA, browser }, testInfo) => {
-  const week = weekFor(testInfo.project.name, 1);
+  const week = weekFor(testInfo, 1);
   const h = await householdId(pageA.request);
-  const label = `E2E live ${Date.now()}`;
+  const label = `E2E live ${uniqueStamp(testInfo)}`;
   const contextB = await browser.newContext({ storageState: adminState, viewport: pageA.viewportSize() ?? undefined });
   try {
     await addItem(pageA.request, h, week, label);
     const pageB = await contextB.newPage();
 
+    // Act only once both sessions are live: the item is on screen (REST) and the hub joined the household and
+    // read its state (the SignalR connect is asynchronous, a change made before it is only seen after a reload).
+    const liveA = hubReady(pageA);
+    const liveB = hubReady(pageB);
     await pageA.goto(`/shopping?week=${week}`);
     await pageB.goto(`/shopping?week=${week}`);
     await expect(box(pageA, label)).not.toBeChecked();
     await expect(box(pageB, label)).not.toBeChecked();
+    await Promise.all([liveA, liveB]);
 
     await box(pageA, label).check();
-    await expect(box(pageB, label)).toBeChecked({ timeout: 5000 });
+    // Server push (150 ms debounce) then a GetState round trip; generous only because this machine runs many jobs.
+    await expect(box(pageB, label)).toBeChecked({ timeout: 15_000 });
 
     await box(pageB, label).uncheck();
-    await expect(box(pageA, label)).not.toBeChecked({ timeout: 5000 });
+    await expect(box(pageA, label)).not.toBeChecked({ timeout: 15_000 });
   } finally {
     await contextB.close();
     await removeItems(pageA.request, h, week);
@@ -107,9 +131,9 @@ test("Live update visible across two sessions", async ({ page: pageA, browser },
 });
 
 test("Works offline for read and check-off with sync on reconnect", async ({ page }, testInfo) => {
-  const week = weekFor(testInfo.project.name, 2);
+  const week = weekFor(testInfo, 2);
   const h = await householdId(page.request);
-  const stamp = Date.now();
+  const stamp = uniqueStamp(testInfo);
   const first = `E2E offline a ${stamp}`;
   const second = `E2E offline b ${stamp}`;
   try {
