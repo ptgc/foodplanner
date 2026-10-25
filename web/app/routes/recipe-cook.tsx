@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
+import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { ingredientAmount } from "../recipes/ingredient-amount";
 import { limits } from "../recipes/recipe-form";
 import { useRecipe, type Recipe } from "../recipes/use-recipe";
@@ -41,7 +42,11 @@ function CookLoader({ householdId, id }: { householdId: string; id: string }) {
     return (
       <section className="cook">
         {back}
-        <p role="alert">{state.message === "unreachable" ? t("problem.unreachable") : t(problemKey(state.message))}</p>
+        {state.message === "unreachable" && isOffline() ? (
+          <OfflineNotice />
+        ) : (
+          <p role="alert">{state.message === "unreachable" ? t("problem.unreachable") : t(problemKey(state.message))}</p>
+        )}
       </section>
     );
   return <Cooking householdId={householdId} recipe={state.recipe} />;

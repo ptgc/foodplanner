@@ -8,6 +8,11 @@ export const nb: Dictionary = {
   "common.skipToContent": "Hopp til innholdet",
   "common.language": "Språk",
   "common.signIn": "Logg inn",
+  "pwa.updateAvailable": "Ny versjon tilgjengelig",
+  "pwa.reload": "Last på nytt",
+  "pwa.offlineTitle": "Du er frakoblet",
+  "pwa.offlineBody": "Denne siden er ikke lagret på denne enheten ennå. Oppskrifter du har åpnet, er tilgjengelige uten nett.",
+  "pwa.offlineRecipes": "Gå til oppskrifter",
   "language.nb": "Norsk bokmål",
   "language.en": "English",
 

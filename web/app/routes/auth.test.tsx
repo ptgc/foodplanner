@@ -177,6 +177,27 @@ describe("shell", () => {
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/login"));
   });
 
+  it("clears the service worker's runtime caches on log out and on login (shared device), keeping the app precache", async () => {
+    const store = new Set(["fp-precache-1", "fp-runtime-api", "fp-runtime-images"]);
+    vi.stubGlobal("caches", {
+      keys: async () => [...store],
+      delete: async (name: string) => store.delete(name),
+    });
+    backend.signedIn = true;
+    renderApp("/");
+    await screen.findByTestId("user-email");
+    expect([...store]).toContain("fp-runtime-api"); // signed in on load: nothing cleared
+
+    await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
+    await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/login"));
+    expect([...store]).toEqual(["fp-precache-1"]);
+
+    store.add("fp-runtime-api"); // left by someone else in the meantime
+    await fillAndSubmit();
+    await screen.findByTestId("user-email");
+    expect([...store]).toEqual(["fp-precache-1"]);
+  });
+
   it("shows a household switcher for >1 household and remembers the choice per user", async () => {
     backend.signedIn = true;
     backend.households = [home, cabin];

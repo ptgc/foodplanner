@@ -31,6 +31,10 @@ Tests that only need a signed-in user use `test.use({ storageState: adminState }
 `signIn` waits and retries on a 429. Use `expectActiveHousehold(page, "Home")` for the household, since the admin may
 have several households locally (text vs. switcher).
 
+The service worker (T-041) is blocked for every spec (`serviceWorkers: "block"` in `playwright.config.ts`), so route mocks and fresh reads
+behave as before. `pwa.spec.ts` turns it on (`test.use({ serviceWorkers: "allow" })`); it needs the web container built from the current
+`web/` (`docker compose up -d --build web`), because the worker file is produced by the web build.
+
 Open a kept trace: `npx playwright show-trace test-results/<test-dir>/trace.zip` (run in `tests/e2e`).
 
 ## verify.sh
