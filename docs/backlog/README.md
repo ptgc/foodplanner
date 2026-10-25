@@ -94,3 +94,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-071 | Specs for M2 tasks | W | T-070 | spec-writer | no |
 | T-072 | Set the password at confirm time, expire unconfirmed accounts | L2 | T-009, T-028, T-038 | implementer-backend | no |
 | T-073 | Save-time check for cross-household references | L2 | T-012, T-020, T-021, T-023, T-030, T-033 | implementer-backend | no |
+| T-074 | Registration time as a column | L2 | T-072 | implementer-backend | yes |
