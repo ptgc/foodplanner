@@ -2129,6 +2129,207 @@
         }
       }
     },
+    "/api/households/{householdId}/pantry": {
+      "get": {
+        "tags": [
+          "PantryEndpoints"
+        ],
+        "operationId": "ListPantry",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PantryItemResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/pantry/{ingredientId}": {
+      "put": {
+        "tags": [
+          "PantryEndpoints"
+        ],
+        "operationId": "ConfirmPantryItem",
+        "parameters": [
+          {
+            "name": "ingredientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmPantryItemRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PantryItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "PantryEndpoints"
+        ],
+        "operationId": "RemovePantryItem",
+        "parameters": [
+          {
+            "name": "ingredientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/recipes/{recipeId}/image": {
       "put": {
         "tags": [
@@ -2543,6 +2744,21 @@
           }
         }
       },
+      "ConfirmPantryItemRequest": {
+        "required": [
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "CreateHouseholdRequest": {
         "required": [
           "name"
@@ -2857,6 +3073,40 @@
           },
           "email": {
             "type": "string"
+          }
+        }
+      },
+      "PantryItemResponse": {
+        "required": [
+          "ingredientId",
+          "name",
+          "confirmedAt",
+          "confirmedByUserId",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmedByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -3663,6 +3913,9 @@
     },
     {
       "name": "ShoppingListEndpoints"
+    },
+    {
+      "name": "PantryEndpoints"
     },
     {
       "name": "RecipeImageEndpoints"

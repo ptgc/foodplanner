@@ -59,6 +59,21 @@ internal sealed class ShoppingListItemQuantityConfiguration : IEntityTypeConfigu
     }
 }
 
+// Pantry (T-037): one row per household and ingredient. Ingredient and user are NO ACTION (global identity / catalog data).
+internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryItem>
+{
+    public void Configure(EntityTypeBuilder<PantryItem> pantry)
+    {
+        pantry.ToTable("PantryItems");
+        pantry.HasIndex(p => new { p.HouseholdId, p.IngredientId }).IsUnique();
+        pantry.HasIndex(p => p.IngredientId);
+        pantry.HasIndex(p => p.ConfirmedByUserId);
+        pantry.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+        pantry.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
+        pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 internal sealed class ShoppingListItemSourceConfiguration : IEntityTypeConfiguration<ShoppingListItemSource>
 {
     public void Configure(EntityTypeBuilder<ShoppingListItemSource> source)

@@ -134,6 +134,16 @@ public static class TenantIsolationRegistry
                 return new ShoppingListItemSource(item.Id, recipe.Id);
             },
             entry => entry.Property(s => s.RecipeId).CurrentValue = Guid.NewGuid()), // never saved: every update of another household's row is refused before or in the UPDATE
+
+        // Pantry (T-037): unique per (household, ingredient), so the factory seeds its own household ingredient (staple) each time.
+        TenantIsolationCase.For<PantryItem>(
+            async (env, household) =>
+            {
+                var staple = new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: true, UnitDimension.Mass);
+                await env.SaveAsync(household, staple);
+                return new PantryItem(staple.Id, await env.NewUserAsync(), DateTimeOffset.UtcNow, null);
+            },
+            entry => entry.Property(p => p.ExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddYears(1)),
     ];
 
     private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)

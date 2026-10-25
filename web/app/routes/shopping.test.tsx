@@ -115,6 +115,9 @@ type Server = {
   down: boolean;
   listStatus: number;
   puts: string[];
+  /** The household's pantry; a confirm moves the staple out of the list on the next generate, like the API. */
+  pantry: { ingredientId: string; name: string }[];
+  pantryCalls: string[];
 };
 let server: Server;
 
@@ -129,6 +132,27 @@ function installFetch() {
       if (path === "/api/auth/me") return json(user);
       if (path === "/api/households") return json([home]);
       if (path === "/api/units") return json([{ id: "u1", code: "kg", name: "Kilogram", dimension: "Mass", factorToBase: 1000 }]);
+      const pantryPath = path.match(/\/pantry(?:\/([^/]+))?$/);
+      if (pantryPath) {
+        const id = pantryPath[1];
+        if (request.method === "GET") {
+          return json(server.pantry.map((p) => ({ ...p, confirmedAt: "2026-10-25T10:00:00Z", confirmedByUserId: user.userId, expiresAt: null })));
+        }
+        server.pantryCalls.push(`${request.method} ${id}:${request.headers.get("X-XSRF-TOKEN")}`);
+        if (request.method === "PUT") {
+          const staple = server.list.checkYouHave.find((i) => i.ingredientId === id);
+          server.pantry.push({ ingredientId: id!, name: staple?.name ?? id! });
+          return json({});
+        }
+        server.pantry = server.pantry.filter((p) => p.ingredientId !== id);
+        return new Response(null, { status: 204 });
+      }
+      if (path.endsWith(`/shopping-lists/${week}/generate`) && request.method === "POST") {
+        server.pantryCalls.push("POST generate");
+        const have = new Set(server.pantry.map((p) => p.ingredientId));
+        server.list = { ...server.list, checkYouHave: server.list.checkYouHave.filter((i) => !have.has(i.ingredientId!)) };
+        return json(server.list);
+      }
       const check = path.match(/\/items\/([^/]+)\/check$/);
       if (check && request.method === "PUT") {
         const body = (await request.json()) as { checked: boolean };
@@ -165,7 +189,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [] };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [] };
   installFetch();
 });
 afterEach(() => {
@@ -220,6 +244,50 @@ describe("check-off", () => {
     await waitFor(() => expect(server.puts).toEqual(["melk:true:tok"]));
     const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
     expect(names(main)).toEqual(["Kaffe", "Melk", "Brod", "Egg"]);
+  });
+});
+
+describe("pantry: I have it", () => {
+  it("shows a 44px+ button only on check-you-have items, and one tap confirms, regenerates and lists the staple as at home", async () => {
+    renderPage();
+    await ready();
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    expect(within(main).queryByRole("button", { name: t("shopping.haveItFor", { name: "Melk" }) })).toBeNull();
+    expect(screen.queryByTestId("pantry")).toBeNull();
+
+    const button = screen.getByRole("button", { name: t("shopping.haveItFor", { name: "Salt" }) });
+    expect(button).toHaveTextContent(t("shopping.haveIt"));
+    expect(button).toHaveClass("shop-have"); // min-height/min-width: var(--touch) = 44px in app.css
+    await userEvent.click(button);
+
+    await waitFor(() => expect(server.pantryCalls).toEqual(["PUT ing-salt:tok", "POST generate"]));
+    await waitFor(() => expect(screen.queryByRole("region", { name: t("shopping.sectionStaples") })).toBeNull());
+    const pantry = await screen.findByTestId("pantry");
+    expect(pantry).toHaveTextContent(t("shopping.pantry", { count: 1 }));
+    expect(within(pantry).getByText("Salt")).toBeInTheDocument();
+  });
+
+  it("un-confirms from the pantry summary and regenerates so the staple prompts again", async () => {
+    server.pantry = [{ ingredientId: "ing-salt", name: "Salt" }];
+    server.list = { ...server.list, checkYouHave: [] };
+    renderPage();
+    await ready();
+    const pantry = await screen.findByTestId("pantry");
+
+    await userEvent.click(within(pantry).getByRole("button", { name: t("shopping.pantryRemoveFor", { name: "Salt" }) }));
+
+    await waitFor(() => expect(server.pantryCalls).toEqual(["DELETE ing-salt:tok", "POST generate"]));
+    await waitFor(() => expect(screen.queryByTestId("pantry")).toBeNull());
+  });
+
+  it("disables the button while offline", async () => {
+    renderPage();
+    await ready();
+    server.down = true;
+    await userEvent.click(screen.getByRole("checkbox", { name: "Melk" })); // makes the app notice it is offline
+    await screen.findByTestId("offline-banner");
+
+    expect(screen.getByRole("button", { name: t("shopping.haveItFor", { name: "Salt" }) })).toBeDisabled();
   });
 });
 

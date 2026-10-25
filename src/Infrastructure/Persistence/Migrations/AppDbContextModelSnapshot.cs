@@ -3410,6 +3410,46 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PantryItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ConfirmedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ConfirmedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfirmedByUserId");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("HouseholdId", "IngredientId")
+                        .IsUnique();
+
+                    b.ToTable("PantryItems", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingList", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3942,6 +3982,27 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PantryItem", b =>
+                {
+                    b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ConfirmedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Ingredient", null)
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingList", b =>

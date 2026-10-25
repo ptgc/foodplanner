@@ -25,6 +25,7 @@ public static class AppProblems
     public const string ShoppingListItemNotFound = "shopping-list-item-not-found";
     public const string ShoppingListItemGenerated = "shopping-list-item-generated";
     public const string ShoppingListConflict = "shopping-list-conflict";
+    public const string PantryConflict = "pantry-conflict";
     public const string ForbiddenOrigin = "forbidden-origin";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";

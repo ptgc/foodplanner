@@ -123,8 +123,8 @@ public static class ShoppingListEndpoints
     // ---- Generate / regenerate -------------------------------------------------------------------------------------
 
     private static async Task<IResult> Generate(
-        Guid householdId, string weekStart, RequestLocale locale, AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log,
-        CancellationToken cancellationToken)
+        Guid householdId, string weekStart, RequestLocale locale, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
+        ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -132,7 +132,7 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var generated = await GenerateFromPlanAsync(db, monday, cancellationToken);
+        var generated = await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken);
 
         // Two members may regenerate at once, or someone may check an item while we flag it. Both surface as a
         // DbUpdateException (unique index, or a stale row version); the second pass reads the winner's rows and finds
@@ -165,7 +165,7 @@ public static class ShoppingListEndpoints
     /// sets: a recipe, an ingredient or a line of another household cannot appear. A "to taste" line has no unit in the
     /// recipe; the generator needs one, so it gets <c>stk</c>, which is dropped again when stored.
     /// </summary>
-    private static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    private static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var units = await db.Units.AsNoTracking().ToListAsync(cancellationToken);
         var catalog = new UnitCatalog(units);
@@ -219,7 +219,10 @@ public static class ShoppingListEndpoints
             meals.Add(new PlannedMeal(entry.RecipeId, recipeServings, entry.Servings, planned));
         }
 
-        return ShoppingListGenerator.Generate(meals, catalog);
+        // The pantry (T-037): confirmed, unexpired staples are not prompted again. Pure filter after the pure generator.
+        var pantry = await db.PantryItems.AsNoTracking().Select(p => new { p.IngredientId, p.ExpiresAt }).ToListAsync(cancellationToken);
+        return PantryFilter.Apply(
+            ShoppingListGenerator.Generate(meals, catalog), pantry.Select(p => new PantryEntry(p.IngredientId, p.ExpiresAt)), now);
     }
 
     /// <summary>One attempt: find or create the list, reconcile its generated items with <paramref name="generated"/>, save once.</summary>

@@ -86,6 +86,8 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<ShoppingListItemSource> ShoppingListItemSources => Set<ShoppingListItemSource>();
 
+    public DbSet<PantryItem> PantryItems => Set<PantryItem>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 

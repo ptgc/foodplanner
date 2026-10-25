@@ -4,7 +4,7 @@ import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { useSession } from "../session";
 import { useI18n, type I18n } from "../i18n";
-import { useShoppingList, type ActionResult } from "../shopping/use-shopping-list";
+import { useShoppingList, type ActionResult, type PantryItem } from "../shopping/use-shopping-list";
 import { addWeeks, isMonday, isoWeek, mondayOf, weekRange } from "../shopping/week";
 
 type Item = components["schemas"]["ShoppingListItemResponse"];
@@ -157,9 +157,16 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
             onToggle={model.toggle}
             onRemove={async (id) => report(await model.removeItem(id))}
             canRemove={model.online}
+            onHaveIt={async (ingredientId) => report(await model.confirmStaple(ingredientId))}
           />
         </>
       )}
+
+      <PantrySummary
+        items={model.pantry}
+        canChange={model.online}
+        onRemove={async (ingredientId) => report(await model.unconfirmStaple(ingredientId))}
+      />
 
       <AddItemForm
         disabled={!model.online}
@@ -175,6 +182,8 @@ function ItemSection(props: {
   onToggle: (id: string, checked: boolean) => void;
   onRemove: (id: string) => Promise<void>;
   canRemove: boolean;
+  /** "I have it" for a staple (only the check-you-have section passes it). */
+  onHaveIt?: (ingredientId: string) => Promise<void>;
 }) {
   const headingId = useId();
   if (props.items.length === 0) return null;
@@ -195,11 +204,13 @@ function ItemRow({
   onToggle,
   onRemove,
   canRemove,
+  onHaveIt,
 }: {
   item: Item;
   onToggle: (id: string, checked: boolean) => void;
   onRemove: (id: string) => Promise<void>;
   canRemove: boolean;
+  onHaveIt?: (ingredientId: string) => Promise<void>;
 }) {
   const i18n = useI18n();
   const { t } = i18n;
@@ -233,6 +244,17 @@ function ItemRow({
           )}
         </span>
       </label>
+      {onHaveIt && item.ingredientId && !item.isManual && (
+        <button
+          type="button"
+          className="button shop-have"
+          disabled={!canRemove}
+          aria-label={t("shopping.haveItFor", { name: item.name })}
+          onClick={() => void onHaveIt(item.ingredientId!)}
+        >
+          {t("shopping.haveIt")}
+        </button>
+      )}
       {item.isManual && (
         <button
           type="button"
@@ -245,6 +267,44 @@ function ItemRow({
         </button>
       )}
     </li>
+  );
+}
+
+/** "N staples you have at home", expandable, so a confirmed staple never silently disappears and can be undone. */
+function PantrySummary({
+  items,
+  canChange,
+  onRemove,
+}: {
+  items: PantryItem[];
+  canChange: boolean;
+  onRemove: (ingredientId: string) => Promise<void>;
+}) {
+  const { t } = useI18n();
+  if (items.length === 0) return null;
+  return (
+    <details className="shop-pantry" data-testid="pantry">
+      <summary>{t("shopping.pantry", { count: items.length })}</summary>
+      <p className="shop-hint">{t("shopping.pantryHint")}</p>
+      <ul className="shop-items">
+        {items.map((p) => (
+          <li key={p.ingredientId} className="shop-row">
+            <span className="shop-text shop-pantry-name">
+              <span className="shop-name">{p.name}</span>
+            </span>
+            <button
+              type="button"
+              className="button shop-have"
+              disabled={!canChange}
+              aria-label={t("shopping.pantryRemoveFor", { name: p.name })}
+              onClick={() => void onRemove(p.ingredientId)}
+            >
+              {t("shopping.pantryRemove")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

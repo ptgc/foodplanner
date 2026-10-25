@@ -148,6 +148,13 @@ export const nb: Dictionary = {
   "shopping.chooseHousehold": "Velg husstand",
   "shopping.noHousehold": "Bli med i eller opprett en husstand for å bruke handlelisten.",
   "shopping.signInAgain": "Økten din er utløpt. Logg inn på nytt.",
+  "shopping.haveIt": "Har det",
+  "shopping.haveItFor": "Jeg har {name}",
+  "shopping.pantry.one": "1 basisvare du har hjemme",
+  "shopping.pantry.other": "{count} basisvarer du har hjemme",
+  "shopping.pantryHint": "Disse står ikke lenger under «Sjekk at du har».",
+  "shopping.pantryRemove": "Ikke lenger",
+  "shopping.pantryRemoveFor": "Ikke lenger: {name}",
 
   "recipes.title": "Oppskrifter",
   "recipes.search": "Søk i oppskrifter",
