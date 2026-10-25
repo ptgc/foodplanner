@@ -157,8 +157,8 @@ public static class AuthEndpoints
             var passwordErrors = new List<string>();
             foreach (var validator in users.PasswordValidators)
             {
-                var checkedPassword = await validator.ValidateAsync(users, user, request.Password!);
-                passwordErrors.AddRange(checkedPassword.Errors.Select(e => e.Description));
+                var verdict = await validator.ValidateAsync(users, user, request.Password!);
+                passwordErrors.AddRange(verdict.Errors.Select(e => e.Description));
             }
 
             if (passwordErrors.Count > 0)
