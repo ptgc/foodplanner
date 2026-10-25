@@ -107,7 +107,8 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
     // The servings scaler changes the shown amounts only.
     await page.getByRole("button", { name: "More servings" }).click();
     await expect(page.getByTestId("servings-value")).toHaveText("5");
-    await expect(page.getByRole("listitem").filter({ hasText: first.name }).filter({ hasText: "312.5 g" })).toBeVisible();
+    // The API scales exactly (312.5 g) and rounds for display to whole grams, half away from zero.
+    await expect(page.getByRole("listitem").filter({ hasText: first.name }).filter({ hasText: "313 g" })).toBeVisible();
 
     // It is in the grid, with its picture.
     await page.goto("/recipes");

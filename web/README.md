@@ -46,13 +46,20 @@ The first run showed nginx sent the SPA uncompressed, so `web/nginx.conf` now en
 - "Make shopping list" POSTs generate and opens `/shopping?week=...`; "See shopping list" links there without generating.
 
 ## Recipe detail and edit (T-025, `/recipes/:id`, `/recipes/new`, `/recipes/:id/edit`)
-- Detail: `routes/recipe-detail.tsx` (picture via `RecipeImage` with thumb/card/full in `srcset`, times, tags, ingredients, steps). The servings stepper scales the shown amounts by the servings ratio on the client; nothing is saved.
+- Detail: `routes/recipe-detail.tsx` (picture via `RecipeImage` with thumb/card/full in `srcset`, times, tags, ingredients, steps). The servings stepper asks `GET .../recipes/{id}/scaled?servings=n` (T-040, `recipes/use-scaled-ingredients.ts`) and shows the amounts it returns; the client does no scaling math and nothing is saved. At the recipe's own servings the stored lines are shown and no request is made.
 - Edit/new: `routes/recipe-edit.tsx` (one component for both routes), rows in `recipes/ingredient-rows.tsx`, `step-rows.tsx`, `ingredient-picker.tsx` (searches `GET .../ingredients?search=`, creates the household's own ingredient inline), `form-parts.tsx`. Pure logic and tests: `recipes/recipe-form.ts` (client validation with the T-021 limits, request building, `mapServerErrors`).
 - Role: `useActiveRole()` reads the role of the active household from `GET /api/households`. A Child gets no New/Edit/Delete/upload controls and a message on the edit routes; the API refuses their writes with 403 regardless.
 - Quantity and unit come together; "to taste" is a checkbox that sends neither. No free-text ingredients (rule 5): every line points at an ingredient id.
 - Validation: the client checks first (error summary with focus, `aria-invalid`, `aria-describedby`). If the server still answers 400, its `errors` keys (`ingredients[2].unitId`, `tagIds[0]`, ...) are mapped to the same fields with translated messages; the server texts are never shown.
 - Picture: chosen with a file input, previewed, and sent (PUT multipart part `file`) or removed (DELETE) after the recipe is saved. The generated schema types a binary part as `string`, so the `File` is cast once in `applyPicture`. If the recipe saved but the picture failed, the page stays and the next save updates the same recipe.
 - Delete asks first; `409 recipe-in-use` shows a translated message. i18n keys for this screen are in the `recipe.*` namespace.
+
+## Cooking mode (T-040, `/recipes/:id/cook`)
+- Code: `routes/recipe-cook.tsx`, `recipes/use-wake-lock.ts`, `use-scaled-ingredients.ts`, `use-recipe.ts`, `cook.css`. Keys: `cook.*`. Entered with "Start cooking" on the recipe page (which passes its chosen servings as `?servings=`, 1 to 100, else the recipe's own).
+- One step at a time (28px text), "Step x of n" in a polite live region, Previous/Next buttons of 56px (Next reads "Finish" on the last step and opens the done screen, which takes focus), swipe left/right (>= 50px and clearly horizontal; `touch-action: pan-y`) and the arrow keys (ignored in form fields and with modifiers).
+- Ingredients panel (toggle, `aria-expanded`) with a servings stepper (56px). Amounts come from the API: Domain `RecipeScaling` scales exactly, then `QuantityMerger.ForDisplay` rounds and picks the display unit (1500 g shows 1,5 kg); to taste is unchanged; servings 1 to 100 else 400 ProblemDetails.
+- Screen Wake Lock: requested on enter, re-requested on `visibilitychange` to visible (the browser drops it when the tab is hidden), released on the done screen, exit and unmount. Unsupported or refused shows a translated hint; nothing else changes.
+- Out of scope: timers (T-055) and voice (T-056).
 
 ## Internationalisation (T-038, Q-013)
 All user-facing text is translatable. Code, keys and the fallback are English; locales are `nb` and `en`.

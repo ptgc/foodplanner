@@ -64,6 +64,9 @@ type Server = {
   deleteStatus: number;
   deleteType: string | undefined;
   calls: string[];
+  /** The `servings` query of every GET .../scaled request. */
+  scaledCalls: string[];
+  scaleStatus: number;
   createdIngredients: unknown[];
   ingredientCreateStatus: number;
 };
@@ -85,6 +88,8 @@ beforeEach(() => {
     deleteStatus: 204,
     deleteType: undefined,
     calls: [],
+    scaledCalls: [],
+    scaleStatus: 200,
     createdIngredients: [],
     ingredientCreateStatus: 201,
   };
@@ -115,6 +120,20 @@ beforeEach(() => {
         server.saved.push({ method: "POST", path, body: (await request.json()) as Record<string, unknown> });
         if (server.saveStatus) return json(server.saveBody, server.saveStatus);
         return json({ ...existing(), id: "new1" }, 201);
+      }
+      const scaled = /^\/api\/households\/h1\/recipes\/([^/]+)\/scaled$/.exec(path);
+      if (scaled) {
+        const servings = Number(url.searchParams.get("servings"));
+        server.scaledCalls.push(url.searchParams.get("servings") ?? "");
+        if (server.scaleStatus !== 200) return json({ status: server.scaleStatus }, server.scaleStatus);
+        // Stands in for the Domain scaling the real API does (tested in the API and Domain tests).
+        const base = server.recipe!;
+        return json({
+          recipeId: base.id,
+          baseServings: base.servings,
+          servings,
+          ingredients: base.ingredients.map((i) => (i.quantity === null ? i : { ...i, quantity: (Number(i.quantity) * servings) / Number(base.servings) })),
+        });
       }
       const recipe = /^\/api\/households\/h1\/recipes\/([^/]+)$/.exec(path);
       if (recipe) {
@@ -652,7 +671,7 @@ describe("recipe detail", () => {
     expect(img.getAttribute("srcset")).toContain("/i/f 1600w");
   });
 
-  it("scales displayed quantities by the servings ratio without saving anything, and resets", async () => {
+  it("shows the quantities the API scaled for the chosen servings without saving anything, and resets", async () => {
     const user = userEvent.setup();
     renderAt("/recipes/r1");
     await screen.findByRole("heading", { level: 1, name: "Fiskesuppe" });
@@ -660,14 +679,16 @@ describe("recipe detail", () => {
     const more = screen.getByRole("button", { name: t("recipe.servingsMore") });
     for (let i = 0; i < 4; i++) await user.click(more); // 4 -> 8 servings: double
     expect(screen.getByTestId("servings-value")).toHaveTextContent("8");
-    expect(amounts().some((x) => x.includes("800 g") && x.includes("Torsk"))).toBe(true);
+    await waitFor(() => expect(amounts().some((x) => x.includes("800 g") && x.includes("Torsk"))).toBe(true));
     expect(amounts().some((x) => x.includes("Salt (etter smak)"))).toBe(true); // to taste stays as is
     expect(screen.getByText(t("recipe.servingsScaled", { servings: 4 }))).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: t("recipe.servingsFewer") }));
-    expect(amounts().some((x) => x.includes("700 g"))).toBe(true);
+    await waitFor(() => expect(amounts().some((x) => x.includes("700 g"))).toBe(true));
     await user.click(screen.getByRole("button", { name: t("recipe.servingsReset", { servings: 4 }) }));
     expect(amounts().some((x) => x.includes("400 g"))).toBe(true);
+    // One request per servings change, none at the recipe's own servings: the client does no scaling math.
+    expect(server.scaledCalls).toEqual(["5", "6", "7", "8", "7"]);
     expect(server.calls.some((c) => c.startsWith("PUT") || c.startsWith("POST /api/households/h1/recipes"))).toBe(false);
   });
 });
