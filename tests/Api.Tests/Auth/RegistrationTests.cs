@@ -476,28 +476,142 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
     }
 
     [Fact]
-    public async Task Cleanup_goes_by_the_newest_registration_claim_when_there_are_duplicates()
+    public async Task A_re_register_racing_the_cleanup_never_answers_500_and_leaves_a_consistent_account()
+    {
+        var cleanup = _host.Services.GetServices<IHostedService>().OfType<UnconfirmedAccountCleanup>().Single();
+        for (var round = 0; round < 5; round++)
+        {
+            var email = AuthHost.NewEmail();
+            using var client = _host.CreateClient();
+            using var first = await RegisterAsync(client, email);
+            _host.Time.Now = _host.Time.Now.AddHours(25); // expired for the cleanup, and the cooldown is 0
+
+            var sweep = cleanup.SweepAsync(TestContext.Current.CancellationToken);
+            var again = RegisterAsync(client, email);
+            await Task.WhenAll(sweep, again);
+
+            Assert.Equal(HttpStatusCode.Accepted, (await again).StatusCode);
+            var user = await FindOrNullAsync(email);
+            if (user is not null)
+            {
+                // The register won: the window restarted, so the account is not expired.
+                Assert.True(user.RegisteredAt >= _host.Time.Now.AddMinutes(-1));
+            }
+        }
+    }
+
+    private async Task<DateTimeOffset?> RegisteredAtAsync(string email) => (await _host.FindUserAsync(email)).RegisteredAt;
+
+    [Fact]
+    public async Task Registration_time_is_a_column_set_on_register_refreshed_on_re_register_and_cleared_on_confirm()
+    {
+        var email = AuthHost.NewEmail();
+        using var client = _host.CreateClient();
+        var first = _host.Time.Now;
+        using var register = await RegisterAsync(client, email);
+        Assert.Equal(first.ToUnixTimeSeconds(), (await RegisteredAtAsync(email))!.Value.ToUnixTimeSeconds());
+
+        _host.Time.Now = first.AddHours(3);
+        using var again = await RegisterAsync(client, email);
+        Assert.Equal(first.AddHours(3).ToUnixTimeSeconds(), (await RegisteredAtAsync(email))!.Value.ToUnixTimeSeconds());
+
+        using var set = await SetPasswordAsync(client, LatestLinkFor(email), VictimPassword);
+        Assert.Equal(HttpStatusCode.NoContent, set.StatusCode);
+        Assert.Null(await RegisteredAtAsync(email)); // only meaningful while unconfirmed
+
+        // No registration claim is written any more.
+        using var scope = _host.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        Assert.Empty(await users.GetClaimsAsync((await users.FindByEmailAsync(email))!));
+    }
+
+    [Fact]
+    public async Task Re_register_inside_the_cooldown_leaves_the_registration_time_alone()
+    {
+        await using var host = AuthHost.Create(db.ConnectionString); // default cooldown: 5 minutes
+        var email = AuthHost.NewEmail();
+        using var client = host.CreateClient();
+        var first = host.Time.Now;
+        using var register = await RegisterAsync(client, email);
+
+        host.Time.Now = first.AddMinutes(4);
+        using var tooSoon = await RegisterAsync(client, email);
+
+        Assert.Equal(first.ToUnixTimeSeconds(), (await host.FindUserAsync(email)).RegisteredAt!.Value.ToUnixTimeSeconds());
+    }
+
+    [Fact]
+    public async Task Cleanup_starts_the_window_of_an_unconfirmed_account_without_a_registration_time_on_its_first_pass()
     {
         var email = AuthHost.NewEmail();
         using var client = _host.CreateClient();
         using var register = await RegisterAsync(client, email);
         using (var scope = _host.Services.CreateScope())
         {
+            // As an account from before T-072 (or an unmigrated claim-less one): unconfirmed, no time.
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            // An old duplicate, as an earlier version or a race could have left behind.
-            await users.AddClaimAsync((await users.FindByEmailAsync(email))!, new System.Security.Claims.Claim("foodplanner:registered-at", _host.Time.Now.AddDays(-10).ToUnixTimeSeconds().ToString("D12")));
+            var user = (await users.FindByEmailAsync(email))!;
+            user.RegisteredAt = null;
+            Assert.True((await users.UpdateAsync(user)).Succeeded);
         }
 
         var cleanup = _host.Services.GetServices<IHostedService>().OfType<UnconfirmedAccountCleanup>().Single();
-        _host.Time.Now = _host.Time.Now.AddHours(1);
+        var passAt = _host.Time.Now.AddHours(30);
+        _host.Time.Now = passAt;
         await cleanup.SweepAsync(TestContext.Current.CancellationToken);
 
-        Assert.NotNull(await FindOrNullAsync(email)); // the newest claim is one hour old
-        using var again = await RegisterAsync(client, email);
-        using var scope2 = _host.Services.CreateScope();
-        var users2 = scope2.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-        var claims = await users2.GetClaimsAsync((await users2.FindByEmailAsync(email))!);
-        Assert.Single(claims, c => c.Type == "foodplanner:registered-at"); // a refresh leaves exactly one
+        Assert.NotNull(await FindOrNullAsync(email)); // not deleted on the pass that started its window
+        Assert.Equal(passAt.ToUnixTimeSeconds(), (await RegisteredAtAsync(email))!.Value.ToUnixTimeSeconds());
+        _host.Time.Now = passAt.AddHours(25);
+        await cleanup.SweepAsync(TestContext.Current.CancellationToken);
+        Assert.Null(await FindOrNullAsync(email));
+    }
+
+    [Fact]
+    public async Task Cleanup_does_not_touch_the_claims_table()
+    {
+        var commands = new CommandRecorder();
+        await using var host = AuthHost.Create(db.ConnectionString, configureServices: s => s.ConfigureDbContext<Foodplanner.Infrastructure.Persistence.AppDbContext>(o => o.AddInterceptors(commands)));
+        var email = AuthHost.NewEmail();
+        using var client = host.CreateClient();
+        using var register = await RegisterAsync(client, email);
+        var cleanup = host.Services.GetServices<IHostedService>().OfType<UnconfirmedAccountCleanup>().Single();
+        host.Time.Now = host.Time.Now.AddHours(25);
+        commands.Clear();
+
+        await cleanup.SweepAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(commands.Texts); // the interceptor is wired
+        Assert.DoesNotContain(commands.Texts, t => t.Contains("AspNetUserClaims", StringComparison.Ordinal));
+        Assert.Null(await FindUserOrNullAsync(host, email));
+    }
+
+    private sealed class CommandRecorder : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        private readonly List<string> _texts = [];
+
+        public IReadOnlyList<string> Texts { get { lock (_texts) { return [.. _texts]; } } }
+
+        public void Clear() { lock (_texts) { _texts.Clear(); } }
+
+        public override async ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(
+            System.Data.Common.DbCommand command,
+            Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            lock (_texts) { _texts.Add(command.CommandText); }
+            return await base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+
+        public override Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> ReaderExecuting(
+            System.Data.Common.DbCommand command,
+            Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result)
+        {
+            lock (_texts) { _texts.Add(command.CommandText); }
+            return base.ReaderExecuting(command, eventData, result);
+        }
     }
 
     [Fact]

@@ -1,70 +1,10 @@
-using System.Globalization;
-using System.Security.Claims;
 using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-// IdentityUserClaim lives in Microsoft.AspNetCore.Identity.
 using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Features.Auth;
-
-/// <summary>
-/// When an account was last offered a set-password link, kept as an Identity user claim so no column is needed on
-/// the user table (T-072). The value is unix seconds, zero padded so the database can compare it as text.
-/// </summary>
-internal static class RegistrationClaim
-{
-    public const string Type = "foodplanner:registered-at";
-
-    public static string Value(DateTimeOffset at) => at.ToUnixTimeSeconds().ToString("D12", CultureInfo.InvariantCulture);
-
-    public static Claim Create(DateTimeOffset at) => new(Type, Value(at));
-
-    /// <summary>
-    /// Records <paramref name="at"/> as the registration time: removes every earlier claim of this type (duplicates
-    /// included) and adds one, in a single save.
-    /// </summary>
-    public static Task StampAsync(AppDbContext db, Guid userId, DateTimeOffset at) =>
-        ReplaceAsync(db, userId, new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = Value(at) });
-
-    /// <summary>Removes the claim once the account is confirmed. A claim left behind is ignored anyway: the cleanup only looks at unconfirmed users.</summary>
-    public static Task ClearAsync(AppDbContext db, Guid userId) => ReplaceAsync(db, userId, null);
-
-    // Claim rows have no concurrency token, so a concurrent request that deleted the same rows makes the delete
-    // match 0 rows (DbUpdateConcurrencyException). That means the other request did the work: drop the stale
-    // entries, look again and apply once more; after a few tries give up quietly, since the claim is only a hint for
-    // the cleanup job and must never turn a uniform 202 (or a finished confirmation) into a 500.
-    private static async Task ReplaceAsync(AppDbContext db, Guid userId, IdentityUserClaim<Guid>? replacement)
-    {
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
-            if (replacement is not null)
-            {
-                db.UserClaims.Add(new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = replacement.ClaimValue });
-            }
-
-            try
-            {
-                await db.SaveChangesAsync();
-                return;
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                // Only claim rows are dropped from the tracker (including the pending add); the caller's user stays tracked.
-                foreach (var entry in db.ChangeTracker.Entries<IdentityUserClaim<Guid>>().ToList())
-                {
-                    entry.State = EntityState.Detached;
-                }
-            }
-        }
-    }
-
-    /// <summary>The newest recorded time as text, or null if none (an account from before T-072).</summary>
-    public static Task<string?> LatestAsync(AppDbContext db, Guid userId) =>
-        db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).MaxAsync(c => c.ClaimValue);
-}
 
 /// <summary>
 /// Removes accounts that never set a password within the confirmation window (Q-011), so a squatted address is freed.
@@ -110,15 +50,16 @@ public sealed class UnconfirmedAccountCleanup(
         var settings = options.Value;
         var batch = Math.Max(1, settings.UnconfirmedCleanupBatchSize);
         var now = time.GetUtcNow();
-        var cutoff = RegistrationClaim.Value(now.AddHours(-settings.ConfirmationTokenLifetimeHours));
+        var cutoff = now.AddHours(-settings.ConfirmationTokenLifetimeHours);
 
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
 
-        // Unconfirmed accounts from before the claim existed: start their window now rather than keep them forever.
+        // Unconfirmed accounts with no registration time (from before T-072): start their window now rather than
+        // keep them forever. The update is guarded by the concurrency stamp; losing a race just skips the account.
         var unstamped = await db.Users
-            .Where(u => !u.EmailConfirmed && !db.UserClaims.Any(c => c.UserId == u.Id && c.ClaimType == RegistrationClaim.Type))
+            .Where(u => !u.EmailConfirmed && u.RegisteredAt == null)
             .OrderBy(u => u.Id)
             .Take(batch)
             .Select(u => u.Id)
@@ -126,19 +67,19 @@ public sealed class UnconfirmedAccountCleanup(
         foreach (var id in unstamped)
         {
             var user = await users.FindByIdAsync(id.ToString());
-            if (user is { EmailConfirmed: false })
+            if (user is { EmailConfirmed: false, RegisteredAt: null })
             {
-                await users.AddClaimAsync(user, RegistrationClaim.Create(now));
+                user.RegisteredAt = now;
+                await users.UpdateAsync(user);
             }
         }
 
         var deleted = 0;
         for (var round = 0; round < MaxBatchesPerPass; round++)
         {
-            // The newest claim per user decides, so a duplicate old claim cannot get a refreshed account deleted.
+            // Served by the filtered index on RegisteredAt (unconfirmed users only); no claims table involved.
             var expired = await db.Users
-                .Where(u => !u.EmailConfirmed
-                    && db.UserClaims.Where(c => c.UserId == u.Id && c.ClaimType == RegistrationClaim.Type).Max(c => c.ClaimValue)!.CompareTo(cutoff) < 0)
+                .Where(u => !u.EmailConfirmed && u.RegisteredAt < cutoff)
                 .OrderBy(u => u.Id)
                 .Select(u => u.Id)
                 .Take(batch)

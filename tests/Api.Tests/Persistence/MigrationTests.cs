@@ -339,6 +339,58 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddUserRegisteredAt_applies_on_a_fresh_database_with_a_filtered_index()
+    {
+        var connectionString = await server.CreateDatabaseAsync("registeredat", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddUserRegisteredAt'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('AspNetUsers') AND name = 'RegisteredAt' AND system_type_id = TYPE_ID('datetimeoffset') AND is_nullable = 1"));
+        Assert.Equal("([EmailConfirmed]=(0))", await ScalarAsync(connectionString, "SELECT filter_definition FROM sys.indexes WHERE object_id = OBJECT_ID('AspNetUsers') AND name = 'IX_AspNetUsers_RegisteredAt_Unconfirmed'"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
+    public async Task AddUserRegisteredAt_upgrade_backfills_the_newest_claim_per_unconfirmed_user_and_removes_the_claims()
+    {
+        var connectionString = await server.CreateDatabaseAsync("registeredatupgrade", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261024203416_AddCatalogTranslations", Ct); // before T-074: the time is a claim
+
+        // 1: two claims (newest wins), 2: one claim, 3: unconfirmed without a claim, 4: confirmed with a stale claim,
+        // 5: unconfirmed with a malformed claim plus another claim type that must survive.
+        await ScalarAsync(connectionString, """
+            DECLARE @u1 uniqueidentifier = NEWID(), @u2 uniqueidentifier = NEWID(), @u3 uniqueidentifier = NEWID(), @u4 uniqueidentifier = NEWID(), @u5 uniqueidentifier = NEWID();
+            INSERT INTO AspNetUsers (Id, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled, UserName) VALUES
+                (@u1, 0, 0, 0, 0, 0, N'one'), (@u2, 0, 0, 0, 0, 0, N'two'), (@u3, 0, 0, 0, 0, 0, N'three'), (@u4, 0, 1, 0, 0, 0, N'four'), (@u5, 0, 0, 0, 0, 0, N'five');
+            INSERT INTO AspNetUserClaims (UserId, ClaimType, ClaimValue) VALUES
+                (@u1, N'foodplanner:registered-at', N'000000000100'), (@u1, N'foodplanner:registered-at', N'001800000000'),
+                (@u2, N'foodplanner:registered-at', N'000000086401'),
+                (@u4, N'foodplanner:registered-at', N'000000000050'),
+                (@u5, N'foodplanner:registered-at', N'garbage'), (@u5, N'other', N'keep');
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        // 1800000000 s = 2027-01-15T08:00:00Z, past 2038-safe arithmetic is covered by the day/second split.
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUsers WHERE UserName = N'one' AND RegisteredAt = '2027-01-15T08:00:00+00:00'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUsers WHERE UserName = N'two' AND RegisteredAt = '1970-01-02T00:00:01+00:00'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUsers WHERE UserName = N'three' AND RegisteredAt IS NULL")); // cleanup starts its window
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUsers WHERE UserName = N'four' AND RegisteredAt IS NULL")); // confirmed
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUsers WHERE UserName = N'five' AND RegisteredAt IS NULL"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUserClaims WHERE ClaimType = N'foodplanner:registered-at'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUserClaims WHERE ClaimType = N'other'"));
+
+        // Down restores a claim for the unconfirmed users that have a time.
+        await migrator.MigrateAsync("20261024203416_AddCatalogTranslations", Ct);
+        Assert.Equal(2, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUserClaims WHERE ClaimType = N'foodplanner:registered-at'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AspNetUserClaims c JOIN AspNetUsers u ON u.Id = c.UserId WHERE u.UserName = N'one' AND c.ClaimType = N'foodplanner:registered-at' AND c.ClaimValue = N'001800000000'"));
+    }
+
+    [Fact]
     public async Task No_pending_model_changes()
     {
         var connectionString = await server.CreateDatabaseAsync("pending", Ct);
