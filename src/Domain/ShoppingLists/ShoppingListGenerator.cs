@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Quantities;
+using Foodplanner.Domain.Recipes;
 
 namespace Foodplanner.Domain.ShoppingLists;
 
@@ -72,7 +73,5 @@ public static class ShoppingListGenerator
 
     /// <summary>Exact scaling: amount * planned / recipe servings. To-taste is unchanged.</summary>
     public static Quantity Scale(Quantity quantity, PlannedMeal meal) =>
-        quantity.Amount is { } amount
-            ? new Quantity(amount * meal.PlannedServings / meal.RecipeServings, quantity.Unit)
-            : quantity;
+        RecipeScaling.Scale(quantity, meal.RecipeServings, meal.PlannedServings);
 }

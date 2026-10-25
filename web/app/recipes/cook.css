@@ -1,0 +1,125 @@
+/* Cooking mode (T-040). Designed at 390px; very large text, big buttons (>= 56px). */
+.cook {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 0.5rem 0 1.5rem;
+  /* Vertical scrolling stays; sideways movement is ours (swipe to change step). */
+  touch-action: pan-y;
+}
+
+.cook-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cook-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.cook-exit {
+  flex: none;
+}
+
+.cook-hint {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #fff4d6;
+  color: #3d2f00;
+  font-size: 0.9375rem;
+}
+
+.cook-step {
+  min-height: 40vh;
+}
+
+.cook-progress {
+  margin: 0 0 0.5rem;
+  color: #4b4b57;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.cook-text {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.cook-bar {
+  width: 100%;
+  height: 0.5rem;
+  accent-color: var(--accent);
+}
+
+.cook-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.cook-actions .cook-nav {
+  flex: 1;
+}
+
+.cook-nav {
+  min-height: 56px;
+  font-size: 1.25rem;
+}
+
+.cook-nav-hint {
+  margin: 0;
+  color: #4b4b57;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.cook-toggle {
+  min-height: 56px;
+  font-size: 1.125rem;
+}
+
+.cook-ingredients h2 {
+  margin: 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.cook-ingredient-list {
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.cook-ingredient-list[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.cook-done {
+  align-items: stretch;
+  text-align: center;
+}
+
+.cook-done h1 {
+  margin: 1.5rem 0 0;
+  font-size: 2.25rem;
+}
+
+.cook-done-text {
+  font-size: 1.25rem;
+}
+
+.cook .stepper {
+  min-width: 56px;
+  min-height: 56px;
+}
+
+.recipe-detail-bar {
+  flex-wrap: wrap;
+}

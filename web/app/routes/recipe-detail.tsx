@@ -1,31 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { api } from "../api/client";
-import type { components } from "../api/schema";
-import { useI18n, type I18n } from "../i18n";
-import { problemKey, problemTypeOf } from "../i18n/problems";
+import { useI18n } from "../i18n";
+import { problemKey } from "../i18n/problems";
+import { ingredientAmount } from "../recipes/ingredient-amount";
 import { RecipeImage } from "../recipes/recipe-image";
 import { limits } from "../recipes/recipe-form";
+import { useRecipe, type Recipe } from "../recipes/use-recipe";
+import { useScaledIngredients } from "../recipes/use-scaled-ingredients";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
 import { useSession } from "../session";
-
-type Recipe = components["schemas"]["RecipeResponse"];
-type Ingredient = components["schemas"]["RecipeIngredientResponse"];
-
-type State =
-  | { kind: "ok"; recipe: Recipe }
-  | { kind: "notFound" }
-  | { kind: "error"; message: "unreachable" | string | undefined };
-
-/**
- * "2 dl", "1,5 kg", or just the number; nothing when the quantity is unknown ("to taste"). `scale` multiplies the
- * stored quantity for display only (the servings scaler); it never changes what is saved.
- */
-export function ingredientAmount(item: Ingredient, i18n: Pick<I18n, "formatNumber">, scale = 1): string {
-  if (item.quantity === null || item.quantity === undefined) return "";
-  const amount = i18n.formatNumber(Number(item.quantity) * scale, { maximumFractionDigits: 2 });
-  return item.unitCode ? `${amount} ${item.unitCode}` : amount;
-}
 
 export default function RecipeDetail() {
   const { t } = useI18n();
@@ -39,28 +22,7 @@ export default function RecipeDetail() {
 function RecipeView({ householdId, id }: { householdId: string; id: string }) {
   const { t } = useI18n();
   const canEdit = canEditRecipes(useActiveRole());
-  const [state, setState] = useState<State | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      let next: State;
-      try {
-        const { data, error, response } = await api.GET("/api/households/{householdId}/recipes/{recipeId}", {
-          params: { path: { householdId, recipeId: id } },
-        });
-        if (data) next = { kind: "ok", recipe: data };
-        else if (response.status === 404) next = { kind: "notFound" };
-        else next = { kind: "error", message: problemTypeOf(error) };
-      } catch {
-        next = { kind: "error", message: "unreachable" };
-      }
-      if (!cancelled) setState(next);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [householdId, id]);
+  const state = useRecipe(householdId, id);
 
   const back = (
     <Link to="/recipes" className="back-link">
@@ -84,14 +46,24 @@ function RecipeView({ householdId, id }: { householdId: string; id: string }) {
       </section>
     );
 
-  return <RecipeArticle recipe={state.recipe} back={back} canEdit={canEdit} />;
+  return <RecipeArticle householdId={householdId} recipe={state.recipe} back={back} canEdit={canEdit} />;
 }
 
-function RecipeArticle({ recipe, back, canEdit }: { recipe: Recipe; back: React.ReactNode; canEdit: boolean }) {
+function RecipeArticle({
+  householdId,
+  recipe,
+  back,
+  canEdit,
+}: {
+  householdId: string;
+  recipe: Recipe;
+  back: React.ReactNode;
+  canEdit: boolean;
+}) {
   const { t, formatNumber } = useI18n();
   const base = Number(recipe.servings);
   const [servings, setServings] = useState(base);
-  const scale = servings / base;
+  const scaled = useScaledIngredients(householdId, recipe, servings);
   const minutesOf = (value: number | string | null | undefined) => (value === null || value === undefined ? null : Number(value));
   const prep = minutesOf(recipe.prepMinutes);
   const cook = minutesOf(recipe.cookMinutes);
@@ -101,6 +73,13 @@ function RecipeArticle({ recipe, back, canEdit }: { recipe: Recipe; back: React.
     <article className="recipe-detail" aria-labelledby="recipe-title">
       <div className="recipe-detail-bar">
         {back}
+        <Link
+          to={servings === base ? `/recipes/${recipe.id}/cook` : `/recipes/${recipe.id}/cook?servings=${servings}`}
+          className="button"
+          data-testid="recipe-cook-link"
+        >
+          {t("cook.start")}
+        </Link>
         {canEdit && (
           <Link to={`/recipes/${recipe.id}/edit`} className="button" data-testid="recipe-edit-link">
             {t("recipe.edit")}
@@ -188,10 +167,12 @@ function RecipeArticle({ recipe, back, canEdit }: { recipe: Recipe; back: React.
       {servings !== base && <p className="recipe-scaled-note">{t("recipe.servingsScaled", { servings: base })}</p>}
 
       <h2>{t("recipes.ingredients")}</h2>
-      <ul className="recipe-ingredients">
-        {recipe.ingredients.map((item, i) => (
+      {scaled.failed && <p role="alert">{t("recipe.scaleFailed")}</p>}
+      {scaled.loading && <p role="status">{t("cook.updating")}</p>}
+      <ul className="recipe-ingredients" aria-busy={scaled.loading} hidden={scaled.failed}>
+        {scaled.ingredients.map((item, i) => (
           <li key={`${item.ingredientId}-${i}`}>
-            <span className="recipe-amount">{ingredientAmount(item, { formatNumber }, scale)}</span> {item.ingredientName}
+            <span className="recipe-amount">{ingredientAmount(item, { formatNumber })}</span> {item.ingredientName}
             {item.note ? ` (${item.note})` : ""}
           </li>
         ))}

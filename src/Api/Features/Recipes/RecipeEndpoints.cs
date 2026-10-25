@@ -5,6 +5,7 @@ using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Images;
+using Foodplanner.Domain.Quantities;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
@@ -52,6 +53,9 @@ public sealed record RecipeResponse(
     TagResponse[] Tags,
     RecipeImageUrlsResponse? Image);
 
+/// <summary>Ingredient lines scaled to <c>Servings</c> (from <c>BaseServings</c>), quantities and units ready to display.</summary>
+public sealed record ScaledRecipeResponse(Guid RecipeId, int BaseServings, int Servings, RecipeIngredientResponse[] Ingredients);
+
 /// <summary>Recipe CRUD (T-021). Any member reads; only an Adult or Owner writes.</summary>
 public static class RecipeEndpoints
 {
@@ -74,6 +78,13 @@ public static class RecipeEndpoints
         recipes.MapGet("/{recipeId:guid}", GetRecipe)
             .WithName("GetRecipe")
             .Produces<RecipeResponse>()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        recipes.MapGet("/{recipeId:guid}/scaled", GetScaledRecipe)
+            .WithName("GetScaledRecipe")
+            .Produces<ScaledRecipeResponse>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -218,6 +229,51 @@ public static class RecipeEndpoints
     {
         var recipe = await db.Recipes.AsNoTracking().FirstOrDefaultAsync(r => r.Id == recipeId, cancellationToken);
         return recipe is null ? NotFound() : Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
+    }
+
+    /// <summary>
+    /// A recipe's ingredient lines for another number of servings: the quantities scaled by the Domain
+    /// (<see cref="RecipeScaling"/>) and made readable (<see cref="QuantityMerger.ForDisplay"/>: rounding steps and display
+    /// unit, so 1500 g reads 1,5 kg). To taste stays unchanged. <c>Quantity</c>/<c>Unit*</c> are the display values.
+    /// <c>servings</c> is 1 to 100 and defaults to the recipe's own servings.
+    /// </summary>
+    private static async Task<IResult> GetScaledRecipe(
+        Guid recipeId, int? servings, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+    {
+        if (servings is < RecipeScaling.MinServings or > RecipeScaling.MaxServings)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["servings"] = [$"The servings must be {RecipeScaling.MinServings} to {RecipeScaling.MaxServings}."],
+            });
+        }
+
+        var recipe = await db.Recipes.AsNoTracking().FirstOrDefaultAsync(r => r.Id == recipeId, cancellationToken);
+        if (recipe is null)
+        {
+            return NotFound();
+        }
+
+        var target = servings ?? recipe.Servings;
+        var loaded = await LoadAsync(db, recipe, locale.Code, cancellationToken);
+        var units = await db.Units.AsNoTracking().WithNames(db, CatalogTranslation.KindUnit, locale.Code).ToListAsync(cancellationToken);
+        var catalog = new UnitCatalog(units.Select(u => u.Row));
+        var byCode = units.ToDictionary(u => u.Row.Code, StringComparer.Ordinal);
+        var byId = units.ToDictionary(u => u.Row.Id);
+
+        var lines = loaded.Ingredients.Select(line =>
+        {
+            if (line.Quantity is null || line.UnitId is not { } unitId || !byId.TryGetValue(unitId, out var unit))
+            {
+                return line;
+            }
+
+            var scaled = RecipeScaling.ScaleForDisplay(new Quantity(line.Quantity, unit.Row), recipe.Servings, target, catalog);
+            var shown = byCode[scaled.Unit.Code];
+            return line with { Quantity = scaled.Amount, UnitId = shown.Row.Id, UnitCode = shown.Row.Code, UnitName = shown.Name };
+        }).ToArray();
+
+        return Results.Ok(new ScaledRecipeResponse(recipe.Id, recipe.Servings, target, lines));
     }
 
     private static async Task<IResult> CreateRecipe(
