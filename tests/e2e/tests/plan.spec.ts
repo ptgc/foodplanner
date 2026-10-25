@@ -1,5 +1,5 @@
-import type { APIRequestContext, Locator, Page } from "@playwright/test";
-import { adminState, expect, test } from "./fixtures";
+import type { APIRequestContext, Locator, Page, TestInfo } from "@playwright/test";
+import { adminState, expect, test, uniqueStamp, uniqueWeek } from "./fixtures";
 
 test.use({ storageState: adminState });
 
@@ -7,9 +7,8 @@ test.use({ storageState: adminState });
 // (mobile-390, desktop) can run side by side. Entries, recipes and the generated list are cleaned up afterwards.
 const baseMonday = Date.UTC(2032, 2, 1); // 2032-03-01 is a Monday
 
-function weekFor(project: string, n: number): string {
-  const offsetWeeks = n + (project === "desktop" ? 10 : 0);
-  return new Date(baseMonday + offsetWeeks * 7 * 86_400_000).toISOString().slice(0, 10);
+function weekFor(testInfo: TestInfo, n: number): string {
+  return uniqueWeek(testInfo, baseMonday, n);
 }
 
 const dayOf = (week: string, offset: number) => new Date(Date.parse(week) + offset * 86_400_000).toISOString().slice(0, 10);
@@ -93,10 +92,10 @@ function tapper(page: Page, hasTouch: boolean) {
 
 test("Kid can pick a meal in <=3 taps", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.use.hasTouch, "counts touch taps at 390px");
-  const week = weekFor(testInfo.project.name, 0);
+  const week = weekFor(testInfo, 0);
   const h = await householdId(page.request);
   const [ingredient] = await twoIngredients(page.request, h);
-  const title = `0 E2E plan tap ${Date.now()}`;
+  const title = `0 E2E plan tap ${uniqueStamp(testInfo)}`;
   const recipeId = await createRecipe(page.request, h, title, ingredient.id);
   try {
     await page.goto(`/plan?week=${week}`);
@@ -131,10 +130,10 @@ test("Kid can pick a meal in <=3 taps", async ({ page }, testInfo) => {
 });
 
 test("Playwright test for picking flow: pick, change servings, remove, generate the list", async ({ page }, testInfo) => {
-  const week = weekFor(testInfo.project.name, 1);
+  const week = weekFor(testInfo, 1);
   const h = await householdId(page.request);
   const [ingA, ingB] = await twoIngredients(page.request, h);
-  const stamp = Date.now();
+  const stamp = uniqueStamp(testInfo);
   const titleA = `0 E2E plan A ${stamp}`;
   const titleB = `0 E2E plan B ${stamp}`;
   const recipeIds = [await createRecipe(page.request, h, titleA, ingA.id), await createRecipe(page.request, h, titleB, ingB.id)];
