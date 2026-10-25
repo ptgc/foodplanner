@@ -8,7 +8,10 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: L2 local recipes to shopping list
+## Current focus: L3 local household management and kitchen use
+Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
+
+## Done: L2 local recipes to shopping list
 Decided in docs/questions/Q-010.md. Local only; every secret in .NET user secrets. Google login (T-010) postponed; a seeded local admin (T-029) is used instead, with a login screen (T-028).
 Order (one migration task at a time): T-008, T-027 (parallel), T-009, T-011, T-029, T-012 and T-028 (parallel), T-020, T-031 (parallel), T-021, T-032 (parallel), T-022, T-023, T-024, T-025, T-030, T-033, T-034, T-035, T-036.
 Gate: full ADR 0009 gate for T-008, T-009, T-011, T-012 (reviewer on opus, T-008 implementer on opus); implementer evidence plus a green verify.sh on dev for the rest.
