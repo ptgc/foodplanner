@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { ingredientAmount } from "../recipes/ingredient-amount";
+import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { limits } from "../recipes/recipe-form";
 import { useRecipe, type Recipe } from "../recipes/use-recipe";
@@ -42,7 +43,11 @@ function RecipeView({ householdId, id }: { householdId: string; id: string }) {
     return (
       <section className="recipe-detail">
         {back}
-        <p role="alert">{state.message === "unreachable" ? t("problem.unreachable") : t(problemKey(state.message))}</p>
+        {state.message === "unreachable" && isOffline() ? (
+          <OfflineNotice />
+        ) : (
+          <p role="alert">{state.message === "unreachable" ? t("problem.unreachable") : t(problemKey(state.message))}</p>
+        )}
       </section>
     );
 

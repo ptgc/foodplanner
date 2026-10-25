@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, resetAntiforgeryToken } from "./api/client";
 import type { components } from "./api/schema";
 import { problemTypeOf } from "./i18n/problems";
+import { clearRuntimeCaches } from "./pwa/clear-caches";
 import { clearShoppingStorage } from "./shopping/storage";
 
 const loginFailed = "urn:foodplanner:problem:login-failed";
@@ -97,6 +98,7 @@ async function loadSession(): Promise<Session> {
     if (!me.data) {
       // The server answered: not signed in. Do not keep a stale offline identity.
       clearSavedSession();
+      void clearRuntimeCaches();
       return { status: "signedOut" };
     }
     const list = await api.GET("/api/households");
@@ -139,6 +141,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const byStatus = response.status === 429 ? rateLimited : response.status === 401 ? loginFailed : undefined;
         return { kind: "problem", problemType: problemTypeOf(error) ?? byStatus };
       }
+      // Whatever the previous user left in the service worker's caches is not for this user.
+      await clearRuntimeCaches();
       const next = await loadSession();
       if (next.status !== "signedIn") return { kind: "cookie-missing" };
       setSession(next);
@@ -153,6 +157,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await api.POST("/api/auth/logout");
     } finally {
       clearSavedSession();
+      // Recipes the service worker kept for this user must not outlive the session (shared devices).
+      await clearRuntimeCaches();
       clearShoppingStorage();
       resetAntiforgeryToken();
       setSession({ status: "signedOut" });

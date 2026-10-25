@@ -9,6 +9,11 @@ export const en = {
   "common.skipToContent": "Skip to content",
   "common.language": "Language",
   "common.signIn": "Sign in",
+  "pwa.updateAvailable": "New version available",
+  "pwa.reload": "Reload",
+  "pwa.offlineTitle": "You are offline",
+  "pwa.offlineBody": "This page is not saved on this device yet. Recipes you have opened are available offline.",
+  "pwa.offlineRecipes": "Go to recipes",
   "language.nb": "Norsk bokmål",
   "language.en": "English",
 

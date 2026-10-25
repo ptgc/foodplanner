@@ -12,6 +12,7 @@ import {
   toggleTag,
   type RecipeFilters,
 } from "../recipes/filters";
+import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
 import { useRecipeList, useTags, type Failure, type RecipeSummary, type Tag } from "../recipes/use-recipes";
@@ -129,7 +130,8 @@ function RecipesScreen({ householdId }: { householdId: string }) {
       </div>
 
       {list.status === "loading" && <Skeleton />}
-      {list.status === "error" && (
+      {list.status === "error" && list.failure === "unreachable" && isOffline() && <OfflineNotice showLink={false} />}
+      {list.status === "error" && !(list.failure === "unreachable" && isOffline()) && (
         <div className="recipes-message" role="alert">
           <p>{t("recipes.loadFailed")}</p>
           <p>{failureText(t, list.failure)}</p>

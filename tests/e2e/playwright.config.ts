@@ -13,6 +13,9 @@ export default defineConfig({
     baseURL,
     headless: true,
     locale: "en-US",
+    // T-041: the service worker is blocked by default so route mocks and fresh reads behave as in every earlier spec;
+    // tests/pwa.spec.ts turns it on.
+    serviceWorkers: "block",
     trace: "retain-on-failure",
   },
   projects: [

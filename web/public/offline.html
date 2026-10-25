@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Last-resort page for the service worker (T-041) when the app shell itself is not available offline. The app has its
+     own translated offline screen; this static one only picks nb or en from the browser language. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1f6f43" />
+    <title>Foodplanner</title>
+    <style>
+      body { margin: 0; padding: 2rem 1rem; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1b1b1f; }
+      main { max-width: 30rem; margin: 0 auto; }
+      a, button { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; font: inherit; }
+      [hidden] { display: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section lang="en" id="en">
+        <h1>You are offline</h1>
+        <p>This page is not saved on this device. Reconnect and try again.</p>
+        <button type="button" onclick="location.reload()">Try again</button>
+      </section>
+      <section lang="nb" id="nb" hidden>
+        <h1>Du er frakoblet</h1>
+        <p>Denne siden er ikke lagret på denne enheten. Koble til igjen og prøv på nytt.</p>
+        <button type="button" onclick="location.reload()">Prøv igjen</button>
+      </section>
+    </main>
+    <script>
+      if (/^(nb|no|nn)\b/i.test(navigator.language || "")) {
+        document.documentElement.lang = "nb";
+        document.getElementById("en").hidden = true;
+        document.getElementById("nb").hidden = false;
+      }
+    </script>
+  </body>
+</html>
