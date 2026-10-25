@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminState, expect, test } from "./fixtures";
+import { adminState, expect, saveRecipe, test, uniqueStamp } from "./fixtures";
 import { solidPng } from "./png";
 
 test.use({ storageState: adminState });
@@ -34,7 +34,7 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
   const [first, second] = [ingredients[0]!, ingredients[1]!];
   const gram = units.find((u) => u.code === "g") ?? units[0]!;
   const tag = tags.find((x) => x.kind === "Tag")!;
-  const title = `E2E Form ${testInfo.project.name} ${Date.now()}`;
+  const title = `E2E Form ${testInfo.project.name} ${uniqueStamp(testInfo)}`;
   const mobile = (page.viewportSize()?.width ?? 0) <= 390;
 
   let recipeId: string | undefined;
@@ -89,8 +89,8 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
       }
     }
 
-    await page.getByRole("button", { name: "Save recipe" }).click();
-    await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/);
+    await saveRecipe(page, page.getByRole("button", { name: "Save recipe" }));
+    await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, { timeout: 15_000 }); // the picture upload follows the save
     recipeId = page.url().split("/").pop();
 
     // Detail page: title, times, servings, tag, structured ingredients, steps, picture, edit control.
@@ -123,8 +123,8 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
     await expect(page.getByLabel("Title")).toHaveValue(title);
     await page.getByRole("button", { name: "Move step 1 down" }).click();
     await page.getByLabel("Servings", { exact: true }).fill("6");
-    await page.getByRole("button", { name: "Save recipe" }).click();
-    await expect(page).toHaveURL(new RegExp(`/recipes/${recipeId}$`));
+    await saveRecipe(page, page.getByRole("button", { name: "Save recipe" }));
+    await expect(page).toHaveURL(new RegExp(`/recipes/${recipeId}$`), { timeout: 15_000 });
     await expect(page.locator(".recipe-steps li")).toHaveText(["Second step", "First step"]);
     await expect(page.getByTestId("servings-value")).toHaveText("6");
 
