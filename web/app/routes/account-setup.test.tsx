@@ -117,7 +117,7 @@ describe("set password", () => {
     expect(screen.getByTestId("where").textContent).not.toContain("token");
     await fill("a long enough password");
     await waitFor(() => expect(requests).toHaveLength(1));
-    expect(requests[0].body).toMatchObject({ token: "abc" });
+    expect(requests[0]?.body).toMatchObject({ token: "abc" });
   });
 
   it("asks the browser not to send a referrer", async () => {

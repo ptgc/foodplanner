@@ -440,12 +440,11 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
         var email = AuthHost.NewEmail();
         using var client = _host.CreateClient();
         using var register = await RegisterAsync(client, email);
-        var user = await _host.FindUserAsync(email);
         using (var scope = _host.Services.CreateScope())
         {
             var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
             // An old duplicate, as an earlier version or a race could have left behind.
-            await users.AddClaimAsync(user, new System.Security.Claims.Claim("foodplanner:registered-at", _host.Time.Now.AddDays(-10).ToUnixTimeSeconds().ToString("D12")));
+            await users.AddClaimAsync((await users.FindByEmailAsync(email))!, new System.Security.Claims.Claim("foodplanner:registered-at", _host.Time.Now.AddDays(-10).ToUnixTimeSeconds().ToString("D12")));
         }
 
         var cleanup = _host.Services.GetServices<IHostedService>().OfType<UnconfirmedAccountCleanup>().Single();
