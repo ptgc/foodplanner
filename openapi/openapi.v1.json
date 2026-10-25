@@ -2221,6 +2221,82 @@
         }
       }
     },
+    "/api/households/{householdId}/shopping-lists/{weekStart}/export": {
+      "get": {
+        "tags": [
+          "ShoppingListExportEndpoints"
+        ],
+        "operationId": "ExportShoppingList",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListExportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/pantry": {
       "get": {
         "tags": [
@@ -3757,6 +3833,35 @@
           }
         }
       },
+      "ShoppingListExportResponse": {
+        "required": [
+          "format",
+          "title",
+          "text",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ShoppingListItemResponse": {
         "required": [
           "id",
@@ -4042,6 +4147,9 @@
     },
     {
       "name": "ShoppingListEndpoints"
+    },
+    {
+      "name": "ShoppingListExportEndpoints"
     },
     {
       "name": "PantryEndpoints"

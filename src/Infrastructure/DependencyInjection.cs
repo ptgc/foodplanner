@@ -1,3 +1,4 @@
+using Foodplanner.Infrastructure.Export;
 using Foodplanner.Infrastructure.Images;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IDatabaseReadiness, DatabaseReadiness>();
         services.AddOptions<ImageOptions>().BindConfiguration(ImageOptions.Section);
         services.AddImageStorage();
+        services.AddShoppingListExporters();
         return services;
     }
 }
