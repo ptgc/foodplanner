@@ -2518,7 +2518,8 @@
       "ConfirmEmailRequest": {
         "required": [
           "userId",
-          "token"
+          "token",
+          "password"
         ],
         "type": "object",
         "properties": {
@@ -2529,6 +2530,12 @@
             ]
           },
           "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
             "type": [
               "null",
               "string"
@@ -3348,18 +3355,11 @@
       },
       "RegisterRequest": {
         "required": [
-          "email",
-          "password"
+          "email"
         ],
         "type": "object",
         "properties": {
           "email": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "password": {
             "type": [
               "null",
               "string"

@@ -26,6 +26,30 @@ export const nb: Dictionary = {
   "login.cookieMissing":
     "Du er logget inn, men nettleseren beholdt ikke øktinformasjonskapselen. Safari lagrer ikke sikre informasjonskapsler på http://localhost; prøv Chrome eller bruk https.",
 
+  "login.createAccount": "Opprett konto",
+  "login.passwordSet": "Passordet er satt. Logg inn med det.",
+
+  "register.title": "Opprett konto",
+  "register.intro": "Skriv inn e-postadressen din. Vi sender en lenke der du velger passord.",
+  "register.submit": "Send lenke",
+  "register.submitting": "Sender...",
+  "register.sent":
+    "Hvis adressen kan registreres, er en e-post på vei. Åpne lenken i den for å velge passord. Lenken virker i 24 timer.",
+  "register.invalidEmail": "Skriv inn en gyldig e-postadresse.",
+  "register.haveAccount": "Har du allerede en konto? Logg inn",
+
+  "setPassword.title": "Velg passord",
+  "setPassword.rules": "Minst {count} tegn.",
+  "setPassword.password": "Nytt passord",
+  "setPassword.confirm": "Gjenta passordet",
+  "setPassword.mismatch": "De to passordene er ikke like.",
+  "setPassword.submit": "Sett passord",
+  "setPassword.submitting": "Lagrer...",
+  "setPassword.invalidLink": "Lenken er ikke gyldig lenger. Den kan ha utløpt eller allerede være brukt.",
+  "setPassword.registerAgain": "Få en ny lenke",
+  "setPassword.tooShort": "Passordet må ha minst {count} tegn.",
+  "setPassword.rejected": "Det passordet kan ikke brukes. Velg et annet.",
+
   "problem.generic": "Noe gikk galt. Prøv igjen.",
   "problem.unreachable": "Fikk ikke kontakt med API-et.",
   "problem.loginFailed": "Innloggingen mislyktes. Sjekk e-post og passord og prøv igjen.",

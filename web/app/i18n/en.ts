@@ -27,6 +27,30 @@ export const en = {
   "login.cookieMissing":
     "Signed in, but the browser did not keep the session cookie. Safari does not store Secure cookies on http://localhost; try Chrome or use https.",
 
+  "login.createAccount": "Create account",
+  "login.passwordSet": "Your password is set. Sign in with it.",
+
+  "register.title": "Create account",
+  "register.intro": "Enter your email address. We send a link where you choose your password.",
+  "register.submit": "Send link",
+  "register.submitting": "Sending...",
+  "register.sent":
+    "If this address can be registered, an email is on its way. Open the link in it to choose your password. The link works for 24 hours.",
+  "register.invalidEmail": "Enter a valid email address.",
+  "register.haveAccount": "Already have an account? Sign in",
+
+  "setPassword.title": "Choose your password",
+  "setPassword.rules": "At least {count} characters.",
+  "setPassword.password": "New password",
+  "setPassword.confirm": "Repeat the password",
+  "setPassword.mismatch": "The two passwords are not the same.",
+  "setPassword.submit": "Set password",
+  "setPassword.submitting": "Saving...",
+  "setPassword.invalidLink": "This link is not valid any more. It may be expired or already used.",
+  "setPassword.registerAgain": "Get a new link",
+  "setPassword.tooShort": "The password must be at least {count} characters.",
+  "setPassword.rejected": "That password cannot be used. Choose another.",
+
   "problem.generic": "Something went wrong. Please try again.",
   "problem.unreachable": "Could not reach the API.",
   "problem.loginFailed": "Sign in failed. Check your email and password and try again.",

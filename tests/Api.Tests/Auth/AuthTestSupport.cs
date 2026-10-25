@@ -145,12 +145,12 @@ public sealed class AuthHost : IAsyncDisposable
     { RemoteIp = remoteIp, Language = DefaultLanguage };
 
     /// <summary>Creates a user straight in the store, as an already registered account.</summary>
-    public async Task<AppUser> CreateUserAsync(string email, bool confirmed = true, string password = Password)
+    public async Task<AppUser> CreateUserAsync(string email, bool confirmed = true, string? password = Password)
     {
         using var scope = Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var user = new AppUser { Id = Guid.NewGuid(), UserName = email, Email = email, EmailConfirmed = confirmed };
-        var result = await users.CreateAsync(user, password);
+        var result = password is null ? await users.CreateAsync(user) : await users.CreateAsync(user, password);
         Assert.True(result.Succeeded, string.Join("; ", result.Errors.Select(e => e.Description)));
         return user;
     }

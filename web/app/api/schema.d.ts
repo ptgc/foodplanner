@@ -453,6 +453,7 @@ export interface components {
         ConfirmEmailRequest: {
             userId: null | string;
             token: null | string;
+            password: null | string;
         };
         CreateHouseholdRequest: {
             name: null | string;
@@ -640,7 +641,6 @@ export interface components {
         };
         RegisterRequest: {
             email: null | string;
-            password: null | string;
         };
         RegisterResponse: {
             message: string;

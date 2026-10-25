@@ -391,7 +391,7 @@ Tasks are built one at a time on `task/T-xxx-*` branches and merged into `dev`. 
 
 ## 12. Sign-in and cookies (T-009)
 
-Local accounts: `POST /api/auth/register` then the emailed link (`confirm-email`), then `login`. Until a production email
+Local accounts (T-072): `POST /api/auth/register {email}` (no password), then the emailed link `/set-password?userId=..&token=..` where the person chooses the password (`POST /api/auth/confirm-email {userId, token, password}`), then `login`. Accounts that never set a password are deleted after `Auth:ConfirmationTokenLifetimeHours` (cleanup job every `Auth:UnconfirmedCleanupIntervalMinutes`, 15, in batches of `Auth:UnconfirmedCleanupBatchSize`, 100). Until a production email
 provider exists (T-017) the only sender is the in-memory `Recording` one, so no mail leaves the machine and confirmation
 links are not logged. Outside Development the API refuses to start unless `Email:Provider=Recording` is set (compose sets
 `Email__Provider`); the already confirmed local admin comes from `local-seed` (section 3, T-029).

@@ -9,6 +9,8 @@ export default defineConfig({
   plugins: [reactRouter()],
   server: {
     port: 5173,
+    // Same as web/nginx.conf: the set-password link carries a one-time token (T-072).
+    headers: { "Referrer-Policy": "no-referrer" },
     proxy: {
       // Caveat: the hub rejects an Origin whose host differs from Host (403 forbidden-origin), so API_PROXY_TARGET=http://api:8080 with changeOrigin breaks it; the default localhost:5000 is fine.
       // ws: true lets the SignalR hub (/api/hubs/...) upgrade to a WebSocket through the dev proxy.

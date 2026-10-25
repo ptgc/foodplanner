@@ -167,6 +167,27 @@ body {
   width: 100%;
 }
 
+/* T-072: register and set-password screens share the login layout. */
+.auth-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 0.25rem;
+}
+
+.auth-note {
+  margin: 0 0 1rem;
+}
+
+.login a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

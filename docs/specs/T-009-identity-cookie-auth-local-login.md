@@ -62,3 +62,10 @@ External providers (T-010), households, roles and policies beyond "authenticated
 ## Open questions
 - Answered: [Q-002](../questions/Q-002.md), option 1 (confirm email in this task). Provider choice for production is [Q-007](../questions/Q-007.md), which blocks T-017 only.
 - Answered: [Q-003](../questions/Q-003.md), option 1 (app-level limits in this task; T-047 keeps edge limits and tuning).
+
+## Amended by T-072 (Q-011, option 4 plus option 3)
+- `POST register` takes `{ email }` only and stores no password. A new address gets an unconfirmed user with no password and a mail with a link to `/set-password?userId=..&token=..`. A confirmed address gets the "you already have an account" notice. An unconfirmed address gets a fresh link and the security stamp is rotated, so earlier links die; this is safe because a link no longer confirms anyone's chosen password. The response stays an identical 202 for all three cases.
+- `POST confirm-email` takes `{ userId, token, password }`. A valid token plus a password that passes the rules (length 10..128) sets the password, confirms the email and rotates the stamp in one save (single use, also under concurrency); it does not sign in. A weak password is a 400 `ValidationProblem` and leaves the link usable. Invalid, expired or reused links stay 400 `confirmation-invalid`.
+- Login for an account without a password is refused with the generic `login-failed` body and still performs one dummy hash verification.
+- A background job (`UnconfirmedAccountCleanup`) deletes unconfirmed accounts older than `Auth:ConfirmationTokenLifetimeHours` (default 24). Registration time is an Identity user claim `foodplanner:registered-at` (no new column); a re-register refreshes it. Unconfirmed accounts from before T-072 get their window started on the first pass.
+- Acceptance criteria `Register_validation`, `Register_is_uniform`, `Register_sends_confirmation_or_notice` and `Confirm_email_flow` are superseded by the behaviour above (tests in `RegistrationTests`).
