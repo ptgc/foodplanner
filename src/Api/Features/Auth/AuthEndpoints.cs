@@ -38,6 +38,7 @@ public static class AuthEndpoints
         auth.MapPost("/confirm-email", ConfirmEmail)
             .WithName("ConfirmEmail")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .AllowAnonymous()
             .RequireRateLimiting(RateLimitPolicies.Auth);
@@ -74,11 +75,11 @@ public static class AuthEndpoints
         IEmailSender email,
         EmailConfirmationTokens tokens,
         IOptions<AuthOptions> options,
+        TimeProvider time,
         CancellationToken ct)
     {
         var errors = new Dictionary<string, string[]>();
         var address = ValidateEmail(request.Email, errors);
-        ValidatePassword(request.Password, options.Value, errors);
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
@@ -89,32 +90,39 @@ public static class AuthEndpoints
         var existing = await users.FindByEmailAsync(address!);
         if (existing is null)
         {
+            // No password: register only records the address (Q-011). Whoever opens the emailed link chooses it.
             var user = new AppUser { Id = Guid.NewGuid(), UserName = address, Email = address };
-            var created = await users.CreateAsync(user, request.Password!);
+            var created = await users.CreateAsync(user);
             if (created.Succeeded)
             {
-                await SendConfirmationAsync(email, tokens, options.Value, user, ct);
-                return accepted;
+                await RegistrationClaim.StampAsync(users, user, time.GetUtcNow());
+                await SendSetPasswordLinkAsync(email, tokens, options.Value, user, ct);
             }
 
-            var passwordErrors = created.Errors.Where(e => e.Code.StartsWith("Password", StringComparison.Ordinal)).Select(e => e.Description).ToArray();
-            if (passwordErrors.Length > 0)
-            {
-                return Results.ValidationProblem(new Dictionary<string, string[]> { ["password"] = passwordErrors });
-            }
-
-            // A concurrent registration for the same address won the race: nothing to add, same response.
+            // Otherwise a concurrent registration for the same address won the race: nothing to add, same response.
             return accepted;
         }
 
-        // Every existing address, confirmed or not, gets the notice and never a token. Re-sending a link would let
-        // whoever pre-registered the address (with their own password) get the owner to confirm the attacker's account.
-        await email.SendAsync(
-            existing.Email!,
-            "You already have a Foodplanner account",
-            $"Someone tried to register this address, but you already have an account. Sign in at {options.Value.PublicBaseUrl}/login.\n"
-            + "If this was not you, you can ignore this email.",
-            ct);
+        if (existing.EmailConfirmed)
+        {
+            await email.SendAsync(
+                existing.Email!,
+                "You already have a Foodplanner account",
+                $"Someone tried to register this address, but you already have an account. Sign in at {options.Value.PublicBaseUrl}/login.\n"
+                + "If this was not you, you can ignore this email.",
+                ct);
+            return accepted;
+        }
+
+        // Unconfirmed: send a fresh link and kill the earlier ones by rotating the security stamp. This is safe now
+        // because a link confirms nobody's chosen password: whoever opens it sets the password, and only the inbox
+        // owner can open it. A registrant who never sees the inbox gets nothing from it.
+        var stamped = await users.UpdateSecurityStampAsync(existing);
+        if (stamped.Succeeded)
+        {
+            await RegistrationClaim.StampAsync(users, existing, time.GetUtcNow());
+            await SendSetPasswordLinkAsync(email, tokens, options.Value, existing, ct);
+        }
 
         return accepted;
     }
@@ -122,7 +130,8 @@ public static class AuthEndpoints
     private static async Task<IResult> ConfirmEmail(
         ConfirmEmailRequest request,
         UserManager<AppUser> users,
-        EmailConfirmationTokens tokens)
+        EmailConfirmationTokens tokens,
+        IOptions<AuthOptions> options)
     {
         var invalid = AppProblems.Problem(
             StatusCodes.Status400BadRequest,
@@ -140,9 +149,42 @@ public static class AuthEndpoints
             return invalid;
         }
 
+        // A weak password is a validation problem and leaves the link usable, so the person can try again.
+        var errors = new Dictionary<string, string[]>();
+        ValidatePassword(request.Password, options.Value, errors);
+        if (errors.Count == 0)
+        {
+            var passwordErrors = new List<string>();
+            foreach (var validator in users.PasswordValidators)
+            {
+                var checkedPassword = await validator.ValidateAsync(users, user, request.Password!);
+                passwordErrors.AddRange(checkedPassword.Errors.Select(e => e.Description));
+            }
+
+            if (passwordErrors.Count > 0)
+            {
+                errors["password"] = [.. passwordErrors];
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        // One save sets the password, confirms the address and rotates the stamp (which kills the link). The save is
+        // guarded by Identity's concurrency stamp, so two submissions of one link cannot both succeed.
+        user.PasswordHash = users.PasswordHasher.HashPassword(user, request.Password!);
         user.EmailConfirmed = true;
+        user.SecurityStamp = Guid.NewGuid().ToString();
         var result = await users.UpdateAsync(user);
-        return result.Succeeded ? Results.NoContent() : invalid;
+        if (!result.Succeeded)
+        {
+            return invalid;
+        }
+
+        await RegistrationClaim.ClearAsync(users, user);
+        return Results.NoContent();
     }
 
     private static async Task<IResult> Login(
@@ -183,6 +225,13 @@ public static class AuthEndpoints
         {
             // Still pay for one password-hash verification, to reduce the timing difference to a known account.
             hasher.VerifyHashedPassword(new AppUser(), DummyPasswordHash.Get(hasher), request.Password!);
+            return failed;
+        }
+
+        if (user.PasswordHash is null)
+        {
+            // Registered but never set a password (T-072): nothing to check, but cost the same as a real attempt.
+            hasher.VerifyHashedPassword(user, DummyPasswordHash.Get(hasher), request.Password!);
             return failed;
         }
 
@@ -268,14 +317,14 @@ public static class AuthEndpoints
         }
     }
 
-    private static Task SendConfirmationAsync(IEmailSender email, EmailConfirmationTokens tokens, AuthOptions options, AppUser user, CancellationToken ct)
+    private static Task SendSetPasswordLinkAsync(IEmailSender email, EmailConfirmationTokens tokens, AuthOptions options, AppUser user, CancellationToken ct)
     {
         // The link carries the token, so it is only ever sent, never logged.
-        var link = $"{options.PublicBaseUrl.TrimEnd('/')}/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(tokens.Create(user))}";
+        var link = $"{options.PublicBaseUrl.TrimEnd('/')}/set-password?userId={user.Id}&token={Uri.EscapeDataString(tokens.Create(user))}";
         return email.SendAsync(
             user.Email!,
-            "Confirm your Foodplanner email",
-            $"Welcome to Foodplanner. Confirm your email address with this link:\n{link}\n"
+            "Set your Foodplanner password",
+            $"Welcome to Foodplanner. Choose your password and confirm your email address with this link:\n{link}\n"
             + $"The link works for {options.ConfirmationTokenLifetimeHours} hours. If you did not register, ignore this email.",
             ct);
     }
@@ -287,11 +336,11 @@ public static class AuthEndpoints
 
     public sealed record AntiforgeryResponse(string Token);
 
-    public sealed record RegisterRequest(string? Email, string? Password);
+    public sealed record RegisterRequest(string? Email);
 
     public sealed record RegisterResponse(string Message);
 
-    public sealed record ConfirmEmailRequest(string? UserId, string? Token);
+    public sealed record ConfirmEmailRequest(string? UserId, string? Token, string? Password);
 
     public sealed record LoginRequest(string? Email, string? Password);
 

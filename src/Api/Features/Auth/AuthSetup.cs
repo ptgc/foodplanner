@@ -22,6 +22,7 @@ public static class AuthSetup
         services.AddOptions<AuthOptions>().BindConfiguration(AuthOptions.Section);
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddScoped<EmailConfirmationTokens>();
+        services.AddHostedService<UnconfirmedAccountCleanup>();
 
         // Roles are per membership (T-011), so Identity's role tables and services are not added.
         services.AddIdentityCore<AppUser>(identity =>
