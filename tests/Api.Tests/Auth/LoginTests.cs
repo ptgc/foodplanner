@@ -227,7 +227,7 @@ public sealed class LoginTests(AuthDatabase db) : IClassFixture<AuthDatabase>, I
 
         foreach (var url in new[] { "/api/auth/login", "/api/auth/register" })
         {
-            var body = new { email, password = AuthHost.Password };
+            var body = new { email, password = AuthHost.Password }; // register ignores the extra field
             using var noToken = await client.PostWithTokenAsync(url, body, token: null);
             await noToken.AssertProblemAsync(HttpStatusCode.BadRequest, "antiforgery-invalid");
             using var wrongSession = await client.PostWithTokenAsync(url, body, foreignToken);

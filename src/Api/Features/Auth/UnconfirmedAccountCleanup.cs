@@ -42,7 +42,7 @@ internal static class RegistrationClaim
 /// Runs on a <see cref="PeriodicTimer"/> driven by <see cref="TimeProvider"/>. A pass deletes in batches and logs only
 /// counts, never addresses. Unconfirmed accounts have no memberships or invites, so the foreign keys do not block.
 /// </summary>
-internal sealed class UnconfirmedAccountCleanup(
+public sealed class UnconfirmedAccountCleanup(
     IServiceScopeFactory scopes,
     TimeProvider time,
     IOptions<AuthOptions> options,
@@ -76,7 +76,7 @@ internal sealed class UnconfirmedAccountCleanup(
     }
 
     /// <summary>One pass. Returns how many accounts it deleted.</summary>
-    internal async Task<int> SweepAsync(CancellationToken ct)
+    public async Task<int> SweepAsync(CancellationToken ct)
     {
         var settings = options.Value;
         var batch = Math.Max(1, settings.UnconfirmedCleanupBatchSize);

@@ -60,11 +60,11 @@ public sealed class RateLimitTests(AuthDatabase db) : IClassFixture<AuthDatabase
         using var client = host.CreateClient("203.0.113.20");
         for (var i = 0; i < 2; i++)
         {
-            using var attempt = await client.PostAsync("/api/auth/register", new { email = AuthHost.NewEmail(), password = AuthHost.Password });
+            using var attempt = await client.PostAsync("/api/auth/register", new { email = AuthHost.NewEmail() });
             Assert.Equal(HttpStatusCode.Accepted, attempt.StatusCode);
         }
 
-        using var limited = await client.PostAsync("/api/auth/register", new { email = AuthHost.NewEmail(), password = AuthHost.Password });
+        using var limited = await client.PostAsync("/api/auth/register", new { email = AuthHost.NewEmail() });
         await AssertRateLimitedAsync(limited);
     }
 

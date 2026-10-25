@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router";
 import { safeReturnTo } from "../auth-paths";
 import { useI18n } from "../i18n";
 import { LanguageSwitch } from "../i18n/language-switch";
@@ -53,6 +53,11 @@ export default function Login() {
         <LanguageSwitch />
       </div>
       <h1>{t("common.signIn")}</h1>
+      {params.get("passwordSet") === "1" && (
+        <p role="status" className="auth-note">
+          {t("login.passwordSet")}
+        </p>
+      )}
       <form onSubmit={onSubmit} aria-busy={submitting}>
         <div className="field">
           <label htmlFor="email">{t("login.email")}</label>
@@ -86,6 +91,11 @@ export default function Login() {
           {submitting ? t("login.signingIn") : t("common.signIn")}
         </button>
       </form>
+      <p>
+        <Link to="/register" className="auth-link">
+          {t("login.createAccount")}
+        </Link>
+      </p>
     </main>
   );
 }
