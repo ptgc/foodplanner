@@ -149,6 +149,13 @@ export const en = {
   "shopping.chooseHousehold": "Choose household",
   "shopping.noHousehold": "Join or create a household to use the shopping list.",
   "shopping.signInAgain": "Your session has ended. Sign in again.",
+  "shopping.haveIt": "I have it",
+  "shopping.haveItFor": "I have {name}",
+  "shopping.pantry.one": "1 staple you have at home",
+  "shopping.pantry.other": "{count} staples you have at home",
+  "shopping.pantryHint": "These are not listed under \"Check you have these\" any more.",
+  "shopping.pantryRemove": "Not anymore",
+  "shopping.pantryRemoveFor": "Not anymore: {name}",
 
   "recipes.title": "Recipes",
   "recipes.search": "Search recipes",

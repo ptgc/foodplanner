@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
+import type { components } from "../api/schema";
 import { applyQueue, enqueue, replay, type SendResult } from "./queue";
 import {
   connectShoppingRealtime,
@@ -17,6 +18,8 @@ import {
 } from "./storage";
 
 const RETRY_MS = 5000;
+
+export type PantryItem = components["schemas"]["PantryItemResponse"];
 
 type Server = { week: string; list: ShoppingList; version: string | null };
 type LoadError = { week: string; kind: "network" | "unauthorized" | "failed" };
@@ -38,6 +41,12 @@ export type ShoppingListModel = {
   generate: () => Promise<ActionResult>;
   addItem: (label: string, quantity: number | null, unitId: string | null) => Promise<ActionResult>;
   removeItem: (itemId: string) => Promise<ActionResult>;
+  /** The staples the household has confirmed and that have not expired (the "you have N staples" list). */
+  pantry: PantryItem[];
+  /** "I have it": confirm the staple, then regenerate so it leaves "check you have these" (other sessions follow via the hub). */
+  confirmStaple: (ingredientId: string) => Promise<ActionResult>;
+  /** Un-confirm a staple and regenerate so it is prompted again. */
+  unconfirmStaple: (ingredientId: string) => Promise<ActionResult>;
 };
 
 type Options = { hubFactory?: () => HubLike; restartMs?: number };
@@ -55,6 +64,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
   const [queue, setQueueState] = useState<CheckOp[]>(() => readQueue());
   const [browserOnline, setBrowserOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [reachable, setReachable] = useState(true);
+  const [pantry, setPantry] = useState<PantryItem[]>([]);
 
   const queueRef = useRef(queue);
   const weekRef = useRef(weekStart);
@@ -254,6 +264,32 @@ export function useShoppingList(householdId: string, weekStart: string, options:
 
   const online = browserOnline && reachable;
 
+  const readPantry = useCallback(async (): Promise<PantryItem[] | null> => {
+    try {
+      const { data } = await api.GET("/api/households/{householdId}/pantry", { params: { path: { householdId } } });
+      return data ?? null;
+    } catch {
+      return null; // offline: keep what we have
+    }
+  }, [householdId]);
+
+  const fetchPantry = useCallback(async () => {
+    const data = await readPantry();
+    if (data) setPantry(data);
+  }, [readPantry]);
+
+  // Re-read the pantry whenever an accepted server state arrives (a confirmation elsewhere regenerates the list).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const data = await readPantry();
+      if (!cancelled && data) setPantry(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readPantry, server]);
+
   const current = server && server.week === weekStart ? server : null;
   // Derived, not stored: the saved copy stands in until the server answers for this week.
   const cached = useMemo(() => (current ? null : readCachedList(householdId, weekStart)), [current, householdId, weekStart]);
@@ -323,6 +359,41 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     [base, householdId, mutate, weekStart],
   );
 
+  const pantryThenGenerate = useCallback(
+    (run: () => Promise<{ ok: boolean; status: number }>) =>
+      mutate(async () => {
+        const first = await run();
+        if (!first.ok) return first;
+        const { response } = await api.POST(`${base}/generate`, { params: { path: { householdId, weekStart } } });
+        void fetchPantry();
+        return response;
+      }),
+    [base, fetchPantry, householdId, mutate, weekStart],
+  );
+
+  const confirmStaple = useCallback(
+    (ingredientId: string) =>
+      pantryThenGenerate(async () => {
+        const { response } = await api.PUT("/api/households/{householdId}/pantry/{ingredientId}", {
+          params: { path: { householdId, ingredientId } },
+          body: { expiresAt: null },
+        });
+        return response;
+      }),
+    [householdId, pantryThenGenerate],
+  );
+
+  const unconfirmStaple = useCallback(
+    (ingredientId: string) =>
+      pantryThenGenerate(async () => {
+        const { response } = await api.DELETE("/api/households/{householdId}/pantry/{ingredientId}", {
+          params: { path: { householdId, ingredientId } },
+        });
+        return response;
+      }),
+    [householdId, pantryThenGenerate],
+  );
+
   return {
     list,
     fromCache: !current && !!cached,
@@ -335,5 +406,8 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     generate,
     addItem,
     removeItem,
+    pantry,
+    confirmStaple,
+    unconfirmStaple,
   };
 }

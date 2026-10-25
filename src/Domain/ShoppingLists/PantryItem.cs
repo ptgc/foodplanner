@@ -1,0 +1,59 @@
+using Foodplanner.Domain.Common;
+using Foodplanner.Domain.Tenancy;
+
+namespace Foodplanner.Domain.ShoppingLists;
+
+/// <summary>
+/// A household's memory that it has a staple ("I have salt"). One row per household and ingredient (unique index).
+/// While it is active the staple is no longer prompted in the "check you have" section of a generated list
+/// (<see cref="PantryFilter"/>). With <see cref="ExpiresAt"/> set it is active until then and prompts again after;
+/// without, it stays until the household un-confirms it. HouseholdId is assigned by Infrastructure.
+/// </summary>
+public sealed class PantryItem : Entity, ITenantEntity
+{
+    private PantryItem()
+    {
+    }
+
+    public PantryItem(Guid ingredientId, Guid confirmedByUserId, DateTimeOffset confirmedAt, DateTimeOffset? expiresAt)
+    {
+        if (ingredientId == Guid.Empty)
+        {
+            throw new ArgumentException("A pantry item needs an ingredient.", nameof(ingredientId));
+        }
+
+        IngredientId = ingredientId;
+        Confirm(confirmedByUserId, confirmedAt, expiresAt);
+    }
+
+    public Guid HouseholdId { get; private set; }
+
+    public Guid IngredientId { get; private set; }
+
+    public DateTimeOffset ConfirmedAt { get; private set; }
+
+    public Guid ConfirmedByUserId { get; private set; }
+
+    /// <summary>Null = no expiry.</summary>
+    public DateTimeOffset? ExpiresAt { get; private set; }
+
+    /// <summary>Confirms (again): the latest confirmation wins, including its expiry.</summary>
+    public void Confirm(Guid confirmedByUserId, DateTimeOffset confirmedAt, DateTimeOffset? expiresAt)
+    {
+        if (confirmedByUserId == Guid.Empty)
+        {
+            throw new ArgumentException("A confirmation needs a user.", nameof(confirmedByUserId));
+        }
+
+        if (expiresAt is { } expiry && expiry <= confirmedAt)
+        {
+            throw new ArgumentException("The expiry must be after the confirmation.", nameof(expiresAt));
+        }
+
+        ConfirmedByUserId = confirmedByUserId;
+        ConfirmedAt = confirmedAt;
+        ExpiresAt = expiresAt;
+    }
+
+    public bool IsActive(DateTimeOffset now) => ExpiresAt is null || ExpiresAt > now;
+}

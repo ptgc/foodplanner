@@ -334,6 +334,33 @@ body {
   padding: 0;
 }
 
+/* "I have it" / "Not anymore": a text button, at least 44px high and wide. */
+.shop-have {
+  align-self: center;
+  flex: none;
+  min-height: var(--touch);
+  min-width: var(--touch);
+  margin-left: 0.5rem;
+}
+
+.shop-pantry {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.shop-pantry summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.shop-pantry-name {
+  flex: 1;
+  justify-content: center;
+  min-height: 56px;
+}
+
 .shop-add-qty {
   display: flex;
   gap: 0.75rem;
