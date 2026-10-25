@@ -25,18 +25,40 @@ internal static class RegistrationClaim
     /// Records <paramref name="at"/> as the registration time: removes every earlier claim of this type (duplicates
     /// included) and adds one, in a single save.
     /// </summary>
-    public static async Task StampAsync(AppDbContext db, Guid userId, DateTimeOffset at)
-    {
-        db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
-        db.UserClaims.Add(new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = Value(at) });
-        await db.SaveChangesAsync();
-    }
+    public static Task StampAsync(AppDbContext db, Guid userId, DateTimeOffset at) =>
+        ReplaceAsync(db, userId, new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = Value(at) });
 
     /// <summary>Removes the claim once the account is confirmed. A claim left behind is ignored anyway: the cleanup only looks at unconfirmed users.</summary>
-    public static async Task ClearAsync(AppDbContext db, Guid userId)
+    public static Task ClearAsync(AppDbContext db, Guid userId) => ReplaceAsync(db, userId, null);
+
+    // Claim rows have no concurrency token, so a concurrent request that deleted the same rows makes the delete
+    // match 0 rows (DbUpdateConcurrencyException). That means the other request did the work: drop the stale
+    // entries, look again and apply once more; after a few tries give up quietly, since the claim is only a hint for
+    // the cleanup job and must never turn a uniform 202 (or a finished confirmation) into a 500.
+    private static async Task ReplaceAsync(AppDbContext db, Guid userId, IdentityUserClaim<Guid>? replacement)
     {
-        db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
-        await db.SaveChangesAsync();
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            db.UserClaims.RemoveRange(await db.UserClaims.Where(c => c.UserId == userId && c.ClaimType == Type).ToListAsync());
+            if (replacement is not null)
+            {
+                db.UserClaims.Add(new IdentityUserClaim<Guid> { UserId = userId, ClaimType = Type, ClaimValue = replacement.ClaimValue });
+            }
+
+            try
+            {
+                await db.SaveChangesAsync();
+                return;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Only claim rows are dropped from the tracker (including the pending add); the caller's user stays tracked.
+                foreach (var entry in db.ChangeTracker.Entries<IdentityUserClaim<Guid>>().ToList())
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+        }
     }
 
     /// <summary>The newest recorded time as text, or null if none (an account from before T-072).</summary>

@@ -51,7 +51,7 @@ export const en = {
   "setPassword.tooShort": "The password must be at least {count} characters.",
   "setPassword.rejected": "That password cannot be used. Choose another.",
 
-  "problem.generic":"Something went wrong. Please try again.",
+  "problem.generic": "Something went wrong. Please try again.",
   "problem.unreachable": "Could not reach the API.",
   "problem.loginFailed": "Sign in failed. Check your email and password and try again.",
   "problem.rateLimited": "Too many attempts. Wait a minute and try again.",

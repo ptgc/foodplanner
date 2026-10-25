@@ -411,6 +411,47 @@ public sealed partial class RegistrationTests(AuthDatabase db) : IClassFixture<A
     }
 
     [Fact]
+    public async Task Parallel_registers_of_one_unconfirmed_address_all_answer_202()
+    {
+        for (var round = 0; round < 5; round++)
+        {
+            var email = AuthHost.NewEmail();
+            using var seed = _host.CreateClient();
+            using var first = await RegisterAsync(seed, email);
+            var clients = Enumerable.Range(0, 4).Select(_ => _host.CreateClient()).ToList();
+            try
+            {
+                var responses = await Task.WhenAll(clients.Select(c => RegisterAsync(c, email)));
+                Assert.All(responses, r => Assert.Equal(HttpStatusCode.Accepted, r.StatusCode));
+            }
+            finally
+            {
+                clients.ForEach(c => c.Dispose());
+            }
+        }
+    }
+
+    [Fact]
+    public async Task A_confirmation_racing_a_register_never_answers_500()
+    {
+        for (var round = 0; round < 5; round++)
+        {
+            var email = AuthHost.NewEmail();
+            using var one = _host.CreateClient();
+            using var two = _host.CreateClient();
+            using var first = await RegisterAsync(one, email);
+            var link = LatestLinkFor(email);
+
+            var confirm = SetPasswordAsync(one, link, VictimPassword);
+            var again = RegisterAsync(two, email);
+            await Task.WhenAll(confirm, again);
+
+            Assert.Equal(HttpStatusCode.Accepted, again.Result.StatusCode);
+            Assert.Contains(confirm.Result.StatusCode, new[] { HttpStatusCode.NoContent, HttpStatusCode.BadRequest });
+        }
+    }
+
+    [Fact]
     public async Task Repeat_register_within_the_cooldown_does_nothing_and_after_it_sends_a_fresh_link()
     {
         await using var host = AuthHost.Create(db.ConnectionString); // default cooldown: 5 minutes

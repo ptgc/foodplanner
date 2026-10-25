@@ -50,7 +50,7 @@ export const nb: Dictionary = {
   "setPassword.tooShort": "Passordet må ha minst {count} tegn.",
   "setPassword.rejected": "Det passordet kan ikke brukes. Velg et annet.",
 
-  "problem.generic":"Noe gikk galt. Prøv igjen.",
+  "problem.generic": "Noe gikk galt. Prøv igjen.",
   "problem.unreachable": "Fikk ikke kontakt med API-et.",
   "problem.loginFailed": "Innloggingen mislyktes. Sjekk e-post og passord og prøv igjen.",
   "problem.rateLimited": "For mange forsøk. Vent et minutt og prøv igjen.",
