@@ -1,4 +1,4 @@
-import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
+import { expect, test as base, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 /** Credentials of the seeded local admin (T-029). scripts/e2e.sh and e2e.ps1 fill them from user secrets. */
 export function adminCredentials(): { email: string; password: string } {
@@ -61,6 +61,24 @@ export function uniqueWeek(testInfo: TestInfo, firstMonday: number, n: number): 
 /** A name that differs between parallel copies of the same test (Date.now() alone can collide). */
 export function uniqueStamp(testInfo: TestInfo): string {
   return `${Date.now()}-${testInfo.parallelIndex}-${testInfo.repeatEachIndex}`;
+}
+
+/**
+ * Clicks `button` and waits for the recipe save request it sends (POST on create, PUT on edit) to answer with
+ * 2xx, so a slow or refused save fails there with its status instead of as a later URL timeout. Image upload
+ * and navigation follow the save, so callers still assert the URL afterwards (with a local, longer timeout).
+ */
+export async function saveRecipe(page: Page, button: Locator): Promise<void> {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) =>
+        /\/api\/households\/[^/]+\/recipes(\/[^/]+)?$/.test(new URL(r.url()).pathname) &&
+        ["POST", "PUT"].includes(r.request().method()),
+      { timeout: 30_000 },
+    ),
+    button.click(),
+  ]);
+  expect(response.status(), await response.text()).toBeLessThan(300);
 }
 
 export const test = base;

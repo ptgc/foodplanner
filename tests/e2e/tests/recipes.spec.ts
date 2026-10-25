@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminState, expect, test } from "./fixtures";
+import { adminState, expect, test, uniqueStamp } from "./fixtures";
 import { solidPng } from "./png";
 
 test.use({ storageState: adminState });
@@ -58,7 +58,7 @@ async function noHorizontalScroll(page: Page) {
 test("filter by tag and search, then open a recipe", async ({ page }, testInfo) => {
   const request = page.request;
   const h = await householdId(request);
-  const run = `${testInfo.project.name}-${Date.now()}`;
+  const run = `${testInfo.project.name}-${uniqueStamp(testInfo)}`;
   const nameA = `E2E Pannekaker ${run}`;
   const nameB = `E2E Pasta ${run}`;
 
