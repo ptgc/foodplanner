@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
@@ -87,6 +88,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     public DbSet<ShoppingListItemSource> ShoppingListItemSources => Set<ShoppingListItemSource>();
 
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
+
+    /// <summary>Recipe import artifacts and drafts (T-042).</summary>
+    public DbSet<RecipeImport> RecipeImports => Set<RecipeImport>();
 
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;

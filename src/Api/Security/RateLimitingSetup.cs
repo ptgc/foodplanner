@@ -53,6 +53,9 @@ public sealed class RateLimitOptions
     public LimitOptions ExternalSignin { get; set; } = new() { PermitLimit = 20, WindowSeconds = 60 };
 
     public LimitOptions Export { get; set; } = new() { PermitLimit = 3, WindowSeconds = 60 };
+
+    /// <summary>Recipe imports from a URL (T-042), per user: 10 per 10 minutes. See <see cref="UrlImportRateLimiter"/>.</summary>
+    public LimitOptions UrlImport { get; set; } = new() { PermitLimit = 10, WindowSeconds = 600 };
 }
 
 /// <summary>
@@ -91,6 +94,7 @@ public static class RateLimitingSetup
     {
         services.AddOptions<RateLimitOptions>().BindConfiguration(RateLimitOptions.Section);
         services.AddSingleton<LoginEmailRateLimiter>();
+        services.AddSingleton<UrlImportRateLimiter>();
         services.AddRateLimiter(_ => { });
         // Configured through options so the limits see the final configuration (tests override them).
         services.AddOptions<RateLimiterOptions>().Configure<IOptions<RateLimitOptions>>((limiter, options) =>

@@ -1784,6 +1784,520 @@
         }
       }
     },
+    "/api/households/{householdId}/imports": {
+      "get": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "ListRecipeImports",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeImportSummaryResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "CreateRecipeImport",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreateRecipeImportRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway Timeout",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/imports/{importId}": {
+      "get": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "GetRecipeImport",
+        "parameters": [
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeImportResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "UpdateRecipeImport",
+        "parameters": [
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateRecipeImportRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "DiscardRecipeImport",
+        "parameters": [
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/imports/{importId}/save": {
+      "post": {
+        "tags": [
+          "RecipeImportEndpoints"
+        ],
+        "operationId": "SaveRecipeImport",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "importId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveRecipeImportResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/tags": {
       "get": {
         "tags": [
@@ -3504,6 +4018,27 @@
           }
         }
       },
+      "CreateRecipeImportRequest": {
+        "required": [
+          "url",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "CreateTagRequest": {
         "required": [
           "name",
@@ -3704,6 +4239,170 @@
       "IFormFile": {
         "type": "string",
         "format": "binary"
+      },
+      "ImportLineResponse": {
+        "required": [
+          "position",
+          "original",
+          "ingredientText",
+          "quantity",
+          "quantityLow",
+          "unitText",
+          "unitId",
+          "unitCode",
+          "unitName",
+          "ingredientId",
+          "ingredientName",
+          "confidence",
+          "note",
+          "status",
+          "suggestions"
+        ],
+        "type": "object",
+        "properties": {
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "original": {
+            "type": "string"
+          },
+          "ingredientText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "quantityLow": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unitText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "unitCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ingredientId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "ingredientName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "confidence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportLineStatus"
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportSuggestionResponse"
+            }
+          }
+        }
+      },
+      "ImportLineStatus": {
+        "enum": [
+          "Matched",
+          "UnmatchedIngredient",
+          "UnmatchedUnit",
+          "Unparsed"
+        ]
+      },
+      "ImportSource": {
+        "enum": [
+          "Url",
+          "Text"
+        ]
+      },
+      "ImportStatus": {
+        "enum": [
+          "Draft",
+          "Saved",
+          "Discarded"
+        ]
+      },
+      "ImportSuggestionResponse": {
+        "required": [
+          "ingredientId",
+          "name",
+          "confidence"
+        ],
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "confidence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
       },
       "IngredientResponse": {
         "required": [
@@ -4037,6 +4736,151 @@
           },
           "fullUrl": {
             "type": "string"
+          }
+        }
+      },
+      "RecipeImportResponse": {
+        "required": [
+          "id",
+          "source",
+          "sourceUrl",
+          "status",
+          "title",
+          "description",
+          "servings",
+          "prepMinutes",
+          "cookMinutes",
+          "imageUrl",
+          "steps",
+          "lines",
+          "warnings",
+          "canSave",
+          "savedRecipeId",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ImportSource"
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ImportStatus"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "servings": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "prepMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cookMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportLineResponse"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canSave": {
+            "type": "boolean"
+          },
+          "savedRecipeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecipeImportSummaryResponse": {
+        "required": [
+          "id",
+          "source",
+          "sourceUrl",
+          "title",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ImportSource"
+          },
+          "sourceUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -4467,6 +5311,18 @@
           }
         }
       },
+      "SaveRecipeImportResponse": {
+        "required": [
+          "recipeId"
+        ],
+        "type": "object",
+        "properties": {
+          "recipeId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
       "ScaledRecipeResponse": {
         "required": [
           "recipeId",
@@ -4767,6 +5623,63 @@
           }
         }
       },
+      "UpdateImportLineRequest": {
+        "required": [
+          "position",
+          "ingredientId",
+          "quantity",
+          "unitId",
+          "note",
+          "remove"
+        ],
+        "type": "object",
+        "properties": {
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ingredientId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "remove": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "UpdateMealPlanEntryRequest": {
         "required": [
           "date",
@@ -4789,6 +5702,77 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "UpdateRecipeImportRequest": {
+        "required": [
+          "title",
+          "description",
+          "servings",
+          "prepMinutes",
+          "cookMinutes",
+          "steps",
+          "lines"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "servings": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "prepMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cookMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "steps": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "lines": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/UpdateImportLineRequest"
+            }
           }
         }
       }
@@ -4815,6 +5799,9 @@
     },
     {
       "name": "RecipeEndpoints"
+    },
+    {
+      "name": "RecipeImportEndpoints"
     },
     {
       "name": "TagEndpoints"

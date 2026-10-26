@@ -372,6 +372,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListRecipeImports"];
+        put?: never;
+        post: operations["CreateRecipeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/imports/{importId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRecipeImport"];
+        put: operations["UpdateRecipeImport"];
+        post?: never;
+        delete: operations["DiscardRecipeImport"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/imports/{importId}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SaveRecipeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/tags": {
         parameters: {
             query?: never;
@@ -649,6 +697,10 @@ export interface components {
         CreateInviteRequest: {
             role: null | string;
         };
+        CreateRecipeImportRequest: {
+            url: null | string;
+            text: null | string;
+        };
         CreateTagRequest: {
             name: null | string;
             kind: null | string;
@@ -703,6 +755,42 @@ export interface components {
         };
         /** Format: binary */
         IFormFile: string;
+        ImportLineResponse: {
+            /** Format: int32 */
+            position: number | string;
+            original: string;
+            ingredientText: null | string;
+            /** Format: double */
+            quantity: null | number | string;
+            /** Format: double */
+            quantityLow: null | number | string;
+            unitText: null | string;
+            /** Format: uuid */
+            unitId: null | string;
+            unitCode: null | string;
+            unitName: null | string;
+            /** Format: uuid */
+            ingredientId: null | string;
+            ingredientName: null | string;
+            /** Format: double */
+            confidence: number | string;
+            note: null | string;
+            status: components["schemas"]["ImportLineStatus"];
+            suggestions: components["schemas"]["ImportSuggestionResponse"][];
+        };
+        /** @enum {unknown} */
+        ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";
+        /** @enum {unknown} */
+        ImportSource: "Url" | "Text";
+        /** @enum {unknown} */
+        ImportStatus: "Draft" | "Saved" | "Discarded";
+        ImportSuggestionResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            name: string;
+            /** Format: double */
+            confidence: number | string;
+        };
         IngredientResponse: {
             /** Format: uuid */
             id: string;
@@ -797,6 +885,39 @@ export interface components {
             cardUrl: string;
             fullUrl: string;
         };
+        RecipeImportResponse: {
+            /** Format: uuid */
+            id: string;
+            source: components["schemas"]["ImportSource"];
+            sourceUrl: null | string;
+            status: components["schemas"]["ImportStatus"];
+            title: string;
+            description: null | string;
+            /** Format: int32 */
+            servings: null | number | string;
+            /** Format: int32 */
+            prepMinutes: null | number | string;
+            /** Format: int32 */
+            cookMinutes: null | number | string;
+            imageUrl: null | string;
+            steps: string[];
+            lines: components["schemas"]["ImportLineResponse"][];
+            warnings: string[];
+            canSave: boolean;
+            /** Format: uuid */
+            savedRecipeId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        RecipeImportSummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            source: components["schemas"]["ImportSource"];
+            sourceUrl: null | string;
+            title: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
         RecipeIngredientRequest: {
             /** Format: uuid */
             ingredientId: null | string;
@@ -884,6 +1005,10 @@ export interface components {
         RegisterResponse: {
             message: string;
         };
+        SaveRecipeImportResponse: {
+            /** Format: uuid */
+            recipeId: string;
+        };
         ScaledRecipeResponse: {
             /** Format: uuid */
             recipeId: string;
@@ -958,11 +1083,35 @@ export interface components {
             /** Format: double */
             factorToBase: number | string;
         };
+        UpdateImportLineRequest: {
+            /** Format: int32 */
+            position: null | number | string;
+            /** Format: uuid */
+            ingredientId: null | string;
+            /** Format: double */
+            quantity: null | number | string;
+            /** Format: uuid */
+            unitId: null | string;
+            note: null | string;
+            remove: null | boolean;
+        };
         UpdateMealPlanEntryRequest: {
             /** Format: date */
             date: null | string;
             /** Format: int32 */
             servings: null | number | string;
+        };
+        UpdateRecipeImportRequest: {
+            title: null | string;
+            description: null | string;
+            /** Format: int32 */
+            servings: null | number | string;
+            /** Format: int32 */
+            prepMinutes: null | number | string;
+            /** Format: int32 */
+            cookMinutes: null | number | string;
+            steps: null | string[];
+            lines: null | components["schemas"]["UpdateImportLineRequest"][];
         };
     };
     responses: never;
@@ -2303,6 +2452,391 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListRecipeImports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImportSummaryResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["CreateRecipeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImportResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                importId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImportResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                importId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["UpdateRecipeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImportResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DiscardRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                importId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SaveRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                importId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveRecipeImportResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

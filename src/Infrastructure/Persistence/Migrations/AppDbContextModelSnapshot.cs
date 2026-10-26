@@ -3036,6 +3036,63 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.Imports.RecipeImport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DraftJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RawContent")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<Guid?>("SavedRecipeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("HouseholdId", "Status");
+
+                    b.ToTable("RecipeImports", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.MealPlans.MealPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3867,6 +3924,21 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Imports.RecipeImport", b =>
+                {
+                    b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.MealPlans.MealPlan", b =>
