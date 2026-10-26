@@ -43,6 +43,22 @@ else
   echo "Generated Seed:AdminPassword."
 fi
 
+# T-045: a second confirmed user for the e2e invite flow. local-seed creates it without any household.
+if has Seed:MemberEmail; then
+  echo "Seed:MemberEmail already set, keeping it."
+else
+  dotnet user-secrets set Seed:MemberEmail member@foodplanner.local --project src/Api >/dev/null
+  echo "Set Seed:MemberEmail."
+fi
+
+if has Seed:MemberPassword; then
+  echo "Seed:MemberPassword already set, keeping it."
+else
+  mpw="$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+  dotnet user-secrets set Seed:MemberPassword "${mpw:0:20}" --project src/Api >/dev/null
+  echo "Generated Seed:MemberPassword."
+fi
+
 if has ConnectionStrings:Default; then
   echo "ConnectionStrings:Default already set, keeping it."
 else

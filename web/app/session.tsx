@@ -27,6 +27,11 @@ type SessionApi = {
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signOut: () => Promise<void>;
   setActiveHousehold: (id: string) => void;
+  /**
+   * Reads the household list again (after creating, joining, leaving or deleting one, or a role change). Makes
+   * `preferId` active if it is in the list, else keeps the stored choice, else the first. False if it could not be read.
+   */
+  refreshHouseholds: (preferId?: string) => Promise<boolean>;
 };
 
 const storageKey = (userId: string) => `foodplanner.activeHousehold.${userId}`;
@@ -173,9 +178,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const refreshHouseholds = useCallback(async (preferId?: string): Promise<boolean> => {
+    try {
+      const list = await api.GET("/api/households");
+      const households = list.data;
+      if (!households) return false;
+      setSession((current) => {
+        if (current.status !== "signedIn") return current;
+        if (preferId && households.some((h) => h.id === preferId)) writeStored(current.user.userId, preferId);
+        saveSession({ user: current.user, households });
+        return { ...current, households, activeHouseholdId: pickActive(current.user.userId, households) };
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ session, signIn, signOut, setActiveHousehold }),
-    [session, signIn, signOut, setActiveHousehold],
+    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds }),
+    [session, signIn, signOut, setActiveHousehold, refreshHouseholds],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

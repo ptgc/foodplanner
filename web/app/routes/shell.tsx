@@ -66,6 +66,7 @@ export default function Shell() {
         <NavLink to="/recipes">{t("nav.recipes")}</NavLink>
         <NavLink to="/plan">{t("nav.plan")}</NavLink>
         <NavLink to="/shopping">{t("nav.shopping")}</NavLink>
+        <NavLink to="/household">{t("nav.household")}</NavLink>
       </nav>
       <main id="main" ref={mainRef} tabIndex={-1} className="shell-main">
         <Outlet />

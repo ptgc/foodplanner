@@ -1,0 +1,204 @@
+/* Household settings (T-045). 390px first; every control is at least 44px (var(--touch)). */
+.household h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+}
+
+.household-card {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid #d0d0d8;
+  border-radius: 0.75rem;
+}
+
+.household-card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.household-card h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.household-danger {
+  border-color: var(--error);
+}
+
+.household-notice {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #e3f1e8;
+}
+
+.household-note {
+  margin: 0 0 1rem;
+  color: #4a4a55;
+}
+
+.household-facts {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.household-facts dt {
+  font-size: 0.85rem;
+  color: #4a4a55;
+}
+
+.household-facts dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.household-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.household-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #e4e4ea;
+}
+
+.household-row:first-child {
+  border-top: 0;
+}
+
+.household-row-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.household-row-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.household-row-sub {
+  font-size: 0.85rem;
+  color: #4a4a55;
+}
+
+.household-badge {
+  align-self: flex-start;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+.household-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.household-row-role {
+  font-weight: 600;
+}
+
+.household-row-error {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.household select {
+  min-height: var(--touch);
+  padding: 0 0.5rem;
+  font: inherit;
+  border: 1px solid #767680;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.household-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0 0.75rem;
+}
+
+.household-inline .field {
+  flex: 1 1 10rem;
+}
+
+.household-inline .button {
+  margin-bottom: 1rem;
+}
+
+.household-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.household-invite-created {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: #eef2f7;
+}
+
+.household-invite-created input {
+  width: 100%;
+}
+
+.household-card .field input {
+  width: 100%;
+}
+
+.household-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+/* Confirmation dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 28rem;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dialog .field input {
+  width: 100%;
+}

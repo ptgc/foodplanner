@@ -200,13 +200,17 @@ body {
 }
 
 .shell-nav a {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: var(--touch);
+  padding: 0 0.125rem;
   color: var(--fg);
   text-decoration: none;
+  text-align: center;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 

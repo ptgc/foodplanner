@@ -3,16 +3,19 @@
 # Usage: ./scripts/e2e.sh [playwright args, e.g. --project=mobile-390]
 # BASE_URL overrides the default http://localhost:3000.
 # E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD default to the seeded admin in user secrets (Seed:AdminEmail / Seed:AdminPassword);
-# the password is exported to the test process only and never printed.
+# E2E_MEMBER_EMAIL / E2E_MEMBER_PASSWORD likewise come from Seed:MemberEmail / Seed:MemberPassword (T-045, invite flow).
+# Passwords are exported to the test process only and never printed.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
-if [[ -z "${E2E_ADMIN_EMAIL:-}" || -z "${E2E_ADMIN_PASSWORD:-}" ]]; then
+if [[ -z "${E2E_ADMIN_EMAIL:-}" || -z "${E2E_ADMIN_PASSWORD:-}" || -z "${E2E_MEMBER_EMAIL:-}" || -z "${E2E_MEMBER_PASSWORD:-}" ]]; then
   secrets="$(dotnet user-secrets list --project src/Api)"
   E2E_ADMIN_EMAIL="$(printf '%s\n' "$secrets" | sed -n 's/^Seed:AdminEmail[ ]=[ ]//p' | tr -d '\r')"
   E2E_ADMIN_PASSWORD="$(printf '%s\n' "$secrets" | sed -n 's/^Seed:AdminPassword[ ]=[ ]//p' | tr -d '\r')"
+  E2E_MEMBER_EMAIL="$(printf '%s\n' "$secrets" | sed -n 's/^Seed:MemberEmail[ ]=[ ]//p' | tr -d '\r')"
+  E2E_MEMBER_PASSWORD="$(printf '%s\n' "$secrets" | sed -n 's/^Seed:MemberPassword[ ]=[ ]//p' | tr -d '\r')"
   unset secrets
-  export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD
+  export E2E_ADMIN_EMAIL E2E_ADMIN_PASSWORD E2E_MEMBER_EMAIL E2E_MEMBER_PASSWORD
 fi
 cd tests/e2e
 npm ci

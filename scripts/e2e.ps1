@@ -2,15 +2,18 @@
 # Usage: .\scripts\e2e.ps1 [playwright args, e.g. --project=mobile-390]
 # BASE_URL overrides the default http://localhost:3000.
 # E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD default to the seeded admin in user secrets (Seed:AdminEmail / Seed:AdminPassword);
-# the password is set for the test process only and never printed.
+# E2E_MEMBER_EMAIL / E2E_MEMBER_PASSWORD likewise come from Seed:MemberEmail / Seed:MemberPassword (T-045, invite flow).
+# Passwords are set for the test process only and never printed.
 $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot '..'
-if (-not $env:E2E_ADMIN_EMAIL -or -not $env:E2E_ADMIN_PASSWORD) {
+if (-not $env:E2E_ADMIN_EMAIL -or -not $env:E2E_ADMIN_PASSWORD -or -not $env:E2E_MEMBER_EMAIL -or -not $env:E2E_MEMBER_PASSWORD) {
     Push-Location $root
     try { $secrets = dotnet user-secrets list --project src/Api } finally { Pop-Location }
     foreach ($line in $secrets) {
         if ($line -like 'Seed:AdminEmail[ ]=[ ]*')    { $env:E2E_ADMIN_EMAIL    = $line.Substring('Seed:AdminEmail'.Length + 3) }
         if ($line -like 'Seed:AdminPassword[ ]=[ ]*') { $env:E2E_ADMIN_PASSWORD = $line.Substring('Seed:AdminPassword'.Length + 3) }
+        if ($line -like 'Seed:MemberEmail[ ]=[ ]*')    { $env:E2E_MEMBER_EMAIL   = $line.Substring('Seed:MemberEmail'.Length + 3) }
+        if ($line -like 'Seed:MemberPassword[ ]=[ ]*') { $env:E2E_MEMBER_PASSWORD = $line.Substring('Seed:MemberPassword'.Length + 3) }
     }
     Remove-Variable secrets
 }

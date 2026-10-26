@@ -297,6 +297,11 @@ random SQL Server `sa` password (24 letters and digits plus one `-`; meets the S
 
 - `Seed:AdminEmail` (`admin@foodplanner.local`) and `Seed:AdminPassword` (random, 20 letters and digits; T-009 needs at
   least 10 characters): the local admin that `local-seed` creates (T-029).
+- `Seed:MemberEmail` (`member@foodplanner.local`) and `Seed:MemberPassword` (random, 20 letters and digits): a second
+  confirmed user that `local-seed` creates in **no** household (T-045). The e2e invite flow has the admin invite this
+  user; `e2e.sh`/`e2e.ps1` pass both to Playwright as `E2E_MEMBER_EMAIL`/`E2E_MEMBER_PASSWORD`, never printed. Like the
+  admin, it exists only through the Development-only seed (no production backdoor). If you set up before T-045, run
+  `local-secrets` and `local-seed` again.
 
 **Local admin login.** Sign in at http://localhost:3000 with `Seed:AdminEmail` and `Seed:AdminPassword`. List the secrets (this prints the values, do not paste the output anywhere):
 

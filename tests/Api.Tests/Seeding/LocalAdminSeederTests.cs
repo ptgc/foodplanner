@@ -13,9 +13,15 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AuthHost CreateHost(string email, string environment = "Development", string? password = SeedPassword) => AuthHost.Create(
+    private AuthHost CreateHost(string email, string environment = "Development", string? password = SeedPassword, string? memberEmail = null) => AuthHost.Create(
         db.ConnectionString,
-        new Dictionary<string, string?> { [LocalAdminSeeder.EmailKey] = email, [LocalAdminSeeder.PasswordKey] = password },
+        new Dictionary<string, string?>
+        {
+            [LocalAdminSeeder.EmailKey] = email,
+            [LocalAdminSeeder.PasswordKey] = password,
+            [LocalAdminSeeder.MemberEmailKey] = memberEmail,
+            [LocalAdminSeeder.MemberPasswordKey] = memberEmail is null ? null : SeedPassword,
+        },
         environment);
 
     [Fact]
@@ -79,5 +85,39 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
         await Assert.ThrowsAsync<InvalidOperationException>(() => LocalAdminSeeder.RunAsync(host.Services, Ct));
 
         Assert.Null(await host.FindUserAsync(email));
+    }
+
+    [Fact]
+    public async Task Seed_creates_a_confirmed_member_without_any_household_and_seeding_twice_adds_no_duplicate()
+    {
+        var admin = AuthHost.NewEmail();
+        var member = AuthHost.NewEmail();
+        await using var host = CreateHost(admin, memberEmail: member);
+
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+
+        var user = await host.FindUserAsync(member);
+        Assert.True(user.EmailConfirmed);
+        using var client = host.CreateClient();
+        using var login = await client.LoginAsync(member, SeedPassword);
+        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+        using var households = await client.GetAsync("/api/households");
+        Assert.Empty((await households.JsonAsync()).EnumerateArray());
+        using var scope = host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal(1, await context.Users.CountAsync(u => u.Email == member, Ct));
+        Assert.False(await context.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AnyAsync(m => m.UserId == user.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Seed_refuses_outside_Development_and_creates_no_member()
+    {
+        var member = AuthHost.NewEmail();
+        await using var host = CreateHost(AuthHost.NewEmail(), "Production", memberEmail: member);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => LocalAdminSeeder.RunAsync(host.Services, Ct));
+
+        Assert.Null(await host.FindUserAsync(member));
     }
 }
