@@ -49,6 +49,28 @@ if (Get-Secret 'Seed:AdminPassword') {
     Write-Host 'Generated Seed:AdminPassword.'
 }
 
+# T-045: a second confirmed user for the e2e invite flow. local-seed creates it without any household.
+if (Get-Secret 'Seed:MemberEmail') {
+    Write-Host 'Seed:MemberEmail already set, keeping it.'
+} else {
+    dotnet user-secrets set Seed:MemberEmail member@foodplanner.local --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Set Seed:MemberEmail.'
+}
+
+if (Get-Secret 'Seed:MemberPassword') {
+    Write-Host 'Seed:MemberPassword already set, keeping it.'
+} else {
+    $chars = [char[]]'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $bytes = New-Object byte[] 20
+    $rng.GetBytes($bytes)
+    $mpw = -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
+    dotnet user-secrets set Seed:MemberPassword $mpw --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Generated Seed:MemberPassword.'
+}
+
 if (Get-Secret 'ConnectionStrings:Default') {
     Write-Host 'ConnectionStrings:Default already set, keeping it.'
 } else {

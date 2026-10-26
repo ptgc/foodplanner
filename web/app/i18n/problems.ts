@@ -22,6 +22,11 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:ingredient-exists": "recipe.problem.ingredientExists",
   "urn:foodplanner:problem:tag-exists": "recipe.problem.tagExists",
   "urn:foodplanner:problem:image-too-large": "recipe.problem.imageTooLarge",
+  "urn:foodplanner:problem:last-owner": "household.problem.lastOwner",
+  "urn:foodplanner:problem:member-not-found": "household.problem.memberNotFound",
+  "urn:foodplanner:problem:cannot-remove-self": "household.problem.cannotRemoveSelf",
+  "urn:foodplanner:problem:owner-cannot-be-removed": "household.problem.ownerCannotBeRemoved",
+  "urn:foodplanner:problem:invite-not-found": "household.problem.inviteNotFound",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */

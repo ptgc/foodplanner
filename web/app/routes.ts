@@ -13,5 +13,7 @@ export default [
     route("plan", "routes/plan.tsx"),
     route("recipes/:id/edit", "routes/recipe-edit.tsx", { id: "recipe-edit" }),
     route("shopping", "routes/shopping.tsx"),
+    route("household", "routes/household.tsx"),
+    route("invite/:token", "routes/invite.tsx"),
   ]),
 ] satisfies RouteConfig;

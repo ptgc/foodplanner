@@ -22,6 +22,8 @@ The script runs `npm ci` and `npx playwright install chromium` (Windows and Linu
 use `npx playwright install --with-deps chromium` once), then `npx playwright test`.
 `BASE_URL` overrides the default `http://localhost:3000`.
 
+`household.spec.ts` (T-045) also needs the seeded member (`member@foodplanner.local`, confirmed, in no household): `local-secrets` + `local-seed` create it and the scripts export `E2E_MEMBER_EMAIL` / `E2E_MEMBER_PASSWORD` from `Seed:MemberEmail` / `Seed:MemberPassword` the same way as the admin's.
+
 Sign-in tests use the seeded admin (T-029). The scripts read `Seed:AdminEmail` / `Seed:AdminPassword` from
 `dotnet user-secrets` (without printing) into `E2E_ADMIN_EMAIL` / `E2E_ADMIN_PASSWORD`; set those two variables
 yourself to override. Login is rate limited (429, 10/min per email), so the suite signs in ONCE per run: the `setup`

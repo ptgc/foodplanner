@@ -10,6 +10,16 @@ export function adminCredentials(): { email: string; password: string } {
   return { email, password };
 }
 
+/** Credentials of the seeded member (T-045): confirmed, in no household; the invite flow adds them to one. */
+export function memberCredentials(): { email: string; password: string } {
+  const email = process.env.E2E_MEMBER_EMAIL;
+  const password = process.env.E2E_MEMBER_PASSWORD;
+  if (!email || !password) {
+    throw new Error("Set E2E_MEMBER_EMAIL and E2E_MEMBER_PASSWORD (run via scripts/e2e.sh or scripts/e2e.ps1, after local-secrets and local-seed).");
+  }
+  return { email, password };
+}
+
 /**
  * Session saved once per run by tests/auth.setup.ts. Use `test.use({ storageState: adminState })` (or pass it to
  * `browser.newContext`) for tests that only need a signed-in user, so they do not hit the login rate limit.
@@ -18,10 +28,10 @@ export const adminState = ".auth/admin.json";
 
 /**
  * Signs in through the UI. Login is rate limited per email (429, 10/min), so when the server answers 429
- * this waits and retries instead of failing.
+ * this waits and retries instead of failing. Signs in as the admin unless `credentials` say otherwise.
  */
-export async function signIn(page: Page, returnTo = "/") {
-  const { email, password } = adminCredentials();
+export async function signIn(page: Page, returnTo = "/", credentials = adminCredentials()) {
+  const { email, password } = credentials;
   await page.goto(returnTo);
   for (let attempt = 0; ; attempt++) {
     await page.getByLabel("Email").fill(email);

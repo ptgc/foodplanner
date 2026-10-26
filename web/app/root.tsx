@@ -8,6 +8,7 @@ import "./recipes/recipes.css";
 import "./planner/planner.css";
 import "./recipes/recipe-edit.css";
 import "./recipes/cook.css";
+import "./household/household.css";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (

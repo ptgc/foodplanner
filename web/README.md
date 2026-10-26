@@ -41,9 +41,9 @@ React Router already emits one chunk per route and loads it on navigation. Until
 
 | Number | What it is | Now | Budget |
 |---|---|---|---|
-| Initial | what `index.html` loads before any route: router manifest, entry, root route, React, i18n, session | 124.9 KB | 140 KB |
-| First load | the initial JS plus one route (and its layout); the budget applies to the heaviest route (`/shopping`, it carries SignalR) | 145.0 KB (others 126-139 KB) | 170 KB (the former total budget, unchanged) |
-| Total | every chunk; the service worker precaches all of them in the background | 170.0 KB | 210 KB |
+| Initial | what `index.html` loads before any route: router manifest, entry, root route, React, i18n, session | 127.6 KB | 140 KB |
+| First load | the initial JS plus one route (and its layout); the budget applies to the heaviest route (`/shopping`, it carries SignalR) | 149.1 KB (others 129-142 KB) | 170 KB (the former total budget, unchanged) |
+| Total | every chunk; the service worker precaches all of them in the background | 179.2 KB | 210 KB |
 
 Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The total budget is a proposal: the old 170 KB plus about 20% headroom for the next screens (T-042, T-043, T-050), since a cold visit pays only "first load" and the rest is a one-time background download. The next saving, if needed, is loading the `nb` messages only when that locale is active (the `problems` chunk, 11 KB gzipped, holds both languages). Raising a budget is a deliberate change to this table and the script.
 
@@ -89,6 +89,22 @@ Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The
 - Ingredients panel (toggle, `aria-expanded`) with a servings stepper (56px). Amounts come from the API: Domain `RecipeScaling` scales exactly, then `QuantityMerger.ForDisplay` rounds and picks the display unit (1500 g shows 1,5 kg); to taste is unchanged; servings 1 to 100 else 400 ProblemDetails.
 - Screen Wake Lock: requested on enter, re-requested on `visibilitychange` to visible (the browser drops it when the tab is hidden), released on the done screen, exit and unmount. Unsupported or refused shows a translated hint; nothing else changes.
 - Out of scope: timers (T-055) and voice (T-056).
+
+## Household settings (T-045, `/household`, `/invite/:token`)
+Nav entry "Household" (nb "Husstand") in the shell. The screen works on the active household (the switcher in the header changes it) and takes its role from `GET /api/households`. Controls follow the API policies; the API still decides, and a 403 is shown as the translated "You do not have access to this."
+
+| Control | Owner | Adult | Child |
+|---|---|---|---|
+| Household name, your role | yes | yes | yes |
+| Members (role select, Remove) and invitations (create, copy/share link, list, revoke) | yes | no (a note says only owners see them; the endpoints are Owner-only, so they are not called) | no |
+| Export (download JSON) | yes | yes | no |
+| Leave household | yes | yes | yes |
+| Delete household (type the name to confirm) | yes | no | no |
+| Create another household | yes | yes | yes |
+
+Decisions: your own row in the member list is read only (no select, no Remove: leave is the way out; to hand over ownership promote someone, then leave). Another Owner has a role select but no Remove (the API refuses removing an Owner). Every destructive action (remove member, revoke invitation, leave, delete) opens `household/confirm-dialog.tsx`: `role="dialog"`, `aria-modal`, labelled by its title and described by its body, focus starts on Cancel (on the text field for delete), Tab is trapped, Escape and Cancel close it without calling the API, and focus returns to the opener. Leaving as the last Owner shows the translated `last-owner` message (promote someone first, or delete) inside the dialog. After leave, delete, create or accepting an invitation the session reloads the household list (`refreshHouseholds` in `session.tsx`) and the active household becomes the new one, the next one, or none (empty state with the create form). Live connections are closed by the server (T-044); a shopping or plan screen still open elsewhere gets 403 and shows its no-access screen.
+
+The invitation link is `{origin}/invite/{token}`: the T-011 spec fixed the token (shown once, in the create response) but not the link, so the app chose this path. `/invite/:token` is inside the shell, so a signed-out visitor goes to `/login?returnTo=/invite/{token}` and comes back; joining is a button press (a reload or link preview must not spend the single-use link). Outcomes: joined (role shown, household becomes active), 410 `invite-invalid`, 409 `already-member`, 429. Export is fetched with the generated client (`parseAs: "text"`) and saved through a Blob download; a 429 shows the export-specific "Too many exports" message. Tests: `app/routes/household.test.tsx`, `invite.test.tsx` (Vitest) and `tests/e2e/tests/household.spec.ts`, which uses the seeded member (`E2E_MEMBER_*`, README section 8) and names its household "Zz E2E ..." so it sorts after "Home" (other specs use the first household).
 
 ## Internationalisation (T-038, Q-013)
 All user-facing text is translatable. Code, keys and the fallback are English; locales are `nb` and `en`.
