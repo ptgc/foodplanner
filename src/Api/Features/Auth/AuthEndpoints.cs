@@ -1,5 +1,6 @@
 using System.Net.Mail;
 using Foodplanner.Api.Problems;
+using Foodplanner.Api.Realtime;
 using Foodplanner.Api.Security;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Email;
@@ -77,6 +78,7 @@ public static class AuthEndpoints
         EmailConfirmationTokens tokens,
         IOptions<AuthOptions> options,
         TimeProvider time,
+        ILiveConnections live,
         CancellationToken ct)
     {
         var errors = new Dictionary<string, string[]>();
@@ -134,6 +136,8 @@ public static class AuthEndpoints
         var stamped = await users.UpdateSecurityStampAsync(existing);
         if (stamped.Succeeded)
         {
+            // The stamp changed: close the user's live connections (Q-015).
+            await live.CloseUserAsync(existing.Id);
             await SendSetPasswordLinkAsync(email, tokens, options.Value, existing, ct);
         }
 
@@ -146,7 +150,8 @@ public static class AuthEndpoints
         ConfirmEmailRequest request,
         UserManager<AppUser> users,
         EmailConfirmationTokens tokens,
-        IOptions<AuthOptions> options)
+        IOptions<AuthOptions> options,
+        ILiveConnections live)
     {
         var invalid = AppProblems.Problem(
             StatusCodes.Status400BadRequest,
@@ -199,6 +204,8 @@ public static class AuthEndpoints
             return invalid;
         }
 
+        // The stamp rotated: sessions and live connections of the old one must end (Q-015).
+        await live.CloseUserAsync(user.Id);
         return Results.NoContent();
     }
 

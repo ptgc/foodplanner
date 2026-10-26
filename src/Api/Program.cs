@@ -88,6 +88,7 @@ var api = app.MapApiRoot();
 api.MapHealthEndpoints();
 api.MapAuthEndpoints();
 api.MapHouseholdEndpoints();
+api.MapHouseholdManagementEndpoints();
 api.MapCatalogEndpoints();
 api.MapRecipeEndpoints();
 api.MapTagEndpoints();

@@ -51,7 +51,18 @@ internal sealed class HubTestClient : IAsyncDisposable
             })
             .Build();
         Connection.On<ShoppingListChangedMessage>(ShoppingListHub.ChangedEvent, message => _events.Writer.TryWrite(message));
+        Connection.Closed += _ =>
+        {
+            _closed.TrySetResult();
+            return Task.CompletedTask;
+        };
     }
+
+    private readonly TaskCompletionSource _closed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>True when the server (or anything else) closes the connection within the window (Q-015 eviction).</summary>
+    public async Task<bool> ClosesWithinAsync(TimeSpan window) =>
+        await Task.WhenAny(_closed.Task, Task.Delay(window, Ct)) == _closed.Task;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -232,9 +243,11 @@ public sealed class ShoppingListHubTests(AuthDatabase db) : IClassFixture<AuthDa
     }
 
     [Fact]
-    public async Task A_revoked_member_who_already_joined_keeps_getting_content_free_signals_until_disconnect()
+    public async Task A_member_deleted_behind_the_apis_back_keeps_getting_content_free_signals_until_disconnect()
     {
-        // Pins the documented residual window (docs/domain.md): a joined connection stays in its group.
+        // Pins what eviction (Q-015, T-044) does NOT cover: it runs when the API removes the member. Here the row is
+        // deleted with raw SQL, so nothing evicts and a joined connection stays in its group (HouseholdManagementTests
+        // covers the API paths).
         await using var host = Host();
         var owner = await host.SignInAsync();
         var household = await owner.Client.CreateHouseholdAsync();

@@ -121,6 +121,21 @@ public class HouseholdDomainTests
         Assert.NotEqual(Encoding.UTF8.GetBytes(token), InviteToken.Hash(token));
     }
 
+    [Fact]
+    public void Revoking_ends_an_open_invite_now_and_leaves_expired_ones_alone()
+    {
+        var now = new DateTimeOffset(2026, 10, 25, 12, 0, 0, TimeSpan.Zero);
+        var open = new Invite(Guid.NewGuid(), InviteToken.Hash(InviteToken.Generate()), HouseholdRole.Adult, now.AddDays(7), Guid.NewGuid());
+        var expired = new Invite(Guid.NewGuid(), InviteToken.Hash(InviteToken.Generate()), HouseholdRole.Adult, now.AddDays(-1), Guid.NewGuid());
+
+        open.Revoke(now);
+        expired.Revoke(now);
+
+        Assert.False(open.IsUsable(now));
+        Assert.Equal(now, open.ExpiresAt);
+        Assert.Equal(now.AddDays(-1), expired.ExpiresAt); // not moved forward
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

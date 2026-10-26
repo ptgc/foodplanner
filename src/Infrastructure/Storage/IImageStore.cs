@@ -18,6 +18,9 @@ public interface IImageStore
 /// <summary>Blob names for recipe images. The household id comes first so one household's files share a prefix.</summary>
 public static class RecipeImageBlobNames
 {
+    /// <summary>Every blob of one household (T-044: deleted with the household). Ends with a slash, as <see cref="IImageStore.DeletePrefixAsync"/> requires.</summary>
+    public static string HouseholdPrefix(Guid householdId) => $"{householdId:N}/";
+
     public static string RecipePrefix(Guid householdId, Guid recipeId) => $"{householdId:N}/{recipeId:N}/";
 
     public static string VersionPrefix(Guid householdId, Guid recipeId, Guid version) =>
