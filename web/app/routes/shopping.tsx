@@ -5,6 +5,7 @@ import type { components } from "../api/schema";
 import { useSession } from "../session";
 import { useI18n, type I18n } from "../i18n";
 import { useShoppingList, type ActionResult, type PantryItem } from "../shopping/use-shopping-list";
+import { copyText, fetchExport, shareText } from "../shopping/export";
 import { addWeeks, isMonday, isoWeek, mondayOf, weekRange } from "../shopping/week";
 
 type Item = components["schemas"]["ShoppingListItemResponse"];
@@ -123,6 +124,7 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
       <button type="button" className="button shop-generate" disabled={busy || !model.online} onClick={() => void generate()}>
         {busy ? t("shopping.generating") : t("shopping.generate")}
       </button>
+      <ExportBar householdId={householdId} weekStart={weekStart} online={model.online} />
       {message && (
         <p role="alert" className="form-error">
           {message}
@@ -173,6 +175,67 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
         onAdd={async (label, quantity, unitId) => report(await model.addItem(label, quantity, unitId))}
       />
     </section>
+  );
+}
+
+/** Share and Copy for the week on screen. The text is formatted by the API, so both need it to be reachable. */
+function ExportBar({ householdId, weekStart, online }: { householdId: string; weekStart: string; online: boolean }) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [manual, setManual] = useState<string | null>(null);
+
+  const run = async (mode: "share" | "copy") => {
+    setBusy(true);
+    setStatus(null);
+    setError(null);
+    setManual(null);
+    try {
+      const payload = await fetchExport(householdId, weekStart);
+      if (payload === "failed") {
+        setError(t("shopping.exportFailed"));
+        return;
+      }
+      if (mode === "share") {
+        const shared = await shareText(payload);
+        if (shared !== "unavailable") return; // shared, or the user cancelled: nothing more to do
+      }
+      if (await copyText(payload.text)) setStatus(t("shopping.copied"));
+      else setManual(payload.text);
+    } catch {
+      setError(t("shopping.exportFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="shop-export">
+      <div className="shop-export-buttons">
+        <button type="button" className="button" disabled={busy || !online} onClick={() => void run("share")}>
+          {t("shopping.share")}
+        </button>
+        <button type="button" className="button" disabled={busy || !online} onClick={() => void run("copy")}>
+          {t("shopping.copy")}
+        </button>
+      </div>
+      {!online && <p className="shop-hint">{t("shopping.exportNeedsOnline")}</p>}
+      <p role="status" aria-live="polite" className="shop-toast" data-testid="copy-toast">
+        {status}
+      </p>
+      {error && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
+      {manual !== null && (
+        <div className="field">
+          <label htmlFor="shop-export-text">{t("shopping.copyManually")}</label>
+          <textarea id="shop-export-text" readOnly rows={8} value={manual} onFocus={(e) => e.currentTarget.select()} />
+        </div>
+      )}
+    </div>
   );
 }
 

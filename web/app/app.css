@@ -261,6 +261,27 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.shop-export {
+  margin-bottom: 0.75rem;
+}
+
+.shop-export-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.shop-export-buttons .button {
+  flex: 1;
+}
+
+.shop-toast {
+  margin: 0.5rem 0 0;
+}
+
+.shop-toast:empty {
+  margin: 0;
+}
+
 .shop-items {
   list-style: none;
   margin: 0;

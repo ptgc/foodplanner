@@ -173,3 +173,66 @@ test("Works offline for read and check-off with sync on reconnect", async ({ pag
     await removeItems(page.request, h, week);
   }
 });
+
+test("Copy puts the unchecked items on the clipboard and leaves out checked ones", async ({ page }, testInfo) => {
+  const week = weekFor(testInfo, 3);
+  const h = await householdId(page.request);
+  const stamp = uniqueStamp(testInfo);
+  const wanted = `E2E kopi ${stamp}`;
+  const done = `E2E ferdig ${stamp}`;
+  try {
+    await addItem(page.request, h, week, wanted);
+    const doneId = await addItem(page.request, h, week, done);
+    const res = await page.request.put(`/api/households/${h}/shopping-lists/${week}/items/${doneId}/check`, {
+      headers: await csrf(page.request),
+      data: { checked: true },
+    });
+    expect(res.ok()).toBe(true);
+
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(`/shopping?week=${week}`);
+    const copy = page.getByRole("button", { name: "Copy", exact: true });
+    const share = page.getByRole("button", { name: "Share", exact: true });
+    await expect(box(page, wanted)).toBeVisible();
+    for (const b of [copy, share]) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+    await copy.click();
+    await expect(page.getByTestId("copy-toast")).toHaveText("Copied to the clipboard");
+    const text = await page.evaluate(() => navigator.clipboard.readText());
+    expect(text).toContain(`- ${wanted}`);
+    expect(text).not.toContain(done);
+    if ((page.viewportSize()?.width ?? 0) <= 390) {
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, "no horizontal scroll at 390px").toBeLessThanOrEqual(0);
+    }
+  } finally {
+    await removeItems(page.request, h, week);
+  }
+});
+
+test("Share hands the title and text to navigator.share", async ({ page }, testInfo) => {
+  const week = weekFor(testInfo, 4);
+  const h = await householdId(page.request);
+  const label = `E2E del ${uniqueStamp(testInfo)}`;
+  type Shared = { title: string; text: string };
+  try {
+    await addItem(page.request, h, week, label);
+    await page.addInitScript(() => {
+      const shared: { title: string; text: string }[] = [];
+      (window as unknown as { __shared: typeof shared }).__shared = shared;
+      navigator.canShare = () => true;
+      navigator.share = async (data) => {
+        shared.push({ title: String(data?.title), text: String(data?.text) });
+      };
+    });
+    await page.goto(`/shopping?week=${week}`);
+    await expect(box(page, label)).toBeVisible();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __shared: Shared[] }).__shared.length)).toBe(1);
+    const [call] = await page.evaluate(() => (window as unknown as { __shared: Shared[] }).__shared);
+    expect(call!.title).toMatch(/^Shopping list, week \d+$/);
+    expect(call!.text).toContain(`- ${label}`);
+  } finally {
+    await removeItems(page.request, h, week);
+  }
+});

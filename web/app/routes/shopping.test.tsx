@@ -118,6 +118,9 @@ type Server = {
   /** The household's pantry; a confirm moves the staple out of the list on the next generate, like the API. */
   pantry: { ingredientId: string; name: string }[];
   pantryCalls: string[];
+  /** Export requests the page made: path + query + Accept-Language. */
+  exports: string[];
+  exportStatus: number;
 };
 let server: Server;
 
@@ -132,6 +135,12 @@ function installFetch() {
       if (path === "/api/auth/me") return json(user);
       if (path === "/api/households") return json([home]);
       if (path === "/api/units") return json([{ id: "u1", code: "kg", name: "Kilogram", dimension: "Mass", factorToBase: 1000 }]);
+      if (path.endsWith(`/shopping-lists/${week}/export`)) {
+        server.exports.push(`${path}${url.search} ${request.headers.get("Accept-Language")}`);
+        return server.exportStatus === 200
+          ? json({ format: "text", title: "Shopping list, week 44", text: "- Melk 1.5 l\n- Kaffe", url: null })
+          : json({ title: "x", status: server.exportStatus }, server.exportStatus);
+      }
       const pantryPath = path.match(/\/pantry(?:\/([^/]+))?$/);
       if (pantryPath) {
         const id = pantryPath[1];
@@ -189,7 +198,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [] };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], exports: [], exportStatus: 200 };
   installFetch();
 });
 afterEach(() => {
@@ -388,5 +397,140 @@ describe("live updates", () => {
     server.listStatus = 403;
     renderPage();
     expect(await screen.findByRole("heading", { name: t("shopping.forbiddenTitle") })).toBeInTheDocument();
+  });
+});
+
+describe("export (share and copy)", () => {
+  const payload = { title: "Shopping list, week 44", text: "- Melk 1.5 l\n- Kaffe" };
+  let writeText: ReturnType<typeof vi.fn>;
+
+  const setNav = (props: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(props)) Object.defineProperty(navigator, k, { value: v, configurable: true });
+  };
+  beforeEach(() => {
+    writeText = vi.fn(async () => undefined);
+    setNav({ clipboard: { writeText }, share: undefined, canShare: undefined });
+  });
+  afterEach(() => {
+    setNav({ clipboard: undefined, share: undefined, canShare: undefined });
+    Reflect.deleteProperty(document, "execCommand");
+  });
+
+  const button = (key: "shopping.share" | "shopping.copy") => screen.getByRole("button", { name: t(key) });
+
+  it("calls the export endpoint for the week on screen with Accept-Language", async () => {
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.copy"));
+    await waitFor(() => expect(server.exports).toHaveLength(1));
+    expect(server.exports[0]).toMatch(new RegExp(`^/api/households/h1/shopping-lists/${week}/export\\?format=text (nb|en)$`));
+    expect(button("shopping.share")).toHaveClass("button"); // .button carries the 44px minimum (app.css --touch)
+  });
+
+  it("copies the text and announces it in a polite live region", async () => {
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.copy"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(payload.text));
+    const toast = screen.getByTestId("copy-toast");
+    expect(toast).toHaveAttribute("aria-live", "polite");
+    await waitFor(() => expect(toast).toHaveTextContent(t("shopping.copied")));
+  });
+
+  it("shares title and text when Web Share is available", async () => {
+    const share = vi.fn(async () => undefined);
+    setNav({ share, canShare: vi.fn(() => true) });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.share"));
+    await waitFor(() => expect(share).toHaveBeenCalledWith(payload));
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("copies instead when Web Share is unavailable", async () => {
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.share"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(payload.text));
+    await waitFor(() => expect(screen.getByTestId("copy-toast")).toHaveTextContent(t("shopping.copied")));
+  });
+
+  it("copies instead when canShare says no", async () => {
+    const share = vi.fn(async () => undefined);
+    setNav({ share, canShare: vi.fn(() => false) });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.share"));
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it("does nothing more when the user cancels the share sheet", async () => {
+    const share = vi.fn(async () => {
+      throw new DOMException("cancelled", "AbortError");
+    });
+    setNav({ share });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.share"));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    await waitFor(() => expect(button("shopping.share")).toBeEnabled());
+    expect(writeText).not.toHaveBeenCalled();
+    expect(screen.getByTestId("copy-toast")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("falls back to copy when sharing fails for another reason", async () => {
+    const share = vi.fn(async () => {
+      throw new DOMException("no", "NotAllowedError");
+    });
+    setNav({ share });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.share"));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(payload.text));
+  });
+
+  it("falls back to execCommand when the async clipboard is missing", async () => {
+    setNav({ clipboard: undefined });
+    const exec = vi.fn(() => true);
+    Object.defineProperty(document, "execCommand", { value: exec, configurable: true });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.copy"));
+    await waitFor(() => expect(exec).toHaveBeenCalledWith("copy"));
+    await waitFor(() => expect(screen.getByTestId("copy-toast")).toHaveTextContent(t("shopping.copied")));
+    expect(document.querySelector("textarea[aria-hidden]")).toBeNull(); // the helper is removed again
+  });
+
+  it("shows the text to copy by hand when both clipboard paths fail", async () => {
+    writeText.mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    Object.defineProperty(document, "execCommand", { value: vi.fn(() => false), configurable: true });
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.copy"));
+    const area = await screen.findByLabelText(t("shopping.copyManually"));
+    expect(area).toHaveValue(payload.text);
+    expect(screen.getByTestId("copy-toast")).toBeEmptyDOMElement();
+  });
+
+  it("shows an error when the export request fails", async () => {
+    server.exportStatus = 500;
+    renderPage();
+    await ready();
+    await userEvent.click(button("shopping.copy"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(t("shopping.exportFailed"));
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("is disabled with a hint while offline", async () => {
+    renderPage();
+    await ready();
+    server.down = true;
+    await userEvent.click(screen.getByRole("checkbox", { name: "Melk" })); // makes the app notice it is offline
+    await screen.findByTestId("offline-banner");
+    expect(button("shopping.share")).toBeDisabled();
+    expect(button("shopping.copy")).toBeDisabled();
+    expect(screen.getByText(t("shopping.exportNeedsOnline"))).toBeInTheDocument();
   });
 });
