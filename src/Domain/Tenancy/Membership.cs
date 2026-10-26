@@ -31,4 +31,18 @@ public sealed class Membership : Entity, ITenantEntity
     public Guid UserId { get; private set; }
 
     public HouseholdRole Role { get; private set; }
+
+    /// <summary>
+    /// Sets the role (T-048). Whether this may happen (for example never demoting the last Owner) depends on the other
+    /// memberships, so the caller decides; this only guards the value.
+    /// </summary>
+    public void ChangeRole(HouseholdRole role)
+    {
+        if (!Enum.IsDefined(role))
+        {
+            throw new ArgumentOutOfRangeException(nameof(role));
+        }
+
+        Role = role;
+    }
 }

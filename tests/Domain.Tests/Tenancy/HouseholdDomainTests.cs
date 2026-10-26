@@ -95,6 +95,25 @@ public class HouseholdDomainTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new Membership(Guid.NewGuid(), Guid.NewGuid(), (HouseholdRole)0));
     }
 
+    [Theory]
+    [InlineData(HouseholdRole.Child)]
+    [InlineData(HouseholdRole.Adult)]
+    [InlineData(HouseholdRole.Owner)]
+    public void Membership_role_can_be_changed_to_any_defined_role(HouseholdRole role)
+    {
+        var membership = new Membership(Guid.NewGuid(), Guid.NewGuid(), HouseholdRole.Adult);
+        membership.ChangeRole(role);
+        Assert.Equal(role, membership.Role);
+    }
+
+    [Fact]
+    public void Membership_role_cannot_be_changed_to_an_undefined_role()
+    {
+        var membership = new Membership(Guid.NewGuid(), Guid.NewGuid(), HouseholdRole.Adult);
+        Assert.Throws<ArgumentOutOfRangeException>(() => membership.ChangeRole((HouseholdRole)0));
+        Assert.Equal(HouseholdRole.Adult, membership.Role);
+    }
+
     [Fact]
     public void Tokens_are_32_random_bytes_base64url()
     {

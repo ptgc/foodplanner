@@ -303,9 +303,18 @@ public static class AuthEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> Logout(SignInManager<AppUser> signIn)
+    private static async Task<IResult> Logout(SignInManager<AppUser> signIn, ICurrentUser current, ILiveConnections live)
     {
         await signIn.SignOutAsync();
+
+        // The hub checks the cookie only when a connection opens, so a signed-out browser would keep receiving signals
+        // (Q-015, T-048). Connections do not record which cookie opened them, so ALL of this user's connections close,
+        // including other devices'; those reconnect and, with a still valid cookie, simply rejoin.
+        if (current is { IsAuthenticated: true, UserId: { } userId })
+        {
+            await live.CloseUserAsync(userId);
+        }
+
         return Results.NoContent();
     }
 

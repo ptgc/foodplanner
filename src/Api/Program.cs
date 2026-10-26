@@ -89,6 +89,7 @@ api.MapHealthEndpoints();
 api.MapAuthEndpoints();
 api.MapHouseholdEndpoints();
 api.MapHouseholdManagementEndpoints();
+api.MapHouseholdMemberEndpoints();
 api.MapCatalogEndpoints();
 api.MapRecipeEndpoints();
 api.MapTagEndpoints();
