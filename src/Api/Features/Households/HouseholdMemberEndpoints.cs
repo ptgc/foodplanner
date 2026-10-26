@@ -2,6 +2,7 @@ using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -78,6 +79,7 @@ public static class HouseholdMemberEndpoints
     private static async Task<IResult> ChangeRole(
         Guid userId,
         ChangeMemberRoleRequest? request,
+        ICurrentUser user,
         ICurrentHousehold current,
         AppDbContext db,
         CancellationToken cancellationToken)
@@ -100,6 +102,11 @@ public static class HouseholdMemberEndpoints
         // The same household row lock as leave and remove: two Owners demoting each other at once are serialised, so
         // the second one sees the first's result and is refused instead of leaving the household without an Owner.
         await HouseholdManagementEndpoints.LockHouseholdAsync(db, householdId, cancellationToken);
+
+        if (!await HouseholdManagementEndpoints.CallerStillOwnsAsync(user, db, cancellationToken))
+        {
+            return HouseholdManagementEndpoints.Forbidden();
+        }
 
         var membership = await db.Memberships.SingleOrDefaultAsync(m => m.UserId == userId, cancellationToken);
         if (membership is null)

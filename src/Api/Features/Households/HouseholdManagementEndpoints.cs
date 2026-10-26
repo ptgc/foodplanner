@@ -179,6 +179,11 @@ public static class HouseholdManagementEndpoints
         // Same household row lock as leave and role changes (T-048): the role read below cannot change before the commit.
         await LockHouseholdAsync(db, householdId, cancellationToken);
 
+        if (!await CallerStillOwnsAsync(user, db, cancellationToken))
+        {
+            return Forbidden();
+        }
+
         // Through the tenant filter: a user who belongs only to another household is simply not found.
         var membership = await db.Memberships.SingleOrDefaultAsync(m => m.UserId == userId, cancellationToken);
         if (membership is null)
@@ -243,6 +248,14 @@ public static class HouseholdManagementEndpoints
     }
 
     /// <summary>A tracked no-op update of the household row: takes its row lock for the rest of the transaction.</summary>
+    /// <summary>
+    /// Under the household lock: the HouseholdOwner policy ran before the lock, so an Owner demoted a moment ago by another
+    /// Owner may still be in flight. Re-checks the caller is an Owner of this household (tenant-filtered) now.
+    /// </summary>
+    internal static async Task<bool> CallerStillOwnsAsync(ICurrentUser user, AppDbContext db, CancellationToken cancellationToken) =>
+        user.UserId is { } callerId
+        && await db.Memberships.AsNoTracking().AnyAsync(m => m.UserId == callerId && m.Role == HouseholdRole.Owner, cancellationToken);
+
     internal static async Task LockHouseholdAsync(AppDbContext db, Guid householdId, CancellationToken cancellationToken)
     {
         var household = await db.Households.SingleAsync(h => h.Id == householdId, cancellationToken);

@@ -196,6 +196,110 @@ public sealed class HouseholdMemberManagementTests(AuthDatabase db) : IClassFixt
         }
     }
 
+    /// <summary>
+    /// Holds the household row lock in SQL, starts <paramref name="inFlight"/> (it passes the policy and then waits for the
+    /// lock), demotes <paramref name="demoted"/> in the same SQL transaction and commits. Returns the in-flight response status.
+    /// </summary>
+    private async Task<HttpStatusCode> DemoteWhileRequestWaitsForLockAsync(Guid household, Guid demoted, Func<Task<HttpResponseMessage>> inFlight)
+    {
+        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(db.ConnectionString);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var transaction = (Microsoft.Data.SqlClient.SqlTransaction)await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await using (var lockRow = connection.CreateCommand())
+        {
+            lockRow.Transaction = transaction;
+            lockRow.CommandText = "UPDATE Households SET Name = Name WHERE Id = @h";
+            lockRow.Parameters.AddWithValue("@h", household);
+            await lockRow.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        var request = inFlight();
+        await Task.Delay(1500, TestContext.Current.CancellationToken); // the request is past the policy and queued on the lock
+
+        await using (var demote = connection.CreateCommand())
+        {
+            demote.Transaction = transaction;
+            demote.CommandText = "UPDATE Memberships SET Role = 'Adult' WHERE HouseholdId = @h AND UserId = @u";
+            demote.Parameters.AddWithValue("@h", household);
+            demote.Parameters.AddWithValue("@u", demoted);
+            Assert.Equal(1, await demote.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
+        }
+
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+        using var response = await request;
+        return response.StatusCode;
+    }
+
+    [Fact]
+    public async Task An_owner_demoted_while_their_role_change_or_removal_waits_for_the_lock_changes_nothing()
+    {
+        await using var host = Host();
+        for (var round = 0; round < 2; round++)
+        {
+            var a = await host.SignInAsync();
+            var household = await a.Client.CreateHouseholdAsync();
+            var b = await host.JoinAsync(a, household, "Adult");
+            var c = await host.JoinAsync(a, household, "Adult");
+            var d = await host.JoinAsync(a, household, "Child");
+            using (var promoted = await SetRoleAsync(a.Client, household, b.User.Id, "Owner"))
+            {
+                Assert.Equal(HttpStatusCode.OK, promoted.StatusCode);
+            }
+
+            // A demotes B (here: directly in SQL, inside the lock) while B's role change of C is in flight.
+            var change = await DemoteWhileRequestWaitsForLockAsync(household, b.User.Id, () => SetRoleAsync(b.Client, household, c.User.Id, "Owner"));
+            Assert.Equal(HttpStatusCode.Forbidden, change);
+            Assert.Equal("Adult", await RoleOfAsync(a.Client, household, c.User.Id));
+
+            // Same for removal: B (promoted again) removes D while A demotes B.
+            using (var promoted = await SetRoleAsync(a.Client, household, b.User.Id, "Owner"))
+            {
+                Assert.Equal(HttpStatusCode.OK, promoted.StatusCode);
+            }
+
+            var removal = await DemoteWhileRequestWaitsForLockAsync(
+                household, b.User.Id, () => b.Client.DeleteAsync(Url(household, $"/members/{d.User.Id}")));
+            Assert.Equal(HttpStatusCode.Forbidden, removal);
+            Assert.Equal("Child", await RoleOfAsync(a.Client, household, d.User.Id));
+        }
+    }
+
+    [Fact]
+    public async Task Parallel_demotion_of_an_owner_and_that_owners_own_changes_stay_consistent()
+    {
+        await using var host = Host();
+        for (var round = 0; round < 5; round++)
+        {
+            var a = await host.SignInAsync();
+            var household = await a.Client.CreateHouseholdAsync();
+            var b = await host.JoinAsync(a, household, "Adult");
+            var c = await host.JoinAsync(a, household, "Adult");
+            using (var promoted = await SetRoleAsync(a.Client, household, b.User.Id, "Owner"))
+            {
+                Assert.Equal(HttpStatusCode.OK, promoted.StatusCode);
+            }
+
+            var gate = new TaskCompletionSource();
+            async Task<HttpStatusCode> RunAsync(Func<Task<HttpResponseMessage>> call)
+            {
+                await gate.Task;
+                using var response = await call();
+                return response.StatusCode;
+            }
+
+            var demoteB = RunAsync(() => SetRoleAsync(a.Client, household, b.User.Id, "Child"));
+            var bChangesC = RunAsync(() => SetRoleAsync(b.Client, household, c.User.Id, "Owner"));
+            gate.SetResult();
+            var results = await Task.WhenAll(demoteB, bChangesC);
+
+            // Serial orders only: B's change before A's demotion (both 200), or B refused (403) after it. Never an error.
+            Assert.Equal(HttpStatusCode.OK, results[0]);
+            Assert.Contains(results[1], new[] { HttpStatusCode.OK, HttpStatusCode.Forbidden });
+            Assert.Equal(results[1] == HttpStatusCode.OK ? "Owner" : "Adult", await RoleOfAsync(a.Client, household, c.User.Id));
+            Assert.Equal("Child", await RoleOfAsync(a.Client, household, b.User.Id));
+        }
+    }
+
     [Fact]
     public async Task Removing_a_member_and_changing_that_members_role_at_once_stays_consistent()
     {
