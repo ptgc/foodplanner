@@ -280,15 +280,35 @@ public static class RecipeEndpoints
         Guid householdId, RecipeRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
-        var valid = Validate(request, errors);
-        if (valid is null || errors.Count > 0 || await ResolveReferencesAsync(db, request!, errors, cancellationToken) is false)
+        var recipe = await TryCreateAsync(db, request, errors, cancellationToken);
+        if (recipe is null)
         {
             return Results.ValidationProblem(errors);
         }
 
+        return Results.Created(
+            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, locale.Code, cancellationToken));
+    }
+
+    /// <summary>
+    /// The create path of a recipe: the same validation, the same resolution of every id through the filtered sets (Q-012)
+    /// and the same writes for the endpoint and for saving a recipe import (T-042). Returns null with <paramref name="errors"/>
+    /// filled when the request is invalid. It joins a transaction the caller has already opened, otherwise it opens its own;
+    /// either way nothing is written unless the whole recipe is.
+    /// </summary>
+    internal static async Task<Recipe?> TryCreateAsync(
+        AppDbContext db, RecipeRequest? request, Dictionary<string, string[]> errors, CancellationToken cancellationToken)
+    {
+        var valid = Validate(request, errors);
+        if (valid is null || errors.Count > 0 || await ResolveReferencesAsync(db, request!, errors, cancellationToken) is false)
+        {
+            return null;
+        }
+
         var recipe = new Recipe(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
         // Two saves in one transaction: the children need the generated recipe id, and a failed second save must not leave a bare recipe.
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var ownTransaction = db.Database.CurrentTransaction is null;
+        await using var transaction = ownTransaction ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync(cancellationToken);
         AddChildren(db, recipe.Id, request!);
@@ -298,10 +318,12 @@ public static class RecipeEndpoints
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
 
-        return Results.Created(
-            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, locale.Code, cancellationToken));
+        return recipe;
     }
 
     /// <summary>Replaces the recipe's fields, steps and ingredients (tracked deletes and inserts, in one save).</summary>

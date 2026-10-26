@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
@@ -144,6 +145,11 @@ public static class TenantIsolationRegistry
                 return new PantryItem(staple.Id, await env.NewUserAsync(), DateTimeOffset.UtcNow, null);
             },
             entry => entry.Property(p => p.ExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddYears(1)),
+
+        // Recipe import artifact (T-042): one table, the draft is JSON (no foreign keys to ingredients or units); the creating user is global identity data.
+        TenantIsolationCase.For<RecipeImport>(
+            async (env, _) => new RecipeImport(ImportSource.Text, null, "2 dl melk", "{}", await env.NewUserAsync()),
+            entry => entry.Property(i => i.DraftJson).CurrentValue = "{\"title\":\"Changed\"}"),
     ];
 
     private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)

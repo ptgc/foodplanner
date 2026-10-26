@@ -409,6 +409,37 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddRecipeImports_migration_applies_and_deleting_a_household_removes_its_imports()
+    {
+        var connectionString = await server.CreateDatabaseAsync("recipeimports", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddRecipeImports'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('RecipeImports') AND name = 'HouseholdId'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('RecipeImports') AND name = 'RawContent' AND is_nullable = 1"));
+
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @u uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO AspNetUsers (Id, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES (@u, 0, 0, 0, 0, 0);
+            INSERT INTO RecipeImports (Id, HouseholdId, Source, Status, RawContent, DraftJson, CreatedByUserId, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, 'Text', 'Draft', N'2 dl melk', N'{}', @u, @now, @now);
+            """);
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeImports"));
+
+        // The user is NO ACTION: a user who made imports cannot vanish from under them.
+        await Assert.ThrowsAnyAsync<Microsoft.Data.SqlClient.SqlException>(() => ScalarAsync(connectionString, "DELETE FROM AspNetUsers"));
+
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeImports"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task Api_startup_does_not_migrate()
     {
         var connectionString = await server.CreateDatabaseAsync("startup", Ct);

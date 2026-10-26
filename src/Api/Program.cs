@@ -92,6 +92,7 @@ api.MapHouseholdManagementEndpoints();
 api.MapHouseholdMemberEndpoints();
 api.MapCatalogEndpoints();
 api.MapRecipeEndpoints();
+api.MapRecipeImportEndpoints();
 api.MapTagEndpoints();
 api.MapMealPlanEndpoints();
 api.MapShoppingListEndpoints();

@@ -27,6 +27,17 @@ public static class AppProblems
     public const string ShoppingListConflict = "shopping-list-conflict";
     public const string PantryConflict = "pantry-conflict";
     public const string ForbiddenOrigin = "forbidden-origin";
+    public const string ImportNotFound = "import-not-found";
+    public const string ImportNotDraft = "import-not-draft";
+    public const string ImportConflict = "import-conflict";
+    public const string ImportLimit = "import-limit";
+    public const string ImportUrlNotAllowed = "import-url-not-allowed";
+    public const string ImportFetchFailed = "import-fetch-failed";
+    public const string ImportFetchTimeout = "import-fetch-timeout";
+    public const string ImportBusy = "import-busy";
+    public const string ImportTooLarge = "import-too-large";
+    public const string ImportUnsupportedContent = "import-unsupported-content";
+    public const string ImportNoRecipeFound = "import-no-recipe-found";
 
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
 
