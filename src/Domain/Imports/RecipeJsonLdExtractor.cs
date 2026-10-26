@@ -39,7 +39,7 @@ public static partial class RecipeJsonLdExtractor
             return null;
         }
 
-        var trimmed = content.TrimStart('﻿', ' ', '\t', '\r', '\n');
+        var trimmed = content.TrimStart((char)0xFEFF, ' ', '\t', '\r', '\n');
         List<string> blocks = trimmed.StartsWith('{') || trimmed.StartsWith('[')
             ? [trimmed]
             : [.. ScriptRegex().Matches(content).Select(m => m.Groups["json"].Value)];

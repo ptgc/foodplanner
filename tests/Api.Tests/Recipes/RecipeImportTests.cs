@@ -156,6 +156,9 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         Assert.Equal("Dragefrukt", fixedLine.GetProperty("ingredientName").GetString());
         Assert.Equal("2 dl dragefrukt", fixedLine.GetProperty("original").GetString()); // the artifact keeps what was imported
 
+        // While it is a draft the original text is kept in the artifact.
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Draft' AND RawContent LIKE N'%2,5 dl hvetemel%'", ("@i", importId)));
+
         // 4. Save: a recipe through the normal path.
         using var saved = await adult.Client.PostAsync(Url(household, $"/{importId}/save"));
         Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
@@ -177,7 +180,8 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
 
         // 5. Rule 5: the original text is in the artifact only; the recipe holds ids, numbers and a short note.
         Assert.DoesNotContain("2,5 dl hvetemel", recipe.ToString(), StringComparison.Ordinal);
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND SavedRecipeId = @r AND RawContent LIKE N'%2,5 dl hvetemel%'", ("@i", importId), ("@r", recipeId)));
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND SavedRecipeId = @r AND RawContent IS NULL AND DraftJson IS NULL AND SourceUrl IS NULL", ("@i", importId), ("@r", recipeId)));
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE HouseholdId = @h AND (RawContent LIKE N'%hvetemel%' OR DraftJson LIKE N'%hvetemel%')", ("@h", household)));
         Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM RecipeIngredients WHERE RecipeId = @r AND Note LIKE N'%dl %'", ("@r", recipeId)));
 
         // 6. The import is done: it cannot be edited, saved or discarded again.

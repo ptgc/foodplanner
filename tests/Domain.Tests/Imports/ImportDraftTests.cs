@@ -194,7 +194,9 @@ public class RecipeImportEntityTests
 
         Assert.Equal(ImportStatus.Saved, import.Status);
         Assert.Equal(recipe, import.SavedRecipeId);
-        Assert.Equal("raw", import.RawContent); // the artifact is kept
+        Assert.Null(import.RawContent); // the original text is erased on save
+        Assert.Null(import.DraftJson);
+        Assert.Equal(recipe, import.SavedRecipeId);
         Assert.Throws<InvalidOperationException>(() => import.UpdateDraft("{}"));
         Assert.Throws<InvalidOperationException>(() => import.MarkSaved(Guid.NewGuid()));
         Assert.Throws<InvalidOperationException>(import.Discard);

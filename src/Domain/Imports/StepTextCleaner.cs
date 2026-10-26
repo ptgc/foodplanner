@@ -22,7 +22,7 @@ public static partial class StepTextCleaner
     [GeneratedRegex(@"[ \t\f\v]+", RegexOptions.CultureInvariant)]
     private static partial Regex InlineSpacesRegex();
 
-    [GeneratedRegex(@"^\s*(?:[-•*·▪●■□☐✓○]\s+|(?:(?:steg|step|trinn|punkt)\s*)?\d{1,2}\s*[.):]\s+|(?:(?:steg|step|trinn)\s*)\d{1,2}\s*[-–]\s+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\s*(?:[-•*·▪●■□☐✓○]\s+|(?:(?:steg|step|trinn|punkt)\s*)?\d{1,2}\s*[.):]\s+|(?:(?:steg|step|trinn)\s*)\d{1,2}\s*\p{Pd}\s+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LeadingMarkerRegex();
 
     /// <summary>HTML to text with a newline at each block end; entities decoded; no tags. Lines keep their order.</summary>
@@ -36,7 +36,7 @@ public static partial class StepTextCleaner
         var text = ScriptRegex().Replace(html, " ");
         text = BlockEndRegex().Replace(text, "\n");
         text = TagRegex().Replace(text, string.Empty);
-        text = WebUtility.HtmlDecode(text).Replace(' ', ' ').Replace("\r\n", "\n").Replace('\r', '\n');
+        text = WebUtility.HtmlDecode(text).Replace((char)0x00A0, ' ').Replace("\r\n", "\n").Replace('\r', '\n');
         return new string(text.Where(c => c == '\n' || !char.IsControl(c)).ToArray());
     }
 

@@ -261,8 +261,9 @@ public static partial class IngredientLineParser
     /// <summary>Lower-cases nothing; fixes the characters: bullets, unicode fractions, dashes, odd spaces.</summary>
     private static string Preprocess(string input)
     {
-        var text = input.Replace(' ', ' ').Replace(' ', ' ').Replace(' ', ' ').Replace('⁄', '/')
-            .Replace('–', '-').Replace('—', '-').Replace('−', '-');
+        // Escaped by code point on purpose: no-break space, thin space, narrow no-break space, fraction slash, en dash, em dash, minus sign.
+        var text = input.Replace((char)0x00A0, ' ').Replace((char)0x2009, ' ').Replace((char)0x202F, ' ').Replace((char)0x2044, '/')
+            .Replace((char)0x2013, '-').Replace((char)0x2014, '-').Replace((char)0x2212, '-');
         text = MixedUnicodeFractionRegex().Replace(text, "$1 $2");
         var sb = new StringBuilder(text.Length);
         foreach (var c in text)

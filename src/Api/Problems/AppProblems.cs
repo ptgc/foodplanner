@@ -34,6 +34,7 @@ public static class AppProblems
     public const string ImportUrlNotAllowed = "import-url-not-allowed";
     public const string ImportFetchFailed = "import-fetch-failed";
     public const string ImportFetchTimeout = "import-fetch-timeout";
+    public const string ImportBusy = "import-busy";
     public const string ImportTooLarge = "import-too-large";
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";

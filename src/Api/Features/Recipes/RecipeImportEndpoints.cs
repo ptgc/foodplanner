@@ -114,6 +114,7 @@ public static class RecipeImportEndpoints
             .ProducesProblem(StatusCodes.Status422UnprocessableEntity)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status502BadGateway)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .ProducesProblem(StatusCodes.Status504GatewayTimeout);
 
         imports.MapGet("/{importId:guid}", GetImport)
@@ -252,7 +253,7 @@ public static class RecipeImportEndpoints
         var import = await FindAsync(db, importId, cancellationToken);
         return import is null
             ? NotFound()
-            : Results.Ok(await ToResponseAsync(db, import, ImportDraftJson.Deserialize(import.DraftJson!), locale.Code, cancellationToken));
+            : Results.Ok(await ToResponseAsync(db, import, DraftOrEmpty(import), locale.Code, cancellationToken));
     }
 
     private static async Task<IResult> UpdateImport(
@@ -472,6 +473,10 @@ public static class RecipeImportEndpoints
     }
 
     /// <summary>The import in the route's household that has not been discarded (a discarded one is gone for the caller).</summary>
+    /// <summary>A saved import no longer has a draft (the original text was erased on save); show it as an empty one with its status and recipe id.</summary>
+    private static ImportDraft DraftOrEmpty(RecipeImport import) =>
+        import.DraftJson is null ? new ImportDraft(string.Empty, null, null, null, null, null, [], [], []) : ImportDraftJson.Deserialize(import.DraftJson);
+
     private static Task<RecipeImport?> FindAsync(AppDbContext db, Guid importId, CancellationToken cancellationToken) =>
         db.RecipeImports.FirstOrDefaultAsync(i => i.Id == importId && i.Status != ImportStatus.Discarded, cancellationToken);
 
@@ -523,6 +528,8 @@ public static class RecipeImportEndpoints
             StatusCodes.Status422UnprocessableEntity, AppProblems.ImportUnsupportedContent, "Not a web page", "The address is not an HTML page."),
         FetchFailure.TooLarge => AppProblems.Problem(
             StatusCodes.Status422UnprocessableEntity, AppProblems.ImportTooLarge, "The page is too large", "The page is too large to import. Paste the recipe text instead."),
+        FetchFailure.Busy => AppProblems.Problem(
+            StatusCodes.Status503ServiceUnavailable, AppProblems.ImportBusy, "Imports are busy", "Too many imports are running right now. Try again in a moment."),
         FetchFailure.Timeout => AppProblems.Problem(
             StatusCodes.Status504GatewayTimeout, AppProblems.ImportFetchTimeout, "The page took too long", "The site did not answer in time. Try again, or paste the recipe text."),
         _ => AppProblems.Problem(

@@ -11,13 +11,14 @@ public class OutboundHttpRulesTests
     private static readonly string[] Names =
     [
         "HttpClient", "IHttpClientFactory", "HttpMessageHandler", "SocketsHttpHandler", "HttpClientHandler", "WebRequest", "HttpWebRequest",
-        "WebClient", "TcpClient", "Socket", "AddHttpClient",
+        "WebClient", "TcpClient", "Socket", "AddHttpClient", "UdpClient", "SslStream", "QuicConnection", "NetworkStream", "Dns",
     ];
 
     /// <summary>File (solution-relative) and the reason it may use outbound networking.</summary>
     private static readonly Dictionary<string, string> Allowed = new()
     {
         ["src/Infrastructure/Import/SafeWebPageFetcher.cs"] = "The SSRF-safe fetcher itself: resolves, vets and connects (T-042).",
+        ["src/Infrastructure/Import/WebPageFetching.cs"] = "The fetcher's DNS resolver seam (DnsHostResolver); its answers are vetted by the fetcher before any connection.",
     };
 
     [Fact]
@@ -52,14 +53,30 @@ public class OutboundHttpRulesTests
     }
 
     [Fact]
+    public void PublicInternetPolicy_is_the_only_fetch_policy_in_src()
+    {
+        // A second IFetchPolicy (for example one that allows loopback) must never ship; tests define their own in tests/.
+        var implementations = new List<string>();
+        foreach (var file in SourceScanner.Load("src"))
+        {
+            foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(
+                file.Code, @"\b(?:class|record|struct)\s+(\w+)[^{;=]*:[^{;=]*\bIFetchPolicy\b"))
+            {
+                implementations.Add(match.Groups[1].Value);
+            }
+        }
+
+        Assert.Equal(["PublicInternetPolicy"], implementations);
+    }
+
+    [Fact]
     public void The_allowed_file_exists_and_really_uses_networking_so_the_rule_is_not_vacuous()
     {
-        foreach (var path in Allowed.Keys)
-        {
-            var file = SourceScanner.Load("src").Single(f => f.Path == path);
-            Assert.Contains("SocketsHttpHandler", file.Code, StringComparison.Ordinal);
-            Assert.Contains("ConnectCallback", file.Code, StringComparison.Ordinal);
-        }
+        var files = SourceScanner.Load("src");
+        Assert.All(Allowed.Keys, path => Assert.Contains(files, f => f.Path == path));
+        var fetcher = files.Single(f => f.Path == "src/Infrastructure/Import/SafeWebPageFetcher.cs");
+        Assert.Contains("SocketsHttpHandler", fetcher.Code, StringComparison.Ordinal);
+        Assert.Contains("ConnectCallback", fetcher.Code, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -116,8 +116,14 @@ public sealed class SafeWebPageFetcherTests
         ImportTestServices.Resolver([("recipes.test", "127.0.0.1"), .. extra]);
 
     private static SafeWebPageFetcher Fetcher(
-        FakeResolver resolver, IFetchPolicy? policy = null, int maxBytes = 1024 * 1024, int timeoutSeconds = 10, int maxRedirects = 3) =>
-        new(resolver, policy ?? new LoopbackAllowedPolicy(), Options.Create(new RecipeImportOptions { MaxBytes = maxBytes, TimeoutSeconds = timeoutSeconds, MaxRedirects = maxRedirects }));
+        FakeResolver resolver, IFetchPolicy? policy = null, int maxBytes = 1024 * 1024, int timeoutSeconds = 10, int maxRedirects = 3, int maxConcurrent = 4) =>
+        new(resolver, policy ?? new LoopbackAllowedPolicy(), Options.Create(new RecipeImportOptions
+        {
+            MaxBytes = maxBytes,
+            TimeoutSeconds = timeoutSeconds,
+            MaxRedirects = maxRedirects,
+            MaxConcurrentFetches = maxConcurrent,
+        }));
 
     private static TestHttpServer Html(string body = "<html>ok</html>", string contentType = "text/html; charset=utf-8") =>
         new((_, stream, ct) => TestHttpServer.Ok(stream, contentType, body, ct));
@@ -629,6 +635,49 @@ public sealed class SafeWebPageFetcherTests
             Assert.DoesNotContain("Proxy-Authorization", request.Headers.Keys);
             Assert.Equal($"recipes.test:{server.Port}", request.Headers["Host"]);
         }
+    }
+
+    [Fact]
+    public async Task A_malformed_compressed_body_is_a_failure_not_an_exception()
+    {
+        var garbage = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+        await using var server = new TestHttpServer((_, stream, ct) => TestHttpServer.WriteAsync(
+            stream, "200 OK", [("Content-Type", "text/html"), ("Content-Encoding", "gzip"), ("Content-Length", garbage.Length.ToString())], garbage, ct));
+        using var fetcher = Fetcher(Dns());
+
+        var result = await fetcher.FetchAsync(server.Url(), Ct);
+
+        Assert.Equal(FetchFailure.NetworkError, result.Failure);
+    }
+
+    [Fact]
+    public async Task Only_allow_listed_charsets_are_honoured_and_utf7_is_ignored()
+    {
+        // "+AGE-" is "a" in UTF-7; as the unknown charset falls back to UTF-8 it must stay as sent.
+        await using var utf7 = Html("+AGE-", "text/html; charset=utf-7");
+        var cp1252 = new byte[] { 0x80, 0x20, (byte)'k', (byte)'r' }; // euro sign in windows-1252
+        await using var win = new TestHttpServer((_, stream, ct) => TestHttpServer.WriteAsync(
+            stream, "200 OK", [("Content-Type", "text/html; charset=windows-1252"), ("Content-Length", cp1252.Length.ToString())], cp1252, ct));
+        using var fetcher = Fetcher(Dns());
+
+        Assert.Equal("+AGE-", (await fetcher.FetchAsync(utf7.Url(), Ct)).Content);
+        Assert.Equal(((char)0x20AC) + " kr", (await fetcher.FetchAsync(win.Url(), Ct)).Content);
+    }
+
+    [Fact]
+    public async Task When_the_concurrent_fetch_cap_is_reached_the_next_fetch_is_busy_and_the_slot_is_released_afterwards()
+    {
+        await using var slow = new TestHttpServer((_, _, ct) => Task.Delay(TimeSpan.FromSeconds(30), ct));
+        await using var fast = Html();
+        using var fetcher = Fetcher(Dns(), timeoutSeconds: 2, maxConcurrent: 1);
+
+        var first = fetcher.FetchAsync(slow.Url(), Ct);
+        await Task.Delay(500, Ct);
+        var second = await fetcher.FetchAsync(fast.Url(), Ct);
+
+        Assert.Equal(FetchFailure.Busy, second.Failure);
+        Assert.Equal(FetchFailure.Timeout, (await first).Failure);
+        Assert.True((await fetcher.FetchAsync(fast.Url(), Ct)).Succeeded); // released
     }
 
     [Fact]

@@ -33,12 +33,14 @@ public sealed class SafeWebPageFetcher : IWebPageFetcher, IDisposable
     private readonly IFetchPolicy _policy;
     private readonly RecipeImportOptions _options;
     private readonly HttpClient _client;
+    private readonly SemaphoreSlim _gate;
 
     public SafeWebPageFetcher(IHostResolver resolver, IFetchPolicy policy, IOptions<RecipeImportOptions> options)
     {
         _resolver = resolver;
         _policy = policy;
         _options = options.Value;
+        _gate = new SemaphoreSlim(Math.Max(1, _options.MaxConcurrentFetches));
         var handler = new SocketsHttpHandler
         {
             AllowAutoRedirect = false,
@@ -57,6 +59,24 @@ public sealed class SafeWebPageFetcher : IWebPageFetcher, IDisposable
     }
 
     public async Task<FetchResult> FetchAsync(string url, CancellationToken cancellationToken)
+    {
+        // A small global cap on concurrent outbound fetches (per process): saturated means busy, not queued.
+        if (!_gate.Wait(0, CancellationToken.None))
+        {
+            return FetchResult.Fail(FetchFailure.Busy);
+        }
+
+        try
+        {
+            return await FetchCoreAsync(url, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<FetchResult> FetchCoreAsync(string url, CancellationToken cancellationToken)
     {
         if (!TryValidate(url, out var uri))
         {
@@ -118,7 +138,7 @@ public sealed class SafeWebPageFetcher : IWebPageFetcher, IDisposable
         {
             return FetchResult.Fail(FetchFailure.Timeout);
         }
-        catch (Exception exception) when (exception is HttpRequestException or IOException or SocketException or InvalidOperationException or UriFormatException)
+        catch (Exception exception) when (exception is HttpRequestException or IOException or SocketException or InvalidOperationException or UriFormatException or InvalidDataException)
         {
             return FetchResult.Fail(IsBlocked(exception) ? FetchFailure.BlockedAddress : FetchFailure.NetworkError);
         }
@@ -193,18 +213,15 @@ public sealed class SafeWebPageFetcher : IWebPageFetcher, IDisposable
 
     private static string Decode(byte[] bytes, MediaTypeHeaderValue? contentType)
     {
-        var encoding = Encoding.UTF8;
-        if (contentType?.CharSet is { Length: > 0 } charset)
+        // Only a short allow-list of charsets is honoured (never utf-7 or exotic code pages); anything else is read as UTF-8.
+        var encoding = contentType?.CharSet?.Trim('"').Trim().ToLowerInvariant() switch
         {
-            try
-            {
-                encoding = Encoding.GetEncoding(charset.Trim('"'));
-            }
-            catch (ArgumentException)
-            {
-                // An unknown charset name: UTF-8 is the best guess.
-            }
-        }
+            "iso-8859-1" or "latin1" or "iso_8859-1" => Encoding.Latin1,
+            "windows-1252" or "cp1252" => CodePagesEncodingProvider.Instance.GetEncoding(1252) ?? Encoding.Latin1,
+            "utf-16" or "utf-16le" => Encoding.Unicode,
+            "utf-16be" => Encoding.BigEndianUnicode,
+            _ => Encoding.UTF8,
+        };
 
         using var reader = new StreamReader(new MemoryStream(bytes), encoding, detectEncodingFromByteOrderMarks: true);
         return reader.ReadToEnd();

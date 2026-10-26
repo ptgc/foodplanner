@@ -54,6 +54,9 @@ public enum FetchFailure
 
     /// <summary>The host was not found, refused, reset, or sent something that is not HTTP.</summary>
     NetworkError,
+
+    /// <summary>Too many fetches are running at once (a small global cap); try again shortly.</summary>
+    Busy,
 }
 
 /// <summary>Success has <see cref="Content"/>; otherwise <see cref="Failure"/> says why. Never contains response headers or cookies.</summary>
@@ -82,6 +85,9 @@ public sealed class RecipeImportOptions
     public int TimeoutSeconds { get; set; } = 10;
 
     public int MaxRedirects { get; set; } = 3;
+
+    /// <summary>Fetches running at once in this process (not across replicas).</summary>
+    public int MaxConcurrentFetches { get; set; } = 4;
 }
 
 /// <summary>Thrown inside the connect callback when the target address (or port) is refused. Mapped to <see cref="FetchFailure.BlockedAddress"/>.</summary>

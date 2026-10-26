@@ -17,7 +17,7 @@ public enum ImportStatus
     /// <summary>Parsed and waiting for review; can be edited, saved or discarded.</summary>
     Draft,
 
-    /// <summary>Turned into a recipe (<see cref="RecipeImport.SavedRecipeId"/>). The artifact is kept.</summary>
+    /// <summary>Turned into a recipe (<see cref="RecipeImport.SavedRecipeId"/>). The original text and the draft are erased; SourceUrl and SavedRecipeId remain.</summary>
     Saved,
 
     /// <summary>Thrown away by the household; the raw content and the draft are erased.</summary>
@@ -109,6 +109,8 @@ public sealed class RecipeImport : Entity, ITenantEntity
 
         SavedRecipeId = recipeId;
         Status = ImportStatus.Saved;
+        RawContent = null;
+        DraftJson = null;
     }
 
     /// <summary>Marks the import thrown away and erases the original text and the draft (nothing to keep).</summary>
