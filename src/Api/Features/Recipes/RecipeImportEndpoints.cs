@@ -472,10 +472,11 @@ public static class RecipeImportEndpoints
         return Results.NoContent();
     }
 
-    /// <summary>The import in the route's household that has not been discarded (a discarded one is gone for the caller).</summary>
     /// <summary>A saved import no longer has a draft (the original text was erased on save); show it as an empty one with its status and recipe id.</summary>
     private static ImportDraft DraftOrEmpty(RecipeImport import) =>
         import.DraftJson is null ? new ImportDraft(string.Empty, null, null, null, null, null, [], [], []) : ImportDraftJson.Deserialize(import.DraftJson);
+
+    /// <summary>The import in the route's household that has not been discarded (a discarded one is gone for the caller).</summary>
 
     private static Task<RecipeImport?> FindAsync(AppDbContext db, Guid importId, CancellationToken cancellationToken) =>
         db.RecipeImports.FirstOrDefaultAsync(i => i.Id == importId && i.Status != ImportStatus.Discarded, cancellationToken);

@@ -180,7 +180,7 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
 
         // 5. Rule 5: the original text is in the artifact only; the recipe holds ids, numbers and a short note.
         Assert.DoesNotContain("2,5 dl hvetemel", recipe.ToString(), StringComparison.Ordinal);
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND SavedRecipeId = @r AND RawContent IS NULL AND DraftJson IS NULL AND SourceUrl IS NULL", ("@i", importId), ("@r", recipeId)));
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND SavedRecipeId = @r AND RawContent IS NULL AND DraftJson IS NULL", ("@i", importId), ("@r", recipeId)));
         Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM RecipeImports WHERE HouseholdId = @h AND (RawContent LIKE N'%hvetemel%' OR DraftJson LIKE N'%hvetemel%')", ("@h", household)));
         Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM RecipeIngredients WHERE RecipeId = @r AND Note LIKE N'%dl %'", ("@r", recipeId)));
 
@@ -311,6 +311,13 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
 
         using var saved = await owner.Client.PostAsync(Url(household, $"/{id}/save"));
         Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+
+        // Q-017: the original (JSON-LD) and the draft are erased on save; the URL and the recipe id stay.
+        Assert.Equal(
+            1,
+            await CountAsync(
+                "SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND RawContent IS NULL AND DraftJson IS NULL AND SourceUrl = @u AND SavedRecipeId IS NOT NULL",
+                ("@i", id), ("@u", server.Url("/pannekaker"))));
     }
 
     [Fact]
