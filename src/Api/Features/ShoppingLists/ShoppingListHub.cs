@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using Foodplanner.Api.Problems;
+using Foodplanner.Api.Realtime;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Localization;
 using Foodplanner.Infrastructure.Persistence;
@@ -24,7 +25,7 @@ public sealed record ShoppingListState(string Version, ShoppingListResponse List
 /// <see cref="HouseholdMembershipGuard"/> and never trusts the client's household id.
 /// </summary>
 [Authorize]
-internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbContext db) : Hub
+internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbContext db, LiveConnectionRegistry connections) : Hub
 {
     public const string Path = "/api/hubs/shopping-list";
     public const string ChangedEvent = "ShoppingListChanged";
@@ -34,16 +35,45 @@ internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbConte
 
     public static string GroupName(Guid householdId) => $"household:{householdId:N}";
 
+    public override Task OnConnectedAsync()
+    {
+        // Tracked so a removed member's or a deleted household's connections can be closed (Q-015, T-044).
+        if (Guid.TryParse(Context.UserIdentifier, out var userId))
+        {
+            connections.Connected(Context, userId);
+        }
+
+        return base.OnConnectedAsync();
+    }
+
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        connections.Disconnected(Context.ConnectionId);
+        return base.OnDisconnectedAsync(exception);
+    }
+
     /// <summary>Starts delivering this household's events to the connection. Call again after every reconnect (groups do not survive one).</summary>
     public async Task JoinHousehold(Guid householdId)
     {
         await RequireMemberAsync(householdId);
+        // Registered before the group is joined and membership re-checked after: a removal that commits in between is
+        // either seen by the second check, or finds this connection registered when it evicts (Q-015).
+        connections.Joined(Context.ConnectionId, householdId);
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupName(householdId), Context.ConnectionAborted);
+        if (!await guard.TryEnterAsync(Context, householdId, Context.ConnectionAborted))
+        {
+            connections.Left(Context.ConnectionId, householdId);
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(householdId), Context.ConnectionAborted);
+            throw new HubException(Forbidden);
+        }
     }
 
     /// <summary>No membership check: leaving can only reduce what the connection receives.</summary>
-    public Task LeaveHousehold(Guid householdId) =>
-        Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(householdId), Context.ConnectionAborted);
+    public Task LeaveHousehold(Guid householdId)
+    {
+        connections.Left(Context.ConnectionId, householdId);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(householdId), Context.ConnectionAborted);
+    }
 
     /// <summary>The current list of the week, for the first load and for every resync after a reconnect.</summary>
     public async Task<ShoppingListState> GetState(Guid householdId, string weekStart)
@@ -119,6 +149,8 @@ public static class ShoppingListSyncSetup
         services.AddSignalR();
         services.AddScoped<HouseholdMembershipGuard>();
         services.AddSingleton<IShoppingListNotifier, SignalRShoppingListNotifier>();
+        services.AddSingleton<LiveConnectionRegistry>();
+        services.AddSingleton<ILiveConnections>(sp => sp.GetRequiredService<LiveConnectionRegistry>());
         return services;
     }
 

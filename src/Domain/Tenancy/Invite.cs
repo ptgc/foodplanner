@@ -46,4 +46,16 @@ public sealed class Invite : Entity, ITenantEntity
     public Guid? AcceptedByUserId { get; private set; }
 
     public bool IsUsable(DateTimeOffset now) => AcceptedAt is null && ExpiresAt > now;
+
+    /// <summary>
+    /// Ends an open invite now (T-044: its creator left or was removed). The row is kept for the record, only the expiry
+    /// moves, so the link is rejected as invalid like any expired one. An accepted or expired invite is unchanged.
+    /// </summary>
+    public void Revoke(DateTimeOffset now)
+    {
+        if (IsUsable(now))
+        {
+            ExpiresAt = now;
+        }
+    }
 }
