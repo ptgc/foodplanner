@@ -17,6 +17,9 @@ public static class RateLimitPolicies
     /// <summary>Attached by T-011: by client IP and user.</summary>
     public const string InviteAccept = "invite-accept";
 
+    /// <summary>Household data export (T-048): by user. The export reads every table of the household.</summary>
+    public const string HouseholdExport = "household-export";
+
     /// <summary>Attached by T-010: by client IP.</summary>
     public const string ExternalSignin = "external-signin";
 }
@@ -48,6 +51,8 @@ public sealed class RateLimitOptions
     public LimitOptions InviteAccept { get; set; } = new() { PermitLimit = 10, WindowSeconds = 60 };
 
     public LimitOptions ExternalSignin { get; set; } = new() { PermitLimit = 20, WindowSeconds = 60 };
+
+    public LimitOptions Export { get; set; } = new() { PermitLimit = 3, WindowSeconds = 60 };
 }
 
 /// <summary>
@@ -102,6 +107,9 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.InviteAccept, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"ip:{ClientIp(http)}|user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}", _ => limits.InviteAccept.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.HouseholdExport, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Export.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.ExternalSignin, http =>
                 RateLimitPartition.GetFixedWindowLimiter($"ip:{ClientIp(http)}", _ => limits.ExternalSignin.ToFixedWindow()));
         });

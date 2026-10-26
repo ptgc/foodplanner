@@ -4,6 +4,7 @@ using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Realtime;
+using Foodplanner.Api.Security;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
@@ -64,8 +65,10 @@ public static class HouseholdManagementEndpoints
 
         household.MapGet("/export", ExportHousehold)
             .RequireAuthorization(Policies.HouseholdAdult)
+            .RequireRateLimiting(RateLimitPolicies.HouseholdExport)
             .WithName("ExportHousehold")
             .Produces<HouseholdExportResponse>(StatusCodes.Status200OK, "application/json")
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         return api;
@@ -171,6 +174,16 @@ public static class HouseholdManagementEndpoints
                 "Use leave to remove your own membership.");
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        // Same household row lock as leave and role changes (T-048): the role read below cannot change before the commit.
+        await LockHouseholdAsync(db, householdId, cancellationToken);
+
+        if (!await CallerStillOwnsAsync(user, db, cancellationToken))
+        {
+            return Forbidden();
+        }
+
         // Through the tenant filter: a user who belongs only to another household is simply not found.
         var membership = await db.Memberships.SingleOrDefaultAsync(m => m.UserId == userId, cancellationToken);
         if (membership is null)
@@ -184,10 +197,9 @@ public static class HouseholdManagementEndpoints
                 StatusCodes.Status409Conflict,
                 OwnerCannotBeRemoved,
                 "An owner cannot be removed",
-                "Owners leave on their own, or ownership is changed first.");
+                "Owners leave on their own, or their role is changed first.");
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         await RemoveMembershipAsync(db, membership, time.GetUtcNow(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -236,7 +248,15 @@ public static class HouseholdManagementEndpoints
     }
 
     /// <summary>A tracked no-op update of the household row: takes its row lock for the rest of the transaction.</summary>
-    private static async Task LockHouseholdAsync(AppDbContext db, Guid householdId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Under the household lock: the HouseholdOwner policy ran before the lock, so an Owner demoted a moment ago by another
+    /// Owner may still be in flight. Re-checks the caller is an Owner of this household (tenant-filtered) now.
+    /// </summary>
+    internal static async Task<bool> CallerStillOwnsAsync(ICurrentUser user, AppDbContext db, CancellationToken cancellationToken) =>
+        user.UserId is { } callerId
+        && await db.Memberships.AsNoTracking().AnyAsync(m => m.UserId == callerId && m.Role == HouseholdRole.Owner, cancellationToken);
+
+    internal static async Task LockHouseholdAsync(AppDbContext db, Guid householdId, CancellationToken cancellationToken)
     {
         var household = await db.Households.SingleAsync(h => h.Id == householdId, cancellationToken);
         db.Entry(household).State = EntityState.Modified;
@@ -244,9 +264,9 @@ public static class HouseholdManagementEndpoints
         db.Entry(household).State = EntityState.Detached;
     }
 
-    private static IResult Forbidden() =>
+    internal static IResult Forbidden() =>
         AppProblems.Problem(StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
 
-    private static IResult MemberGone() =>
+    internal static IResult MemberGone() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, MemberNotFound, "Member not found", "The user is not a member of this household.");
 }

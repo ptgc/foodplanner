@@ -110,6 +110,7 @@ public sealed class AuthHost : IAsyncDisposable
             ["Email:Provider"] = "Recording",
             ["RateLimiting:Auth:PermitLimit"] = "1000",
             ["RateLimiting:LoginByEmail:PermitLimit"] = "1000",
+            ["RateLimiting:Export:PermitLimit"] = "1000",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {
