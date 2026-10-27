@@ -151,7 +151,7 @@ type UnitSelectProps = {
 };
 
 /** Units grouped by dimension, the ingredient's own dimension first (all units stay selectable). */
-function UnitSelect({ units, preferred, value, onChange, ...rest }: UnitSelectProps) {
+export function UnitSelect({ units, preferred, value, onChange, ...rest }: UnitSelectProps) {
   const { t } = useI18n();
   const order = (["Mass", "Volume", "Count"] as const).slice().sort((a, b) => Number(b === preferred) - Number(a === preferred));
   return (

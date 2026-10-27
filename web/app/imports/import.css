@@ -1,0 +1,146 @@
+/* Recipe import (T-043). Mobile first: one column at 390px, every control at least 44px. */
+.recipes-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.import-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.import-tab {
+  flex: 1;
+  min-height: var(--touch);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--accent);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.import-tab[aria-selected="true"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.import-problem {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--error);
+  border-radius: 0.75rem;
+}
+
+.import-problem p {
+  margin: 0 0 0.5rem;
+}
+
+.import-draft {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.import-draft-meta {
+  margin: 0;
+  color: #4b4b57;
+  font-size: 0.875rem;
+}
+
+.import-summary {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid #d0d0d8;
+  border-radius: 0.75rem;
+}
+
+.import-summary-bad {
+  border-color: var(--error);
+  background: #fff4f5;
+}
+
+.import-summary p {
+  margin: 0;
+}
+
+.import-summary ul {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-line:focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.import-line-attention {
+  border-color: var(--error);
+  border-style: dashed;
+}
+
+.import-line-title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.import-original {
+  margin: 0 0 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.import-original-label,
+.import-confidence {
+  color: #4b4b57;
+  font-size: 0.875rem;
+}
+
+.import-status {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+}
+
+.import-status-bad {
+  color: var(--error);
+}
+
+.import-status-ok {
+  color: var(--accent);
+}
+
+.import-parsed {
+  margin: 0 0 0.5rem;
+}
+
+.import-editor-heading {
+  margin: 0.5rem 0 0.25rem;
+  font-weight: 700;
+}
+
+.import-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.import-suggestions .import-editor-heading {
+  margin: 0;
+}
+
+.import-line-actions {
+  margin-top: 0.5rem;
+}
+
+.import-save-hint,
+.import-notes {
+  color: #4b4b57;
+}

@@ -74,9 +74,14 @@ function RecipesScreen({ householdId }: { householdId: string }) {
       <div className="recipes-heading-row">
         <h1 id="recipes-heading">{t("recipes.title")}</h1>
         {canEdit && (
-          <Link to="/recipes/new" className="button" data-testid="recipe-new-link">
-            {t("recipe.new")}
-          </Link>
+          <div className="recipes-heading-actions">
+            <Link to="/recipes/import" className="button button-outline" data-testid="recipe-import-link">
+              {t("import.entry")}
+            </Link>
+            <Link to="/recipes/new" className="button" data-testid="recipe-new-link">
+              {t("recipe.new")}
+            </Link>
+          </div>
         )}
       </div>
 
