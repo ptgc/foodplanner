@@ -330,7 +330,7 @@ describe("step 2: review and fix", () => {
     await user.click(within(cards()[1]!).getByRole("button", { name: t("import.useSuggestion", { name: "Snogras", percent: 60 }) }));
     await waitFor(() => expect(cards()[1]).toHaveAttribute("data-status", "Matched"));
     const edit = (server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]!;
-    expect(edit).toMatchObject({ position: 1, ingredientId: "i-snog", quantity: 1, unitId: "u-stk" });
+    expect(edit).toMatchObject({ position: 1, ingredientId: "i-snog", quantity: 1, unitId: "u-stk", toTaste: null, note: "" });
     expect(screen.getByTestId("attention-summary")).toHaveTextContent(t("import.needAttention", { count: 2 }));
   });
 
@@ -342,7 +342,7 @@ describe("step 2: review and fix", () => {
     await user.click(await within(row).findByRole("button", { name: "Salt" }, { timeout: searchDelayMs + 2000 }));
     await user.click(within(row).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(cards()[3]).toHaveAttribute("data-status", "Matched"));
-    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 3, ingredientId: "i-salt", quantity: null, unitId: null });
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 3, ingredientId: "i-salt", quantity: null, unitId: null, toTaste: true });
   });
 
   it("fixes an unrecognised unit by choosing one", async () => {
@@ -357,7 +357,7 @@ describe("step 2: review and fix", () => {
     await user.selectOptions(within(row).getByLabelText(t("recipe.unit")), "u-stk");
     await user.click(within(row).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(cards()[2]).toHaveAttribute("data-status", "Matched"));
-    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: 3, unitId: "u-stk" });
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: 3, unitId: "u-stk", toTaste: null });
   });
 
   it("makes a line to taste", async () => {
@@ -367,7 +367,7 @@ describe("step 2: review and fix", () => {
     await user.click(within(row).getByLabelText(t("recipe.toTaste")));
     await user.click(within(row).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(cards()[2]).toHaveAttribute("data-status", "Matched"));
-    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: null, unitId: null });
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: null, unitId: null, toTaste: true });
   });
 
   it("removes a line", async () => {

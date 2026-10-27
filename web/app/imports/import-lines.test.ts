@@ -36,11 +36,11 @@ describe("import lines", () => {
     const choice = { id: "i1", name: "Melk" };
     expect(buildLineEdit(2, { ingredient: choice, quantity: "1,5", unitId: "u1", toTaste: false, note: " cold " })).toEqual({
       ok: true,
-      edit: { position: 2, ingredientId: "i1", quantity: 1.5, unitId: "u1", note: "cold", remove: null },
+      edit: { position: 2, ingredientId: "i1", quantity: 1.5, unitId: "u1", note: "cold", toTaste: null, remove: null },
     });
     expect(buildLineEdit(0, { ingredient: choice, quantity: "", unitId: "", toTaste: true, note: "" })).toMatchObject({
       ok: true,
-      edit: { quantity: null, unitId: null },
+      edit: { quantity: null, unitId: null, toTaste: true, note: "" },
     });
     const bad = buildLineEdit(0, { ingredient: null, quantity: "abc", unitId: "", toTaste: false, note: "" });
     expect(bad.ok).toBe(false);
