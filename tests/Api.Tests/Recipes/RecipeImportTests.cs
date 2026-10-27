@@ -177,6 +177,8 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         Assert.Equal(0.5m, recipeLines[3].GetProperty("quantity").GetDecimal());
         Assert.Equal("ts", recipeLines[3].GetProperty("unitCode").GetString());
         Assert.Equal(JsonValueKind.Null, recipeLines[5].GetProperty("quantity").ValueKind);
+        Assert.Equal(JsonValueKind.Null, recipe.GetProperty("sourceUrl").ValueKind); // T-075: a pasted text has no source
+        Assert.Equal(JsonValueKind.Null, recipe.GetProperty("sourceName").ValueKind);
 
         // 5. Rule 5: the original text is in the artifact only; the recipe holds ids, numbers and a short note.
         Assert.DoesNotContain("2,5 dl hvetemel", recipe.ToString(), StringComparison.Ordinal);
@@ -384,6 +386,13 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
             await CountAsync(
                 "SELECT COUNT(*) FROM RecipeImports WHERE Id = @i AND Status = 'Saved' AND RawContent IS NULL AND DraftJson IS NULL AND SourceUrl = @u AND SavedRecipeId IS NOT NULL",
                 ("@i", id), ("@u", server.Url("/pannekaker"))));
+
+        // T-075: the recipe remembers where it came from; the name is derived from the host.
+        var recipeId = (await saved.JsonAsync()).GetProperty("recipeId").GetGuid();
+        using var recipeResponse = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
+        var recipe = await recipeResponse.JsonAsync();
+        Assert.Equal(server.Url("/pannekaker"), recipe.GetProperty("sourceUrl").GetString());
+        Assert.Equal("recipes.test", recipe.GetProperty("sourceName").GetString());
     }
 
     [Fact]

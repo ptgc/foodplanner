@@ -1,5 +1,6 @@
 import type { components } from "../api/schema";
 import type { MessageKey, Params } from "../i18n";
+import { safeSourceUrl, sourceUrlMax } from "./source-link";
 
 // Request/response shapes come from the generated client; nothing is hand-written here.
 type Recipe = components["schemas"]["RecipeResponse"];
@@ -50,6 +51,10 @@ export type FormState = {
   tagIds: string[];
   ingredients: IngredientRow[];
   steps: StepRow[];
+  /** Optional link to the original recipe (T-075). */
+  sourceUrl: string;
+  /** Kept so editing other fields does not lose a custom name; cleared when the link is changed (the API derives a new one). */
+  sourceName: string;
 };
 
 /** A translated message to show on a field: the key and its parameters. */
@@ -83,6 +88,8 @@ export const emptyForm = (): FormState => ({
   tagIds: [],
   ingredients: [emptyIngredient()],
   steps: [emptyStep()],
+  sourceUrl: "",
+  sourceName: "",
 });
 
 /** A quantity as typed: "1.5" or "1,5" (nb), up to 4 decimals. Returns null when it is not a plain number. */
@@ -121,6 +128,10 @@ export function validate(form: FormState): FieldErrors {
     if (minutes === null || minutes > limits.minutesMax) {
       errors[field] = { key: "recipe.error.minutes", params: { max: limits.minutesMax } };
     }
+  }
+
+  if (form.sourceUrl.trim() !== "" && safeSourceUrl(form.sourceUrl.trim()) === null) {
+    errors.sourceUrl = { key: "recipe.error.sourceUrl", params: { max: sourceUrlMax } };
   }
 
   if (form.tagIds.length > limits.tagsMax) {
@@ -181,6 +192,8 @@ export function toRequest(form: FormState): RecipeBody {
       note: row.note.trim() === "" ? null : row.note.trim(),
     })),
     steps: form.steps.map((step) => ({ text: step.text.trim() })),
+    sourceUrl: form.sourceUrl.trim() === "" ? null : form.sourceUrl.trim(),
+    sourceName: form.sourceUrl.trim() === "" || form.sourceName.trim() === "" ? null : form.sourceName.trim(),
   };
 }
 
@@ -211,6 +224,8 @@ export function fromRecipe(recipe: Recipe, decimalComma: boolean): FormState {
       };
     }),
     steps: [...recipe.steps].sort((a, b) => Number(a.position) - Number(b.position)).map((s) => ({ key: newKey(), text: s.text })),
+    sourceUrl: recipe.sourceUrl ?? "",
+    sourceName: recipe.sourceName ?? "",
   };
 }
 
@@ -279,6 +294,8 @@ export function mapServerErrors(serverErrors: Record<string, string[]>, form: Fo
       out[key] = { key: "recipe.error.servings", params: { min: limits.servingsMin, max: limits.servingsMax } };
     } else if (key === "prepMinutes" || key === "cookMinutes") {
       out[key] = { key: "recipe.error.minutes", params: { max: limits.minutesMax } };
+    } else if (key === "sourceUrl" || key === "sourceName") {
+      out.sourceUrl = { key: "recipe.error.sourceUrl", params: { max: sourceUrlMax } };
     } else if (key === "file") {
       out[key] = { key: "recipe.error.imageInvalid" };
     } else {
@@ -294,7 +311,7 @@ export function fieldId(key: string): string {
 }
 
 const rank = (key: string): number => {
-  const order = ["title", "description", "servings", "prepMinutes", "cookMinutes", "tagIds", "ingredients", "steps", "file", "form"];
+  const order = ["title", "description", "servings", "prepMinutes", "cookMinutes", "tagIds", "ingredients", "steps", "sourceUrl", "file", "form"];
   const index = order.findIndex((name) => key === name || key.startsWith(`${name}[`));
   return index === -1 ? order.length : index;
 };

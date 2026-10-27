@@ -17,6 +17,8 @@ public sealed class Recipe : Entity, ITenantEntity
     public const int MaxMinutes = 1440;
     public const int MaxSteps = 50;
     public const int MaxIngredients = 100;
+    public const int MaxSourceUrlLength = 2000;
+    public const int MaxSourceNameLength = 100;
 
     private Recipe()
     {
@@ -57,6 +59,58 @@ public sealed class Recipe : Entity, ITenantEntity
     }
 
     public void ClearImage() => ImageVersion = null;
+
+    /// <summary>Where the recipe came from (an http or https page), or null. Shown as a link to the original (T-075).</summary>
+    public string? SourceUrl { get; private set; }
+
+    /// <summary>A short display name for the source, e.g. "matprat.no". Null means "derive it from the host" (<see cref="SourceDisplayName"/>).</summary>
+    public string? SourceName { get; private set; }
+
+    /// <summary>The name to show: the stored one, else the URL's host without "www.", else null.</summary>
+    public string? SourceDisplayName => SourceUrl is null ? null : SourceName ?? DeriveSourceName(SourceUrl);
+
+    /// <summary>True for an absolute http or https URL of at most <see cref="MaxSourceUrlLength"/> characters.</summary>
+    public static bool IsValidSourceUrl(string? url) =>
+        !string.IsNullOrEmpty(url) && url.Length <= MaxSourceUrlLength && !url.Any(char.IsControl)
+        && Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && uri.Host.Length > 0;
+
+    /// <summary>The host without a leading "www.", or null when the URL is not a valid source URL.</summary>
+    public static string? DeriveSourceName(string url)
+    {
+        if (!IsValidSourceUrl(url))
+        {
+            return null;
+        }
+
+        var host = new Uri(url).Host;
+        host = host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? host[4..] : host;
+        return host.Length is > 0 and <= MaxSourceNameLength ? host : null;
+    }
+
+    /// <summary>Sets or clears (null url) the source. A blank name is derived from the host.</summary>
+    public void SetSource(string? url, string? name)
+    {
+        if (url is null)
+        {
+            SourceUrl = null;
+            SourceName = null;
+            return;
+        }
+
+        if (!IsValidSourceUrl(url))
+        {
+            throw new ArgumentException("The source must be an absolute http or https URL.", nameof(url));
+        }
+
+        if (name is { Length: > MaxSourceNameLength })
+        {
+            throw new ArgumentException("The source name is too long.", nameof(name));
+        }
+
+        SourceUrl = url;
+        SourceName = string.IsNullOrWhiteSpace(name) ? DeriveSourceName(url) : name;
+    }
 
     public void Update(string title, string? description, int servings, int? prepMinutes, int? cookMinutes) =>
         Set(title, description, servings, prepMinutes, cookMinutes);

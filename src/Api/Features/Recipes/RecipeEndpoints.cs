@@ -27,7 +27,9 @@ public sealed record RecipeRequest(
     int? CookMinutes,
     RecipeStepRequest[]? Steps,
     RecipeIngredientRequest[]? Ingredients,
-    Guid[]? TagIds);
+    Guid[]? TagIds,
+    string? SourceUrl = null,
+    string? SourceName = null);
 
 /// <summary>A grid card: enough to list recipes. <c>TotalMinutes</c> is prep plus cook, null when neither is set.</summary>
 public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags, string? ThumbUrl, string? CardUrl);
@@ -51,7 +53,9 @@ public sealed record RecipeResponse(
     RecipeStepResponse[] Steps,
     RecipeIngredientResponse[] Ingredients,
     TagResponse[] Tags,
-    RecipeImageUrlsResponse? Image);
+    RecipeImageUrlsResponse? Image,
+    string? SourceUrl,
+    string? SourceName);
 
 /// <summary>Ingredient lines scaled to <c>Servings</c> (from <c>BaseServings</c>), quantities and units ready to display.</summary>
 public sealed record ScaledRecipeResponse(Guid RecipeId, int BaseServings, int Servings, RecipeIngredientResponse[] Ingredients);
@@ -306,6 +310,7 @@ public static class RecipeEndpoints
         }
 
         var recipe = new Recipe(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
+        recipe.SetSource(valid.SourceUrl, valid.SourceName);
         // Two saves in one transaction: the children need the generated recipe id, and a failed second save must not leave a bare recipe.
         var ownTransaction = db.Database.CurrentTransaction is null;
         await using var transaction = ownTransaction ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
@@ -344,6 +349,7 @@ public static class RecipeEndpoints
         }
 
         recipe.Update(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
+        recipe.SetSource(valid.SourceUrl, valid.SourceName);
         db.RecipeSteps.RemoveRange(await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken));
         db.RecipeIngredients.RemoveRange(await db.RecipeIngredients.Where(i => i.RecipeId == recipeId).ToListAsync(cancellationToken));
         AddChildren(db, recipeId, request!);
@@ -465,7 +471,8 @@ public static class RecipeEndpoints
 
     private static string? NormalizeNote(string? note) => string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
-    private sealed record ValidRecipe(string Title, string? Description, int Servings, int? PrepMinutes, int? CookMinutes);
+    private sealed record ValidRecipe(
+        string Title, string? Description, int Servings, int? PrepMinutes, int? CookMinutes, string? SourceUrl, string? SourceName);
 
     /// <summary>Shape and range checks only; whether the ids exist for this household is <see cref="ResolveReferencesAsync"/>.</summary>
     private static ValidRecipe? Validate(RecipeRequest? request, Dictionary<string, string[]> errors)
@@ -491,6 +498,18 @@ public static class RecipeEndpoints
         if (request.Servings is null or < Recipe.MinServings or > Recipe.MaxServings)
         {
             errors["servings"] = [$"Servings must be {Recipe.MinServings} to {Recipe.MaxServings}."];
+        }
+
+        var sourceUrl = string.IsNullOrWhiteSpace(request.SourceUrl) ? null : request.SourceUrl.Trim();
+        if (sourceUrl is not null && !Recipe.IsValidSourceUrl(sourceUrl))
+        {
+            errors["sourceUrl"] = [$"The source must be an absolute http or https link of at most {Recipe.MaxSourceUrlLength} characters."];
+        }
+
+        var sourceName = string.IsNullOrWhiteSpace(request.SourceName) ? null : request.SourceName.Trim();
+        if (sourceName is { Length: > Recipe.MaxSourceNameLength } || sourceName?.Any(char.IsControl) == true)
+        {
+            errors["sourceName"] = [$"The source name can be at most {Recipe.MaxSourceNameLength} characters, without control characters."];
         }
 
         CheckMinutes(request.PrepMinutes, "prepMinutes", errors);
@@ -542,7 +561,8 @@ public static class RecipeEndpoints
             }
         }
 
-        return errors.Count > 0 ? null : new ValidRecipe(title!, description, request.Servings!.Value, request.PrepMinutes, request.CookMinutes);
+        return errors.Count > 0 ? null : new ValidRecipe(
+            title!, description, request.Servings!.Value, request.PrepMinutes, request.CookMinutes, sourceUrl, sourceName);
     }
 
     private static void CheckMinutes(int? minutes, string key, Dictionary<string, string[]> errors)
@@ -669,7 +689,9 @@ public static class RecipeEndpoints
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,
             recipe.TotalMinutes, [.. steps], ingredients,
             (await LoadTagsAsync(db, [recipe.Id], locale, cancellationToken)).GetValueOrDefault(recipe.Id, []),
-            RecipeImageUrls.All(recipe));
+            RecipeImageUrls.All(recipe),
+            recipe.SourceUrl,
+            recipe.SourceDisplayName);
     }
 
     private static IResult NotFound() =>

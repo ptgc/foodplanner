@@ -19,7 +19,10 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
         recipe.ToTable("Recipes");
         recipe.Property(r => r.Title).HasMaxLength(Recipe.MaxTitleLength).IsRequired();
         recipe.Property(r => r.Description).HasMaxLength(Recipe.MaxDescriptionLength);
+        recipe.Property(r => r.SourceUrl).HasMaxLength(Recipe.MaxSourceUrlLength);
+        recipe.Property(r => r.SourceName).HasMaxLength(Recipe.MaxSourceNameLength);
         recipe.Ignore(r => r.TotalMinutes);
+        recipe.Ignore(r => r.SourceDisplayName);
         recipe.HasIndex(r => new { r.HouseholdId, r.Title });
         recipe.HasOne<Household>().WithMany().HasForeignKey(r => r.HouseholdId).OnDelete(DeleteBehavior.Cascade);
     }

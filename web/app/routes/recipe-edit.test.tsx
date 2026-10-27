@@ -34,6 +34,8 @@ const tags = [
 ];
 
 const existing = (patch: Partial<Recipe> = {}): Recipe => ({
+  sourceUrl: null,
+  sourceName: null,
   id: "r1",
   title: "Fiskesuppe",
   description: "God suppe",
@@ -353,6 +355,8 @@ describe("creating a recipe", () => {
         { ingredientId: "i-salt", quantity: null, unitId: null, note: "etter smak" },
       ],
       steps: [{ text: "Kok opp vannet" }, { text: "Ha i fisken" }],
+      sourceUrl: null,
+      sourceName: null,
     });
   });
 

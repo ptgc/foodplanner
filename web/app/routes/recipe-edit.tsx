@@ -123,6 +123,7 @@ function labelFor(t: I18n["t"], key: string): string | null {
     cookMinutes: "recipe.fieldCook",
     ingredients: "recipe.ingredientsHeading",
     steps: "recipe.stepsHeading",
+    sourceUrl: "recipe.fieldSource",
     file: "recipe.pictureHeading",
   };
   if (key.startsWith("tagIds")) return t("recipe.tagsHeading");
@@ -323,6 +324,19 @@ function RecipeForm({ householdId, recipe }: { householdId: string; recipe: Reci
           <h2 id="steps-heading">{t("recipe.stepsHeading")}</h2>
           <StepRows rows={form.steps} errors={errors} onChange={(rows) => set("steps", rows)} />
         </section>
+
+        <div className="form-field">
+          <label htmlFor={fieldId("sourceUrl")}>{t("recipe.fieldSource")}</label>
+          <input
+            {...fieldProps("sourceUrl", errors)}
+            type="text"
+            inputMode="url"
+            autoComplete="off"
+            value={form.sourceUrl}
+            onChange={(e) => setForm((f) => ({ ...f, sourceUrl: e.target.value, sourceName: "" }))}
+          />
+          <ErrorText name="sourceUrl" errors={errors} />
+        </div>
 
         <section aria-labelledby="picture-heading" className="picture-section">
           <h2 id="picture-heading">{t("recipe.pictureHeading")}</h2>

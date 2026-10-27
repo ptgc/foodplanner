@@ -143,6 +143,105 @@ public sealed class RecipeEndpointTests(AuthDatabase db) : IClassFixture<AuthDat
         await deletedAgain.AssertProblemAsync(HttpStatusCode.NotFound, "recipe-not-found");
     }
 
+    private static object WithSource(object? sourceUrl, object? sourceName = null) => new
+    {
+        title = NewTitle(),
+        servings = 4,
+        steps = new[] { new { text = "Bland" } },
+        ingredients = new[] { new { ingredientId = Salt, quantity = 1m, unitId = Gram, note = (string?)null } },
+        sourceUrl,
+        sourceName,
+    };
+
+    [Fact]
+    public async Task Source_link_is_stored_with_a_name_derived_from_the_host_and_can_be_edited_and_cleared()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+
+        using var created = await owner.Client.PostAsync(Url(household), WithSource("  https://www.matprat.no/oppskrifter/pannekaker/  "));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var body = await created.JsonAsync();
+        var id = body.GetProperty("id").GetGuid();
+        Assert.Equal("https://www.matprat.no/oppskrifter/pannekaker/", body.GetProperty("sourceUrl").GetString());
+        Assert.Equal("matprat.no", body.GetProperty("sourceName").GetString());
+
+        // The list does not carry it.
+        using var list = await owner.Client.GetAsync(Url(household));
+        Assert.DoesNotContain("sourceUrl", await list.Content.ReadAsStringAsync(Ct), StringComparison.Ordinal);
+
+        // Edit: another URL with an explicit name.
+        using var edited = await owner.Client.PutAsync(Url(household, "/" + id), WithSource("http://example.com/r?id=1", "Mormors blogg"));
+        Assert.Equal(HttpStatusCode.OK, edited.StatusCode);
+        var after = await edited.JsonAsync();
+        Assert.Equal("http://example.com/r?id=1", after.GetProperty("sourceUrl").GetString());
+        Assert.Equal("Mormors blogg", after.GetProperty("sourceName").GetString());
+
+        // Clear: blank or missing url removes both.
+        using var cleared = await owner.Client.PutAsync(Url(household, "/" + id), WithSource("   ", "Mormors blogg"));
+        Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
+        var gone = await cleared.JsonAsync();
+        Assert.Equal(JsonValueKind.Null, gone.GetProperty("sourceUrl").ValueKind);
+        Assert.Equal(JsonValueKind.Null, gone.GetProperty("sourceName").ValueKind);
+        Assert.Equal(1, await CountAsync("Recipes", "Id = @r AND SourceUrl IS NULL AND SourceName IS NULL", ("@r", id)));
+    }
+
+    [Fact]
+    public async Task A_stored_url_without_a_name_gets_its_name_from_the_host_on_read()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var id = await CreateAsync(owner.Client, household);
+        // As the T-075 backfill leaves it: a URL and no stored name.
+        await HouseholdScenario.ScalarAsync(db.ConnectionString, "UPDATE Recipes SET SourceUrl = N'https://www.matprat.no/x', SourceName = NULL WHERE Id = @r", ("@r", id));
+
+        using var read = await owner.Client.GetAsync(Url(household, "/" + id));
+
+        var body = await read.JsonAsync();
+        Assert.Equal("https://www.matprat.no/x", body.GetProperty("sourceUrl").GetString());
+        Assert.Equal("matprat.no", body.GetProperty("sourceName").GetString());
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("ftp://example.com/r")]
+    [InlineData("data:text/html;base64,AAAA")]
+    [InlineData("/oppskrifter/pannekaker")]
+    [InlineData("www.matprat.no/x")]
+    [InlineData("https://")]
+    public async Task Source_link_that_is_not_an_absolute_http_url_is_refused(string url)
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+
+        using var response = await owner.Client.PostAsync(Url(household), WithSource(url));
+
+        await AssertValidationAsync(response, "sourceUrl");
+        Assert.Equal(0, await CountAsync("Recipes", "HouseholdId = @h", ("@h", household)));
+    }
+
+    [Fact]
+    public async Task Source_link_and_name_longer_than_the_limits_are_refused_on_create_and_update()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var id = await CreateAsync(owner.Client, household);
+        var longUrl = "https://example.com/" + new string('a', Recipe.MaxSourceUrlLength);
+        var okUrl = "https://example.com/" + new string('a', Recipe.MaxSourceUrlLength - 20);
+
+        await AssertValidationAsync(await owner.Client.PostAsync(Url(household), WithSource(longUrl)), "sourceUrl");
+        await AssertValidationAsync(await owner.Client.PutAsync(Url(household, "/" + id), WithSource(longUrl)), "sourceUrl");
+        await AssertValidationAsync(
+            await owner.Client.PutAsync(Url(household, "/" + id), WithSource("https://example.com/", new string('n', Recipe.MaxSourceNameLength + 1))),
+            "sourceName");
+        using var fits = await owner.Client.PutAsync(Url(household, "/" + id), WithSource(okUrl, new string('n', Recipe.MaxSourceNameLength)));
+        Assert.Equal(HttpStatusCode.OK, fits.StatusCode);
+    }
+
     [Fact]
     public async Task Child_can_read_but_not_create_update_or_delete()
     {

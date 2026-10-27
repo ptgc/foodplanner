@@ -435,7 +435,8 @@ public static class RecipeImportEndpoints
             draft.CookMinutes,
             [.. draft.Steps.Select(s => new RecipeStepRequest(s))],
             [.. draft.Lines.Select(l => new RecipeIngredientRequest(l.IngredientId, l.Quantity, l.UnitId, l.Note))],
-            null);
+            null,
+            import.SourceUrl);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var recipe = await RecipeEndpoints.TryCreateAsync(db, request, errors, cancellationToken);

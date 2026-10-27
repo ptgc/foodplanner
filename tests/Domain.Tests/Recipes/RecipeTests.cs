@@ -18,6 +18,62 @@ public sealed class RecipeTests
     }
 
     [Theory]
+    [InlineData("https://www.matprat.no/oppskrifter/x/", "matprat.no")]
+    [InlineData("http://Example.COM:8080/r?id=1#a", "example.com")]
+    [InlineData("https://www.sub.example.org/", "sub.example.org")]
+    public void Source_name_is_derived_from_the_host_without_www(string url, string expected)
+    {
+        var recipe = new Recipe("Pasta", null, 4, null, null);
+
+        recipe.SetSource(url, null);
+
+        Assert.Equal(url, recipe.SourceUrl);
+        Assert.Equal(expected, recipe.SourceName);
+        Assert.Equal(expected, recipe.SourceDisplayName);
+    }
+
+    [Fact]
+    public void Source_name_is_kept_when_given_and_both_are_cleared_by_a_null_url()
+    {
+        var recipe = new Recipe("Pasta", null, 4, null, null);
+        recipe.SetSource("https://example.com/r", "Mormor");
+        Assert.Equal("Mormor", recipe.SourceName);
+
+        recipe.SetSource(null, "ignored");
+
+        Assert.Null(recipe.SourceUrl);
+        Assert.Null(recipe.SourceName);
+        Assert.Null(recipe.SourceDisplayName);
+    }
+
+    [Theory]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("ftp://example.com/x")]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("/relative/path")]
+    [InlineData("example.com/x")]
+    [InlineData("https://")]
+    [InlineData("")]
+    public void Source_url_must_be_an_absolute_http_or_https_url(string url)
+    {
+        Assert.False(Recipe.IsValidSourceUrl(url));
+        Assert.Throws<ArgumentException>(() => new Recipe("Pasta", null, 4, null, null).SetSource(url, null));
+    }
+
+    [Fact]
+    public void Source_limits_are_inclusive()
+    {
+        var recipe = new Recipe("Pasta", null, 4, null, null);
+        var longest = "https://example.com/" + new string('a', Recipe.MaxSourceUrlLength - 20);
+
+        recipe.SetSource(longest, new string('n', Recipe.MaxSourceNameLength));
+
+        Assert.Equal(Recipe.MaxSourceUrlLength, recipe.SourceUrl!.Length);
+        Assert.Throws<ArgumentException>(() => recipe.SetSource(longest + "a", null));
+        Assert.Throws<ArgumentException>(() => recipe.SetSource(longest, new string('n', Recipe.MaxSourceNameLength + 1)));
+    }
+
+    [Theory]
     [InlineData("", 4)]
     [InlineData("  ", 4)]
     [InlineData("ok", 0)]

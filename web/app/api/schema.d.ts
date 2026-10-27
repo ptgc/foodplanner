@@ -960,6 +960,8 @@ export interface components {
             steps: null | components["schemas"]["RecipeStepRequest"][];
             ingredients: null | components["schemas"]["RecipeIngredientRequest"][];
             tagIds: null | string[];
+            sourceUrl?: null | string;
+            sourceName?: null | string;
         };
         RecipeResponse: {
             /** Format: uuid */
@@ -978,6 +980,8 @@ export interface components {
             ingredients: components["schemas"]["RecipeIngredientResponse"][];
             tags: components["schemas"]["TagResponse"][];
             image: null | components["schemas"]["RecipeImageUrlsResponse"];
+            sourceUrl: null | string;
+            sourceName: null | string;
         };
         RecipeStepRequest: {
             text: null | string;

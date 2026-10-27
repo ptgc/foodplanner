@@ -3193,6 +3193,14 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<int>("Servings")
                         .HasColumnType("int");
 
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SourceUrl")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)

@@ -53,6 +53,19 @@ a.button {
   white-space: pre-line;
 }
 
+.recipe-source {
+  margin: 0.5rem 0;
+}
+
+.recipe-source a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  color: var(--accent);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .servings-scaler {
   display: flex;
   flex-wrap: wrap;

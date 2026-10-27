@@ -102,6 +102,28 @@ test("an Adult pastes a recipe, fixes the line the catalog cannot match by creat
     await expect(page.getByRole("listitem").filter({ hasText: invented }).filter({ hasText: "3" })).toBeVisible();
     await expect(page.locator(".recipe-steps li")).toHaveText(["Heat the milk gently.", `Add the ${invented} and serve.`]);
     if (mobile) await noHorizontalScroll(page);
+
+    // T-075: a pasted text has no source, so no link. A URL import cannot run here (no internet), so the source is set
+    // through the edit form; the API test covers that saving a URL import sets it. The detail page then links to the original.
+    await expect(page.getByTestId("recipe-source-link")).toHaveCount(0);
+    await page.getByTestId("recipe-edit-link").click();
+    await expect(page.getByRole("heading", { name: "Edit recipe", level: 1 })).toBeVisible();
+    const source = page.getByLabel("Source (link, optional)");
+    await source.fill("javascript:alert(1)");
+    await page.getByRole("button", { name: "Save recipe" }).click();
+    await expect(source).toHaveAttribute("aria-invalid", "true");
+    await source.fill("https://www.matprat.no/oppskrifter/e2e/");
+    await page.getByRole("button", { name: "Save recipe" }).click();
+    await expect(page).toHaveURL(new RegExp(`/recipes/${recipeId}$`), { timeout: 30_000 });
+    const original = page.getByTestId("recipe-source-link");
+    await expect(original).toHaveText("Original recipe: matprat.no ↗");
+    await expect(original).toHaveAttribute("href", "https://www.matprat.no/oppskrifter/e2e/");
+    await expect(original).toHaveAttribute("target", "_blank");
+    await expect(original).toHaveAttribute("rel", "noopener noreferrer");
+    if (mobile) {
+      expect((await original.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await noHorizontalScroll(page);
+    }
   } finally {
     // The recipe is deleted. There is no endpoint to delete an ingredient, so the household's own ingredient named
     // "Zqx..." (unique per run) stays behind.

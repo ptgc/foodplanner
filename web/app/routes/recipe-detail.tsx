@@ -6,6 +6,7 @@ import { ingredientAmount } from "../recipes/ingredient-amount";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { limits } from "../recipes/recipe-form";
+import { safeSourceUrl, sourceLabel } from "../recipes/source-link";
 import { useRecipe, type Recipe } from "../recipes/use-recipe";
 import { useScaledIngredients } from "../recipes/use-scaled-ingredients";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
@@ -73,6 +74,7 @@ function RecipeArticle({
   const prep = minutesOf(recipe.prepMinutes);
   const cook = minutesOf(recipe.cookMinutes);
   const total = minutesOf(recipe.totalMinutes);
+  const source = safeSourceUrl(recipe.sourceUrl); // never a javascript: or other non-http(s) link
 
   return (
     <article className="recipe-detail" aria-labelledby="recipe-title">
@@ -128,6 +130,13 @@ function RecipeArticle({
         </dl>
       )}
       {recipe.description && <p className="recipe-description">{recipe.description}</p>}
+      {source && (
+        <p className="recipe-source">
+          <a href={source} target="_blank" rel="noopener noreferrer" data-testid="recipe-source-link">
+            {t("recipe.sourceOriginal", { name: sourceLabel(source, recipe.sourceName) })}
+          </a>
+        </p>
+      )}
       {recipe.tags.length > 0 && (
         <p className="recipe-card-tags">
           {recipe.tags.map((tag) => (

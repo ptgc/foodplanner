@@ -150,6 +150,8 @@ describe("toRequest", () => {
         { ingredientId: "i2", quantity: null, unitId: null, note: null },
       ],
       steps: [{ text: "Ett" }, { text: "To" }],
+      sourceUrl: null,
+      sourceName: null,
     });
   });
 });
@@ -235,6 +237,8 @@ describe("fromRecipe", () => {
   it("fills the form from the API response, ordering steps by position and marking to-taste lines", () => {
     const recipe: Recipe = {
       id: "r1",
+      sourceUrl: "https://www.matprat.no/x",
+      sourceName: "matprat.no",
       title: "Suppe",
       description: null,
       servings: 4,
@@ -253,7 +257,7 @@ describe("fromRecipe", () => {
       ],
     };
     const form = fromRecipe(recipe, true);
-    expect(form).toMatchObject({ title: "Suppe", description: "", servings: "4", prepMinutes: "10", cookMinutes: "", tagIds: ["t1"] });
+    expect(form).toMatchObject({ title: "Suppe", description: "", servings: "4", prepMinutes: "10", cookMinutes: "", tagIds: ["t1"], sourceUrl: "https://www.matprat.no/x", sourceName: "matprat.no" });
     expect(form.steps.map((s) => s.text)).toEqual(["Ett", "To"]);
     expect(form.ingredients[0]).toMatchObject({ quantity: "1,5", unitId: "u-kg", toTaste: false });
     expect(form.ingredients[1]).toMatchObject({ quantity: "", unitId: "", toTaste: true, note: "etter smak" });
