@@ -440,6 +440,41 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddRecipeSource_backfills_recipes_saved_from_an_import_and_leaves_the_rest()
+    {
+        var connectionString = await server.CreateDatabaseAsync("recipesource", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261026102620_AddRecipeImports", Ct); // before T-075
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('Recipes') AND name = 'SourceUrl'"));
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @u uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Backfill', @now, @now);
+            INSERT INTO AspNetUsers (Id, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES (@u, 0, 0, 0, 0, 0);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES
+                ('00000000-0000-0000-0000-0000000000a1', @h, N'From web', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000a2', @h, N'From text', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000a3', @h, N'Typed by hand', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000a4', @h, N'Odd stored scheme', 4, @now, @now);
+            INSERT INTO RecipeImports (Id, HouseholdId, Source, SourceUrl, Status, SavedRecipeId, CreatedByUserId, CreatedAt, UpdatedAt) VALUES
+                (NEWID(), @h, 'Url', N'https://www.matprat.no/oppskrifter/x/', 'Saved', '00000000-0000-0000-0000-0000000000a1', @u, @now, @now),
+                (NEWID(), @h, 'Text', NULL, 'Saved', '00000000-0000-0000-0000-0000000000a2', @u, @now, @now),
+                (NEWID(), @h, 'Url', N'javascript:alert(1)', 'Saved', '00000000-0000-0000-0000-0000000000a4', @u, @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal("https://www.matprat.no/oppskrifter/x/", await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'From web'"));
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceName FROM Recipes WHERE Title = N'From web'")); // derived on read
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'From text'"));
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'Typed by hand'"));
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'Odd stored scheme'"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task Api_startup_does_not_migrate()
     {
         var connectionString = await server.CreateDatabaseAsync("startup", Ct);

@@ -352,6 +352,8 @@ describe("Recipe detail (minimal, T-025 extends)", () => {
     const user = userEvent.setup();
     server.detail = {
       id: "r1",
+      sourceUrl: null,
+      sourceName: null,
       title: "Fiskesuppe",
       description: null,
       servings: 4,

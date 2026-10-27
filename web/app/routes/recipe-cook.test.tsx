@@ -14,6 +14,8 @@ const me = { userId: "11111111-1111-1111-1111-111111111111", email: "adult@examp
 
 const recipe: Recipe = {
   id: "r1",
+  sourceUrl: null,
+  sourceName: null,
   title: "Fiskesuppe",
   description: null,
   servings: 4,

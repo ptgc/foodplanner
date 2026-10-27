@@ -130,6 +130,13 @@ Paste text or give a URL, get a draft with structured, matched ingredients, fix 
 - `RecipeImports.CreatedByUserId` is a NO ACTION foreign key to the user. Any future account deletion must first delete or reassign that user's imports (like meal plan picks and pantry confirmations), or it will fail.
 - Not done / known limits: images are not downloaded (the candidate URL is shown only); no scheduled cleanup of old Saved or Draft imports (the 50 draft cap bounds the draft rows); the parser knows only the seeded units and Norwegian/English phrasing (an unknown unit word is flagged, never guessed); a recipe that needs an ingredient the household lacks needs `POST /ingredients` first (T-043 can offer it inline).
 
+## Recipe source link (T-075, Q-018, migration `AddRecipeSource`)
+
+- `Recipe.SourceUrl` (nullable, at most 2000 characters, absolute `http` or `https` only) and `Recipe.SourceName` (nullable, at most 100). They are set on create and replaced on update through `RecipeRequest` (`sourceUrl`, `sourceName`); a blank or missing `sourceUrl` clears both. A blank `sourceName` is derived from the URL's host without a leading `www.` (`matprat.no`; `Recipe.DeriveSourceName`, pure Domain). Invalid input is a `400` ValidationProblem on `sourceUrl` (not http/https, relative, control characters, too long) or `sourceName`. Both are in the recipe detail response (`sourceUrl`, `sourceName`), not in list items.
+- Saving a recipe import passes the import's `SourceUrl` through the normal create path, so the recipe gets it (a text import has none). The import row keeps its own `SourceUrl` as before (Q-017).
+- Migration backfill: `UPDATE Recipes ... FROM RecipeImports WHERE SavedRecipeId = Recipes.Id` (same household, only http/https URLs) sets `SourceUrl`. `SourceName` is left NULL on purpose and derived from the host when the API reads the recipe (`Recipe.SourceDisplayName`), so the host parsing exists in one place; a later edit stores the name. No new entity or tenant surface: the columns sit on the already tenant-filtered `Recipes`.
+- Web: the recipe page shows "Original recipe: <name> ↗" (new tab, `rel="noopener noreferrer"`) only when the URL is http(s); anything else is never rendered as a link, even if stored. The form has an optional "Source (link)" field. It sends the stored name back unchanged, and drops it when the link is changed so the API derives a new one.
+
 ## Invariants
 - Merging only combines compatible units (mass with mass, volume with volume); incompatible stay separate lines.
 - Scaling recipe servings scales all ingredient quantities proportionally.
