@@ -77,11 +77,12 @@ public sealed record UpdateRecipeImportRequest(
     UpdateImportLineRequest[]? Lines);
 
 /// <summary>
-/// Replaces the structured part of the line at <c>Position</c>: ingredient, quantity, unit and note (quantity and unit both
-/// null is "to taste"), or removes it with <c>Remove</c>. To use an ingredient the household does not have yet, create it with
-/// <c>POST /ingredients</c> first and pass its id.
+/// Edits the line at <c>Position</c>, or removes it with <c>Remove</c>. <c>IngredientId</c> is required. Patch semantics: an absent
+/// (null) <c>Quantity</c> and <c>UnitId</c> keep what the line holds (the parsed amount), a quantity needs a unit, and
+/// <c>ToTaste: true</c> clears both (and must not be combined with them). An absent <c>Note</c> keeps the note; an empty one
+/// clears it. To use an ingredient the household does not have yet, create it with <c>POST /ingredients</c> first and pass its id.
 /// </summary>
-public sealed record UpdateImportLineRequest(int? Position, Guid? IngredientId, decimal? Quantity, Guid? UnitId, string? Note, bool? Remove);
+public sealed record UpdateImportLineRequest(int? Position, Guid? IngredientId, decimal? Quantity, Guid? UnitId, string? Note, bool? Remove, bool? ToTaste = null);
 
 public sealed record SaveRecipeImportResponse(Guid RecipeId);
 
@@ -347,15 +348,18 @@ public static class RecipeImportEndpoints
                 continue;
             }
 
-            lines[position] = lines[position] with
+            // Patch semantics: an edit that names no amount keeps the parsed quantity and unit; only ToTaste clears them.
+            var current = lines[position];
+            var amountGiven = edit.ToTaste == true || edit.Quantity is not null;
+            lines[position] = current with
             {
                 IngredientId = edit.IngredientId,
-                Quantity = edit.Quantity,
-                QuantityLow = null,
-                UnitId = edit.UnitId,
-                UnitCode = edit.UnitId is { } unitId ? unitCodes.GetValueOrDefault(unitId) : null,
-                UnitText = null,
-                Note = string.IsNullOrWhiteSpace(edit.Note) ? null : edit.Note.Trim(),
+                Quantity = amountGiven ? edit.Quantity : current.Quantity,
+                QuantityLow = amountGiven ? null : current.QuantityLow,
+                UnitId = amountGiven ? edit.UnitId : current.UnitId,
+                UnitCode = amountGiven ? (edit.UnitId is { } unitId ? unitCodes.GetValueOrDefault(unitId) : null) : current.UnitCode,
+                UnitText = amountGiven ? null : current.UnitText,
+                Note = edit.Note is null ? current.Note : string.IsNullOrWhiteSpace(edit.Note) ? null : edit.Note.Trim(),
                 Confidence = 1,
                 Unparsed = false,
                 Suggestions = [],
@@ -580,7 +584,19 @@ public static class RecipeImportEndpoints
                 errors[$"{key}.ingredientId"] = ["An ingredient is required."];
             }
 
-            if (edit.Quantity is { } quantity)
+            if (edit.ToTaste == true)
+            {
+                if (edit.Quantity is not null)
+                {
+                    errors[$"{key}.quantity"] = ["Leave the quantity out when the line is to taste."];
+                }
+
+                if (edit.UnitId is not null)
+                {
+                    errors[$"{key}.unitId"] = ["Leave the unit out when the line is to taste."];
+                }
+            }
+            else if (edit.Quantity is { } quantity)
             {
                 if (quantity <= 0 || quantity > RecipeIngredient.MaxQuantity || decimal.Round(quantity, RecipeIngredient.MaxQuantityDecimals) != quantity)
                 {

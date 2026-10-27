@@ -61,7 +61,9 @@ export function buildLineEdit(position: number, draft: LineDraft): BuiltEdit {
       ingredientId: draft.ingredient.id,
       quantity: draft.toTaste ? null : quantity,
       unitId: draft.toTaste ? null : draft.unitId,
-      note: draft.note.trim() === "" ? null : draft.note.trim(),
+      // An empty note clears it; null would keep the parsed one.
+      note: draft.note.trim(),
+      toTaste: draft.toTaste ? true : null,
       remove: null,
     },
   };
@@ -74,6 +76,7 @@ export const removalEdit = (position: number): LineEdit => ({
   unitId: null,
   note: null,
   remove: true,
+  toTaste: null,
 });
 
 /**

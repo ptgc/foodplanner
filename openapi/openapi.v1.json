@@ -5687,6 +5687,12 @@
               "null",
               "boolean"
             ]
+          },
+          "toTaste": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },

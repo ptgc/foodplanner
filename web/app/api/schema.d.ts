@@ -1094,6 +1094,7 @@ export interface components {
             unitId: null | string;
             note: null | string;
             remove: null | boolean;
+            toTaste?: null | boolean;
         };
         UpdateMealPlanEntryRequest: {
             /** Format: date */

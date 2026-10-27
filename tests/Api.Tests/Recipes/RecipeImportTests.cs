@@ -282,6 +282,72 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
     }
 
+    [Fact]
+    public async Task Resolving_an_ingredient_keeps_the_parsed_quantity_unit_and_note_and_to_taste_is_explicit()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var import = await CreateTextAsync(
+            owner.Client, household,
+            "Gryte\nIngredienser\n400 g dragefrukt, hakket\n400 g kjøttdeig av svin\n0,5 ts pepper\nFremgangsmåte\nKok.");
+        var id = import.GetProperty("id").GetGuid();
+        var lines = import.GetProperty("lines").EnumerateArray().ToList();
+        Assert.Equal("UnmatchedIngredient", lines[0].GetProperty("status").GetString());
+        Assert.Equal(400m, lines[0].GetProperty("quantity").GetDecimal());
+
+        using var created = await owner.Client.PostAsync($"/api/households/{household}/ingredients", new { name = "Dragefrukt", isStaple = false, dimension = "Mass" });
+        var dragonFruit = (await created.JsonAsync()).GetProperty("id").GetGuid();
+
+        // Only position + ingredientId, as a search pick or a suggestion pick sends it.
+        var minced = lines[1].GetProperty("suggestions").EnumerateArray().Select(s => (Guid?)s.GetProperty("ingredientId").GetGuid()).FirstOrDefault()
+            ?? IngredientSeed.All.Single(r => r.Key == "kjottdeig").Id;
+        var pepper = IngredientSeed.All.Single(r => r.Key == "sort_pepper").Id;
+        using var put = await owner.Client.PutAsync(Url(household, "/" + id), new
+        {
+            lines = new object[]
+            {
+                new { position = 0, ingredientId = dragonFruit },
+                new { position = 1, ingredientId = minced },
+                new { position = 2, ingredientId = pepper },
+            },
+        });
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        var updated = (await put.JsonAsync()).GetProperty("lines").EnumerateArray().ToList();
+        Assert.Equal(400m, updated[0].GetProperty("quantity").GetDecimal());
+        Assert.Equal("g", updated[0].GetProperty("unitCode").GetString());
+        Assert.Equal("hakket", updated[0].GetProperty("note").GetString());
+        Assert.Equal(400m, updated[1].GetProperty("quantity").GetDecimal());
+        Assert.Equal(0.5m, updated[2].GetProperty("quantity").GetDecimal());
+
+        using var saved = await owner.Client.PostAsync(Url(household, $"/{id}/save"));
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        var recipeId = (await saved.JsonAsync()).GetProperty("recipeId").GetGuid();
+        using var recipeResponse = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
+        var recipeLines = (await recipeResponse.JsonAsync()).GetProperty("ingredients").EnumerateArray().ToList();
+        Assert.Equal(400m, recipeLines[0].GetProperty("quantity").GetDecimal());
+        Assert.Equal("g", recipeLines[0].GetProperty("unitCode").GetString());
+        Assert.Equal(400m, recipeLines[1].GetProperty("quantity").GetDecimal());
+        Assert.Equal("g", recipeLines[1].GetProperty("unitCode").GetString());
+        Assert.Equal(0.5m, recipeLines[2].GetProperty("quantity").GetDecimal());
+        Assert.Equal("ts", recipeLines[2].GetProperty("unitCode").GetString());
+
+        // Explicit "to taste" still clears; it cannot be combined with an amount.
+        var second = await CreateTextAsync(owner.Client, household, "Gryte\nIngredienser\n2 dl melk\nFremgangsmåte\nKok.");
+        var secondId = second.GetProperty("id").GetGuid();
+        using (var refused = await owner.Client.PutAsync(
+            Url(household, "/" + secondId),
+            new { lines = new object[] { new { position = 0, ingredientId = Milk, toTaste = true, quantity = 1m, unitId = Dl } } }))
+        {
+            await AssertValidationAsync(refused, "lines[0].quantity");
+        }
+
+        using var taste = await owner.Client.PutAsync(Url(household, "/" + secondId), new { lines = new object[] { new { position = 0, ingredientId = Milk, toTaste = true } } });
+        var tasteLine = (await taste.JsonAsync()).GetProperty("lines")[0];
+        Assert.Equal(JsonValueKind.Null, tasteLine.GetProperty("quantity").ValueKind);
+        Assert.Equal(JsonValueKind.Null, tasteLine.GetProperty("unitId").ValueKind);
+    }
+
     // ---- URL imports ------------------------------------------------------------------------------------------------------
 
     [Fact]
