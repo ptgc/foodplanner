@@ -11,6 +11,7 @@ import {
   emptyForm,
   fieldId,
   fromRecipe,
+  limits,
   mapServerErrors,
   orderedKeys,
   serverErrorsOf,
@@ -460,7 +461,7 @@ async function applyPicture(
         },
       });
       if (response.ok) return null;
-      if (response.status === 413 || problemTypeOf(error)?.endsWith(":image-too-large")) return { key: "recipe.error.imageSize" };
+      if (response.status === 413 || problemTypeOf(error)?.endsWith(":image-too-large")) return { key: "recipe.error.imageSize", params: { max: limits.imageMaxBytes / (1024 * 1024) } };
       return { key: "recipe.error.imageInvalid" };
     }
     if (picture.remove && hasStored) {
