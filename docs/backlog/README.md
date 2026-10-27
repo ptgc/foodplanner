@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: none (L3 done 2026-10-27; next iteration to be chosen by the architect)
+## Current focus: L3 follow-ups T-075 and T-076 (Q-018); T-077 added but not scheduled
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -100,3 +100,6 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-072 | Set the password at confirm time, expire unconfirmed accounts | L2 | T-009, T-028, T-038 | implementer-backend | no |
 | T-073 | Save-time check for cross-household references | L2 | T-012, T-020, T-021, T-023, T-030, T-033 | implementer-backend | no |
 | T-074 | Registration time as a column | L2 | T-072 | implementer-backend | yes |
+| T-075 | Recipe source link | L3 | T-042, T-043 | implementer-backend | yes |
+| T-076 | Ingredient amount kind, purpose and alternatives | L3 | T-075 | implementer-backend | yes |
+| T-077 | AI-assisted fallback for recipe import | M4 | T-076 | implementer-backend | no |
