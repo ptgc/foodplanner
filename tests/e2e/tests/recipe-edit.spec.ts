@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 import { adminState, expect, saveRecipe, test, uniqueStamp } from "./fixtures";
-import { solidPng } from "./png";
+import { noisyPng, solidPng } from "./png";
 
 test.use({ storageState: adminState });
 test.setTimeout(90_000);
@@ -179,5 +179,46 @@ test("T-081: a book source is set in the edit form and shown as plain text, not 
     await expect(page.getByTestId("recipe-source-text").locator("a")).toHaveCount(0);
   } finally {
     await request.delete(`/api/households/${h}/recipes/${recipeId}`, { headers: await csrf(request) });
+  }
+});
+
+// T-080: nginx capped request bodies at its 1 MB default, so every normal phone photo failed with an HTML 413.
+test("a phone-sized photo uploads through the web container, and a too-large one is refused", async ({ page }, testInfo) => {
+  const request = page.request;
+  const households = (await (await request.get("/api/households")).json()) as { id: string }[];
+  const h = households[0]!.id;
+  const title = `E2E Photo size ${testInfo.project.name} ${uniqueStamp(testInfo)}`;
+  let recipeId: string | undefined;
+  try {
+    await page.goto("/recipes/new");
+    await page.getByLabel("Title").fill(title);
+    await page.getByLabel("Servings", { exact: true }).fill("4");
+    const ingredients = (await (await request.get(`/api/households/${h}/ingredients?limit=20`, { headers: english })).json()) as Named[];
+    const row = page.getByTestId("ingredient-row").first();
+    await row.getByLabel("Ingredient", { exact: true }).fill(ingredients[0]!.name);
+    await row.getByRole("button", { name: ingredients[0]!.name, exact: true }).click();
+    await row.getByRole("checkbox", { name: "To taste" }).check();
+    await page.getByTestId("step-row").first().getByRole("textbox").fill("Step");
+
+    // Over the 10 MB the form allows: stopped with the translated message before anything is sent.
+    await page.getByLabel("Picture file").setInputFiles({ name: "big.png", mimeType: "image/png", buffer: noisyPng(12 * 1024 * 1024) });
+    await expect(page.getByText("The picture can be at most 10 MB.", { exact: true })).toBeVisible();
+
+    // A ~3 MB picture goes through nginx and is shown.
+    await page.getByLabel("Picture file").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: noisyPng(3 * 1024 * 1024) });
+    await expect(page.getByTestId("picture-preview")).toBeVisible();
+    await saveRecipe(page, page.getByRole("button", { name: "Save recipe" }));
+    await expect(page).toHaveURL(/\/recipes\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+    recipeId = page.url().split("/").pop();
+    await expect.poll(() => page.locator(".recipe-image img").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+
+    // The same 12 MB straight at the upload route, past the form: still refused with 413 (nginx's limit is 11 MB).
+    const tooBig = await request.put(`/api/households/${h}/recipes/${recipeId}/image`, {
+      headers: await csrf(request),
+      multipart: { file: { name: "big.png", mimeType: "image/png", buffer: noisyPng(12 * 1024 * 1024) } },
+    });
+    expect(tooBig.status()).toBe(413);
+  } finally {
+    if (recipeId) await request.delete(`/api/households/${h}/recipes/${recipeId}`, { headers: await csrf(request) });
   }
 });

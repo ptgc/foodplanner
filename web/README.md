@@ -8,6 +8,7 @@ React Router v7 SPA (ssr: false), TypeScript strict.
 - `npm run api:generate` regenerates `app/api/schema.d.ts` from `../openapi/openapi.v1.json`; `npm run api:check` fails if it is stale.
   Never hand-edit the generated file; use the `api` client in `app/api/client.ts`.
 - The container build (`web/Dockerfile`) runs `npm ci` and `npm run build`, then serves `build/client` with nginx (SPA fallback, `/api` proxied to the api service).
+- Request body limits (T-080): nginx caps bodies at 1 MB everywhere except the recipe picture upload (`PUT /api/households/{h}/recipes/{r}/image`), which gets 11 MB: the API's `Images:MaxUploadBytes` (10 MB) plus the 1 MB multipart overhead the API allows. If you change `Images:MaxUploadBytes`, change `client_max_body_size` in the image location of `web/nginx.conf` and `limits.imageMaxBytes` in `app/recipes/recipe-form.ts` with it. A body over nginx's limit gets an HTML 413 (not ProblemDetails); the recipe form maps any 413 on the upload to the translated "picture too large" message. The Vite dev proxy has no body limit.
 
 ## Shopping list screen (T-036, `/shopping`)
 - Code: `app/routes/shopping.tsx` (UI, all text via `t()`, see Internationalisation), `app/shopping/use-shopping-list.ts` (state), `realtime.ts` (SignalR client following the contract in docs/domain.md "Shopping list sync"), `queue.ts` (offline check-off queue), `storage.ts` (localStorage cache and queue, every access in try/catch).

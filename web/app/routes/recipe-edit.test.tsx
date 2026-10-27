@@ -604,6 +604,22 @@ describe("picture", () => {
     await waitFor(() => expect(file).toHaveAccessibleDescription(t("recipe.error.imageInvalid")));
     expect(url()).toBe("/recipes/r1/edit");
   });
+
+  it("shows the translated 'picture too large' message for a bare nginx 413 (HTML body, no ProblemDetails) (T-080)", async () => {
+    vi.spyOn(api, "PUT").mockImplementation((async (path: string) => {
+      if (path.endsWith("/image")) {
+        return { error: "<html>413 Request Entity Too Large</html>", response: new Response("<html></html>", { status: 413 }) };
+      }
+      return { data: { ...existing(), id: "new1" }, response: new Response("{}", { status: 201 }) };
+    }) as never);
+    const user = userEvent.setup();
+    await formReady("/recipes/r1/edit");
+    await user.upload(screen.getByLabelText(t("recipe.pictureFile")), png());
+    await user.click(save());
+    const file = screen.getByLabelText(t("recipe.pictureFile"));
+    await waitFor(() => expect(file).toHaveAccessibleDescription(t("recipe.error.imageSize", { max: 10 })));
+    expect(screen.queryByText(/\{max\}/)).toBeNull();
+  });
 });
 
 describe("delete", () => {
