@@ -107,3 +107,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-079 | Manage own ingredients: delete, merge, rename | L3 | T-020, T-037, T-042 | implementer-backend | no |
 | T-080 | Bug: photo uploads over 1 MB fail with 413 through the web container | L3 | T-022, T-041 | implementer-infra | no |
 | T-081 | Recipe source can be a book or a website | L3 | T-075 | implementer-backend | no |
+| T-082 | Bug: recently viewed recipe no longer opens offline (PWA regression) | L3 | T-041 | implementer-frontend | no |
