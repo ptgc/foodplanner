@@ -137,6 +137,12 @@ function RecipeArticle({
           </a>
         </p>
       )}
+      {!source && recipe.sourceName && recipe.sourceName.trim() !== "" && (
+        // A book or other source: text only, never a link.
+        <p className="recipe-source" data-testid="recipe-source-text">
+          {t("recipe.sourceText", { name: recipe.sourceName })}
+        </p>
+      )}
       {recipe.tags.length > 0 && (
         <p className="recipe-card-tags">
           {recipe.tags.map((tag) => (

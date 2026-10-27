@@ -33,17 +33,43 @@ public sealed class RecipeTests
     }
 
     [Fact]
-    public void Source_name_is_kept_when_given_and_both_are_cleared_by_a_null_url()
+    public void Source_name_is_kept_when_given_and_a_name_without_url_is_a_book_source()
     {
         var recipe = new Recipe("Pasta", null, 4, null, null);
         recipe.SetSource("https://example.com/r", "Mormor");
         Assert.Equal("Mormor", recipe.SourceName);
 
-        recipe.SetSource(null, "ignored");
+        recipe.SetSource(null, "Kaptein Sabeltann, Terje Formoe");
+
+        Assert.Null(recipe.SourceUrl);
+        Assert.Equal("Kaptein Sabeltann, Terje Formoe", recipe.SourceName);
+        Assert.Equal("Kaptein Sabeltann, Terje Formoe", recipe.SourceDisplayName);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void No_url_and_no_name_clears_the_source(string? name)
+    {
+        var recipe = new Recipe("Pasta", null, 4, null, null);
+        recipe.SetSource("https://example.com/r", "Mormor");
+
+        recipe.SetSource(null, name);
 
         Assert.Null(recipe.SourceUrl);
         Assert.Null(recipe.SourceName);
         Assert.Null(recipe.SourceDisplayName);
+    }
+
+    [Fact]
+    public void A_book_source_name_has_the_same_length_limit()
+    {
+        var recipe = new Recipe("Pasta", null, 4, null, null);
+
+        recipe.SetSource(null, new string('n', Recipe.MaxSourceNameLength));
+
+        Assert.Throws<ArgumentException>(() => recipe.SetSource(null, new string('n', Recipe.MaxSourceNameLength + 1)));
     }
 
     [Theory]

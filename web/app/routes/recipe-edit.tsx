@@ -124,6 +124,7 @@ function labelFor(t: I18n["t"], key: string): string | null {
     ingredients: "recipe.ingredientsHeading",
     steps: "recipe.stepsHeading",
     sourceUrl: "recipe.fieldSource",
+    sourceName: "recipe.sourceKindLegend",
     file: "recipe.pictureHeading",
   };
   if (key.startsWith("tagIds")) return t("recipe.tagsHeading");
@@ -325,17 +326,58 @@ function RecipeForm({ householdId, recipe }: { householdId: string; recipe: Reci
           <StepRows rows={form.steps} errors={errors} onChange={(rows) => set("steps", rows)} />
         </section>
 
-        <div className="form-field">
-          <label htmlFor={fieldId("sourceUrl")}>{t("recipe.fieldSource")}</label>
-          <input
-            {...fieldProps("sourceUrl", errors)}
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            value={form.sourceUrl}
-            onChange={(e) => setForm((f) => ({ ...f, sourceUrl: e.target.value, sourceName: "" }))}
-          />
-          <ErrorText name="sourceUrl" errors={errors} />
+        <div className="form-field source-field">
+          <span id="source-kind-label">{t("recipe.sourceKindLegend")}</span>
+          <div className="chip-group" role="group" aria-labelledby="source-kind-label">
+            {(["website", "book"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className="chip"
+                aria-pressed={form.sourceKind === kind}
+                data-testid={`source-kind-${kind}`}
+                // Switching type clears the fields of the other type, so a stale link or name is never sent.
+                onClick={() => form.sourceKind !== kind && setForm((f) => ({ ...f, sourceKind: kind, sourceUrl: "", sourceName: "" }))}
+              >
+                {t(kind === "website" ? "recipe.sourceKindWebsite" : "recipe.sourceKindBook")}
+              </button>
+            ))}
+          </div>
+          {form.sourceKind === "website" ? (
+            <>
+              <label htmlFor={fieldId("sourceUrl")}>{t("recipe.fieldSource")}</label>
+              <input
+                {...fieldProps("sourceUrl", errors)}
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                value={form.sourceUrl}
+                onChange={(e) => set("sourceUrl", e.target.value)}
+              />
+              <ErrorText name="sourceUrl" errors={errors} />
+              <label htmlFor={fieldId("sourceName")}>{t("recipe.fieldSourceName")}</label>
+              <input
+                {...fieldProps("sourceName", errors)}
+                type="text"
+                autoComplete="off"
+                value={form.sourceName}
+                onChange={(e) => set("sourceName", e.target.value)}
+              />
+              <ErrorText name="sourceName" errors={errors} />
+            </>
+          ) : (
+            <>
+              <label htmlFor={fieldId("sourceName")}>{t("recipe.fieldSourceBook")}</label>
+              <input
+                {...fieldProps("sourceName", errors)}
+                type="text"
+                autoComplete="off"
+                value={form.sourceName}
+                onChange={(e) => set("sourceName", e.target.value)}
+              />
+              <ErrorText name="sourceName" errors={errors} />
+            </>
+          )}
         </div>
 
         <section aria-labelledby="picture-heading" className="picture-section">

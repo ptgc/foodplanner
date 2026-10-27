@@ -67,7 +67,7 @@ public sealed class Recipe : Entity, ITenantEntity
     public string? SourceName { get; private set; }
 
     /// <summary>The name to show: the stored one, else the URL's host without "www.", else null.</summary>
-    public string? SourceDisplayName => SourceUrl is null ? null : SourceName ?? DeriveSourceName(SourceUrl);
+    public string? SourceDisplayName => SourceName ?? (SourceUrl is null ? null : DeriveSourceName(SourceUrl));
 
     /// <summary>True for an absolute http or https URL of at most <see cref="MaxSourceUrlLength"/> characters.</summary>
     public static bool IsValidSourceUrl(string? url) =>
@@ -88,24 +88,27 @@ public sealed class Recipe : Entity, ITenantEntity
         return host.Length is > 0 and <= MaxSourceNameLength ? host : null;
     }
 
-    /// <summary>Sets or clears (null url) the source. A blank name is derived from the host.</summary>
+    /// <summary>
+    /// Sets the source. A URL (name derived from the host when blank) is a website; no URL with a name is a book or other
+    /// source (T-081); neither clears it.
+    /// </summary>
     public void SetSource(string? url, string? name)
     {
+        if (name is { Length: > MaxSourceNameLength })
+        {
+            throw new ArgumentException("The source name is too long.", nameof(name));
+        }
+
         if (url is null)
         {
             SourceUrl = null;
-            SourceName = null;
+            SourceName = string.IsNullOrWhiteSpace(name) ? null : name;
             return;
         }
 
         if (!IsValidSourceUrl(url))
         {
             throw new ArgumentException("The source must be an absolute http or https URL.", nameof(url));
-        }
-
-        if (name is { Length: > MaxSourceNameLength })
-        {
-            throw new ArgumentException("The source name is too long.", nameof(name));
         }
 
         SourceUrl = url;

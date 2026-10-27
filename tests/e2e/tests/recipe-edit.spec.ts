@@ -142,3 +142,42 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
     if (recipeId) await request.delete(`/api/households/${h}/recipes/${recipeId}`, { headers: await csrf(request) });
   }
 });
+
+test("T-081: a book source is set in the edit form and shown as plain text, not a link", async ({ page }, testInfo) => {
+  const request = page.request;
+  const households = (await (await request.get("/api/households")).json()) as { id: string }[];
+  const h = households[0]!.id;
+  const ingredients = (await (await request.get(`/api/households/${h}/ingredients?limit=20`, { headers: english })).json()) as Named[];
+  const units = (await (await request.get("/api/units", { headers: english })).json()) as Unit[];
+  const gram = units.find((u) => u.code === "g") ?? units[0]!;
+  const title = `E2E Book ${testInfo.project.name} ${uniqueStamp(testInfo)}`;
+  const mobile = (page.viewportSize()?.width ?? 0) <= 390;
+  const created = await request.post(`/api/households/${h}/recipes`, {
+    headers: await csrf(request),
+    data: {
+      title,
+      servings: 4,
+      steps: [{ text: "Cook" }],
+      ingredients: [{ ingredientId: ingredients[0]!.id, quantity: 100, unitId: gram.id, note: null }],
+    },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+  const recipeId = ((await created.json()) as { id: string }).id;
+  try {
+    await page.goto(`/recipes/${recipeId}/edit`);
+    await expect(page.getByRole("heading", { name: "Edit recipe", level: 1 })).toBeVisible();
+    const book = page.getByTestId("source-kind-book");
+    if (mobile) expect((await book.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await book.click();
+    await page.getByLabel("Book or other source").fill("Kaptein Sabeltann, Matskatter fra De Syv Hav");
+    if (mobile) await noHorizontalScroll(page);
+    await saveRecipe(page, page.getByRole("button", { name: "Save recipe" }));
+    await expect(page).toHaveURL(new RegExp(`/recipes/${recipeId}$`), { timeout: 30_000 });
+
+    await expect(page.getByTestId("recipe-source-text")).toHaveText("Source: Kaptein Sabeltann, Matskatter fra De Syv Hav");
+    await expect(page.getByTestId("recipe-source-link")).toHaveCount(0);
+    await expect(page.getByTestId("recipe-source-text").locator("a")).toHaveCount(0);
+  } finally {
+    await request.delete(`/api/households/${h}/recipes/${recipeId}`, { headers: await csrf(request) });
+  }
+});

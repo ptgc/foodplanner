@@ -696,3 +696,83 @@ describe("recipe detail", () => {
     expect(server.calls.some((c) => c.startsWith("PUT") || c.startsWith("POST /api/households/h1/recipes"))).toBe(false);
   });
 });
+
+describe("recipe source: website or book/other (T-081)", () => {
+  it("shows a website as the link, and a book or other source as plain text that is never a link", async () => {
+    server.recipe = existing({ sourceUrl: "https://www.matprat.no/x", sourceName: "matprat.no" });
+    const web = renderAt("/recipes/r1");
+    const link = await screen.findByTestId("recipe-source-link");
+    expect(link).toHaveAttribute("href", "https://www.matprat.no/x");
+    expect(link).toHaveTextContent(t("recipe.sourceOriginal", { name: "matprat.no" }));
+    expect(screen.queryByTestId("recipe-source-text")).toBeNull();
+    web.unmount();
+
+    server.recipe = existing({ sourceUrl: null, sourceName: "Kaptein Sabeltann, Terje Formoe" });
+    const book = renderAt("/recipes/r1");
+    const text = await screen.findByTestId("recipe-source-text");
+    expect(text).toHaveTextContent(t("recipe.sourceText", { name: "Kaptein Sabeltann, Terje Formoe" }));
+    expect(screen.queryByTestId("recipe-source-link")).toBeNull();
+    expect(text.querySelector("a")).toBeNull();
+    book.unmount();
+
+    // A stored URL that is not http(s) is never a link; with a name it falls back to text.
+    server.recipe = existing({ sourceUrl: "javascript:alert(1)", sourceName: "Fusk" });
+    renderAt("/recipes/r1");
+    expect(await screen.findByTestId("recipe-source-text")).toHaveTextContent(t("recipe.sourceText", { name: "Fusk" }));
+    expect(document.querySelector("a[href^='javascript']")).toBeNull();
+  });
+
+  it("sends a book as a name only, and switching type clears the other type's fields", async () => {
+    const user = userEvent.setup();
+    server.recipe = existing({ sourceUrl: "https://www.matprat.no/x", sourceName: "matprat.no" });
+    await formReady("/recipes/r1/edit");
+    expect(screen.getByTestId("source-kind-website")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText(t("recipe.fieldSource"))).toHaveValue("https://www.matprat.no/x");
+    expect(screen.getByLabelText(t("recipe.fieldSourceName"))).toHaveValue("matprat.no");
+
+    await user.click(screen.getByTestId("source-kind-book"));
+    expect(screen.getByTestId("source-kind-book")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByLabelText(t("recipe.fieldSource"))).toBeNull();
+    expect(screen.getByLabelText(t("recipe.fieldSourceBook"))).toHaveValue("");
+    await user.type(screen.getByLabelText(t("recipe.fieldSourceBook")), "Foo");
+
+    await user.click(screen.getByTestId("source-kind-website"));
+    expect(screen.getByLabelText(t("recipe.fieldSource"))).toHaveValue("");
+    expect(screen.getByLabelText(t("recipe.fieldSourceName"))).toHaveValue("");
+    await user.click(screen.getByTestId("source-kind-book"));
+    expect(screen.getByLabelText(t("recipe.fieldSourceBook"))).toHaveValue("");
+    await user.type(screen.getByLabelText(t("recipe.fieldSourceBook")), "Matskatter, s. 12");
+
+    await user.click(save());
+    await waitFor(() => expect(server.saved).toHaveLength(1));
+    expect(server.saved[0]!.body).toMatchObject({ sourceUrl: null, sourceName: "Matskatter, s. 12" });
+  });
+
+  it("opens an existing book source in book mode and refuses a too long name", async () => {
+    const user = userEvent.setup();
+    server.recipe = existing({ sourceUrl: null, sourceName: "Min kokebok" });
+    await formReady("/recipes/r1/edit");
+    expect(screen.getByTestId("source-kind-book")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText(t("recipe.fieldSourceBook"))).toHaveValue("Min kokebok");
+    await user.type(screen.getByLabelText(t("recipe.fieldSourceBook")), "x".repeat(100));
+    await user.click(save());
+    expect(await screen.findAllByText(t("recipe.error.sourceName", { max: 100 }))).not.toHaveLength(0);
+    expect(server.saved).toEqual([]);
+  });
+
+  it("refuses a javascript: link on a website and sends a link with its name", async () => {
+    const user = userEvent.setup();
+    await formReady("/recipes/r1/edit");
+    await user.type(screen.getByLabelText(t("recipe.fieldSource")), "javascript:alert(1)");
+    await user.click(save());
+    expect(screen.getByLabelText(t("recipe.fieldSource"))).toHaveAttribute("aria-invalid", "true");
+    expect(server.saved).toEqual([]);
+
+    await user.clear(screen.getByLabelText(t("recipe.fieldSource")));
+    await user.type(screen.getByLabelText(t("recipe.fieldSource")), "https://example.com/r");
+    await user.type(screen.getByLabelText(t("recipe.fieldSourceName")), "Mormors blogg");
+    await user.click(save());
+    await waitFor(() => expect(server.saved).toHaveLength(1));
+    expect(server.saved[0]!.body).toMatchObject({ sourceUrl: "https://example.com/r", sourceName: "Mormors blogg" });
+  });
+});

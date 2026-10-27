@@ -264,3 +264,25 @@ describe("fromRecipe", () => {
     expect(validate(form)).toEqual({});
   });
 });
+
+describe("recipe source (T-081)", () => {
+  const base = { ...emptyForm(), title: "Suppe", ingredients: [], steps: [] };
+  const body = (patch: Partial<FormState>) => toRequest({ ...base, ...patch });
+
+  it("a website sends link and optional name; a name without a link is dropped", () => {
+    expect(body({ sourceKind: "website", sourceUrl: " https://a.no/x ", sourceName: " Blogg " })).toMatchObject({ sourceUrl: "https://a.no/x", sourceName: "Blogg" });
+    expect(body({ sourceKind: "website", sourceUrl: "https://a.no/x" })).toMatchObject({ sourceUrl: "https://a.no/x", sourceName: null });
+    expect(body({ sourceKind: "website", sourceUrl: "", sourceName: "Blogg" })).toMatchObject({ sourceUrl: null, sourceName: null });
+  });
+
+  it("a book sends the name only, never a link, and blank clears", () => {
+    expect(body({ sourceKind: "book", sourceUrl: "https://a.no/x", sourceName: "Kokebok" })).toMatchObject({ sourceUrl: null, sourceName: "Kokebok" });
+    expect(body({ sourceKind: "book", sourceName: "  " })).toMatchObject({ sourceUrl: null, sourceName: null });
+  });
+
+  it("limits the name to 100 characters and refuses control characters", () => {
+    expect(validate({ ...base, sourceKind: "book", sourceName: "n".repeat(100) })).toEqual(expect.not.objectContaining({ sourceName: expect.anything() }));
+    expect(validate({ ...base, sourceKind: "book", sourceName: "n".repeat(101) }).sourceName).toBeDefined();
+    expect(validate({ ...base, sourceKind: "book", sourceName: "a\u0007b" }).sourceName).toBeDefined();
+  });
+});
