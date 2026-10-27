@@ -21,6 +21,8 @@ export const limits = {
   quantityMax: 100000,
   quantityDecimals: 4,
   tagsMax: 20,
+  /** Recipe.MaxSourceNameLength (the column is nvarchar(100)). */
+  sourceNameMax: 100,
   imageMaxBytes: 10 * 1024 * 1024,
 } as const;
 
@@ -51,11 +53,15 @@ export type FormState = {
   tagIds: string[];
   ingredients: IngredientRow[];
   steps: StepRow[];
-  /** Optional link to the original recipe (T-075). */
+  /** A website (link + optional name, T-075) or a book/other source (name only, T-081). */
+  sourceKind: SourceKind;
+  /** The link of a website source; always empty for a book. */
   sourceUrl: string;
-  /** Kept so editing other fields does not lose a custom name; cleared when the link is changed (the API derives a new one). */
+  /** The website's optional name (blank = the API derives the host), or the whole text of a book/other source. */
   sourceName: string;
 };
+
+export type SourceKind = "website" | "book";
 
 /** A translated message to show on a field: the key and its parameters. */
 export type FieldError = { key: MessageKey; params?: Params };
@@ -88,6 +94,7 @@ export const emptyForm = (): FormState => ({
   tagIds: [],
   ingredients: [emptyIngredient()],
   steps: [emptyStep()],
+  sourceKind: "website",
   sourceUrl: "",
   sourceName: "",
 });
@@ -130,8 +137,12 @@ export function validate(form: FormState): FieldErrors {
     }
   }
 
-  if (form.sourceUrl.trim() !== "" && safeSourceUrl(form.sourceUrl.trim()) === null) {
+  if (form.sourceKind === "website" && form.sourceUrl.trim() !== "" && safeSourceUrl(form.sourceUrl.trim()) === null) {
     errors.sourceUrl = { key: "recipe.error.sourceUrl", params: { max: sourceUrlMax } };
+  }
+  const sourceName = form.sourceName.trim();
+  if (sourceName.length > limits.sourceNameMax || hasControlChars(sourceName)) {
+    errors.sourceName = { key: "recipe.error.sourceName", params: { max: limits.sourceNameMax } };
   }
 
   if (form.tagIds.length > limits.tagsMax) {
@@ -175,6 +186,17 @@ export function validate(form: FormState): FieldErrors {
   return errors;
 }
 
+/**
+ * A website sends the link and its optional name (a name without a link is dropped); a book sends the name only, never a link.
+ * Both blank clears the source.
+ */
+function sourceRequest(form: FormState): { sourceUrl: string | null; sourceName: string | null } {
+  const name = form.sourceName.trim() === "" ? null : form.sourceName.trim();
+  if (form.sourceKind === "book") return { sourceUrl: null, sourceName: name };
+  const url = form.sourceUrl.trim() === "" ? null : form.sourceUrl.trim();
+  return { sourceUrl: url, sourceName: url === null ? null : name };
+}
+
 /** The request body for a form that passed `validate`. Blank optional fields become null. */
 export function toRequest(form: FormState): RecipeBody {
   const blankToNull = (value: string) => (value.trim() === "" ? null : Number(value.trim()));
@@ -192,8 +214,7 @@ export function toRequest(form: FormState): RecipeBody {
       note: row.note.trim() === "" ? null : row.note.trim(),
     })),
     steps: form.steps.map((step) => ({ text: step.text.trim() })),
-    sourceUrl: form.sourceUrl.trim() === "" ? null : form.sourceUrl.trim(),
-    sourceName: form.sourceUrl.trim() === "" || form.sourceName.trim() === "" ? null : form.sourceName.trim(),
+    ...sourceRequest(form),
   };
 }
 
@@ -224,6 +245,8 @@ export function fromRecipe(recipe: Recipe, decimalComma: boolean): FormState {
       };
     }),
     steps: [...recipe.steps].sort((a, b) => Number(a.position) - Number(b.position)).map((s) => ({ key: newKey(), text: s.text })),
+    // A name without a link is a book or other source (T-081).
+    sourceKind: recipe.sourceUrl ? "website" : recipe.sourceName ? "book" : "website",
     sourceUrl: recipe.sourceUrl ?? "",
     sourceName: recipe.sourceName ?? "",
   };
@@ -294,8 +317,10 @@ export function mapServerErrors(serverErrors: Record<string, string[]>, form: Fo
       out[key] = { key: "recipe.error.servings", params: { min: limits.servingsMin, max: limits.servingsMax } };
     } else if (key === "prepMinutes" || key === "cookMinutes") {
       out[key] = { key: "recipe.error.minutes", params: { max: limits.minutesMax } };
-    } else if (key === "sourceUrl" || key === "sourceName") {
+    } else if (key === "sourceUrl") {
       out.sourceUrl = { key: "recipe.error.sourceUrl", params: { max: sourceUrlMax } };
+    } else if (key === "sourceName") {
+      out.sourceName = { key: "recipe.error.sourceName", params: { max: limits.sourceNameMax } };
     } else if (key === "file") {
       out[key] = { key: "recipe.error.imageInvalid" };
     } else {
@@ -311,7 +336,7 @@ export function fieldId(key: string): string {
 }
 
 const rank = (key: string): number => {
-  const order = ["title", "description", "servings", "prepMinutes", "cookMinutes", "tagIds", "ingredients", "steps", "sourceUrl", "file", "form"];
+  const order = ["title", "description", "servings", "prepMinutes", "cookMinutes", "tagIds", "ingredients", "steps", "sourceUrl", "sourceName", "file", "form"];
   const index = order.findIndex((name) => key === name || key.startsWith(`${name}[`));
   return index === -1 ? order.length : index;
 };

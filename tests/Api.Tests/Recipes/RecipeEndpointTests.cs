@@ -178,13 +178,54 @@ public sealed class RecipeEndpointTests(AuthDatabase db) : IClassFixture<AuthDat
         Assert.Equal("http://example.com/r?id=1", after.GetProperty("sourceUrl").GetString());
         Assert.Equal("Mormors blogg", after.GetProperty("sourceName").GetString());
 
-        // Clear: blank or missing url removes both.
-        using var cleared = await owner.Client.PutAsync(Url(household, "/" + id), WithSource("   ", "Mormors blogg"));
+        // Clear: blank url and blank name remove both.
+        using var cleared = await owner.Client.PutAsync(Url(household, "/" + id), WithSource("   ", "  "));
         Assert.Equal(HttpStatusCode.OK, cleared.StatusCode);
         var gone = await cleared.JsonAsync();
         Assert.Equal(JsonValueKind.Null, gone.GetProperty("sourceUrl").ValueKind);
         Assert.Equal(JsonValueKind.Null, gone.GetProperty("sourceName").ValueKind);
         Assert.Equal(1, await CountAsync("Recipes", "Id = @r AND SourceUrl IS NULL AND SourceName IS NULL", ("@r", id)));
+    }
+
+    [Fact]
+    public async Task Source_name_without_a_link_is_a_book_source_that_is_stored_returned_and_replaced_by_a_link()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+
+        using var created = await owner.Client.PostAsync(Url(household), WithSource(null, "  Kaptein Sabeltann, Terje Formoe  "));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var body = await created.JsonAsync();
+        var id = body.GetProperty("id").GetGuid();
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("sourceUrl").ValueKind);
+        Assert.Equal("Kaptein Sabeltann, Terje Formoe", body.GetProperty("sourceName").GetString());
+        Assert.Equal(1, await CountAsync("Recipes", "Id = @r AND SourceUrl IS NULL AND SourceName = N'Kaptein Sabeltann, Terje Formoe'", ("@r", id)));
+
+        using var read = await owner.Client.GetAsync(Url(household, "/" + id));
+        Assert.Equal("Kaptein Sabeltann, Terje Formoe", (await read.JsonAsync()).GetProperty("sourceName").GetString());
+
+        using var toLink = await owner.Client.PutAsync(Url(household, "/" + id), WithSource("https://www.matprat.no/x", null));
+        var linked = await toLink.JsonAsync();
+        Assert.Equal("matprat.no", linked.GetProperty("sourceName").GetString());
+
+        using var toBook = await owner.Client.PutAsync(Url(household, "/" + id), WithSource(null, "Min kokebok"));
+        var book = await toBook.JsonAsync();
+        Assert.Equal(JsonValueKind.Null, book.GetProperty("sourceUrl").ValueKind);
+        Assert.Equal("Min kokebok", book.GetProperty("sourceName").GetString());
+    }
+
+    [Fact]
+    public async Task Source_name_without_a_link_that_is_too_long_is_refused()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+
+        using var response = await owner.Client.PostAsync(Url(household), WithSource(null, new string('n', Recipe.MaxSourceNameLength + 1)));
+
+        await AssertValidationAsync(response, "sourceName");
+        Assert.Equal(0, await CountAsync("Recipes", "HouseholdId = @h", ("@h", household)));
     }
 
     [Fact]

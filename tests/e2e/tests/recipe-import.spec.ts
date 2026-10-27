@@ -108,7 +108,7 @@ test("an Adult pastes a recipe, fixes the line the catalog cannot match by creat
     await expect(page.getByTestId("recipe-source-link")).toHaveCount(0);
     await page.getByTestId("recipe-edit-link").click();
     await expect(page.getByRole("heading", { name: "Edit recipe", level: 1 })).toBeVisible();
-    const source = page.getByLabel("Source (link, optional)");
+    const source = page.getByLabel("Link (optional)");
     await source.fill("javascript:alert(1)");
     await page.getByRole("button", { name: "Save recipe" }).click();
     await expect(source).toHaveAttribute("aria-invalid", "true");
