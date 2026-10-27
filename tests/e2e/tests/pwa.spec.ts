@@ -124,6 +124,12 @@ test("manifest, icons and service worker make the app installable", async ({ pag
   expect(installability.installabilityErrors).toEqual([]);
 });
 
+/** Narrows the recipe list to `title` with the search box (the list is paged, so a new recipe is not always on page one). */
+async function findInList(page: Page, title: string) {
+  await page.getByLabel("Search recipes").fill(title);
+  await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+}
+
 test("recently viewed recipes, their picture and the shell open offline; an unopened recipe shows the offline page", async ({ page, context, request }, testInfo) => {
   const title = `PWA ${uniqueStamp(testInfo)}`;
   const recipe = await createRecipe(request, title);
@@ -132,6 +138,8 @@ test("recently viewed recipes, their picture and the shell open offline; an unop
     await page.goto("/recipes");
     await controlled(page);
     await page.reload(); // the first load was before the worker took over; from now on its requests go through it
+    // The list is paged and sorted by title and the shared dev database holds many recipes: find ours by searching (T-082).
+    await findInList(page, title);
     await page.getByRole("link", { name: title }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect.poll(() => imageLoaded(page)).toBe(true);
@@ -147,7 +155,7 @@ test("recently viewed recipes, their picture and the shell open offline; an unop
     await expect(page.getByText("Forste steg")).toBeVisible();
     await expect.poll(() => imageLoaded(page)).toBe(true);
     await page.getByRole("link", { name: "All recipes" }).click();
-    await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+    await findInList(page, title); // the same search URL as online, so the cached list answers
 
     // A recipe never opened on this device: the translated offline page, with a way back.
     await page.goto("/recipes/00000000-0000-4000-8000-000000000041");
@@ -156,7 +164,7 @@ test("recently viewed recipes, their picture and the shell open offline; an unop
     const back = notice.getByRole("link", { name: "Go to recipes" });
     expect((await back.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await back.click();
-    await expect(page.getByRole("link", { name: title }).first()).toBeVisible();
+    await findInList(page, title);
   } finally {
     await context.setOffline(false);
     await deleteRecipe(request, recipe.household, recipe.id);
