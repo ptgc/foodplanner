@@ -174,7 +174,43 @@ test("Works offline for read and check-off with sync on reconnect", async ({ pag
   }
 });
 
-test("Copy puts the unchecked items on the clipboard and leaves out checked ones", async ({ page }, testInfo) => {
+test("A list cached by an older app version is dropped, not rendered, and the queued check survives (T-088)", async ({ page }, testInfo) => {
+  const week = weekFor(testInfo, 5);
+  const h = await householdId(page.request);
+  const stamp = uniqueStamp(testInfo);
+  const name = `E2E gammel ${stamp}`;
+  try {
+    const id = await addItem(page.request, h, week, name);
+    await page.goto(`/shopping?week=${week}`);
+    await expect(box(page, name)).toBeVisible();
+
+    // Replace the saved copy by one in the pre-T-076 shape (no schema, no alternatives, no storeSection) and queue a check.
+    await page.evaluate(
+      ({ h, week, id, name }) => {
+        const old = { id: null, weekStart: week, main: [{ id, name, isManual: true, section: "Main", quantities: [], recipes: [], checked: false }], checkYouHave: [] };
+        localStorage.setItem(`foodplanner.shopping.list.${h}.${week}`, JSON.stringify({ version: "v0", list: old, savedAt: "2026-10-01T00:00:00Z" }));
+        localStorage.setItem("foodplanner.shopping.queue", JSON.stringify([{ householdId: h, weekStart: week, itemId: id, checked: true }]));
+      },
+      { h, week, id, name },
+    );
+    await page.route("**/api/**", (route) => route.abort());
+    await page.reload();
+    // No crash: the stale copy is not shown; the page says it is offline, and the queued check is still waiting.
+    await expect(page.getByTestId("offline-banner")).toBeVisible();
+    await expect(page.getByTestId("shop-item")).toHaveCount(0);
+    expect(await page.evaluate(() => localStorage.getItem("foodplanner.shopping.queue"))).toContain(id);
+
+    await page.unroute("**/api/**");
+    await expect(page.getByTestId("pending-sync")).toHaveCount(0, { timeout: 15_000 });
+    await expect(box(page, name)).toBeChecked();
+    expect(await isChecked(page.request, h, week, id)).toBe(true);
+  } finally {
+    await page.unroute("**/api/**").catch(() => undefined);
+    await removeItems(page.request, h, week);
+  }
+});
+
+test("Copy puts the unchecked items on the clipboard and leaves out checked ones",async ({ page }, testInfo) => {
   const week = weekFor(testInfo, 3);
   const h = await householdId(page.request);
   const stamp = uniqueStamp(testInfo);
