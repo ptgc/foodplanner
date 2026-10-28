@@ -109,3 +109,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-081 | Recipe source can be a book or a website | L3 | T-075 | implementer-backend | no |
 | T-082 | Bug: recently viewed recipe no longer opens offline (PWA regression) | L3 | T-041 | implementer-frontend | no |
 | T-083 | E2E tests clean up the data they create | L3 | T-027 | implementer-frontend | no |
+| T-084 | Catalog: add margarine and oils | L3 | T-039, T-076 | implementer-backend | yes |
