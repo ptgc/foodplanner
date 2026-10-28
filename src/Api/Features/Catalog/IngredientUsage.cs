@@ -19,8 +19,13 @@ public readonly record struct IngredientUsage(int Recipes, int PantryItems, int 
     public static async Task<Dictionary<Guid, IngredientUsage>> LoadAsync(
         AppDbContext db, IReadOnlyCollection<Guid> ingredientIds, CancellationToken cancellationToken)
     {
-        var recipes = (await db.RecipeIngredients.AsNoTracking().Select(l => new { l.IngredientId, l.RecipeId }).Distinct()
-            .ToListAsync(cancellationToken)).GroupBy(x => x.IngredientId).ToDictionary(g => g.Key, g => g.Count());
+        // A recipe counts once per ingredient, whether the ingredient is a line's own or one of its alternatives (T-076).
+        var asLine = await db.RecipeIngredients.AsNoTracking().Select(l => new { l.IngredientId, l.RecipeId }).Distinct()
+            .ToListAsync(cancellationToken);
+        var asAlternative = await (from a in db.RecipeIngredientAlternatives.AsNoTracking()
+                                   join l in db.RecipeIngredients.AsNoTracking() on a.RecipeIngredientId equals l.Id
+                                   select new { a.IngredientId, l.RecipeId }).Distinct().ToListAsync(cancellationToken);
+        var recipes = asLine.Concat(asAlternative).Distinct().GroupBy(x => x.IngredientId).ToDictionary(g => g.Key, g => g.Count());
         var pantry = (await db.PantryItems.AsNoTracking().Select(p => p.IngredientId).ToListAsync(cancellationToken))
             .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
         var lists = (await db.ShoppingListItems.AsNoTracking().Where(i => i.IngredientId != null)

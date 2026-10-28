@@ -99,10 +99,10 @@ describe("validate (the same limits as the API)", () => {
   it("quantity and unit go together: an amount needs a unit, to taste has neither", () => {
     const noUnit = validate(valid({ ingredients: [line({ unitId: "" })] }));
     expect(Object.keys(noUnit)).toEqual(["ingredients[0].unitId"]);
-    const toTaste = validate(valid({ ingredients: [line({ toTaste: true, quantity: "", unitId: "" })] }));
+    const toTaste = validate(valid({ ingredients: [line({ amountKind: "ToTaste", quantity: "", unitId: "" })] }));
     expect(toTaste).toEqual({});
     // A leftover quantity or unit on a to-taste line is ignored, never sent.
-    const body = toRequest(valid({ ingredients: [line({ toTaste: true, quantity: "5", unitId: "u-g" })] }));
+    const body = toRequest(valid({ ingredients: [line({ amountKind: "AsNeeded", quantity: "5", unitId: "u-g" })] }));
     expect(body.ingredients?.[0]).toMatchObject({ quantity: null, unitId: null });
   });
 
@@ -134,7 +134,7 @@ describe("toRequest", () => {
         prepMinutes: "",
         cookMinutes: "30",
         tagIds: ["a", "b"],
-        ingredients: [line({ quantity: "1,5", note: " finhakket " }), line({ ingredient: { id: "i2", name: "Salt" }, toTaste: true })],
+        ingredients: [line({ quantity: "1,5", note: " finhakket " }), line({ ingredient: { id: "i2", name: "Salt" }, amountKind: "ToTaste" })],
         steps: [{ ...emptyStep(), text: " Ett " }, { ...emptyStep(), text: "To" }],
       }),
     );
@@ -146,13 +146,46 @@ describe("toRequest", () => {
       cookMinutes: 30,
       tagIds: ["a", "b"],
       ingredients: [
-        { ingredientId: "i1", quantity: 1.5, unitId: "u-g", note: "finhakket" },
-        { ingredientId: "i2", quantity: null, unitId: null, note: null },
+        { ingredientId: "i1", quantity: 1.5, unitId: "u-g", note: "finhakket", amountKind: "Measured", purpose: "Main", isOptional: false, alternativeIds: [] },
+        { ingredientId: "i2", quantity: null, unitId: null, note: null, amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] },
       ],
       steps: [{ text: "Ett" }, { text: "To" }],
       sourceUrl: null,
       sourceName: null,
     });
+  });
+});
+
+describe("kind, purpose, optional and alternatives (T-076)", () => {
+  it("sends them, and no amount for a line that is not measured", () => {
+    const body = toRequest(
+      valid({
+        ingredients: [
+          line({
+            amountKind: "AsNeeded", purpose: "Frying", isOptional: true, quantity: "", unitId: "",
+            alternatives: [{ id: "a1", name: "Margarin" }, { id: "a2", name: "Olje" }],
+          }),
+        ],
+      }),
+    );
+    expect(body.ingredients?.[0]).toEqual({
+      ingredientId: "i1", quantity: null, unitId: null, note: null,
+      amountKind: "AsNeeded", purpose: "Frying", isOptional: true, alternativeIds: ["a1", "a2"],
+    });
+  });
+
+  it("allows at most 5 alternatives", () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ id: `a${i}`, name: `A${i}` }));
+    expect(validate(valid({ ingredients: [line({ alternatives: many })] }))["ingredients[0].alternativeIds"]).toBeDefined();
+  });
+
+  it("maps the server's alternative errors", () => {
+    const mapped = mapServerErrors(
+      { "ingredients[0].alternativeIds[1]": ["x"], "ingredients[0].alternativeIds": ["y"] },
+      valid(),
+    );
+    expect(mapped["ingredients[0].alternativeIds[1]"]?.key).toBe("recipe.error.alternativeUnknown");
+    expect(mapped["ingredients[0].alternativeIds"]?.key).toBe("recipe.error.alternatives");
   });
 });
 
@@ -185,7 +218,7 @@ describe("mapServerErrors", () => {
 
   it("chooses the unit message from the state of the line (needed, not allowed, unknown)", () => {
     const form = valid({
-      ingredients: [line({ unitId: "" }), line({ toTaste: true, quantity: "", unitId: "" }), line()],
+      ingredients: [line({ unitId: "" }), line({ amountKind: "ToTaste", quantity: "", unitId: "" }), line()],
     });
     const mapped = mapServerErrors({ "ingredients[0].unitId": ["a"], "ingredients[1].unitId": ["b"], "ingredients[2].unitId": ["c"] }, form);
     expect(mapped["ingredients[0].unitId"]?.key).toBe("recipe.error.unitRequired");
@@ -252,15 +285,15 @@ describe("fromRecipe", () => {
         { position: 1, text: "Ett" },
       ],
       ingredients: [
-        { ingredientId: "i1", ingredientName: "Torsk", quantity: 1.5, unitId: "u-kg", unitCode: "kg", unitName: "kilogram", note: null },
-        { ingredientId: "i2", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak" },
+        { ingredientId: "i1", ingredientName: "Torsk", quantity: 1.5, unitId: "u-kg", unitCode: "kg", unitName: "kilogram", note: null, amountKind: "Measured", purpose: "Main", isOptional: false, alternatives: [] },
+        { ingredientId: "i2", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak", amountKind: "ToTaste", purpose: "Seasoning", isOptional: true, alternatives: [{ ingredientId: "a1", ingredientName: "Pepper" }] },
       ],
     };
     const form = fromRecipe(recipe, true);
     expect(form).toMatchObject({ title: "Suppe", description: "", servings: "4", prepMinutes: "10", cookMinutes: "", tagIds: ["t1"], sourceUrl: "https://www.matprat.no/x", sourceName: "matprat.no" });
     expect(form.steps.map((s) => s.text)).toEqual(["Ett", "To"]);
-    expect(form.ingredients[0]).toMatchObject({ quantity: "1,5", unitId: "u-kg", toTaste: false });
-    expect(form.ingredients[1]).toMatchObject({ quantity: "", unitId: "", toTaste: true, note: "etter smak" });
+    expect(form.ingredients[0]).toMatchObject({ quantity: "1,5", unitId: "u-kg", amountKind: "Measured", purpose: "Main", isOptional: false, alternatives: [] });
+    expect(form.ingredients[1]).toMatchObject({ quantity: "", unitId: "", amountKind: "ToTaste", purpose: "Seasoning", isOptional: true, alternatives: [{ id: "a1", name: "Pepper" }], note: "etter smak" });
     expect(validate(form)).toEqual({});
   });
 });

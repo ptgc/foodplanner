@@ -47,6 +47,12 @@ internal sealed class RecipeIngredientConfiguration : IEntityTypeConfiguration<R
         line.ToTable("RecipeIngredients");
         line.Property(i => i.Quantity).HasPrecision(18, 4);
         line.Property(i => i.Note).HasMaxLength(RecipeIngredient.MaxNoteLength);
+
+        // Stored as text like Tag.Kind. The defaults are for rows that exist when the columns are added (T-076): Measured,
+        // Main, not optional; the migration then turns the lines without a quantity into ToTaste.
+        line.Property(i => i.AmountKind).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(AmountKind.Measured);
+        line.Property(i => i.Purpose).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(IngredientPurpose.Main);
+        line.Property(i => i.IsOptional).HasDefaultValue(false);
         line.HasIndex(i => new { i.RecipeId, i.Position });
         line.HasIndex(i => i.IngredientId);
         line.HasIndex(i => i.UnitId);
@@ -56,6 +62,22 @@ internal sealed class RecipeIngredientConfiguration : IEntityTypeConfiguration<R
         // Ingredients go with the household; a line must not be orphaned by deleting a (global or own) ingredient.
         line.HasOne<Ingredient>().WithMany().HasForeignKey(i => i.IngredientId).OnDelete(DeleteBehavior.Restrict);
         line.HasOne<Unit>().WithMany().HasForeignKey(i => i.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+internal sealed class RecipeIngredientAlternativeConfiguration : IEntityTypeConfiguration<RecipeIngredientAlternative>
+{
+    public void Configure(EntityTypeBuilder<RecipeIngredientAlternative> alternative)
+    {
+        alternative.ToTable("RecipeIngredientAlternatives");
+        alternative.HasIndex(a => new { a.RecipeIngredientId, a.Position });
+        alternative.HasIndex(a => a.IngredientId);
+
+        // Goes with its line (Household -> Recipe -> line -> alternative is the one cascade path); the household and ingredient
+        // FKs are NO ACTION like the line's, so an ingredient in use is never deleted from under an alternative.
+        alternative.HasOne<RecipeIngredient>().WithMany().HasForeignKey(a => a.RecipeIngredientId).OnDelete(DeleteBehavior.Cascade);
+        alternative.HasOne<Household>().WithMany().HasForeignKey(a => a.HouseholdId).OnDelete(DeleteBehavior.Restrict);
+        alternative.HasOne<Ingredient>().WithMany().HasForeignKey(a => a.IngredientId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

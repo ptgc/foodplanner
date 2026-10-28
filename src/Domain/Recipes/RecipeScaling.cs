@@ -20,6 +20,13 @@ public static class RecipeScaling
         return quantity.Amount is { } amount ? new Quantity(amount * servings / baseServings, quantity.Unit) : quantity;
     }
 
+    /// <summary>
+    /// Scales a line by its kind (T-076): only a Measured quantity scales. ToTaste and AsNeeded are not amounts, so they
+    /// are returned unchanged for any number of servings.
+    /// </summary>
+    public static Quantity Scale(AmountKind kind, Quantity quantity, int baseServings, int servings) =>
+        kind == AmountKind.Measured ? Scale(quantity, baseServings, servings) : quantity;
+
     /// <summary>Scales exactly, then rounds and picks the display unit (<see cref="QuantityMerger.ForDisplay"/>).</summary>
     public static Quantity ScaleForDisplay(Quantity quantity, int baseServings, int servings, UnitCatalog catalog) =>
         QuantityMerger.ForDisplay([Scale(quantity, baseServings, servings)], catalog)[0];

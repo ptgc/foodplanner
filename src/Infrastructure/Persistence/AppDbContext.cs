@@ -70,6 +70,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
 
+    /// <summary>The interchangeable ingredients of a recipe line (T-076).</summary>
+    public DbSet<RecipeIngredientAlternative> RecipeIngredientAlternatives => Set<RecipeIngredientAlternative>();
+
     /// <summary>Global-or-household categories and tags (T-023), like <see cref="Ingredients"/>.</summary>
     public DbSet<Tag> Tags => Set<Tag>();
 

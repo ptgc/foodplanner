@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
-import { ingredientAmount } from "../recipes/ingredient-amount";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
+import { PrepList } from "../recipes/prep-list-view";
 import { RecipeImage } from "../recipes/recipe-image";
 import { limits } from "../recipes/recipe-form";
 import { safeSourceUrl, sourceLabel } from "../recipes/source-link";
@@ -189,14 +189,7 @@ function RecipeArticle({
       <h2>{t("recipes.ingredients")}</h2>
       {scaled.failed && <p role="alert">{t("recipe.scaleFailed")}</p>}
       {scaled.loading && <p role="status">{t("cook.updating")}</p>}
-      <ul className="recipe-ingredients" aria-busy={scaled.loading} hidden={scaled.failed}>
-        {scaled.ingredients.map((item, i) => (
-          <li key={`${item.ingredientId}-${i}`}>
-            <span className="recipe-amount">{ingredientAmount(item, { formatNumber })}</span> {item.ingredientName}
-            {item.note ? ` (${item.note})` : ""}
-          </li>
-        ))}
-      </ul>
+      <PrepList ingredients={scaled.ingredients} busy={scaled.loading} hidden={scaled.failed} />
       <h2>{t("recipes.steps")}</h2>
       <ol className="recipe-steps">
         {recipe.steps.map((step) => (

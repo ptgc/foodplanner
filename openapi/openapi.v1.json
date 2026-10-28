@@ -4244,6 +4244,13 @@
           }
         }
       },
+      "AmountKind": {
+        "enum": [
+          "Measured",
+          "ToTaste",
+          "AsNeeded"
+        ]
+      },
       "AntiforgeryResponse": {
         "required": [
           "token"
@@ -4620,7 +4627,11 @@
           "confidence",
           "note",
           "status",
-          "suggestions"
+          "suggestions",
+          "amountKind",
+          "purpose",
+          "isOptional",
+          "alternatives"
         ],
         "type": "object",
         "properties": {
@@ -4719,6 +4730,21 @@
             "items": {
               "$ref": "#/components/schemas/ImportSuggestionResponse"
             }
+          },
+          "amountKind": {
+            "$ref": "#/components/schemas/AmountKind"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/IngredientPurpose"
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeAlternativeResponse"
+            }
           }
         }
       },
@@ -4767,6 +4793,15 @@
             "format": "double"
           }
         }
+      },
+      "IngredientPurpose": {
+        "enum": [
+          "Main",
+          "Frying",
+          "Serving",
+          "Garnish",
+          "Seasoning"
+        ]
       },
       "IngredientResponse": {
         "required": [
@@ -5192,6 +5227,22 @@
           }
         }
       },
+      "RecipeAlternativeResponse": {
+        "required": [
+          "ingredientId",
+          "ingredientName"
+        ],
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ingredientName": {
+            "type": "string"
+          }
+        }
+      },
       "RecipeImageUrlsResponse": {
         "required": [
           "thumbUrl",
@@ -5393,6 +5444,34 @@
               "null",
               "string"
             ]
+          },
+          "amountKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purpose": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOptional": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "alternativeIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -5404,7 +5483,11 @@
           "unitId",
           "unitCode",
           "unitName",
-          "note"
+          "note",
+          "amountKind",
+          "purpose",
+          "isOptional",
+          "alternatives"
         ],
         "type": "object",
         "properties": {
@@ -5448,6 +5531,21 @@
               "null",
               "string"
             ]
+          },
+          "amountKind": {
+            "$ref": "#/components/schemas/AmountKind"
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/IngredientPurpose"
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeAlternativeResponse"
+            }
           }
         }
       },
@@ -5914,7 +6012,8 @@
           "checkedByUserId",
           "checkedByEmail",
           "checkedAt",
-          "quantityChangedSinceChecked"
+          "quantityChangedSinceChecked",
+          "alternatives"
         ],
         "type": "object",
         "properties": {
@@ -5975,6 +6074,12 @@
           },
           "quantityChangedSinceChecked": {
             "type": "boolean"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeAlternativeResponse"
+            }
           }
         }
       },
@@ -6195,6 +6300,34 @@
               "null",
               "boolean"
             ]
+          },
+          "amountKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "purpose": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isOptional": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "alternativeIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },

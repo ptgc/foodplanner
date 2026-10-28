@@ -15,7 +15,7 @@ public sealed record RenameIngredientRequest(string? Name);
 
 public sealed record MergeIngredientRequest(Guid? TargetIngredientId);
 
-/// <summary>Where an ingredient is used: distinct recipes, pantry rows (0 or 1), shopping lists (weeks) and open import drafts.</summary>
+/// <summary>Where an ingredient is used: distinct recipes (as a line's ingredient or as one of its alternatives, T-076), pantry rows (0 or 1), shopping lists (weeks) and open import drafts.</summary>
 public sealed record IngredientUsageResponse(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts);
 
 public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, IngredientUsageResponse Usage);
@@ -37,6 +37,7 @@ public static class IngredientReferences
         (typeof(Foodplanner.Domain.Recipes.RecipeIngredient), nameof(Foodplanner.Domain.Recipes.RecipeIngredient.IngredientId)),
         (typeof(Foodplanner.Domain.ShoppingLists.ShoppingListItem), nameof(Foodplanner.Domain.ShoppingLists.ShoppingListItem.IngredientId)),
         (typeof(Foodplanner.Domain.ShoppingLists.PantryItem), nameof(Foodplanner.Domain.ShoppingLists.PantryItem.IngredientId)),
+        (typeof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative), nameof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative.IngredientId)),
     ];
 }
 

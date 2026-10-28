@@ -85,6 +85,7 @@ const item = (id: string, name: string, over: Partial<Item> = {}): Item => ({
   checkedByEmail: null,
   checkedAt: null,
   quantityChangedSinceChecked: false,
+  alternatives: [],
   ...over,
 });
 
@@ -101,7 +102,12 @@ const baseList = (): List => ({
     }),
     item("kaffe", "Kaffe", { isManual: true, ingredientId: null }),
   ],
-  checkYouHave: [item("salt", "Salt", { section: "CheckYouHave" })],
+  checkYouHave: [
+    item("salt", "Salt", {
+      section: "CheckYouHave",
+      alternatives: [{ ingredientId: "marg", ingredientName: "Margarin" }, { ingredientId: "olje", ingredientName: "Olje" }],
+    }),
+  ],
 });
 
 const json = (body: unknown, status = 200) =>
@@ -219,6 +225,8 @@ describe("shopping list rendering", () => {
     expect(within(main).getByText(`${n(1.5)} l`)).toBeInTheDocument();
     expect(within(main).getByText(t("shopping.fromRecipes", { titles: "Pannekaker" }))).toBeInTheDocument();
     expect(within(main).getByText("6 stk")).toBeInTheDocument();
+    // Alternatives of a check-you-have item read "or margarin, olje" (T-076).
+    expect(screen.getByTestId("shop-alternatives")).toHaveTextContent(t("shopping.or", { names: "Margarin, Olje" }));
     expect(within(main).getByText(t("shopping.quantityChanged"))).toBeInTheDocument();
     expect(within(main).getByRole("checkbox", { name: "Brod" })).toBeChecked();
     expect(within(main).getByRole("button", { name: t("shopping.remove", { name: "Kaffe" }) })).toBeInTheDocument();

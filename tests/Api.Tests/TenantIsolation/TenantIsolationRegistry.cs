@@ -76,6 +76,19 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(i => i.Note).CurrentValue = "finely chopped"),
 
+        // An alternative of a recipe line (T-076): points to its line only; the alternative ingredient is a seeded global row.
+        // Mutate swaps it for another global ingredient.
+        TenantIsolationCase.For<RecipeIngredientAlternative>(
+            async (env, household) =>
+            {
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                var line = new RecipeIngredient(recipe.Id, 0, IngredientSeed.All[0].Id, 1.5m, UnitSeed.All[0].Id, null);
+                await env.SaveAsync(household, line);
+                return new RecipeIngredientAlternative(line.Id, 0, IngredientSeed.All[1].Id);
+            },
+            entry => entry.Property(a => a.IngredientId).CurrentValue = IngredientSeed.All[2].Id),
+
         // The join row (T-023): the tag is a seeded global row, which every household may reference. Mutate swaps it for another global tag.
         TenantIsolationCase.For<RecipeTag>(
             async (env, household) =>

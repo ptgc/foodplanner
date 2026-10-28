@@ -281,7 +281,8 @@ function ItemRow({
   const detailId = useId();
   const quantity = formatQuantities(item, i18n);
   const from = item.recipes.map((r) => r.title).join(", ");
-  const hasDetail = !!quantity || !!from || item.quantityChangedSinceChecked || item.isManual;
+  const alternatives = item.alternatives.map((a) => a.ingredientName).join(", ");
+  const hasDetail = !!quantity || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual;
   return (
     <li className={`shop-row${item.checked ? " is-checked" : ""}`} data-testid="shop-item">
       {/* The whole label is the touch target (>= 56px); the native checkbox keeps keyboard and screen reader support. */}
@@ -300,6 +301,7 @@ function ItemRow({
           {hasDetail && (
             <span id={detailId} className="shop-detail">
               {quantity && <span className="shop-qty">{quantity}</span>}
+              {alternatives && <span data-testid="shop-alternatives">{t("shopping.or", { names: alternatives })}</span>}
               {from && <span>{t("shopping.fromRecipes", { titles: from })}</span>}
               {item.isManual && <span>{t("shopping.manual")}</span>}
               {item.quantityChangedSinceChecked && <span className="shop-changed">{t("shopping.quantityChanged")}</span>}

@@ -83,7 +83,7 @@ test("opens a recipe, cooks it step by step, scales the servings via the API and
 
     // Ingredients for the chosen servings come from the API (scaled by the Domain logic): 4 -> 6 servings = 750 g.
     await page.getByRole("button", { name: "Show ingredients" }).click();
-    const list = page.locator(".cook-ingredient-list");
+    const list = page.locator("#cook-ingredients");
     await expect(list).toContainText("500 g");
     await expect(list).toContainText(recipe.ingredients[0].name);
     const more = page.getByRole("button", { name: "More servings" });
@@ -125,12 +125,12 @@ test("the recipe page scales through the API too and carries its servings into c
     const more = page.getByRole("button", { name: "More servings" });
     await more.click();
     await more.click();
-    await expect(page.locator(".recipe-ingredients")).toContainText("750 g");
+    await expect(page.locator(".prep-list")).toContainText("750 g");
     await page.getByRole("link", { name: "Start cooking" }).click();
     await expect(page.getByTestId("cook-step")).toBeVisible();
     await page.getByRole("button", { name: "Show ingredients" }).click();
     await expect(page.getByTestId("servings-value")).toHaveText("6");
-    await expect(page.locator(".cook-ingredient-list")).toContainText("750 g");
+    await expect(page.locator("#cook-ingredients")).toContainText("750 g");
   } finally {
     await request.delete(`/api/households/${recipe.household}/recipes/${recipe.id}`, { headers: await csrf(request) });
   }

@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Quantities;
 using Foodplanner.Domain.Recipes;
 
@@ -21,8 +22,11 @@ public sealed record GeneratedList(IReadOnlyList<GeneratedItem> Items, IReadOnly
 ///     To-taste stays to-taste.
 ///  2. Entries are grouped by ingredient id. An ingredient flagged staple in ANY entry is a staple.
 ///  3. Staples go only to <see cref="GeneratedList.CheckYouHave"/>, never to the main list, even with a quantity.
-///  4. Other ingredients: <see cref="QuantityMerger.Merge"/> (exact), then <see cref="QuantityMerger.ForDisplay"/>.
-///     Rounding happens once, at the end; nothing is rounded before merging.
+///  4. Other ingredients: only the lines that <see cref="NeedsBuying"/> (Measured, not optional, not a few spoonfuls of
+///     frying fat) are merged with <see cref="QuantityMerger.Merge"/> (exact) and then <see cref="QuantityMerger.ForDisplay"/>.
+///     Rounding happens once, at the end; nothing is rounded before merging. An ingredient with no such line (all
+///     ToTaste, AsNeeded, optional or small frying fat) goes to CheckYouHave with no quantity (T-076).
+///     Only Measured lines are scaled (ToTaste and AsNeeded never are).
 ///  5. Each item lists the distinct recipe ids that contributed, ascending.
 /// Ordering is deterministic and independent of input order and culture: both sections sort by ingredient name
 /// (OrdinalIgnoreCase, then Ordinal), then by id. The shown name is the smallest name (Ordinal) among the entries.
@@ -60,18 +64,55 @@ public static class ShoppingListGenerator
             }
 
             // Sorted so that the (rare) 28-digit decimal rounding of a sum cannot depend on input order.
-            var scaled = g.Entries
-                .Select(e => Scale(e.Ingredient.Quantity, e.Meal))
+            var buy = g.Entries
+                .Select(e => (e.Ingredient, Scaled: Scale(e.Ingredient.Kind, e.Ingredient.Quantity, e.Meal)))
+                .Where(e => NeedsBuying(e.Ingredient, e.Scaled))
+                .Select(e => e.Scaled)
                 .OrderBy(q => q.Unit.Code, StringComparer.Ordinal)
-                .ThenBy(q => q.Amount ?? -1m);
-            var merged = QuantityMerger.ForDisplay(QuantityMerger.Merge(scaled, catalog), catalog);
+                .ThenBy(q => q.Amount ?? -1m)
+                .ToList();
+            if (buy.Count == 0)
+            {
+                // Only "to taste", "as needed", small frying fat or optional lines: the person checks they have it.
+                staples.Add(new GeneratedStaple(g.Id, g.Name, g.Recipes));
+                continue;
+            }
+
+            var merged = QuantityMerger.ForDisplay(QuantityMerger.Merge(buy, catalog), catalog);
             items.Add(new GeneratedItem(g.Id, g.Name, merged, g.Recipes));
         }
 
         return new GeneratedList(items, staples);
     }
 
+    /// <summary>The largest amount of frying fat that is still "check you have" (3 ss = 45 ml).</summary>
+    public const decimal SmallFryingFatMilliliters = 45m;
+
+    /// <summary>
+    /// Whether a line (already scaled) is bought by amount. Not bought, only checked: ToTaste and AsNeeded lines (they have no
+    /// amount), optional lines, and measured frying fat of at most <see cref="SmallFryingFatMilliliters"/> (a few
+    /// spoonfuls for the pan; the household has it or buys it as a staple). Everything else is a measured line to buy.
+    /// </summary>
+    public static bool NeedsBuying(PlannedIngredient ingredient, Quantity scaled)
+    {
+        ArgumentNullException.ThrowIfNull(ingredient);
+        ArgumentNullException.ThrowIfNull(scaled);
+        if (ingredient.Kind != AmountKind.Measured || scaled.Amount is null || ingredient.IsOptional)
+        {
+            return false;
+        }
+
+        var smallFryingFat = ingredient.Purpose == IngredientPurpose.Frying
+            && scaled.Unit.Dimension == UnitDimension.Volume
+            && scaled.BaseAmount <= SmallFryingFatMilliliters;
+        return !smallFryingFat;
+    }
+
     /// <summary>Exact scaling: amount * planned / recipe servings. To-taste is unchanged.</summary>
     public static Quantity Scale(Quantity quantity, PlannedMeal meal) =>
         RecipeScaling.Scale(quantity, meal.RecipeServings, meal.PlannedServings);
+
+    /// <summary>Like <see cref="Scale(Quantity, PlannedMeal)"/>, but only a Measured line scales.</summary>
+    public static Quantity Scale(AmountKind kind, Quantity quantity, PlannedMeal meal) =>
+        RecipeScaling.Scale(kind, quantity, meal.RecipeServings, meal.PlannedServings);
 }

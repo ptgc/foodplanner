@@ -5,7 +5,9 @@ namespace Foodplanner.Domain.Recipes;
 
 /// <summary>
 /// A structured ingredient line of a recipe (CLAUDE.md rule 5): ingredient id, quantity and unit id, never free text.
-/// A line "to taste" has no quantity and no unit; otherwise it has both. The ingredient is a global catalog row or the
+/// The <see cref="AmountKind"/> says how to read the amount (T-076): Measured has a quantity and a unit, ToTaste and
+/// AsNeeded have neither. <see cref="Purpose"/> groups the prep list; <see cref="IsOptional"/> marks "can be left out";
+/// stand-ins are <see cref="RecipeIngredientAlternative"/> rows. The ingredient is a global catalog row or the
 /// household's own; the unit is global. Whether the ids are visible to the household is checked by the endpoint before
 /// saving (Q-012), not here. Ordered by <see cref="Position"/> (0-based).
 /// </summary>
@@ -19,7 +21,17 @@ public sealed class RecipeIngredient : Entity, ITenantEntity
     {
     }
 
-    public RecipeIngredient(Guid recipeId, int position, Guid ingredientId, decimal? quantity, Guid? unitId, string? note)
+    /// <param name="amountKind">Null infers the kind from the quantity: a quantity is Measured, none is ToTaste.</param>
+    public RecipeIngredient(
+        Guid recipeId,
+        int position,
+        Guid ingredientId,
+        decimal? quantity,
+        Guid? unitId,
+        string? note,
+        AmountKind? amountKind = null,
+        IngredientPurpose purpose = IngredientPurpose.Main,
+        bool isOptional = false)
     {
         if (recipeId == Guid.Empty)
         {
@@ -37,9 +49,15 @@ public sealed class RecipeIngredient : Entity, ITenantEntity
             throw new ArgumentOutOfRangeException(nameof(quantity));
         }
 
-        if ((quantity is null) != (unitId is null) || unitId == Guid.Empty)
+        var kind = amountKind ?? AmountRules.Infer(quantity);
+        if (AmountRules.Check(kind, quantity, unitId) is not null || unitId == Guid.Empty)
         {
-            throw new ArgumentException("Quantity and unit go together: both, or neither for 'to taste'.", nameof(unitId));
+            throw new ArgumentException("Measured needs a quantity and a unit; to taste and as needed have neither.", nameof(unitId));
+        }
+
+        if (!Enum.IsDefined(purpose))
+        {
+            throw new ArgumentOutOfRangeException(nameof(purpose));
         }
 
         if (note is { Length: > MaxNoteLength })
@@ -53,6 +71,9 @@ public sealed class RecipeIngredient : Entity, ITenantEntity
         Quantity = quantity;
         UnitId = unitId;
         Note = note;
+        AmountKind = kind;
+        Purpose = purpose;
+        IsOptional = isOptional;
     }
 
     public Guid HouseholdId { get; private set; }
@@ -63,7 +84,14 @@ public sealed class RecipeIngredient : Entity, ITenantEntity
 
     public Guid IngredientId { get; private set; }
 
-    /// <summary>Greater than zero; null means "to taste".</summary>
+    public AmountKind AmountKind { get; private set; }
+
+    public IngredientPurpose Purpose { get; private set; }
+
+    /// <summary>"Evt.", "kan sløyfes": the recipe works without it.</summary>
+    public bool IsOptional { get; private set; }
+
+    /// <summary>Greater than zero for a Measured line; null for ToTaste and AsNeeded.</summary>
     public decimal? Quantity { get; private set; }
 
     public Guid? UnitId { get; private set; }

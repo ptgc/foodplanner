@@ -3222,6 +3222,13 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AmountKind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Measured");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -3232,12 +3239,24 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("IngredientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("IsOptional")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Note")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("Position")
                         .HasColumnType("int");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Main");
 
                     b.Property<decimal?>("Quantity")
                         .HasPrecision(18, 4)
@@ -3263,6 +3282,42 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("RecipeId", "Position");
 
                     b.ToTable("RecipeIngredients", (string)null);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Recipes.RecipeIngredientAlternative", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RecipeIngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("RecipeIngredientId", "Position");
+
+                    b.ToTable("RecipeIngredientAlternatives", (string)null);
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.Recipes.RecipeStep", b =>
@@ -4018,6 +4073,27 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Recipes.RecipeIngredientAlternative", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Ingredient", null)
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Recipes.RecipeIngredient", null)
+                        .WithMany()
+                        .HasForeignKey("RecipeIngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.Recipes.RecipeStep", b =>

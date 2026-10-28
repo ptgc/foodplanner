@@ -242,3 +242,17 @@
 .recipe-amount {
   font-weight: 700;
 }
+
+/* The prep list grouped by purpose (T-076). */
+.prep-list[aria-busy="true"] {
+  opacity: 0.5;
+}
+
+.prep-heading {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1.0625rem;
+}
+
+.prep-group .recipe-ingredients {
+  margin-top: 0.25rem;
+}

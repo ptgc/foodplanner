@@ -1,4 +1,5 @@
 using System.Globalization;
+using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
@@ -31,6 +32,8 @@ public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 /// <c>Name</c> is the ingredient's name, or the label of a manual item. <c>Quantities</c> are display quantities (a
 /// mass line and a volume line of one ingredient stay separate). <c>Recipes</c> are the recipes that contribute
 /// (generated items only). <c>QuantityChangedSinceChecked</c>: checked, then a regeneration changed the quantities.
+/// <c>Alternatives</c> (T-076) are ingredients that can stand in ("or margarin"), from the contributing recipes' lines; shown by
+/// the client as "or ...". A to taste, as needed or optional ingredient is in <c>CheckYouHave</c> with no quantity.
 /// </summary>
 public sealed record ShoppingListItemResponse(
     Guid Id,
@@ -44,7 +47,8 @@ public sealed record ShoppingListItemResponse(
     Guid? CheckedByUserId,
     string? CheckedByEmail,
     DateTimeOffset? CheckedAt,
-    bool QuantityChangedSinceChecked);
+    bool QuantityChangedSinceChecked,
+    RecipeAlternativeResponse[] Alternatives);
 
 /// <summary><c>Id</c> is null when the week has no list yet (a read never creates one).</summary>
 public sealed record ShoppingListResponse(
@@ -203,17 +207,21 @@ public static class ShoppingListEndpoints
                     continue;
                 }
 
+                // Only a Measured line has an amount; ToTaste and AsNeeded carry the placeholder unit (T-076).
                 Quantity quantity;
-                if (line is { Quantity: { } amount, UnitId: { } unitId } && unitsById.TryGetValue(unitId, out var unit))
+                var kind = line.AmountKind;
+                if (kind == AmountKind.Measured && line is { Quantity: { } amount, UnitId: { } unitId } && unitsById.TryGetValue(unitId, out var unit))
                 {
                     quantity = new Quantity(amount, unit);
                 }
                 else
                 {
                     quantity = new Quantity(null, toTasteUnit);
+                    kind = kind == AmountKind.Measured ? AmountKind.ToTaste : kind;
                 }
 
-                planned.Add(new PlannedIngredient(ingredient.Id, ingredient.Name, ingredient.IsStaple, quantity));
+                planned.Add(new PlannedIngredient(
+                    ingredient.Id, ingredient.Name, ingredient.IsStaple, quantity, kind, line.Purpose, line.IsOptional));
             }
 
             meals.Add(new PlannedMeal(entry.RecipeId, recipeServings, entry.Servings, planned));
@@ -577,9 +585,32 @@ public static class ShoppingListEndpoints
             .ToListAsync(cancellationToken)).ToLookup(s => s.ShoppingListItemId);
 
         var ingredientIds = items.Where(i => i.IngredientId != null).Select(i => i.IngredientId!.Value).Distinct().ToList();
-        var ingredientNames = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
-            .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
         var recipeIds = sources.SelectMany(g => g).Select(s => s.RecipeId).Distinct().ToList();
+
+        // Alternatives (T-076) are not stored on the list: they are read from the contributing recipes' lines, so an item shows
+        // "or margarin" for as long as a recipe it comes from says so.
+        var recipeLines = ingredientIds.Count == 0 || recipeIds.Count == 0
+            ? []
+            : await db.RecipeIngredients.AsNoTracking().Where(l => recipeIds.Contains(l.RecipeId) && ingredientIds.Contains(l.IngredientId))
+                .OrderBy(l => l.RecipeId).ThenBy(l => l.Position).Select(l => new { l.Id, l.RecipeId, l.IngredientId }).ToListAsync(cancellationToken);
+        var lineIds = recipeLines.Select(l => l.Id).ToList();
+        var alternativesByLine = lineIds.Count == 0
+            ? Enumerable.Empty<Guid>().ToLookup(_ => Guid.Empty)
+            : (await db.RecipeIngredientAlternatives.AsNoTracking().Where(a => lineIds.Contains(a.RecipeIngredientId))
+                .OrderBy(a => a.Position).Select(a => new { a.RecipeIngredientId, a.IngredientId }).ToListAsync(cancellationToken))
+                .ToLookup(a => a.RecipeIngredientId, a => a.IngredientId);
+        var alternativeIdsByItem = items.Where(i => i.IngredientId != null).ToDictionary(
+            i => i.Id,
+            i =>
+            {
+                var itemRecipes = sources[i.Id].Select(s => s.RecipeId).ToHashSet();
+                return ShoppingAlternatives.For(
+                    i.IngredientId!.Value,
+                    recipeLines.Where(l => l.IngredientId == i.IngredientId && itemRecipes.Contains(l.RecipeId)).Select(l => alternativesByLine[l.Id]));
+            });
+        var nameIds = ingredientIds.Concat(alternativeIdsByItem.Values.SelectMany(a => a)).Distinct().ToList();
+        var ingredientNames = await db.Ingredients.AsNoTracking().Where(i => nameIds.Contains(i.Id))
+            .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
         var recipeTitles = await db.Recipes.AsNoTracking().Where(r => recipeIds.Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, r => r.Title, cancellationToken);
         var userIds = items.Where(i => i.CheckedByUserId != null).Select(i => i.CheckedByUserId!.Value).Distinct().ToList();
@@ -604,7 +635,9 @@ public static class ShoppingListEndpoints
                 i.CheckedByUserId,
                 i.CheckedByUserId is { } by ? emails.GetValueOrDefault(by) : null,
                 i.CheckedAt,
-                i.QuantityChangedSinceChecked))
+                i.QuantityChangedSinceChecked,
+                [.. alternativeIdsByItem.GetValueOrDefault(i.Id, [])
+                    .Select(id => new RecipeAlternativeResponse(id, ingredientNames.GetValueOrDefault(id, string.Empty)))]))
             .OrderBy(r => r.Name, comparer)
             .ThenBy(r => r.Id)];
     }

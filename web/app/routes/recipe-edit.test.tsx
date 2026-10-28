@@ -50,8 +50,8 @@ const existing = (patch: Partial<Recipe> = {}): Recipe => ({
     { position: 2, text: "Ha i fisken" },
   ],
   ingredients: [
-    { ingredientId: "i-torsk", ingredientName: "Torsk", quantity: 400, unitId: "u-g", unitCode: "g", unitName: "gram", note: null },
-    { ingredientId: "i-salt", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak" },
+    { ingredientId: "i-torsk", ingredientName: "Torsk", quantity: 400, unitId: "u-g", unitCode: "g", unitName: "gram", note: null, amountKind: "Measured", purpose: "Main", isOptional: false, alternatives: [] },
+    { ingredientId: "i-salt", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak", amountKind: "ToTaste", purpose: "Seasoning", isOptional: false, alternatives: [] },
   ],
   ...patch,
 });
@@ -287,12 +287,12 @@ describe("client-side validation blocks the request", () => {
     expect(within(rows()[0]!).getByText(t("recipe.error.unitRequired"))).toBeInTheDocument();
     expect(server.saved).toEqual([]);
 
-    await user.click(within(rows()[0]!).getByRole("checkbox", { name: t("recipe.toTaste") }));
+    await user.selectOptions(within(rows()[0]!).getByLabelText(t("recipe.amountKind")), "ToTaste");
     expect(within(rows()[0]!).queryByLabelText(t("recipe.quantity"))).toBeNull();
     expect(within(rows()[0]!).queryByLabelText(t("recipe.unit"))).toBeNull();
     await user.click(save());
     await waitFor(() => expect(server.saved).toHaveLength(1));
-    expect(server.saved[0]!.body.ingredients).toEqual([{ ingredientId: "i-torsk", quantity: null, unitId: null, note: null }]);
+    expect(server.saved[0]!.body.ingredients).toEqual([{ ingredientId: "i-torsk", quantity: null, unitId: null, note: null, amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] }]);
   });
 
   it("rejects out-of-range numbers with the API's limits", async () => {
@@ -329,7 +329,7 @@ describe("creating a recipe", () => {
     await user.click(screen.getByRole("button", { name: t("recipe.addIngredient") }));
     await waitFor(() => expect(rows()).toHaveLength(2));
     await pick(user, 1, "salt", "Salt");
-    await user.click(within(rows()[1]!).getByRole("checkbox", { name: t("recipe.toTaste") }));
+    await user.selectOptions(within(rows()[1]!).getByLabelText(t("recipe.amountKind")), "ToTaste");
     await user.type(within(rows()[1]!).getByLabelText(t("recipe.note")), "etter smak");
 
     await user.type(within(steps()[0]!).getByRole("textbox"), "Kok opp vannet");
@@ -351,8 +351,8 @@ describe("creating a recipe", () => {
       cookMinutes: 30,
       tagIds: ["t-quick"],
       ingredients: [
-        { ingredientId: "i-torsk", quantity: 1.5, unitId: "u-g", note: null },
-        { ingredientId: "i-salt", quantity: null, unitId: null, note: "etter smak" },
+        { ingredientId: "i-torsk", quantity: 1.5, unitId: "u-g", note: null, amountKind: "Measured", purpose: "Main", isOptional: false, alternativeIds: [] },
+        { ingredientId: "i-salt", quantity: null, unitId: null, note: "etter smak", amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] },
       ],
       steps: [{ text: "Kok opp vannet" }, { text: "Ha i fisken" }],
       sourceUrl: null,
@@ -409,13 +409,13 @@ describe("ingredient and step rows", () => {
     await formReady("/recipes/r1/edit");
     const names = () => rows().map((r) => within(r).getByText(/^(Torsk|Salt|Melk)|: (Torsk|Salt|Melk)$/).textContent);
     expect(rows()).toHaveLength(2);
-    expect(within(rows()[1]!).getByRole("checkbox", { name: t("recipe.toTaste") })).toBeChecked();
+    expect(within(rows()[1]!).getByLabelText(t("recipe.amountKind"))).toHaveValue("ToTaste");
     expect(within(rows()[1]!).getByLabelText(t("recipe.note"))).toHaveValue("etter smak");
     expect(names()).toEqual([t("recipe.ingredientChosen", { name: "Torsk" }), t("recipe.ingredientChosen", { name: "Salt" })]);
 
     await user.click(screen.getByRole("button", { name: t("recipe.moveIngredientUp", { n: 2 }) }));
     expect(names()).toEqual([t("recipe.ingredientChosen", { name: "Salt" }), t("recipe.ingredientChosen", { name: "Torsk" })]);
-    expect(within(rows()[0]!).getByRole("checkbox", { name: t("recipe.toTaste") })).toBeChecked();
+    expect(within(rows()[0]!).getByLabelText(t("recipe.amountKind"))).toHaveValue("ToTaste");
     expect(within(rows()[1]!).getByLabelText(t("recipe.quantity"))).toHaveValue("400");
 
     await user.click(screen.getByRole("button", { name: t("recipe.addIngredient") }));
@@ -790,5 +790,68 @@ describe("recipe source: website or book/other (T-081)", () => {
     await user.click(save());
     await waitFor(() => expect(server.saved).toHaveLength(1));
     expect(server.saved[0]!.body).toMatchObject({ sourceUrl: "https://example.com/r", sourceName: "Mormors blogg" });
+  });
+});
+
+describe("amount kind, purpose, optional and alternatives (T-076)", () => {
+  it("sets them on a line, picks an alternative with the ingredient picker and sends them", async () => {
+    const user = userEvent.setup();
+    await formReady();
+    await user.type(screen.getByLabelText(t("recipe.fieldTitle")), "Stek");
+    await pick(user, 0, "melk", "Melk");
+    await user.selectOptions(within(rows()[0]!).getByLabelText(t("recipe.amountKind")), "AsNeeded");
+    expect(within(rows()[0]!).queryByLabelText(t("recipe.quantity"))).toBeNull(); // no amount for "as needed"
+    await user.selectOptions(within(rows()[0]!).getByLabelText(t("recipe.purpose")), "Frying");
+    await user.click(within(rows()[0]!).getByRole("checkbox", { name: t("recipe.optional") }));
+
+    const alternatives = within(rows()[0]!).getByTestId("alternatives");
+    await user.click(within(alternatives).getByRole("button", { name: t("recipe.alternativeAdd") }));
+    await user.type(within(alternatives).getByLabelText(t("recipe.ingredientSearch")), "tor");
+    await user.click(await within(alternatives).findByRole("button", { name: "Torsk" }, { timeout: searchDelayMs + 2000 }));
+    expect(within(alternatives).getByText("Torsk")).toBeInTheDocument();
+
+    await user.type(within(steps()[0]!).getByRole("textbox"), "Stek");
+    await user.click(save());
+    await waitFor(() => expect(server.saved).toHaveLength(1));
+    expect(server.saved[0]!.body.ingredients).toEqual([
+      {
+        ingredientId: "i-melk", quantity: null, unitId: null, note: null,
+        amountKind: "AsNeeded", purpose: "Frying", isOptional: true, alternativeIds: ["i-torsk"],
+      },
+    ]);
+  });
+
+  it("removes an alternative and cannot add the line's own ingredient", async () => {
+    const user = userEvent.setup();
+    await formReady();
+    await pick(user, 0, "melk", "Melk");
+    const alternatives = within(rows()[0]!).getByTestId("alternatives");
+    await user.click(within(alternatives).getByRole("button", { name: t("recipe.alternativeAdd") }));
+    await user.type(within(alternatives).getByLabelText(t("recipe.ingredientSearch")), "melk");
+    await user.click(await within(alternatives).findByRole("button", { name: "Melk" }, { timeout: searchDelayMs + 2000 }));
+    expect(within(alternatives).queryByRole("button", { name: t("recipe.alternativeRemove", { name: "Melk" }) })).toBeNull();
+
+    await user.click(within(alternatives).getByRole("button", { name: t("recipe.alternativeAdd") }));
+    await user.type(within(alternatives).getByLabelText(t("recipe.ingredientSearch")), "tor");
+    await user.click(await within(alternatives).findByRole("button", { name: "Torsk" }, { timeout: searchDelayMs + 2000 }));
+    await user.click(within(alternatives).getByRole("button", { name: t("recipe.alternativeRemove", { name: "Torsk" }) }));
+    expect(within(alternatives).queryByText("Torsk")).toBeNull();
+  });
+
+  it("edits an existing recipe's kinds and alternatives", async () => {
+    server.recipe = existing({
+      ingredients: [
+        {
+          ingredientId: "i-salt", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: null,
+          amountKind: "ToTaste", purpose: "Seasoning", isOptional: true, alternatives: [{ ingredientId: "i-melk", ingredientName: "Melk" }],
+        },
+      ],
+    });
+    renderAt("/recipes/r1/edit");
+    const row = (await screen.findAllByTestId("ingredient-row"))[0]!;
+    expect(within(row).getByLabelText(t("recipe.amountKind"))).toHaveValue("ToTaste");
+    expect(within(row).getByLabelText(t("recipe.purpose"))).toHaveValue("Seasoning");
+    expect(within(row).getByRole("checkbox", { name: t("recipe.optional") })).toBeChecked();
+    expect(within(row).getByRole("button", { name: t("recipe.alternativeRemove", { name: "Melk" }) })).toBeInTheDocument();
   });
 });
