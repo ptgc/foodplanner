@@ -6,8 +6,8 @@
  *   navigation (any page)                            precached /index.html (the SPA shell); /offline.html if missing
  *   /assets/*, icons, manifest, offline.html         precache (cache first, by this build's cache)
  *   GET /api/households/{h}/recipes/{r}/image/...    CacheFirst, runtime cache, capped (immutable, versioned urls)
- *   GET /api/households/{h}/recipes, .../recipes/{r}, NetworkFirst (3 s timeout), runtime cache, capped
- *       .../tags
+ *   GET /api/households/{h}/recipes, .../recipes/{r}, NetworkFirst (3 s timeout), runtime cache, capped; the cache key
+ *       .../tags                                         is the url plus the request's Accept-Language (T-078)
  *   everything else (auth, antiforgery, shopping list, NOT intercepted: the browser goes to the network as if there
  *   SignalR hub, plan, any POST/PUT/DELETE, other      were no service worker. The shopping list stays with T-036's
  *   origins)                                           localStorage cache and queue.
@@ -62,7 +62,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) {
     if (request.mode === "navigate") return; // e.g. an API docs page: not the SPA
     if (imagePath.test(url.pathname)) event.respondWith(cacheFirst(request, IMAGE_CACHE, IMAGE_MAX_ENTRIES));
-    else if (recipeApiPath.test(url.pathname)) event.respondWith(networkFirst(request, API_CACHE, API_MAX_ENTRIES));
+    else if (recipeApiPath.test(url.pathname)) event.respondWith(networkFirst(request, API_CACHE, API_MAX_ENTRIES, languageKey(request)));
     // else: not intercepted.
   } else if (request.mode === "navigate") {
     event.respondWith(shell());
@@ -93,11 +93,23 @@ async function cacheFirst(request, cacheName, maxEntries) {
   return response;
 }
 
-async function networkFirst(request, cacheName, maxEntries) {
+/**
+ * Cache key of a catalog-bearing API answer (T-078): the url plus the language the page asked in. Recipes and tags name
+ * their ingredients, units and tags per Accept-Language, so the url alone would let an answer in one language stand in
+ * for the other (offline, or after the 3 s timeout) right after a language switch. The page's api client sets the
+ * header on every request; without one the key says "none" and never matches a language.
+ */
+function languageKey(request) {
+  const url = new URL(request.url);
+  url.searchParams.set("__lang", request.headers.get("Accept-Language") || "none");
+  return new Request(url.href);
+}
+
+async function networkFirst(request, cacheName, maxEntries, key = request) {
   const cache = await caches.open(cacheName);
   const network = fetch(request).then(async (response) => {
     if (response.ok) {
-      await cache.put(request, response.clone());
+      await cache.put(key, response.clone());
       await trim(cache, maxEntries);
     }
     return response;
@@ -108,9 +120,9 @@ async function networkFirst(request, cacheName, maxEntries) {
     // A fast answer wins. After the timeout the cached copy is used if there is one; otherwise keep waiting.
     const first = await Promise.race([network, timeout]);
     if (first !== "timeout") return first;
-    return (await cache.match(request)) || (await network);
+    return (await cache.match(key)) || (await network);
   } catch (error) {
-    const hit = await cache.match(request);
+    const hit = await cache.match(key);
     if (hit) return hit;
     throw error;
   }

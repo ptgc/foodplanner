@@ -145,7 +145,7 @@ test("recently viewed recipes, their picture and the shell open offline; an unop
     await expect.poll(() => imageLoaded(page)).toBe(true);
     const online = await cacheKeys(page);
     expect(Object.keys(online)).toEqual(expect.arrayContaining(["fp-runtime-api", "fp-runtime-images"]));
-    expect(online["fp-runtime-api"]).toContain(`/api/households/${recipe.household}/recipes/${recipe.id}`);
+    expect(online["fp-runtime-api"]).toContain(`/api/households/${recipe.household}/recipes/${recipe.id}?__lang=en`); // keyed by language (T-078)
     expect(online["fp-runtime-images"]!.some((u) => u.includes(`/recipes/${recipe.id}/image/`))).toBe(true);
 
     // Offline: reload the recipe page itself (the page cannot come from the network), then go back to the list in-app.

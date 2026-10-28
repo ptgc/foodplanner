@@ -309,7 +309,7 @@ function RenameForm({ item, onSave, onCancel }: { item: Own; onSave: (name: stri
 
 /** Searches the catalog (global and own, like the recipe ingredient picker) for the ingredient to merge into. */
 function MergePicker({ householdId, source, onPick }: { householdId: string; source: Own; onPick: (target: Ingredient) => void }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const inputId = useId();
   const [term, setTerm] = useState("");
   const [found, setFound] = useState<{ term: string; items: Ingredient[] } | null>(null);
@@ -332,7 +332,7 @@ function MergePicker({ householdId, source, onPick }: { householdId: string; sou
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [householdId, trimmed]);
+  }, [householdId, trimmed, locale]);
 
   const current = found && found.term === trimmed ? found.items.filter((i) => i.id !== source.id) : null;
   return (

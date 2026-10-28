@@ -127,6 +127,14 @@ All user-facing text is translatable. Code, keys and the fallback are English; l
 
 **Locale:** a stored choice (`localStorage` key `foodplanner.locale`, always in try/catch) wins; otherwise the first browser language that is nb/no/nn (gives nb) or en; otherwise en. `setLocale()` also sets `<html lang>`. The prerendered page is English.
 
+### Language switch and catalog names (T-078)
+A switch changes the UI text at once (`t()` re-renders), but names of catalog data (ingredients, units, tags, store sections) come from the API per `Accept-Language`, so every screen that shows them must read them again. Rules:
+- A hook or effect that fetches catalog-bearing data lists `useLocale()` (or `locale` from `useI18n()`) in its dependencies: `useRecipe`, `useRecipeList`, `useTags`, `useUnits`, `useScaledIngredients`, the ingredient pickers, the shopping list, the recipe edit form and the import review. The api client reads the locale per request.
+- Edit screens never lose typed text: `renameIngredients` (recipe form) and the import review take only the new ingredient names/lines from the re-read.
+- Shopping list: the hub cannot receive the app's `Accept-Language` (a browser WebSocket sends the browser's), so the client calls `GetStateIn(household, week, locale)`; the page ignores an answer asked in another language than the active one, and shows no list in the old language while the new one loads. The localStorage list entry records its `locale` (`CACHE_SCHEMA` 3) and is only used in that language.
+- Service worker: the `fp-runtime-api` cache key is the url plus `__lang=<Accept-Language>`, so an offline or slow answer is always in the language asked for; a language never fetched has no offline copy (the offline notice shows). Images are language-free and keep their url key.
+- New screens: if it shows catalog names, put the locale in the fetch effect's dependencies and add a case to `tests/e2e/tests/language-switch.spec.ts`.
+
 ### How to add text
 1. Add the key to **both** `app/i18n/en.ts` and `app/i18n/nb.ts` (natural bokmål, kitchen vocabulary: "Handleliste", "Logg ut").
 2. In a component: `const { t } = useI18n();` then `{t("recipes.title")}`, `aria-label={t("recipes.close")}`, `t("recipes.servings", { count: 4 })`. Outside React use `translate(getLocale(), key)`.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useLocale } from "../i18n";
 import type { Recipe, RecipeIngredient } from "./use-recipe";
 
 export type Scaled = {
@@ -19,6 +20,7 @@ export function useScaledIngredients(householdId: string, recipe: Recipe, servin
   const own = servings === recipe.servings;
   const [result, setResult] = useState<{ servings: number; lines: RecipeIngredient[] } | null>(null);
   const [failedFor, setFailedFor] = useState<number | null>(null);
+  const locale = useLocale();
 
   useEffect(() => {
     if (own) return;
@@ -40,7 +42,7 @@ export function useScaledIngredients(householdId: string, recipe: Recipe, servin
     return () => {
       cancelled = true;
     };
-  }, [householdId, recipe.id, servings, own]);
+  }, [householdId, recipe.id, servings, own, locale]);
 
   if (own) return { ingredients: recipe.ingredients, loading: false, failed: false };
   return {

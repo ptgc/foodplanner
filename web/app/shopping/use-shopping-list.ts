@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
+import { useLocale } from "../i18n";
 import type { components } from "../api/schema";
 import { applyQueue, enqueue, replay, type SendResult } from "./queue";
 import {
@@ -21,7 +22,8 @@ const RETRY_MS = 5000;
 
 export type PantryItem = components["schemas"]["PantryItemResponse"];
 
-type Server = { week: string; list: ShoppingList; version: string | null };
+/** `locale` is the language the list was asked in: names are catalog data and differ per language (T-078). */
+type Server = { week: string; list: ShoppingList; version: string | null; locale: string };
 type LoadError = { week: string; kind: "network" | "unauthorized" | "failed" };
 type FetchResult = "ok" | "network" | "forbidden" | "unauthorized" | "failed";
 export type ActionResult = "ok" | "offline" | "failed";
@@ -73,9 +75,12 @@ export function useShoppingList(householdId: string, weekStart: string, options:
   const connectedRef = useRef(false);
   const flushing = useRef(false);
   const optionsRef = useRef(options);
+  const locale = useLocale();
+  const localeRef = useRef(locale);
 
   useEffect(() => {
     weekRef.current = weekStart;
+    localeRef.current = locale;
     optionsRef.current = options;
   });
 
@@ -88,30 +93,32 @@ export function useShoppingList(householdId: string, weekStart: string, options:
   const base = `/api/households/{householdId}/shopping-lists/{weekStart}` as const;
 
   const accept = useCallback(
-    (list: ShoppingList, version: string | null) => {
-      // A slow answer for a week the user already left must not overwrite the week on screen.
-      if (list.weekStart !== weekRef.current) return;
+    (list: ShoppingList, version: string | null, askedIn: string) => {
+      // A slow answer for a week the user already left must not overwrite the week on screen. Nor may one in the
+      // language the user already left (T-078): its names would show in the wrong language.
+      if (list.weekStart !== weekRef.current || askedIn !== localeRef.current) return;
       const prev = serverRef.current;
-      if (prev && prev.week === list.weekStart && version !== null && prev.version === version) {
+      if (prev && prev.week === list.weekStart && prev.locale === askedIn && version !== null && prev.version === version) {
         setLoadError(null);
         return; // same version: same content, skip the re-render
       }
-      const next = { week: list.weekStart, list, version };
+      const next = { week: list.weekStart, list, version, locale: askedIn };
       serverRef.current = next;
       setServer(next);
       setLoadError(null);
-      writeCachedList(householdId, list.weekStart, list, version);
+      writeCachedList(householdId, list.weekStart, list, version, askedIn);
     },
     [householdId],
   );
 
   const fetchRest = useCallback(async (): Promise<FetchResult> => {
     const week = weekRef.current;
+    const askedIn = locale; // the api client sends the active language as Accept-Language
     try {
       const { data, response } = await api.GET(base, { params: { path: { householdId, weekStart: week } } });
       setReachable(true);
       if (data) {
-        accept(data, null);
+        accept(data, null, askedIn);
         return "ok";
       }
       if (response.status === 403) return "forbidden";
@@ -121,7 +128,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
       setReachable(false);
       return "network";
     }
-  }, [accept, base, householdId]);
+  }, [accept, base, householdId, locale]);
 
   /** Re-read the week on screen, through the hub when it is connected (the contract), else REST. */
   const reconcile = useCallback(async () => {
@@ -208,9 +215,10 @@ export function useShoppingList(householdId: string, weekStart: string, options:
       householdId,
       {
         getWeek: () => weekRef.current,
-        onState: (state: HubState) => {
+        getLocale: () => localeRef.current,
+        onState: (state: HubState, askedIn: string) => {
           setReachable(true);
-          accept(state.list, state.version);
+          accept(state.list, state.version, askedIn);
         },
         onConnection: (connected) => {
           connectedRef.current = connected;
@@ -290,9 +298,10 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     };
   }, [readPantry, server]);
 
-  const current = server && server.week === weekStart ? server : null;
-  // Derived, not stored: the saved copy stands in until the server answers for this week.
-  const cached = useMemo(() => (current ? null : readCachedList(householdId, weekStart)), [current, householdId, weekStart]);
+  // A list asked in the other language is not shown (T-078): after a switch the page waits for the list in the new one.
+  const current = server && server.week === weekStart && server.locale === locale ? server : null;
+  // Derived, not stored: the saved copy (in this language) stands in until the server answers for this week.
+  const cached = useMemo(() => (current ? null : readCachedList(householdId, weekStart, locale)), [current, householdId, weekStart, locale]);
   const baseList = current?.list ?? cached?.list ?? null;
   const list = useMemo(() => (baseList ? applyQueue(baseList, queue, householdId) : null), [baseList, queue, householdId]);
   const pending = queue.filter((q) => q.householdId === householdId && q.weekStart === weekStart).length;

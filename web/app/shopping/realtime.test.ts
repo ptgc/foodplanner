@@ -35,7 +35,7 @@ class FakeHub implements HubLike {
   async invoke<T>(method: string, ...args: unknown[]): Promise<T> {
     this.calls.push(`${method}(${args.join(",")})`);
     if (this.forbid && method !== "LeaveHousehold") throw new Error("An unexpected error occurred. HubException: forbidden");
-    if (method === "GetState") {
+    if (method === "GetStateIn") {
       const state: HubState = {
         version: this.version,
         list: { id: null, weekStart: String(args[1]), main: [], checkYouHave: [] },
@@ -60,7 +60,7 @@ function setup(week = "2026-10-19") {
   const onForbidden = vi.fn();
   const rt = connectShoppingRealtime(
     "h1",
-    { getWeek: () => week, onState: (s) => states.push(s), onConnection: (c) => connection.push(c), onForbidden },
+    { getWeek: () => week, getLocale: () => "en", onState: (s) => states.push(s), onConnection: (c) => connection.push(c), onForbidden },
     () => hub,
     1000,
   );
@@ -74,7 +74,7 @@ describe("shopping realtime", () => {
   it("connects, joins the household, then reads the state of the week", async () => {
     const { hub, states, connection } = setup();
     await vi.advanceTimersByTimeAsync(0);
-    expect(hub.calls).toEqual(["start", "JoinHousehold(h1)", "GetState(h1,2026-10-19)"]);
+    expect(hub.calls).toEqual(["start", "JoinHousehold(h1)", "GetStateIn(h1,2026-10-19,en)"]);
     expect(connection).toEqual([true]);
     expect(states).toHaveLength(1);
   });
@@ -102,7 +102,7 @@ describe("shopping realtime", () => {
     hub.reconnected();
     await vi.advanceTimersByTimeAsync(0);
     expect(connection).toEqual([true, false, true]);
-    expect(hub.calls.slice(-2)).toEqual(["JoinHousehold(h1)", "GetState(h1,2026-10-19)"]);
+    expect(hub.calls.slice(-2)).toEqual(["JoinHousehold(h1)", "GetStateIn(h1,2026-10-19,en)"]);
     expect(states.map((s) => s.version)).toEqual(["v1", "v2"]);
   });
 
@@ -112,7 +112,7 @@ describe("shopping realtime", () => {
     const states: HubState[] = [];
     connectShoppingRealtime(
       "h1",
-      { getWeek: () => "2026-10-19", onState: (s) => states.push(s), onConnection: () => undefined, onForbidden: vi.fn() },
+      { getWeek: () => "2026-10-19", getLocale: () => "en", onState: (s) => states.push(s), onConnection: () => undefined, onForbidden: vi.fn() },
       () => hub,
       1000,
     );
@@ -129,7 +129,7 @@ describe("shopping realtime", () => {
     const states: HubState[] = [];
     connectShoppingRealtime(
       "h1",
-      { getWeek: () => "2026-10-19", onState: (s) => states.push(s), onConnection: () => undefined, onForbidden },
+      { getWeek: () => "2026-10-19", getLocale: () => "en", onState: (s) => states.push(s), onConnection: () => undefined, onForbidden },
       () => hub,
       1000,
     );

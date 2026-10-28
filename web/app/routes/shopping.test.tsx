@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAntiforgeryToken } from "../api/client";
 import type { components } from "../api/schema";
+import { getLocale } from "../i18n";
 import { SessionProvider } from "../session";
 import { n, t } from "../test-i18n";
 import Shopping from "./shopping";
@@ -57,7 +58,7 @@ vi.mock("@microsoft/signalr", () => {
         async stop() {},
         async invoke(method: string, ...args: unknown[]) {
           hub.calls.push(`${method}(${args.join(",")})`);
-          if (method === "GetState") return hub.getState();
+          if (method === "GetStateIn") return hub.getState();
           return undefined;
         },
       };
@@ -266,7 +267,7 @@ describe("shopping list rendering", () => {
   it("joins the household and reads state through the hub on connect", async () => {
     renderPage();
     await ready();
-    await waitFor(() => expect(hubState.hub?.calls).toEqual(["JoinHousehold(h1)", `GetState(h1,${week})`]));
+    await waitFor(() => expect(hubState.hub?.calls).toEqual(["JoinHousehold(h1)", `GetStateIn(h1,${week},${getLocale()})`]));
   });
 
   it("tolerates a failing cache (storage throws) and still renders", async () => {
@@ -435,7 +436,7 @@ describe("live updates", () => {
     act(() => hub.reconnecting());
     act(() => hub.reconnected());
     expect(await screen.findByRole("checkbox", { name: "Ost" })).toBeInTheDocument();
-    expect(hub.calls.slice(-2)).toEqual(["JoinHousehold(h1)", `GetState(h1,${week})`]);
+    expect(hub.calls.slice(-2)).toEqual(["JoinHousehold(h1)", `GetStateIn(h1,${week},${getLocale()})`]);
     await waitFor(() => expect(screen.queryByTestId("offline-banner")).toBeNull());
   });
 

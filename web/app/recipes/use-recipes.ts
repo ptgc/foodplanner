@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
+import { useLocale } from "../i18n";
 import { problemTypeOf } from "../i18n/problems";
 import { toListQuery, type RecipeFilters } from "./filters";
 
@@ -12,7 +13,7 @@ export const pageSize = 12;
 /** A ProblemDetails type code (translated on screen) or "unreachable" (network failure). */
 export type Failure = { problemType: string | undefined } | "unreachable";
 
-type Request = { householdId: string; filters: RecipeFilters; attempt: number };
+type Request = { locale: string; householdId: string; filters: RecipeFilters; attempt: number };
 
 type Loaded = {
   request: Request;
@@ -48,7 +49,8 @@ async function fetchPage(request: Request, offset: number): Promise<Page> {
  */
 export function useRecipeList(householdId: string, filters: RecipeFilters) {
   const [attempt, setAttempt] = useState(0);
-  const request = useMemo<Request>(() => ({ householdId, filters, attempt }), [householdId, filters, attempt]);
+  const locale = useLocale(); // tag names on the cards are catalog data: a language switch starts the list over (T-078)
+  const request = useMemo<Request>(() => ({ locale, householdId, filters, attempt }), [locale, householdId, filters, attempt]);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [more, setMore] = useState<{ request: Request; busy: boolean; failure: Failure | null } | null>(null);
 
@@ -111,6 +113,7 @@ export function useRecipeList(householdId: string, filters: RecipeFilters) {
 
 /** The tags and categories of the household (global plus own) for the filter chips. Empty if loading fails. */
 export function useTags(householdId: string): Tag[] {
+  const locale = useLocale();
   const [loaded, setLoaded] = useState<{ householdId: string; tags: Tag[] } | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +132,6 @@ export function useTags(householdId: string): Tag[] {
     return () => {
       cancelled = true;
     };
-  }, [householdId]);
+  }, [householdId, locale]);
   return loaded?.householdId === householdId ? loaded.tags : [];
 }

@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using Foodplanner.Api.Features.ShoppingLists;
 using Foodplanner.Api.Tests.Auth;
 using Foodplanner.Api.Tests.Households;
+using Foodplanner.Domain.Catalog;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -82,6 +83,10 @@ internal sealed class HubTestClient : IAsyncDisposable
 
     public async Task<JsonElement> GetStateAsync(Guid household, DateOnly week) =>
         await Connection.InvokeAsync<JsonElement>("GetState", household, week.ToString("yyyy-MM-dd"), Ct);
+
+    /// <summary>The third argument names the language of the answer (T-078).</summary>
+    public async Task<JsonElement> GetStateAsync(Guid household, DateOnly week, string? locale) =>
+        await Connection.InvokeAsync<JsonElement>("GetStateIn", household, week.ToString("yyyy-MM-dd"), locale, Ct);
 
     public async Task<ShoppingListChangedMessage> NextAsync()
     {
@@ -200,6 +205,42 @@ public sealed class ShoppingListHubTests(AuthDatabase db) : IClassFixture<AuthDa
         // Documented decision: the port is not compared (nginx forwards $host without one).
         using var otherPort = await user.Client.PostAsync(url, null, new Dictionary<string, string> { ["Origin"] = "https://localhost:9999" });
         Assert.Equal(HttpStatusCode.OK, otherPort.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetState_answers_in_the_language_the_call_names_and_falls_back_to_the_connections_language_without_one()
+    {
+        // T-078: a browser WebSocket cannot send the app's Accept-Language, and the connection outlives a language
+        // switch, so the client names the language per call. The test connection sends no Accept-Language (English).
+        await using var host = Host();
+        var user = await host.SignInAsync();
+        var household = await user.Client.CreateHouseholdAsync();
+        var gram = UnitSeed.All.Single(u => u.Code == "g").Id;
+        var rice = IngredientSeed.All.Single(i => i.Key == "ris").Id;
+        using var recipe = await user.Client.PostAsync($"/api/households/{household}/recipes", new
+        {
+            title = "Hub language " + Guid.NewGuid().ToString("N")[..6],
+            servings = 4,
+            ingredients = new[] { new { ingredientId = rice, quantity = (decimal?)100, unitId = (Guid?)gram, note = (string?)null } },
+        });
+        Assert.Equal(HttpStatusCode.Created, recipe.StatusCode);
+        using var entry = await user.Client.PostAsync(
+            $"/api/households/{household}/meal-plans/{Monday:yyyy-MM-dd}/entries",
+            new { date = Monday.ToString("yyyy-MM-dd"), recipeId = (await recipe.JsonAsync()).GetProperty("id").GetGuid(), servings = 4 });
+        Assert.Equal(HttpStatusCode.Created, entry.StatusCode);
+        using var generated = await user.Client.PostAsync($"{ListUrl(household)}/generate");
+        Assert.Equal(HttpStatusCode.OK, generated.StatusCode);
+        await using var hub = new HubTestClient(host, user.Client.AuthCookie);
+        await hub.StartAsync();
+
+        static string[] Names(JsonElement state) =>
+            [.. state.GetProperty("list").GetProperty("main").EnumerateArray().Select(i => i.GetProperty("name").GetString()!)];
+
+        Assert.Equal(["Ris"], Names(await hub.GetStateAsync(household, Monday, "nb")));
+        Assert.Equal(["Rice"], Names(await hub.GetStateAsync(household, Monday, "en")));
+        Assert.Equal(["Rice"], Names(await hub.GetStateAsync(household, Monday))); // two arguments, as before: the connection's language
+        Assert.Equal(["Rice"], Names(await hub.GetStateAsync(household, Monday, null)));
+        Assert.Equal(["Rice"], Names(await hub.GetStateAsync(household, Monday, "xx"))); // unknown: the default language
     }
 
     [Fact]

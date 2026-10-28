@@ -75,8 +75,20 @@ internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbConte
         return Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupName(householdId), Context.ConnectionAborted);
     }
 
-    /// <summary>The current list of the week, for the first load and for every resync after a reconnect.</summary>
-    public async Task<ShoppingListState> GetState(Guid householdId, string weekStart)
+    /// <summary>The current list of the week, for the first load and for every resync after a reconnect. In the language of the connection's HTTP request.</summary>
+    public Task<ShoppingListState> GetState(Guid householdId, string weekStart) =>
+        ReadStateAsync(householdId, weekStart, Context.GetHttpContext()?.Request.Headers.AcceptLanguage.ToString());
+
+    /// <summary>
+    /// <see cref="GetState"/> in the language the caller names (<c>nb</c> or <c>en</c>, negotiated like Accept-Language).
+    /// A browser cannot set Accept-Language on the WebSocket, and the connection outlives a language switch, so the
+    /// client says the language per call (T-078). A separate method rather than an optional parameter: SignalR needs
+    /// every argument, and older pages still call the two-argument form.
+    /// </summary>
+    public Task<ShoppingListState> GetStateIn(Guid householdId, string weekStart, string? locale) =>
+        ReadStateAsync(householdId, weekStart, locale);
+
+    private async Task<ShoppingListState> ReadStateAsync(Guid householdId, string weekStart, string? acceptLanguage)
     {
         await RequireMemberAsync(householdId);
         if (!ShoppingListEndpoints.IsWeekStart(weekStart, out var monday))
@@ -84,8 +96,7 @@ internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbConte
             throw new HubException("weekStart must be the Monday of an ISO week, as yyyy-MM-dd.");
         }
 
-        var list = await ShoppingListEndpoints.ReadAsync(
-            db, monday, Locales.Negotiate(Context.GetHttpContext()?.Request.Headers.AcceptLanguage.ToString()), Context.ConnectionAborted);
+        var list = await ShoppingListEndpoints.ReadAsync(db, monday, Locales.Negotiate(acceptLanguage), Context.ConnectionAborted);
         var hash = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(list, VersionJson));
         return new ShoppingListState(Convert.ToHexStringLower(hash.AsSpan(0, 12)), list);
     }
