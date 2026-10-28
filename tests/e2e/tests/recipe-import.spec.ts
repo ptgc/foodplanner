@@ -125,9 +125,12 @@ test("an Adult pastes a recipe, fixes the line the catalog cannot match by creat
       await noHorizontalScroll(page);
     }
   } finally {
-    // The recipe is deleted. There is no endpoint to delete an ingredient, so the household's own ingredient named
-    // "Zqx..." (unique per run) stays behind.
+    // The recipe goes first (an ingredient in use cannot be deleted), then the own ingredient the test created (T-083).
     if (recipeId) await request.delete(`/api/households/${h}/recipes/${recipeId}`, { headers: await csrf(request) });
+    const own = (await (await request.get(`/api/households/${h}/ingredients/own`)).json()) as { id: string; name: string }[];
+    for (const i of own.filter((x) => x.name.toLowerCase() === invented.toLowerCase())) {
+      await request.delete(`/api/households/${h}/ingredients/${i.id}`, { headers: await csrf(request) });
+    }
   }
 });
 

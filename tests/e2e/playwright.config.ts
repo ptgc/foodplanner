@@ -5,6 +5,9 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
   testDir: "./tests",
+  // T-083: the setup tags the run; the teardown fails the run if anything carrying the tag is left.
+  globalSetup: "./global-setup.ts",
+  globalTeardown: "./global-teardown.ts",
   outputDir: "./test-results",
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   forbidOnly: !!process.env.CI,

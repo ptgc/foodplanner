@@ -5,8 +5,9 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "tests"]
+  "include": ["*.ts", "tests", "cleanup"]
 }
