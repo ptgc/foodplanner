@@ -120,3 +120,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-092 | Weekly groceries (one tap onto the shopping list) | L3 | T-031, T-085, T-088 | implementer-backend | yes |
 | T-093 | Pantry for everything, with amounts; the shopping list subtracts what we have | L3 | T-037, T-076, T-085, T-092 | implementer-backend | yes |
 | T-094 | Pantry updates itself: add on shopping, deduct on cooking (stretch) | M4 | T-093 | implementer-backend | yes |
+| T-095 | Delete a user account (and clean up e2e test users) | M1 | T-011, T-083 | implementer-backend | no |
+| T-096 | System admin role for support across households (plan first) | M1 | T-011, T-026 | implementer-backend | yes |
