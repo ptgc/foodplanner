@@ -324,6 +324,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/ingredients/own": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListOwnIngredients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/ingredients/{ingredientId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["RenameIngredient"];
+        post?: never;
+        delete: operations["DeleteIngredient"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/ingredients/{ingredientId}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["MergeIngredient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/recipes": {
         parameters: {
             query?: never;
@@ -799,6 +847,16 @@ export interface components {
             dimension: components["schemas"]["UnitDimension"];
             isGlobal: boolean;
         };
+        IngredientUsageResponse: {
+            /** Format: int32 */
+            recipes: number | string;
+            /** Format: int32 */
+            pantryItems: number | string;
+            /** Format: int32 */
+            shoppingLists: number | string;
+            /** Format: int32 */
+            importDrafts: number | string;
+        };
         InviteResponse: {
             token: string;
             /** Format: date-time */
@@ -841,6 +899,15 @@ export interface components {
             userId: string;
             email: string;
         };
+        MergeIngredientRequest: {
+            /** Format: uuid */
+            targetIngredientId: null | string;
+        };
+        MergeIngredientResponse: {
+            target: components["schemas"]["IngredientResponse"];
+            moved: components["schemas"]["IngredientUsageResponse"];
+            warnings: string[];
+        };
         OpenInviteResponse: {
             /** Format: uuid */
             id: string;
@@ -851,6 +918,14 @@ export interface components {
             createdAt: string;
             /** Format: uuid */
             createdByUserId: string;
+        };
+        OwnIngredientResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            isStaple: boolean;
+            dimension: components["schemas"]["UnitDimension"];
+            usage: components["schemas"]["IngredientUsageResponse"];
         };
         PantryItemResponse: {
             /** Format: uuid */
@@ -1008,6 +1083,9 @@ export interface components {
         };
         RegisterResponse: {
             message: string;
+        };
+        RenameIngredientRequest: {
+            name: null | string;
         };
         SaveRecipeImportResponse: {
             /** Format: uuid */
@@ -2099,6 +2177,258 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOwnIngredients: {
+        parameters: {
+            query?: {
+                search?: string;
+            };
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnIngredientResponse"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RenameIngredient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredientId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["RenameIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngredientResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteIngredient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredientId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MergeIngredient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                ingredientId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["MergeIngredientRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergeIngredientResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

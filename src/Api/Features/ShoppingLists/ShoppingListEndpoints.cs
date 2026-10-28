@@ -165,7 +165,7 @@ public static class ShoppingListEndpoints
     /// sets: a recipe, an ingredient or a line of another household cannot appear. A "to taste" line has no unit in the
     /// recipe; the generator needs one, so it gets <c>stk</c>, which is dropped again when stored.
     /// </summary>
-    private static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
+    internal static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var units = await db.Units.AsNoTracking().ToListAsync(cancellationToken);
         var catalog = new UnitCatalog(units);
@@ -226,7 +226,7 @@ public static class ShoppingListEndpoints
     }
 
     /// <summary>One attempt: find or create the list, reconcile its generated items with <paramref name="generated"/>, save once.</summary>
-    private static async Task ApplyAsync(AppDbContext db, DateOnly monday, GeneratedList generated, CancellationToken cancellationToken)
+    internal static async Task ApplyAsync(AppDbContext db, DateOnly monday, GeneratedList generated, CancellationToken cancellationToken)
     {
         var list = await FindOrCreateListAsync(db, monday, cancellationToken);
 
@@ -623,7 +623,7 @@ public static class ShoppingListEndpoints
     }
 
     /// <summary>A listener failure never undoes a saved change.</summary>
-    private static async Task NotifyAsync(
+    internal static async Task NotifyAsync(
         IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, ShoppingListChange change, CancellationToken cancellationToken)
     {
         try

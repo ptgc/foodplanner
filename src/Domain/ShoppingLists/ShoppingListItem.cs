@@ -64,6 +64,22 @@ public sealed class ShoppingListItem : Entity, ITenantEntity
 
     public byte[] RowVersion { get; private set; } = [];
 
+    /// <summary>Points a generated item at another ingredient (merging two ingredients, T-079). The next regeneration reconciles section and quantities.</summary>
+    public void ChangeIngredient(Guid ingredientId)
+    {
+        if (IngredientId is null)
+        {
+            throw new InvalidOperationException("A manual item has no ingredient.");
+        }
+
+        if (ingredientId == Guid.Empty)
+        {
+            throw new ArgumentException("A generated item needs an ingredient.", nameof(ingredientId));
+        }
+
+        IngredientId = ingredientId;
+    }
+
     public static ShoppingListItem Generated(Guid shoppingListId, Guid ingredientId, ShoppingSection section)
     {
         if (ingredientId == Guid.Empty)

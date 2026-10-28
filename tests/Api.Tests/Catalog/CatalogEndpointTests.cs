@@ -227,7 +227,7 @@ public sealed class CatalogEndpointTests(AuthDatabase db) : IClassFixture<AuthDa
     }
 
     [Fact]
-    public async Task There_is_no_endpoint_that_can_change_or_delete_an_ingredient()
+    public async Task Only_the_own_ingredient_management_endpoints_can_change_or_delete_an_ingredient()
     {
         await using var host = Host();
 
@@ -237,8 +237,18 @@ public sealed class CatalogEndpointTests(AuthDatabase db) : IClassFixture<AuthDa
             .Order(StringComparer.Ordinal)
             .ToList();
 
+        // Since T-079 the household may rename, delete and merge its OWN ingredients (OwnIngredientEndpoints); those handlers
+        // refuse global rows (403) and the save guard would refuse them anyway. Nothing else may write an ingredient.
         Assert.Equal(
-            ["GET /api/households/{householdId:guid}/ingredients", "GET /api/units", "POST /api/households/{householdId:guid}/ingredients"],
+            [
+                "DELETE /api/households/{householdId:guid}/ingredients/{ingredientId:guid}",
+                "GET /api/households/{householdId:guid}/ingredients",
+                "GET /api/households/{householdId:guid}/ingredients/own",
+                "GET /api/units",
+                "POST /api/households/{householdId:guid}/ingredients",
+                "POST /api/households/{householdId:guid}/ingredients/{ingredientId:guid}/merge",
+                "PUT /api/households/{householdId:guid}/ingredients/{ingredientId:guid}",
+            ],
             methods);
     }
 

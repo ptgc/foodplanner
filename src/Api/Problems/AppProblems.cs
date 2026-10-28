@@ -39,7 +39,17 @@ public static class AppProblems
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";
 
+    public const string IngredientNotFound = "ingredient-not-found";
+    public const string IngredientInUse = "ingredient-in-use";
+    public const string IngredientConflict = "ingredient-conflict";
+    public const string IngredientGlobal = "ingredient-global";
+    public const string IngredientMergeIntoSelf = "ingredient-merge-into-self";
+
     public static string Type(string code) => $"urn:foodplanner:problem:{code}";
+
+    /// <summary>A problem with extra members (RFC 9457 allows extensions), e.g. the usage counts of an ingredient in use.</summary>
+    public static IResult Problem(int status, string code, string title, string? detail, IDictionary<string, object?> extensions) =>
+        Results.Problem(statusCode: status, type: Type(code), title: title, detail: detail, extensions: extensions);
 
     public static IResult Problem(int status, string code, string title, string? detail = null) =>
         Results.Problem(statusCode: status, type: Type(code), title: title, detail: detail);
