@@ -146,6 +146,9 @@ public static class IngredientSeed
 
         // Olje, eddik og vann
         new("rapsolje", "Rapeseed oil", "Rapsolje", V, IsStaple: true),
+        new("olje", "Oil", "Olje", V, IsStaple: true),
+        new("noytral_olje", "Neutral oil", "Nøytral olje", V, IsStaple: true),
+        new("margarin", "Margarine", "Margarin", M, IsStaple: true),
         new("olivenolje", "Olive oil", "Olivenolje", V, IsStaple: true),
         new("eddik", "Vinegar", "Eddik", V, IsStaple: true),
         new("vann", "Water", "Vann", V, IsStaple: true),

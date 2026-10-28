@@ -137,6 +137,46 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddMargarineAndOils_adds_three_global_rows_beside_household_rows_with_the_same_names()
+    {
+        var connectionString = await server.CreateDatabaseAsync("margarine", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261027202623_AddIngredientKindPurposeAlternatives", Ct);
+        var keys = new[] { "margarin", "olje", "noytral_olje" };
+        var rows = Foodplanner.Domain.Catalog.IngredientSeed.All.Where(r => keys.Contains(r.Key)).ToList();
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM Ingredients WHERE Id IN ('{rows[0].Id}', '{rows[1].Id}', '{rows[2].Id}')"));
+
+        // A household that imported recipes before the seed: own rows named like the new global ones, in both languages.
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Clash', @now, @now);
+            INSERT INTO Ingredients (Id, HouseholdId, Name, IsStaple, Dimension, CreatedAt, UpdatedAt) VALUES
+                (NEWID(), @h, N'Nøytral olje', 0, 'Volume', @now, @now), (NEWID(), @h, N'Margarin eller olje', 0, 'Mass', @now, @now),
+                (NEWID(), @h, N'Margarin', 0, 'Mass', @now, @now), (NEWID(), @h, N'Oil', 0, 'Volume', @now, @now),
+                (NEWID(), @h, N'Neutral oil', 0, 'Volume', @now, @now), (NEWID(), @h, N'Margarine', 0, 'Mass', @now, @now);
+            """);
+        var before = await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients");
+
+        await migrator.MigrateAsync(null, Ct); // does not fail on the same names: the global rows are keyed by (HouseholdId, English name)
+
+        Assert.Equal((int)before! + 3, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+        Assert.Equal(6, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients WHERE HouseholdId IS NOT NULL")); // untouched
+        foreach (var row in rows)
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM Ingredients WHERE Id = '{row.Id}' AND HouseholdId IS NULL AND IsStaple = 1 AND Name = N'{row.Name}' AND Dimension = '{row.Dimension}'"));
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM CatalogTranslations WHERE Kind = 'ingredient' AND EntityId = '{row.Id}' AND Locale = 'nb' AND Name = N'{row.Nb}'"));
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM CatalogTranslations WHERE Kind = 'ingredient' AND EntityId = '{row.Id}' AND Locale = 'en' AND Name = N'{row.Name}'"));
+        }
+
+        // Idempotent: nothing is pending and a second run changes nothing.
+        await migrator.MigrateAsync(null, Ct);
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+        Assert.Equal((int)before + 3, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients"));
+    }
+
+    [Fact]
     public async Task Seed_rows_are_keyed_by_fixed_ids_so_a_replay_conflicts_instead_of_duplicating()
     {
         var connectionString = await server.CreateDatabaseAsync("catalogreplay", Ct);
