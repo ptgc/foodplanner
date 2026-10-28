@@ -57,3 +57,9 @@ In the CI job that runs `verify.sh`:
 ## Auth fixtures
 
 See above: `tests/fixtures.ts` has `adminState`, `signIn`, `adminCredentials`, `expectActiveHousehold`.
+
+## Cleanup (T-083)
+
+`global-setup.ts` gives each run a letters-only tag (`E2E_RUN_TAG`); `uniqueStamp()` puts it in every name a spec creates. After the run `global-teardown.ts` lists everything carrying the tag (recipes, own ingredients, households, import drafts, pantry entries, plan entries and manual shopping items in the weeks used), removes it, and fails the run if there was anything, so a spec that leaks is noticed. Specs still delete their own data in `finally`.
+
+`./scripts/e2e-cleanup.sh [--dry-run] [--tag <tag>] [--counts]` (or `.ps1`) removes leftovers of older runs that match the narrow legacy E2E naming patterns; `--dry-run` only lists (exit 1 if any), `--counts` prints read-only totals. Known gap: `account-setup.spec.ts` registers users (`e2e-<ts>@example.test`); there is no delete-user API.

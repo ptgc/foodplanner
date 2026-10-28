@@ -1,4 +1,5 @@
 import { expect, test as base, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { recordWeek, runTag } from "./run";
 
 /** Credentials of the seeded local admin (T-029). scripts/e2e.sh and e2e.ps1 fill them from user secrets. */
 export function adminCredentials(): { email: string; password: string } {
@@ -65,12 +66,17 @@ export async function expectActiveHousehold(page: Page, name: string) {
 export function uniqueWeek(testInfo: TestInfo, firstMonday: number, n: number): string {
   const projectSlot = testInfo.project.name === "desktop" ? 100 : 0;
   const weeks = projectSlot + testInfo.repeatEachIndex * 4 + n;
-  return new Date(firstMonday + weeks * 7 * 86_400_000).toISOString().slice(0, 10);
+  const week = new Date(firstMonday + weeks * 7 * 86_400_000).toISOString().slice(0, 10);
+  recordWeek(week); // the run's teardown checks the weeks used for leftovers (T-083)
+  return week;
 }
 
-/** A name that differs between parallel copies of the same test (Date.now() alone can collide). */
+/**
+ * A name part that differs between parallel copies of the same test (Date.now() alone can collide). It starts with the
+ * run's tag (T-083, letters only), so the teardown finds everything this run created and nothing else.
+ */
 export function uniqueStamp(testInfo: TestInfo): string {
-  return `${Date.now()}-${testInfo.parallelIndex}-${testInfo.repeatEachIndex}`;
+  return `${runTag()}-${Date.now()}-${testInfo.parallelIndex}-${testInfo.repeatEachIndex}`;
 }
 
 /**

@@ -206,13 +206,13 @@ test("every main screen changes language in place: UI text and catalog names (nb
     await expect(page.locator("strong", { hasText: f.milk.nb }).first()).toBeVisible();
     await switchTo(page, "en");
     await expect(page.locator("strong", { hasText: f.milk.en }).first()).toBeVisible();
-    // The draft is discarded so it does not pile up.
+    if (mobile) await noHorizontalScroll(page);
+  } finally {
+    // The draft is discarded (also when the test failed) so it does not pile up.
     const drafts = (await (await request.get(`/api/households/${f.household}/imports`)).json()) as { id: string; title: string | null }[];
     for (const d of drafts.filter((x) => x.title?.includes(stamp))) {
       await request.delete(`/api/households/${f.household}/imports/${d.id}`, { headers: await csrf(request) });
     }
-    if (mobile) await noHorizontalScroll(page);
-  } finally {
     await switchTo(page, "en").catch(() => undefined);
     if (entryId) await request.delete(`/api/households/${f.household}/meal-plans/${week}/entries/${entryId}`, { headers: await csrf(request) });
     await request.post(`/api/households/${f.household}/shopping-lists/${week}/generate`, { headers: await csrf(request) });
