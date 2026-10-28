@@ -114,3 +114,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-086 | Learn the store layout from check-off order, per store (stretch) | M4 | T-085, T-087 | implementer-backend | yes |
 | T-087 | Stores per household with a manual section order | M4 | T-085 | implementer-backend | yes |
 | T-088 | Bug: shopping list crashes on a list cached by an older app version | L3 | T-034, T-041, T-076, T-085 | implementer-frontend | no |
+| T-089 | Recipe food type (fish, chicken, beef, vegetarian, vegan ...) | M1 | T-023, T-076, T-085 | implementer-backend | yes |
+| T-090 | Weekly meal mix rules (e.g. at least one fish and one vegetarian dinner) | M1 | T-089, T-026 | implementer-backend | yes |
