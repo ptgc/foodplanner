@@ -14,6 +14,7 @@ import {
   limits,
   mapServerErrors,
   orderedKeys,
+  renameIngredients,
   serverErrorsOf,
   toRequest,
   validate,
@@ -59,7 +60,7 @@ export default function RecipeEdit() {
 type Loaded = { kind: "ok"; recipe: Recipe | null } | { kind: "notFound" } | { kind: "error"; failure: Failure };
 
 function Loader({ householdId, id }: { householdId: string; id: string | undefined }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState<Loaded | null>(id ? null : { kind: "ok", recipe: null });
 
   useEffect(() => {
@@ -77,12 +78,14 @@ function Loader({ householdId, id }: { householdId: string; id: string | undefin
       } catch {
         next = { kind: "error", failure: "unreachable" };
       }
-      if (!cancelled) setState(next);
+      // A re-read after a language switch (T-078) only brings new ingredient names: if it fails, the form the user is
+      // typing in stays, and the form itself keeps its fields (RecipeForm renames the ingredient rows).
+      if (!cancelled) setState((prev) => (prev?.kind === "ok" && next.kind !== "ok" ? prev : next));
     })();
     return () => {
       cancelled = true;
     };
-  }, [householdId, id]);
+  }, [householdId, id, locale]);
 
   if (!state) return <p role="status">{t("common.loading")}</p>;
   if (state.kind !== "ok") {
@@ -155,6 +158,13 @@ function RecipeForm({ householdId, recipe }: { householdId: string; recipe: Reci
   const [savedId, setSavedId] = useState<string | null>(recipe?.id ?? null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const [summaryShown, setSummaryShown] = useState(0);
+
+  // The recipe is read again after a language switch: take the new ingredient names, keep everything typed (T-078).
+  const [seenRecipe, setSeenRecipe] = useState(recipe);
+  if (recipe !== seenRecipe) {
+    setSeenRecipe(recipe);
+    if (recipe) setForm((f) => renameIngredients(f, recipe));
+  }
 
   // Show the error summary and move focus to it (once per failed attempt) so keyboard and screen reader users land on it.
   useEffect(() => {

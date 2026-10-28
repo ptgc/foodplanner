@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
+import { useLocale } from "../i18n";
 import { problemTypeOf } from "../i18n/problems";
 import { useSession } from "../session";
 import type { Failure } from "./use-recipes";
@@ -25,6 +26,7 @@ export function useActiveRole(): Role | undefined {
 /** The global units for the unit selects. Empty while loading or if loading fails (the form then cannot pick a unit). */
 export function useUnits(): Unit[] {
   const [units, setUnits] = useState<Unit[]>([]);
+  const locale = useLocale();
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -38,7 +40,7 @@ export function useUnits(): Unit[] {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
   return units;
 }
 

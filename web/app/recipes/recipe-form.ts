@@ -271,6 +271,33 @@ export function fromRecipe(recipe: Recipe, decimalComma: boolean): FormState {
   };
 }
 
+/**
+ * After a language switch: the form keeps everything the user typed and only takes the ingredient names (rows and
+ * alternatives) from the recipe as the API now names them in the new language, matched by ingredient id (T-078).
+ * Rows the recipe does not know (added but not saved) keep the name they were picked with. Returns the same form
+ * when no name changed.
+ */
+export function renameIngredients(form: FormState, recipe: Recipe): FormState {
+  const names = new Map<string, string>();
+  for (const line of recipe.ingredients) {
+    names.set(line.ingredientId, line.ingredientName);
+    for (const a of line.alternatives) names.set(a.ingredientId, a.ingredientName);
+  }
+  let changed = false;
+  const rename = (choice: IngredientChoice): IngredientChoice => {
+    const name = names.get(choice.id);
+    if (name === undefined || name === choice.name) return choice;
+    changed = true;
+    return { ...choice, name };
+  };
+  const ingredients = form.ingredients.map((row) => ({
+    ...row,
+    ingredient: row.ingredient ? rename(row.ingredient) : null,
+    alternatives: row.alternatives.map(rename),
+  }));
+  return changed ? { ...form, ingredients } : form;
+}
+
 /** A new array with the item at `from` moved to `to` (the same array if that is not possible). */
 export function move<T>(list: readonly T[], from: number, to: number): T[] {
   if (from === to || from < 0 || to < 0 || from >= list.length || to >= list.length) return [...list];

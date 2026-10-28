@@ -37,7 +37,13 @@ export function defaultHubFactory(): HubLike {
 export type RealtimeHandlers = {
   /** The week on screen, read at call time (it changes without reconnecting). */
   getWeek: () => string;
-  onState: (state: HubState) => void;
+  /**
+   * The app's language, read at call time. The hub answers in the language it is told per call (a WebSocket cannot
+   * carry the app's Accept-Language header, only the browser's), so a language switch needs no new connection (T-078).
+   */
+  getLocale: () => string;
+  /** `locale` is the language the state was asked in, so a slow answer for the language the user just left can be ignored. */
+  onState: (state: HubState, locale: string) => void;
   onConnection: (connected: boolean) => void;
   /** Join or GetState said `forbidden`: the user left the household. */
   onForbidden: () => void;
@@ -76,8 +82,9 @@ export function connectShoppingRealtime(
   const refresh = async () => {
     if (stopped) return;
     try {
-      const state = await hub.invoke<HubState>("GetState", householdId, handlers.getWeek());
-      if (!stopped) handlers.onState(state);
+      const locale = handlers.getLocale();
+      const state = await hub.invoke<HubState>("GetStateIn", householdId, handlers.getWeek(), locale);
+      if (!stopped) handlers.onState(state, locale);
     } catch (e) {
       fail(e);
     }

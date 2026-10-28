@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
+import { useLocale } from "../i18n";
 import { problemTypeOf } from "../i18n/problems";
 
 export type Recipe = components["schemas"]["RecipeResponse"];
@@ -14,6 +15,7 @@ export type RecipeState =
 /** Reads one recipe. `null` while loading. Shared by the detail page and the cooking view. */
 export function useRecipe(householdId: string, id: string): RecipeState | null {
   const [state, setState] = useState<RecipeState | null>(null);
+  const locale = useLocale(); // ingredient, unit and tag names are in the active language: read again on a switch (T-078)
 
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +36,7 @@ export function useRecipe(householdId: string, id: string): RecipeState | null {
     return () => {
       cancelled = true;
     };
-  }, [householdId, id]);
+  }, [householdId, id, locale]);
 
   return state;
 }

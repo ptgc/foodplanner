@@ -23,7 +23,7 @@ type Loaded = { status: "loading" } | { status: "error"; failure: ImportFailure 
 
 /** Step 2 loader: reads the draft (so a reload or "Continue" from the list works the same) and shows the review. */
 export function ImportReview({ householdId, draftId }: { householdId: string; draftId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [state, setState] = useState<Loaded>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -31,14 +31,19 @@ export function ImportReview({ householdId, draftId }: { householdId: string; dr
     let cancelled = false;
     void getImport(householdId, draftId).then((result) => {
       if (cancelled) return;
-      if (result.ok) setState(result.value.status === "Draft" ? { status: "ok", draft: result.value } : { status: "gone" });
-      else if (result.failure.kind === "problem" && (result.failure.status === 404 || result.failure.status === 409)) setState({ status: "gone" });
-      else setState({ status: "error", failure: result.failure });
+      // The draft is read again after a language switch (T-078: matched ingredient names are in the active language).
+      // That re-read never replaces a review in progress with an error; ReviewForm takes only the lines from it.
+      setState((prev) => {
+        if (result.ok) return result.value.status === "Draft" ? { status: "ok", draft: result.value } : { status: "gone" };
+        if (prev.status === "ok") return prev;
+        if (result.failure.kind === "problem" && (result.failure.status === 404 || result.failure.status === 409)) return { status: "gone" };
+        return { status: "error", failure: result.failure };
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [householdId, draftId, attempt]);
+  }, [householdId, draftId, attempt, locale]);
 
   if (state.status === "loading") return <p role="status">{t("import.reviewLoading")}</p>;
   if (state.status === "gone") {
@@ -140,6 +145,14 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
   const linesHeadingRef = useRef<HTMLHeadingElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
 
+  // A re-read of the draft (language switch, T-078) brings the lines with names in the new language. The title and
+  // steps the user is editing are not taken from it.
+  const [seenDraft, setSeenDraft] = useState(initial);
+  if (initial !== seenDraft) {
+    setSeenDraft(initial);
+    setLines(initial.lines);
+    setCanSave(initial.canSave);
+  }
   useEffect(() => {
     if (summaryShown > 0) summaryRef.current?.focus();
   }, [summaryShown]);

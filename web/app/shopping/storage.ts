@@ -21,7 +21,7 @@ const QUEUE_KEY = "foodplanner.shopping.queue";
  * the page: T-088). A saved list with another version is dropped, never rendered; the fresh fetch replaces it.
  * The check-off queue is deliberately not versioned: its ops are only {household, week, item id, checked}.
  */
-export const CACHE_SCHEMA = 2;
+export const CACHE_SCHEMA = 3; // 3: the entry records the language its names are in (T-078)
 
 const cacheKey = (householdId: string, weekStart: string) => `${CACHE_PREFIX}${householdId}.${weekStart}`;
 
@@ -62,24 +62,30 @@ function discard(key: string) {
 
 // Everything here is best effort: storage can be blocked, full or corrupt, and the page must work without it.
 
-export function readCachedList(householdId: string, weekStart: string): CachedList | null {
+/**
+ * The saved list of a week, only if it was saved in `locale` (T-078): item names, store sections and the like come from
+ * the API in the language of the request, so a list saved in nb must not stand in for an en one. A list saved in the
+ * other language is left alone (the next accepted list replaces it) and is simply not returned.
+ */
+export function readCachedList(householdId: string, weekStart: string, locale: string): CachedList | null {
   try {
     const raw = window.localStorage.getItem(cacheKey(householdId, weekStart));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as (Partial<CachedList> & { schema?: unknown }) | null;
+    const parsed = JSON.parse(raw) as (Partial<CachedList> & { schema?: unknown; locale?: unknown }) | null;
     if (!parsed || parsed.schema !== CACHE_SCHEMA || !isShoppingList(parsed.list) || parsed.list.weekStart !== weekStart) {
       discard(cacheKey(householdId, weekStart)); // another app version wrote it, or it is damaged: never render it
       return null;
     }
+    if (parsed.locale !== locale) return null;
     return { version: parsed.version ?? null, list: parsed.list, savedAt: parsed.savedAt ?? "" };
   } catch {
     return null;
   }
 }
 
-export function writeCachedList(householdId: string, weekStart: string, list: ShoppingList, version: string | null) {
+export function writeCachedList(householdId: string, weekStart: string, list: ShoppingList, version: string | null, locale: string) {
   try {
-    const value = { schema: CACHE_SCHEMA, version, list, savedAt: new Date().toISOString() };
+    const value = { schema: CACHE_SCHEMA, locale, version, list, savedAt: new Date().toISOString() };
     window.localStorage.setItem(cacheKey(householdId, weekStart), JSON.stringify(value));
   } catch {
     // Quota or blocked storage: the live list still works, only offline reload is lost.

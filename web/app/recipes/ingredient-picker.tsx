@@ -25,7 +25,7 @@ const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name,
  * household's own ingredient inline. Rule 5: a recipe line always points at an ingredient id, never at free text.
  */
 export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [term, setTerm] = useState("");
   const [found, setFound] = useState<{ term: string; items: Ingredient[] } | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
@@ -48,7 +48,7 @@ export function IngredientPicker({ householdId, value, onChange, id, describedBy
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [householdId, trimmed, value]);
+  }, [householdId, trimmed, value, locale]); // the matches are catalog names: search again after a language switch
 
   if (value) {
     return (

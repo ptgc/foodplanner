@@ -157,6 +157,11 @@ export function useI18n(): I18n {
   return useMemo(() => createI18n(locale), [locale]);
 }
 
+/** The active locale only. Hooks that fetch catalog names list it as a dependency so a switch refetches (T-078). */
+export function useLocale(): Locale {
+  return useSyncExternalStore(subscribe, getLocale, () => "en" as Locale);
+}
+
 applyDocumentLanguage();
 
 /** Proper nouns are not translated. */

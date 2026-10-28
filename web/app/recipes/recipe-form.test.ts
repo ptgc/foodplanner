@@ -12,6 +12,7 @@ import {
   move,
   orderedKeys,
   parseQuantity,
+  renameIngredients,
   serverErrorsOf,
   toRequest,
   validate,
@@ -295,6 +296,37 @@ describe("fromRecipe", () => {
     expect(form.ingredients[0]).toMatchObject({ quantity: "1,5", unitId: "u-kg", amountKind: "Measured", purpose: "Main", isOptional: false, alternatives: [] });
     expect(form.ingredients[1]).toMatchObject({ quantity: "", unitId: "", amountKind: "ToTaste", purpose: "Seasoning", isOptional: true, alternatives: [{ id: "a1", name: "Pepper" }], note: "etter smak" });
     expect(validate(form)).toEqual({});
+  });
+});
+
+describe("renameIngredients (language switch, T-078)", () => {
+  const recipe = {
+    id: "r1",
+    ingredients: [
+      { ingredientId: "i1", ingredientName: "Rice", alternatives: [{ ingredientId: "a1", ingredientName: "Pasta" }] },
+      { ingredientId: "i2", ingredientName: "Milk", alternatives: [] },
+    ],
+  } as unknown as Recipe;
+
+  it("takes the new names by ingredient id and keeps everything the user typed", () => {
+    const form = valid({
+      title: "Typed title",
+      ingredients: [
+        line({ ingredient: { id: "i1", name: "Ris" }, quantity: "7", alternatives: [{ id: "a1", name: "Pasta" }, { id: "a2", name: "Egg" }] }),
+        line({ ingredient: { id: "i-new", name: "Smør" } }),
+      ],
+    });
+    const next = renameIngredients(form, recipe);
+    expect(next.title).toBe("Typed title");
+    expect(next.ingredients[0]).toMatchObject({ ingredient: { id: "i1", name: "Rice" }, quantity: "7" });
+    expect(next.ingredients[0]!.alternatives.map((a) => a.name)).toEqual(["Pasta", "Egg"]);
+    expect(next.ingredients[1]!.ingredient!.name).toBe("Smør"); // not saved yet: keeps the name it was picked with
+    expect(next.ingredients[0]!.key).toBe(form.ingredients[0]!.key);
+  });
+
+  it("returns the same form when no name changed", () => {
+    const form = valid({ ingredients: [line({ ingredient: { id: "i2", name: "Milk" } })] });
+    expect(renameIngredients(form, recipe)).toBe(form);
   });
 });
 
