@@ -440,7 +440,9 @@ public static class RecipeEndpoints
             await db.SaveChangesAsync(cancellationToken);
             return null;
         }
-        catch (DbUpdateConcurrencyException)
+        catch (Exception exception) when (exception is DbUpdateConcurrencyException
+            // An ingredient or tag referenced by a line was deleted or merged away between the check and the save (T-079): foreign key violation.
+            || (exception is DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 547 } }))
         {
             return AppProblems.Problem(
                 StatusCodes.Status409Conflict,

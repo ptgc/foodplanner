@@ -1,4 +1,5 @@
 import { useCallback, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
 import { call } from "../household/call";
@@ -69,6 +70,15 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
         </>
       ) : (
         <p className="household-note">{t("household.ownerOnlyNote")}</p>
+      )}
+      {can.ingredients && (
+        <div className="household-card">
+          <h2>{t("ingredients.title")}</h2>
+          <p>{t("ingredients.linkBody")}</p>
+          <Link className="button button-outline" to="/ingredients">
+            {t("ingredients.link")}
+          </Link>
+        </div>
       )}
       {can.export && <Export household={household} onNotice={onNotice} />}
       <Leave household={household} onNotice={onNotice} />

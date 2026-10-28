@@ -69,4 +69,15 @@ public sealed class RecipeIngredient : Entity, ITenantEntity
     public Guid? UnitId { get; private set; }
 
     public string? Note { get; private set; }
+
+    /// <summary>Points the line at another ingredient (merging two ingredients, T-079). Visibility of the id is the caller's check.</summary>
+    public void ChangeIngredient(Guid ingredientId)
+    {
+        if (ingredientId == Guid.Empty)
+        {
+            throw new ArgumentException("An ingredient line needs an ingredient.", nameof(ingredientId));
+        }
+
+        IngredientId = ingredientId;
+    }
 }
