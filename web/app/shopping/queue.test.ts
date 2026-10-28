@@ -15,6 +15,7 @@ const item = (id: string, checked = false) => ({
   isManual: false,
   ingredientId: null,
   section: "Main" as const,
+  storeSection: "Other" as const,
   quantities: [],
   recipes: [],
   checked,

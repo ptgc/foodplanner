@@ -3,6 +3,7 @@ using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
@@ -10,10 +11,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.Catalog;
 
-public sealed record CreateIngredientRequest(string? Name, bool? IsStaple, string? Dimension);
+/// <summary><c>Section</c> (T-085) is a <see cref="StoreSection"/> name; omitted means Other.</summary>
+public sealed record CreateIngredientRequest(string? Name, bool? IsStaple, string? Dimension, string? Section = null);
 
 /// <summary><c>IsGlobal</c>: a catalog ingredient shared by every household (read-only); otherwise the household's own.</summary>
-public sealed record IngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, bool IsGlobal);
+public sealed record IngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, bool IsGlobal, StoreSection Section);
 
 public sealed record UnitResponse(Guid Id, string Code, string Name, UnitDimension Dimension, decimal FactorToBase);
 
@@ -119,6 +121,12 @@ public static class CatalogEndpoints
             errors["dimension"] = ["The dimension must be Mass, Volume or Count."];
         }
 
+        var section = StoreSection.Other;
+        if (request?.Section is not null && !StoreSections.TryParse(request.Section, out section))
+        {
+            errors["section"] = ["The section must be FruitAndVegetables, MeatFishAndCheese, Frozen, Dairy, DryGoods or Other."];
+        }
+
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
@@ -130,7 +138,7 @@ public static class CatalogEndpoints
             return Duplicate(name!);
         }
 
-        var ingredient = new Ingredient(householdId, name!, request?.IsStaple ?? false, dimension);
+        var ingredient = new Ingredient(householdId, name!, request?.IsStaple ?? false, dimension, section);
         db.Ingredients.Add(ingredient);
         try
         {
@@ -152,5 +160,5 @@ public static class CatalogEndpoints
             "Ingredient already exists",
             $"There is already an ingredient called '{name}' in this household or in the shared catalog.");
 
-    private static IngredientResponse ToResponse(Ingredient i, string name) => new(i.Id, name, i.IsStaple, i.Dimension, i.HouseholdId is null);
+    private static IngredientResponse ToResponse(Ingredient i, string name) => new(i.Id, name, i.IsStaple, i.Dimension, i.HouseholdId is null, i.Section);
 }

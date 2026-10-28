@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Common;
+using Foodplanner.Domain.ShoppingLists;
 
 namespace Foodplanner.Domain.Catalog;
 
@@ -16,8 +17,13 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
     }
 
     /// <summary>A household's own ingredient. Pass <see cref="Guid.Empty"/> to let Infrastructure assign the current household.</summary>
-    public Ingredient(Guid householdId, string name, bool isStaple, UnitDimension dimension)
+    public Ingredient(Guid householdId, string name, bool isStaple, UnitDimension dimension, StoreSection section = StoreSection.Other)
     {
+        if (!Enum.IsDefined(section))
+        {
+            throw new ArgumentOutOfRangeException(nameof(section));
+        }
+
         if (!Enum.IsDefined(dimension))
         {
             throw new ArgumentOutOfRangeException(nameof(dimension));
@@ -27,6 +33,7 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
         Name = NormalizeName(name) ?? throw new ArgumentException("Invalid ingredient name.", nameof(name));
         IsStaple = isStaple;
         Dimension = dimension;
+        Section = section;
     }
 
     public Guid? HouseholdId { get; private set; }
@@ -36,6 +43,19 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
     public bool IsStaple { get; private set; }
 
     public UnitDimension Dimension { get; private set; }
+
+    /// <summary>The store section the ingredient is found in (T-085). Own ingredients default to Other; the seed sets it for every global row.</summary>
+    public StoreSection Section { get; private set; }
+
+    public void ChangeSection(StoreSection section)
+    {
+        if (!Enum.IsDefined(section))
+        {
+            throw new ArgumentOutOfRangeException(nameof(section));
+        }
+
+        Section = section;
+    }
 
     public void Rename(string name) =>
         Name = NormalizeName(name) ?? throw new ArgumentException("Invalid ingredient name.", nameof(name));

@@ -202,3 +202,16 @@
 .dialog .field input {
   width: 100%;
 }
+
+/* Store section picker on a row of the Ingredients screen (T-085). */
+.ingredient-section {
+  flex: 1 0 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ingredient-section select {
+  min-height: var(--touch);
+  font: inherit;
+}

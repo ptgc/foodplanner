@@ -315,7 +315,7 @@ public sealed class ShoppingListEndpointTests(AuthDatabase db) : IClassFixture<A
 
         var regenerated = await GenerateAsync(owner.Client, household);
 
-        Assert.Equal(["Birthday candles", "Egg", "Ris"], Names(regenerated, "main"));
+        Assert.Equal(["Egg", "Ris", "Birthday candles"], Names(regenerated, "main"));
         Assert.Equal(["Salt"], Names(regenerated, "checkYouHave")); // flour only came from the removed recipe
         Assert.Equal("200 g", Quantities(Find(regenerated, "main", "Ris")));
         Assert.Equal(rice, Find(regenerated, "main", "Ris").GetProperty("id").GetGuid());

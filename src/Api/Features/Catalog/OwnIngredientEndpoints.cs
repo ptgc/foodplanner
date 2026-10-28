@@ -5,20 +5,22 @@ using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Imports;
+using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.Catalog;
 
-public sealed record RenameIngredientRequest(string? Name);
+/// <summary>Name is required; <c>Section</c> (T-085, a <see cref="StoreSection"/> name) is optional: omitted keeps the current section.</summary>
+public sealed record RenameIngredientRequest(string? Name, string? Section = null);
 
 public sealed record MergeIngredientRequest(Guid? TargetIngredientId);
 
 /// <summary>Where an ingredient is used: distinct recipes (as a line's ingredient or as one of its alternatives, T-076), pantry rows (0 or 1), shopping lists (weeks) and open import drafts.</summary>
 public sealed record IngredientUsageResponse(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts);
 
-public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, IngredientUsageResponse Usage);
+public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, StoreSection Section, IngredientUsageResponse Usage);
 
 /// <summary>
 /// <c>Warnings</c> are codes the client translates: <c>dimension-differs</c> (the target is normally measured in another
@@ -113,7 +115,7 @@ public static class OwnIngredientEndpoints
         var rows = await query.OrderByName(locale.Code).ToListAsync(cancellationToken);
         var usage = await IngredientUsage.LoadAsync(db, [.. rows.Select(r => r.Row.Id)], cancellationToken);
         return Results.Ok(rows.Select(r => new OwnIngredientResponse(
-            r.Row.Id, r.Name, r.Row.IsStaple, r.Row.Dimension, usage[r.Row.Id].ToResponse())).ToArray());
+            r.Row.Id, r.Name, r.Row.IsStaple, r.Row.Dimension, r.Row.Section, usage[r.Row.Id].ToResponse())).ToArray());
     }
 
     // ---- Rename ----------------------------------------------------------------------------------------------------
@@ -128,6 +130,20 @@ public static class OwnIngredientEndpoints
             {
                 ["name"] = [$"The name must be 1 to {Ingredient.MaxNameLength} characters, without control characters."],
             });
+        }
+
+        StoreSection? section = null;
+        if (request?.Section is not null)
+        {
+            if (!StoreSections.TryParse(request.Section, out var parsed))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["section"] = ["The section must be FruitAndVegetables, MeatFishAndCheese, Frozen, Dairy, DryGoods or Other."],
+                });
+            }
+
+            section = parsed;
         }
 
         var ingredient = await db.Ingredients.FirstOrDefaultAsync(i => i.Id == ingredientId, cancellationToken);
@@ -150,6 +166,11 @@ public static class OwnIngredientEndpoints
         }
 
         ingredient.Rename(name);
+        if (section is { } newSection)
+        {
+            ingredient.ChangeSection(newSection);
+        }
+
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -163,7 +184,7 @@ public static class OwnIngredientEndpoints
             return Changed();
         }
 
-        return Results.Ok(new IngredientResponse(ingredient.Id, ingredient.Name, ingredient.IsStaple, ingredient.Dimension, false));
+        return Results.Ok(new IngredientResponse(ingredient.Id, ingredient.Name, ingredient.IsStaple, ingredient.Dimension, false, ingredient.Section));
     }
 
     // ---- Delete ----------------------------------------------------------------------------------------------------
@@ -289,7 +310,7 @@ public static class OwnIngredientEndpoints
         var name = await db.Ingredients.AsNoTracking().WithNames(db, CatalogTranslation.KindIngredient, locale.Code)
             .Where(i => i.Row.Id == target.Id).Select(i => i.Name).FirstAsync(cancellationToken);
         return Results.Ok(new MergeIngredientResponse(
-            new IngredientResponse(target.Id, name, target.IsStaple, target.Dimension, target.HouseholdId is null),
+            new IngredientResponse(target.Id, name, target.IsStaple, target.Dimension, target.HouseholdId is null, target.Section),
             outcome.Moved.ToResponse(),
             [.. warnings]));
     }

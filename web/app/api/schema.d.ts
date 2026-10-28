@@ -743,6 +743,7 @@ export interface components {
             name: null | string;
             isStaple: null | boolean;
             dimension: null | string;
+            section?: null | string;
         };
         CreateInviteRequest: {
             role: null | string;
@@ -854,6 +855,7 @@ export interface components {
             isStaple: boolean;
             dimension: components["schemas"]["UnitDimension"];
             isGlobal: boolean;
+            section: components["schemas"]["StoreSection"];
         };
         IngredientUsageResponse: {
             /** Format: int32 */
@@ -933,6 +935,7 @@ export interface components {
             name: string;
             isStaple: boolean;
             dimension: components["schemas"]["UnitDimension"];
+            section: components["schemas"]["StoreSection"];
             usage: components["schemas"]["IngredientUsageResponse"];
         };
         PantryItemResponse: {
@@ -1107,6 +1110,7 @@ export interface components {
         };
         RenameIngredientRequest: {
             name: null | string;
+            section?: null | string;
         };
         SaveRecipeImportResponse: {
             /** Format: uuid */
@@ -1135,6 +1139,7 @@ export interface components {
             /** Format: uuid */
             ingredientId: null | string;
             section: components["schemas"]["ShoppingSection"];
+            storeSection: components["schemas"]["StoreSection"];
             quantities: components["schemas"]["ShoppingQuantityResponse"][];
             recipes: components["schemas"]["ShoppingRecipeResponse"][];
             checked: boolean;
@@ -1167,6 +1172,8 @@ export interface components {
         };
         /** @enum {unknown} */
         ShoppingSection: "Main" | "CheckYouHave";
+        /** @enum {unknown} */
+        StoreSection: "Other" | "FruitAndVegetables" | "MeatFishAndCheese" | "Frozen" | "Dairy" | "DryGoods";
         /** @enum {unknown} */
         TagKind: "Category" | "Tag";
         TagResponse: {

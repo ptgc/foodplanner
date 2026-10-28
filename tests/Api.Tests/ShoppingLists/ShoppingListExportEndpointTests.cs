@@ -62,7 +62,7 @@ public sealed class ShoppingListExportEndpointTests(AuthDatabase db) : IClassFix
         Assert.Equal("text", nbBody.GetProperty("format").GetString());
         Assert.Equal("Handleliste, uke 44", nbBody.GetProperty("title").GetString());
         Assert.Equal(
-            "Å handle\n- Egg 5 stk\n- Kaffefilter\n- Ris 500 g\n\nSjekk at du har\n- Salt",
+            "Å handle\n- Egg 5 stk\n- Ris 500 g\n- Kaffefilter\n\nSjekk at du har\n- Salt",
             nbBody.GetProperty("text").GetString());
 
         owner.Client.Language = "en";
@@ -70,7 +70,7 @@ public sealed class ShoppingListExportEndpointTests(AuthDatabase db) : IClassFix
         var enBody = await en.JsonAsync();
         Assert.Equal("Shopping list, week 44", enBody.GetProperty("title").GetString());
         Assert.Equal(
-            "To buy\n- Egg 5 stk\n- Kaffefilter\n- Rice 500 g\n\nCheck you have\n- Salt",
+            "To buy\n- Egg 5 stk\n- Rice 500 g\n- Kaffefilter\n\nCheck you have\n- Salt",
             enBody.GetProperty("text").GetString());
     }
 

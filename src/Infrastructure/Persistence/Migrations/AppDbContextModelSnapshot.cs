@@ -1951,6 +1951,11 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Section")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -1969,6 +1974,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Onion",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1978,6 +1984,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Red onion",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1987,6 +1994,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Garlic",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -1996,6 +2004,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Spring onion",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2005,6 +2014,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Leek",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2014,6 +2024,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Carrot",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2023,6 +2034,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Potato",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2032,6 +2044,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Sweet potato",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2041,6 +2054,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Broccoli",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2050,6 +2064,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cauliflower",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2059,6 +2074,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "White cabbage",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2068,6 +2084,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Tomato",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2077,6 +2094,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Canned tomatoes",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2086,6 +2104,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Tomato puree",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2095,6 +2114,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Cucumber",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2104,6 +2124,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Bell pepper",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2113,6 +2134,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Zucchini",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2122,6 +2144,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Eggplant",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2131,6 +2154,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Corn",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2140,6 +2164,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Peas",
+                            Section = "Frozen",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2149,6 +2174,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Spinach",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2158,6 +2184,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Lettuce",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2167,6 +2194,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Mushrooms",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2176,6 +2204,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Ginger",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2185,6 +2214,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Chili",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2194,6 +2224,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Celery",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2203,6 +2234,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Apple",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2212,6 +2244,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Banana",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2221,6 +2254,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Lemon",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2230,6 +2264,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Lime",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2239,6 +2274,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Orange",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2248,6 +2284,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Strawberries",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2257,6 +2294,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Blueberries",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2266,6 +2304,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Chicken breast fillet",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2275,6 +2314,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Chicken thighs",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2284,6 +2324,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Minced meat",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2293,6 +2334,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Pork chop",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2302,6 +2344,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Bacon",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2311,6 +2354,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Ham",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2320,6 +2364,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Sausages",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2329,6 +2374,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Salmon",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2338,6 +2384,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cod",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2347,6 +2394,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Shrimp",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2356,6 +2404,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Tuna",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2365,6 +2414,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Fish fingers",
+                            Section = "Frozen",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2374,6 +2424,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Milk",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2383,6 +2434,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Cream",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2392,6 +2444,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Cooking cream",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2401,6 +2454,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Sour cream",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2410,6 +2464,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Crème fraîche",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2419,6 +2474,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Plain yoghurt",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2428,6 +2484,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Butter",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2437,6 +2494,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cheese",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2446,6 +2504,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Mozzarella",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2455,6 +2514,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Parmesan",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2464,6 +2524,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Brown cheese",
+                            Section = "MeatFishAndCheese",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2473,6 +2534,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Egg",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2482,6 +2544,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cottage cheese",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2491,6 +2554,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Pasta",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2500,6 +2564,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Spaghetti",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2509,6 +2574,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Rice",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2518,6 +2584,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Couscous",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2527,6 +2594,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Noodles",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2536,6 +2604,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Rolled oats",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2545,6 +2614,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Bread",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2554,6 +2624,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Tortilla wraps",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2563,6 +2634,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Lentils",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2572,6 +2644,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Chickpeas",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2581,6 +2654,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Kidney beans",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2590,6 +2664,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Coconut milk",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2599,6 +2674,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Stock cube",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2608,6 +2684,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Soy sauce",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2617,6 +2694,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Mustard",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2626,6 +2704,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Ketchup",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2635,6 +2714,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Mayonnaise",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2644,6 +2724,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Honey",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2653,6 +2734,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = false,
                             Name = "Syrup",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2662,6 +2744,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Peanut butter",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2671,6 +2754,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Salt",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2680,6 +2764,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Black pepper",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2689,6 +2774,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Paprika powder",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2698,6 +2784,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cinnamon",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2707,6 +2794,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cumin",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2716,6 +2804,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Oregano",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2725,6 +2814,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Thyme",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2734,6 +2824,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Basil",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2743,6 +2834,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Parsley",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2752,6 +2844,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Chives",
+                            Section = "FruitAndVegetables",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2761,6 +2854,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Curry powder",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2770,6 +2864,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Nutmeg",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2779,6 +2874,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Count",
                             IsStaple = false,
                             Name = "Bay leaf",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2788,6 +2884,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cardamom",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2797,6 +2894,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Wheat flour",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2806,6 +2904,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Sugar",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2815,6 +2914,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Icing sugar",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2824,6 +2924,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Brown sugar",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2833,6 +2934,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Baking powder",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2842,6 +2944,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Baking soda",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2851,6 +2954,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Vanilla sugar",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2860,6 +2964,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cocoa",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2869,6 +2974,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Yeast",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2878,6 +2984,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Cornstarch",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2887,6 +2994,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = false,
                             Name = "Chocolate",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2896,6 +3004,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Rapeseed oil",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2905,6 +3014,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Oil",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2914,6 +3024,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Neutral oil",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2923,6 +3034,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Mass",
                             IsStaple = true,
                             Name = "Margarine",
+                            Section = "Dairy",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2932,6 +3044,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Olive oil",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2941,6 +3054,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Vinegar",
+                            Section = "DryGoods",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new
@@ -2950,6 +3064,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Water",
+                            Section = "Other",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         });
                 });

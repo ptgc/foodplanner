@@ -24,9 +24,9 @@ const units = [
   { id: "u-stk", code: "stk", name: "stykk", dimension: "Count", factorToBase: 1 },
 ];
 const catalog: Ingredient[] = [
-  { id: "i-torsk", name: "Torsk", isStaple: false, dimension: "Mass", isGlobal: true },
-  { id: "i-salt", name: "Salt", isStaple: true, dimension: "Mass", isGlobal: true },
-  { id: "i-melk", name: "Melk", isStaple: false, dimension: "Volume", isGlobal: true },
+  { id: "i-torsk", name: "Torsk", isStaple: false, dimension: "Mass", isGlobal: true, section: "MeatFishAndCheese" },
+  { id: "i-salt", name: "Salt", isStaple: true, dimension: "Mass", isGlobal: true, section: "DryGoods" },
+  { id: "i-melk", name: "Melk", isStaple: false, dimension: "Volume", isGlobal: true, section: "Dairy" },
 ];
 const tags = [
   { id: "t-dinner", name: "Middag", kind: "Category", isGlobal: true },

@@ -19,6 +19,7 @@ const own = (id: string, name: string, usage: Partial<Usage> = {}): Own => ({
   name,
   isStaple: false,
   dimension: "Mass",
+  section: "Other",
   usage: { ...none, ...usage },
 });
 
@@ -74,8 +75,10 @@ beforeEach(() => {
       const m = path.match(/^\/api\/households\/h1\/ingredients\/([^/]+)(\/merge)?$/);
       if (m && method === "PUT") {
         const item = ingredients.find((i) => i.id === m[1])!;
-        item.name = (body as { name: string }).name;
-        return json({ id: item.id, name: item.name, isStaple: false, dimension: "Mass", isGlobal: false });
+        const sent = body as { name: string; section?: Own["section"] };
+        item.name = sent.name;
+        if (sent.section) item.section = sent.section;
+        return json({ id: item.id, name: item.name, isStaple: false, dimension: "Mass", isGlobal: false, section: item.section });
       }
       if (m && method === "DELETE") {
         ingredients = ingredients.filter((i) => i.id !== m[1]);
@@ -118,6 +121,30 @@ describe("ingredients screen", () => {
     await user.type(screen.getByLabelText(t("ingredients.search")), "pepp");
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toHaveTextContent("Kvernet pepper");
+  });
+
+  it("shows the store section of each ingredient and saves a change from the picker", async () => {
+    const user = renderPage();
+    await screen.findByText("Tagliatelle");
+
+    const picker = screen.getByLabelText(t("ingredients.sectionFor", { name: "Tagliatelle" }));
+    expect(picker).toHaveValue("Other");
+    expect(within(picker).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      t("storeSection.FruitAndVegetables"),
+      t("storeSection.MeatFishAndCheese"),
+      t("storeSection.Frozen"),
+      t("storeSection.Dairy"),
+      t("storeSection.DryGoods"),
+      t("storeSection.Other"),
+    ]);
+
+    await user.selectOptions(picker, "DryGoods");
+
+    expect(await screen.findByTestId("ingredients-notice")).toHaveTextContent(
+      t("ingredients.sectionSaved", { name: "Tagliatelle", section: t("storeSection.DryGoods") }),
+    );
+    expect(callsTo("PUT", /ingredients\/i3$/).at(-1)?.body).toEqual({ name: "Tagliatelle", section: "DryGoods" });
+    expect(screen.getByLabelText(t("ingredients.sectionFor", { name: "Tagliatelle" }))).toHaveValue("DryGoods");
   });
 
   it("renames inline and shows the duplicate-name problem", async () => {

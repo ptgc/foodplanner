@@ -4372,6 +4372,12 @@
               "null",
               "string"
             ]
+          },
+          "section": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4809,7 +4815,8 @@
           "name",
           "isStaple",
           "dimension",
-          "isGlobal"
+          "isGlobal",
+          "section"
         ],
         "type": "object",
         "properties": {
@@ -4828,6 +4835,9 @@
           },
           "isGlobal": {
             "type": "boolean"
+          },
+          "section": {
+            "$ref": "#/components/schemas/StoreSection"
           }
         }
       },
@@ -5099,6 +5109,7 @@
           "name",
           "isStaple",
           "dimension",
+          "section",
           "usage"
         ],
         "type": "object",
@@ -5115,6 +5126,9 @@
           },
           "dimension": {
             "$ref": "#/components/schemas/UnitDimension"
+          },
+          "section": {
+            "$ref": "#/components/schemas/StoreSection"
           },
           "usage": {
             "$ref": "#/components/schemas/IngredientUsageResponse"
@@ -5918,6 +5932,12 @@
               "null",
               "string"
             ]
+          },
+          "section": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6006,6 +6026,7 @@
           "isManual",
           "ingredientId",
           "section",
+          "storeSection",
           "quantities",
           "recipes",
           "checked",
@@ -6036,6 +6057,9 @@
           },
           "section": {
             "$ref": "#/components/schemas/ShoppingSection"
+          },
+          "storeSection": {
+            "$ref": "#/components/schemas/StoreSection"
           },
           "quantities": {
             "type": "array",
@@ -6168,6 +6192,16 @@
         "enum": [
           "Main",
           "CheckYouHave"
+        ]
+      },
+      "StoreSection": {
+        "enum": [
+          "Other",
+          "FruitAndVegetables",
+          "MeatFishAndCheese",
+          "Frozen",
+          "Dairy",
+          "DryGoods"
         ]
       },
       "TagKind": {

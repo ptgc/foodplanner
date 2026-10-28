@@ -10,6 +10,7 @@ import { useI18n, type MessageKey, type Params } from "../i18n";
 import { searchDelayMs } from "../recipes/ingredient-picker";
 import { searchIngredients, type Ingredient } from "../recipes/use-catalog";
 import { useSession } from "../session";
+import { STORE_SECTIONS, storeSectionKey, type StoreSection } from "../shopping/store-sections";
 
 type Own = components["schemas"]["OwnIngredientResponse"];
 type Usage = components["schemas"]["IngredientUsageResponse"];
@@ -83,6 +84,22 @@ function Manage({ householdId }: { householdId: string }) {
     setNotice({ key: "ingredients.renamed", params: { name: result.data?.name ?? name } });
     reload();
     return null;
+  };
+
+  const changeSection = async (item: Own, section: StoreSection) => {
+    setRowError(null);
+    const result = await call(() =>
+      api.PUT("/api/households/{householdId}/ingredients/{ingredientId}", {
+        params: { path: { householdId, ingredientId: item.id } },
+        body: { name: item.name, section },
+      }),
+    );
+    if (!result.ok) {
+      setRowError({ id: item.id, key: result.key });
+      return;
+    }
+    setNotice({ key: "ingredients.sectionSaved", params: { name: item.name, section: t(storeSectionKey(section)) } });
+    reload();
   };
 
   const confirmDelete = async () => {
@@ -181,6 +198,7 @@ function Manage({ householdId }: { householdId: string }) {
                     {isUsed(item.usage) ? t("ingredients.usage", usageParams(item.usage)) : t("ingredients.unused")}
                   </span>
                 </div>
+                <SectionPicker item={item} onChange={(section) => changeSection(item, section)} />
                 <div className="household-row-actions">
                   <button type="button" className="button button-outline" aria-label={t("ingredients.renameFor", { name: item.name })} onClick={() => { setRenaming(item.id); setMerging(null); setRowError(null); }}>
                     {t("ingredients.rename")}
@@ -228,6 +246,24 @@ function Manage({ householdId }: { householdId: string }) {
         />
       )}
     </>
+  );
+}
+
+/** The store section the shopping list groups this ingredient under (T-085). Own ingredients start in "Other". */
+function SectionPicker({ item, onChange }: { item: Own; onChange: (section: StoreSection) => void }) {
+  const { t } = useI18n();
+  const selectId = useId();
+  return (
+    <div className="ingredient-section">
+      <label htmlFor={selectId}>{t("ingredients.sectionFor", { name: item.name })}</label>
+      <select id={selectId} value={item.section} onChange={(e) => onChange(e.target.value as StoreSection)}>
+        {STORE_SECTIONS.map((section) => (
+          <option key={section} value={section}>
+            {t(storeSectionKey(section))}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
