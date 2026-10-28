@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-084 (catalog: margarine and oils), then T-085 (store-section order, Q-019); backlog: T-077, T-078, T-083, T-086 (stretch), T-001
+## Current focus: T-084 (catalog: margarine and oils), then T-085 (store-section order, Q-019); backlog: T-077, T-078, T-083, T-087 (stores + manual order), T-086 (stretch), T-001
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -111,4 +111,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-083 | E2E tests clean up the data they create | L3 | T-027 | implementer-frontend | no |
 | T-084 | Catalog: add margarine and oils | L3 | T-039, T-076 | implementer-backend | yes |
 | T-085 | Shopping list sorted by store section | L3 | T-031, T-039, T-079, T-084 | implementer-backend | yes |
-| T-086 | Learn the store layout from check-off order (stretch) | M4 | T-085 | implementer-backend | yes |
+| T-086 | Learn the store layout from check-off order, per store (stretch) | M4 | T-085, T-087 | implementer-backend | yes |
+| T-087 | Stores per household with a manual section order | M4 | T-085 | implementer-backend | yes |
