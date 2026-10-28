@@ -43,6 +43,34 @@ public class IngredientMatcherTests
     }
 
     [Theory]
+    [InlineData("margarin", "margarin")]
+    [InlineData("Margarine", "margarin")]
+    [InlineData("olje", "olje")]
+    [InlineData("oil", "olje")]
+    [InlineData("nøytral olje", "noytral_olje")]
+    [InlineData("neutral oil", "noytral_olje")]
+    [InlineData("rapsolje", "rapsolje")]
+    [InlineData("olivenolje", "olivenolje")]
+    public void Margarine_and_the_plain_oils_match_exactly(string text, string key)
+    {
+        var match = Matcher().Match(text);
+
+        Assert.Equal(Id(key), match.IngredientId);
+        Assert.Equal(1.0, match.Confidence);
+    }
+
+    [Fact]
+    public void A_household_ingredient_with_the_same_name_as_a_new_global_row_still_wins_at_equal_score()
+    {
+        var own = new IngredientCandidate(Guid.NewGuid(), "Nøytral olje", ["Nøytral olje"], IsOwn: true);
+
+        var match = Matcher(own).Match("nøytral olje");
+
+        Assert.Equal(own.Id, match.IngredientId);
+        Assert.Equal(1.0, match.Confidence);
+    }
+
+    [Theory]
     [InlineData("tomater", "tomat")]
     [InlineData("poteter", "potet")]
     [InlineData("gulrøtter", "gulrot")]
@@ -138,11 +166,11 @@ public class IngredientMatcherTests
     [Fact]
     public void Two_different_ingredients_with_the_same_loose_score_stay_unmatched_and_are_suggested()
     {
-        var match = Matcher().Match("oil");
+        var match = Matcher().Match("powder");
 
         Assert.Null(match.IngredientId);
-        Assert.Contains(match.Suggestions, s => s.IngredientId == Id("olivenolje"));
-        Assert.Contains(match.Suggestions, s => s.IngredientId == Id("rapsolje"));
+        Assert.Contains(match.Suggestions, s => s.IngredientId == Id("karri"));
+        Assert.Contains(match.Suggestions, s => s.IngredientId == Id("bakepulver"));
     }
 
     [Fact]

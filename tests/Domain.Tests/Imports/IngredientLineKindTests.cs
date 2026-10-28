@@ -145,11 +145,39 @@ public class ImportDraftKindTests
     [Fact]
     public void An_unmatched_alternative_goes_into_the_note_not_into_a_new_ingredient()
     {
-        var line = Line("200 g smør eller margarin");
+        var line = Line("200 g smør eller dragefrukt");
 
         Assert.Equal(Id("smor"), line.IngredientId);
         Assert.Empty(line.Alternatives);
-        Assert.Equal("eller margarin", line.Note);
+        Assert.Equal("eller dragefrukt", line.Note);
+    }
+
+    [Theory]
+    [InlineData("200 g smør eller margarin", "smor", "margarin")]
+    [InlineData("1 dl olje eller smør", "olje", "smor")]
+    [InlineData("2 ss margarin eller olje til steking", "margarin", "olje")]
+    [InlineData("3 ss smør eller nøytral olje", "smor", "noytral_olje")]
+    public void Margarine_and_oil_are_matched_as_main_ingredient_and_as_alternative(string text, string main, string alternative)
+    {
+        var line = Line(text);
+
+        Assert.Equal(Id(main), line.IngredientId);
+        Assert.Equal([Id(alternative)], line.Alternatives);
+        Assert.Null(line.Note);
+    }
+
+    [Theory]
+    [InlineData("margarin til steking", "margarin")]
+    [InlineData("olje til steking", "olje")]
+    [InlineData("2 ss olje", "olje")]
+    [InlineData("nøytral olje", "noytral_olje")]
+    [InlineData("1 ss oil", "olje")]
+    public void Margarine_and_oil_lines_match_the_new_catalog_rows(string text, string key)
+    {
+        var line = Line(text);
+
+        Assert.Equal(Id(key), line.IngredientId);
+        Assert.Equal(ImportLineStatus.Matched, line.Status);
     }
 
     [Fact]

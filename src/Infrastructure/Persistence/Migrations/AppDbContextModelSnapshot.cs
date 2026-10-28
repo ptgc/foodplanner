@@ -1506,6 +1506,48 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         new
                         {
                             Kind = "ingredient",
+                            EntityId = new Guid("696b64ff-38fe-5660-b130-925b51a2e1f1"),
+                            Locale = "en",
+                            Name = "Oil"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("696b64ff-38fe-5660-b130-925b51a2e1f1"),
+                            Locale = "nb",
+                            Name = "Olje"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("bf538d98-0152-59f1-b4f2-7385fe43711a"),
+                            Locale = "en",
+                            Name = "Neutral oil"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("bf538d98-0152-59f1-b4f2-7385fe43711a"),
+                            Locale = "nb",
+                            Name = "Nøytral olje"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d2919ba2-38a0-5991-abb5-06a3a01ece4b"),
+                            Locale = "en",
+                            Name = "Margarine"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
+                            EntityId = new Guid("d2919ba2-38a0-5991-abb5-06a3a01ece4b"),
+                            Locale = "nb",
+                            Name = "Margarin"
+                        },
+                        new
+                        {
+                            Kind = "ingredient",
                             EntityId = new Guid("ab733b3b-71d1-5d14-99a5-32905ee589ed"),
                             Locale = "en",
                             Name = "Olive oil"
@@ -2854,6 +2896,33 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                             Dimension = "Volume",
                             IsStaple = true,
                             Name = "Rapeseed oil",
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Id = new Guid("696b64ff-38fe-5660-b130-925b51a2e1f1"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Dimension = "Volume",
+                            IsStaple = true,
+                            Name = "Oil",
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Id = new Guid("bf538d98-0152-59f1-b4f2-7385fe43711a"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Dimension = "Volume",
+                            IsStaple = true,
+                            Name = "Neutral oil",
+                            UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
+                        },
+                        new
+                        {
+                            Id = new Guid("d2919ba2-38a0-5991-abb5-06a3a01ece4b"),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Dimension = "Mass",
+                            IsStaple = true,
+                            Name = "Margarine",
                             UpdatedAt = new DateTimeOffset(new DateTime(2026, 10, 24, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0))
                         },
                         new

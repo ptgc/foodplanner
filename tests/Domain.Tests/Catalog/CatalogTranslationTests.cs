@@ -12,7 +12,7 @@ public class CatalogTranslationTests
         var rows = CatalogTranslation.SeedRows().ToList();
         var expected = (IngredientSeed.All.Count + UnitSeed.All.Count + TagSeed.All.Count) * Locales.Supported.Count;
 
-        Assert.Equal(107, IngredientSeed.All.Count);
+        Assert.Equal(110, IngredientSeed.All.Count);
         Assert.Equal(11, UnitSeed.All.Count);
         Assert.Equal(13, TagSeed.All.Count);
         Assert.Equal(expected, rows.Count);
