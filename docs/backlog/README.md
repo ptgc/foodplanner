@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-083, then T-087, T-026, T-089, T-090, T-091, one at a time; backlog: T-077, T-086 (stretch), T-001
+## Current focus: T-083, then T-092 (weekly groceries), T-087, T-026, T-089, T-090, T-091, one at a time; backlog: T-077, T-086 (stretch), T-001
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -117,3 +117,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-089 | Recipe food type (fish, chicken, beef, vegetarian, vegan ...) | M1 | T-023, T-076, T-085 | implementer-backend | yes |
 | T-090 | Weekly meal mix rules (e.g. at least one fish and one vegetarian dinner) | M1 | T-089, T-026 | implementer-backend | yes |
 | T-091 | Frontend: kid mode (likes and making the week plan) | M1 | T-026, T-090 | implementer-frontend | no |
+| T-092 | Weekly groceries (one tap onto the shopping list) | L3 | T-031, T-085, T-088 | implementer-backend | yes |
