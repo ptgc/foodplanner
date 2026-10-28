@@ -292,6 +292,14 @@ body {
   padding: 0;
 }
 
+/* Store section sub-heading inside the to-buy list (T-085). */
+.shop-group-title {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+  color: #4a4a5a;
+  border-bottom: 2px solid #d0d0d8;
+}
+
 .shop-row {
   display: flex;
   align-items: stretch;

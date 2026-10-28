@@ -78,6 +78,7 @@ const item = (id: string, name: string, over: Partial<Item> = {}): Item => ({
   isManual: false,
   ingredientId: `ing-${id}`,
   section: "Main",
+  storeSection: "Other",
   quantities: [],
   recipes: [],
   checked: false,
@@ -235,6 +236,31 @@ describe("shopping list rendering", () => {
     const staples = screen.getByRole("region", { name: t("shopping.sectionStaples") });
     expect(names(staples)).toEqual(["Salt"]);
     expect(screen.getByTestId("shop-week")).toHaveTextContent(t("shopping.week", { week: 43, year: 2026 }));
+  });
+
+  it("groups the to-buy list under store section headings in the server's order, and checks off inside a group", async () => {
+    server.list.main = [
+      item("tomat", "Tomat", { storeSection: "FruitAndVegetables" }),
+      item("agurk", "Agurk", { storeSection: "FruitAndVegetables", checked: true }),
+      item("melk", "Melk", { storeSection: "Dairy" }),
+      item("ris", "Ris", { storeSection: "DryGoods" }),
+      item("kaffe", "Kaffe", { isManual: true, ingredientId: null }),
+    ];
+    renderPage();
+    await ready();
+
+    const groups = screen.getAllByTestId("shop-group");
+    expect(groups.map((g) => within(g).getByRole("heading", { level: 3 }).textContent)).toEqual([
+      t("storeSection.FruitAndVegetables"),
+      t("storeSection.Dairy"),
+      t("storeSection.DryGoods"),
+      t("storeSection.Other"),
+    ]);
+    expect(names(groups[0]!)).toEqual(["Tomat", "Agurk"]); // checked last inside the group
+    expect(names(groups[1]!)).toEqual(["Melk"]);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Melk" }));
+    await waitFor(() => expect(server.puts.length).toBe(1));
   });
 
   it("joins the household and reads state through the hub on connect", async () => {

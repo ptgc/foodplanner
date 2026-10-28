@@ -6,6 +6,7 @@ import { useSession } from "../session";
 import { useI18n, type I18n } from "../i18n";
 import { useShoppingList, type ActionResult, type PantryItem } from "../shopping/use-shopping-list";
 import { copyText, fetchExport, shareText } from "../shopping/export";
+import { groupByStoreSection, storeSectionKey } from "../shopping/store-sections";
 import { addWeeks, isMonday, isoWeek, mondayOf, weekRange } from "../shopping/week";
 
 type Item = components["schemas"]["ShoppingListItemResponse"];
@@ -149,6 +150,7 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
           <ItemSection
             title={t("shopping.sectionMain")}
             items={list.main}
+            bySection
             onToggle={model.toggle}
             onRemove={async (id) => report(await model.removeItem(id))}
             canRemove={model.online}
@@ -247,17 +249,34 @@ function ItemSection(props: {
   canRemove: boolean;
   /** "I have it" for a staple (only the check-you-have section passes it). */
   onHaveIt?: (ingredientId: string) => Promise<void>;
+  /** Group by store section with sub-headings (the "to buy" list). */
+  bySection?: boolean;
 }) {
+  const { t } = useI18n();
   const headingId = useId();
   if (props.items.length === 0) return null;
   return (
     <section aria-labelledby={headingId} className="shop-section">
       <h2 id={headingId}>{props.title}</h2>
-      <ul className="shop-items">
-        {checkedLast(props.items).map((item) => (
-          <ItemRow key={item.id} item={item} {...props} />
-        ))}
-      </ul>
+      {props.bySection ? (
+        // The list is in store-walking order (T-085): one sub-heading per store section.
+        groupByStoreSection(props.items).map((group) => (
+          <div key={group.section} className="shop-group" data-testid="shop-group" data-section={group.section}>
+            <h3 className="shop-group-title">{t(storeSectionKey(group.section))}</h3>
+            <ul className="shop-items">
+              {checkedLast(group.items).map((item) => (
+                <ItemRow key={item.id} item={item} {...props} />
+              ))}
+            </ul>
+          </div>
+        ))
+      ) : (
+        <ul className="shop-items">
+          {checkedLast(props.items).map((item) => (
+            <ItemRow key={item.id} item={item} {...props} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

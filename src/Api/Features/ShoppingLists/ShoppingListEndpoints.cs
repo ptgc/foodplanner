@@ -29,7 +29,8 @@ public sealed record ShoppingQuantityResponse(decimal? Amount, string? UnitCode,
 public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 
 /// <summary>
-/// <c>Name</c> is the ingredient's name, or the label of a manual item. <c>Quantities</c> are display quantities (a
+/// <c>Section</c> is the part of the list (to buy or check you have); <c>StoreSection</c> (T-085) is the store section of the
+/// ingredient (Other for a manual item) that the list is grouped and sorted by. <c>Name</c> is the ingredient's name, or the label of a manual item. <c>Quantities</c> are display quantities (a
 /// mass line and a volume line of one ingredient stay separate). <c>Recipes</c> are the recipes that contribute
 /// (generated items only). <c>QuantityChangedSinceChecked</c>: checked, then a regeneration changed the quantities.
 /// <c>Alternatives</c> (T-076) are ingredients that can stand in ("or margarin"), from the contributing recipes' lines; shown by
@@ -41,6 +42,7 @@ public sealed record ShoppingListItemResponse(
     bool IsManual,
     Guid? IngredientId,
     ShoppingSection Section,
+    StoreSection StoreSection,
     ShoppingQuantityResponse[] Quantities,
     ShoppingRecipeResponse[] Recipes,
     bool Checked,
@@ -567,7 +569,7 @@ public static class ShoppingListEndpoints
     }
 
     /// <summary>
-    /// Items with display data in the request language, ordered by name (Norwegian culture comparison, so å sorts after z and æ ø å in that
+    /// Items with display data in the request language, ordered by store section (T-085, fixed walking order), then by name (Norwegian culture comparison, so å sorts after z and æ ø å in that
     /// order) then id. Generated items are stored by ingredient id, so the name is looked up per request: a language switch re-labels the list. Pass <paramref name="itemId"/> for one item.
     /// </summary>
     private static async Task<ShoppingListItemResponse[]> LoadItemsAsync(
@@ -611,6 +613,9 @@ public static class ShoppingListEndpoints
         var nameIds = ingredientIds.Concat(alternativeIdsByItem.Values.SelectMany(a => a)).Distinct().ToList();
         var ingredientNames = await db.Ingredients.AsNoTracking().Where(i => nameIds.Contains(i.Id))
             .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
+        var storeSections = ingredientIds.Count == 0
+            ? []
+            : await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id, i => i.Section, cancellationToken);
         var recipeTitles = await db.Recipes.AsNoTracking().Where(r => recipeIds.Contains(r.Id))
             .ToDictionaryAsync(r => r.Id, r => r.Title, cancellationToken);
         var userIds = items.Where(i => i.CheckedByUserId != null).Select(i => i.CheckedByUserId!.Value).Distinct().ToList();
@@ -618,13 +623,14 @@ public static class ShoppingListEndpoints
             .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
 
         var comparer = locale == Locales.Norwegian ? NorwegianComparer : EnglishComparer;
-        return [.. items
+        var responses = items
             .Select(i => new ShoppingListItemResponse(
                 i.Id,
                 i.IngredientId is { } ingredientId ? ingredientNames.GetValueOrDefault(ingredientId, string.Empty) : i.Label ?? string.Empty,
                 i.IsManual,
                 i.IngredientId,
                 i.Section,
+                i.IngredientId is { } sectionIngredient ? storeSections.GetValueOrDefault(sectionIngredient, StoreSection.Other) : StoreSection.Other,
                 [.. quantities[i.Id].Select(q => new ShoppingQuantityResponse(
                     q.Amount, q.UnitId is { } u ? units.GetValueOrDefault(u).Code : null, q.UnitId is { } n ? units.GetValueOrDefault(n).Name : null))],
                 [.. sources[i.Id]
@@ -638,8 +644,10 @@ public static class ShoppingListEndpoints
                 i.QuantityChangedSinceChecked,
                 [.. alternativeIdsByItem.GetValueOrDefault(i.Id, [])
                     .Select(id => new RecipeAlternativeResponse(id, ingredientNames.GetValueOrDefault(id, string.Empty)))]))
-            .OrderBy(r => r.Name, comparer)
-            .ThenBy(r => r.Id)];
+            .ToList();
+
+        // Store section first (the fixed walking order, T-085), then name in the request language.
+        return [.. StoreSectionOrder.Sort(responses, r => r.StoreSection, r => r.Name, comparer, r => r.Id)];
     }
 
     /// <summary>The request language's ordering (nb-NO or en-US) when the runtime has the culture; ordinal ignoring case when it does not (invariant globalization).</summary>
