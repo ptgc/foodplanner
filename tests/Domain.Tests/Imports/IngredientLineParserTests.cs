@@ -83,9 +83,9 @@ public class IngredientLineParserTests
     // No quantity: "to taste"
     [InlineData("salt", "-|-|salt|")]
     [InlineData("pepper, malt", "-|-|pepper|malt")]
-    [InlineData("Smør til steking", "-|-|Smør|til steking")]
-    [InlineData("salt etter smak", "-|-|salt|etter smak")]
-    [InlineData("olive oil, to taste", "-|-|olive oil|to taste")]
+    [InlineData("Smør til steking", "-|-|Smør|")]
+    [InlineData("salt etter smak", "-|-|salt|")]
+    [InlineData("olive oil, to taste", "-|-|olive oil|")]
     public void Parses_a_line_into_quantity_unit_ingredient_and_note(string line, string expected) =>
         Assert.Equal(expected, Show(IngredientLineParser.Parse(line)));
 

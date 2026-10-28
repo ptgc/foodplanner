@@ -146,8 +146,11 @@ public class ImportDraftTests
 
         Assert.Equal(ImportLineStatus.UnmatchedUnit, line.Status);
         Assert.Equal(ImportLineStatus.Matched, (line with { UnitId = Guid.NewGuid() }).Status);
-        Assert.Equal(ImportLineStatus.Matched, (line with { Quantity = null }).Status);
-        Assert.Equal(ImportLineStatus.UnmatchedUnit, (line with { Quantity = null, UnitId = Guid.NewGuid() }).Status);
+        Assert.Equal(ImportLineStatus.UnmatchedUnit, (line with { Quantity = null }).Status); // Measured needs an amount
+        Assert.Equal(ImportLineStatus.Matched, (line with { Quantity = null, AmountKind = AmountKind.ToTaste }).Status);
+        Assert.Equal(ImportLineStatus.Matched, (line with { Quantity = null, AmountKind = AmountKind.AsNeeded }).Status);
+        Assert.Equal(ImportLineStatus.UnmatchedUnit, (line with { AmountKind = AmountKind.ToTaste }).Status); // to taste has no amount
+        Assert.Equal(ImportLineStatus.UnmatchedUnit, (line with { Quantity = null, AmountKind = AmountKind.ToTaste, UnitId = Guid.NewGuid() }).Status);
         Assert.Equal(ImportLineStatus.UnmatchedIngredient, (line with { IngredientId = null }).Status);
         Assert.Equal(ImportLineStatus.Unparsed, (line with { IngredientId = null, Unparsed = true }).Status);
     }

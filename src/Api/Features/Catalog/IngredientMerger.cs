@@ -33,6 +33,35 @@ public static class IngredientMerger
             line.ChangeIngredient(target.Id);
         }
 
+        // Alternatives (T-076): they move too. One that would equal its line's ingredient (the line moves to the target, or already
+        // is it) or repeat an alternative the line already has is removed instead.
+        var sourceAlternatives = await db.RecipeIngredientAlternatives.Where(a => a.IngredientId == source.Id).ToListAsync(cancellationToken);
+        var alternativeLineIds = sourceAlternatives.Select(a => a.RecipeIngredientId).Distinct().ToList();
+        var alternativeLines = await db.RecipeIngredients.AsNoTracking().Where(l => alternativeLineIds.Contains(l.Id))
+            .Select(l => new { l.Id, l.RecipeId, l.IngredientId }).ToListAsync(cancellationToken);
+        var linesWithTargetAlternative = (await db.RecipeIngredientAlternatives.AsNoTracking()
+            .Where(a => a.IngredientId == target.Id && alternativeLineIds.Contains(a.RecipeIngredientId))
+            .Select(a => a.RecipeIngredientId).ToListAsync(cancellationToken)).ToHashSet();
+        foreach (var alternative in sourceAlternatives)
+        {
+            var line = alternativeLines.Single(l => l.Id == alternative.RecipeIngredientId);
+            if (line.IngredientId == target.Id || line.IngredientId == source.Id || linesWithTargetAlternative.Contains(line.Id))
+            {
+                db.RecipeIngredientAlternatives.Remove(alternative);
+            }
+            else
+            {
+                alternative.ChangeIngredient(target.Id);
+            }
+        }
+
+        // A line whose ingredient is the source and that already lists the target as an alternative would read "X or X" after the
+        // line moves, which the save validation forbids: that alternative goes.
+        var lineIdsMoving = lines.Select(l => l.Id).ToList();
+        var targetAlternativesOnMovingLines = await db.RecipeIngredientAlternatives
+            .Where(a => a.IngredientId == target.Id && lineIdsMoving.Contains(a.RecipeIngredientId)).ToListAsync(cancellationToken);
+        db.RecipeIngredientAlternatives.RemoveRange(targetAlternativesOnMovingLines);
+
         // Pantry: unique per (household, ingredient), so a clash is combined, not moved.
         var pantry = 0;
         var sourcePantry = await db.PantryItems.FirstOrDefaultAsync(p => p.IngredientId == source.Id, cancellationToken);
@@ -100,7 +129,7 @@ public static class IngredientMerger
             await ShoppingListEndpoints.ApplyAsync(db, week, generated, cancellationToken);
         }
 
-        var recipes = lines.Select(l => l.RecipeId).Distinct().Count();
+        var recipes = lines.Select(l => l.RecipeId).Concat(alternativeLines.Select(l => l.RecipeId)).Distinct().Count();
         var tracked = await db.Ingredients.FirstAsync(i => i.Id == source.Id, cancellationToken);
         db.Ingredients.Remove(tracked);
         await db.SaveChangesAsync(cancellationToken);

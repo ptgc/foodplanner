@@ -67,6 +67,8 @@ public sealed class SaveTimeReferenceCheckTests(TenancyDatabase db) : IClassFixt
 
         Assert.Contains("RecipeTag.TagId -> Tag", names); // join row to a catalog principal
         Assert.Contains("RecipeIngredient.IngredientId -> Ingredient", names);
+        Assert.Contains("RecipeIngredientAlternative.IngredientId -> Ingredient", names); // T-076: each alternative is checked
+        Assert.Contains("RecipeIngredientAlternative.RecipeIngredientId -> RecipeIngredient", names);
         Assert.Contains("MealPlanEntry.RecipeId -> Recipe", names);
         Assert.Contains("ShoppingListItemSource.RecipeId -> Recipe", names);
         Assert.All(ForeignKeys, k =>

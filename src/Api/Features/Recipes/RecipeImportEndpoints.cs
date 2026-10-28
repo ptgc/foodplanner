@@ -21,7 +21,9 @@ public sealed record ImportSuggestionResponse(Guid IngredientId, string Name, do
 
 /// <summary>
 /// One ingredient line of a draft. <c>Original</c> is the imported text (the import artifact; recipes never store it).
-/// <c>Status</c> says what is missing. A line with <c>Quantity</c> and <c>UnitId</c> both null is "to taste".
+/// <c>Status</c> says what is missing. <c>AmountKind</c> says how to read the amount: <c>Measured</c> needs <c>Quantity</c> and
+/// <c>UnitId</c>, <c>ToTaste</c> and <c>AsNeeded</c> have neither. <c>Purpose</c>, <c>IsOptional</c> and <c>Alternatives</c> (other
+/// ingredients that can stand in; unmatched ones are text in <c>Note</c>) are read from phrases like "til steking" and "eller olje".
 /// <c>UnitText</c> is a unit word the catalog lacks ("boks"); <c>UnitCode</c>/<c>UnitName</c> describe the chosen or parsed unit.
 /// </summary>
 public sealed record ImportLineResponse(
@@ -39,7 +41,11 @@ public sealed record ImportLineResponse(
     double Confidence,
     string? Note,
     ImportLineStatus Status,
-    ImportSuggestionResponse[] Suggestions);
+    ImportSuggestionResponse[] Suggestions,
+    AmountKind AmountKind,
+    IngredientPurpose Purpose,
+    bool IsOptional,
+    RecipeAlternativeResponse[] Alternatives);
 
 /// <summary><c>CanSave</c> is true when every line is <c>Matched</c>. <c>ImageUrl</c> is only a candidate; nothing is downloaded.</summary>
 public sealed record RecipeImportResponse(
@@ -79,10 +85,24 @@ public sealed record UpdateRecipeImportRequest(
 /// <summary>
 /// Edits the line at <c>Position</c>, or removes it with <c>Remove</c>. <c>IngredientId</c> is required. Patch semantics: an absent
 /// (null) <c>Quantity</c> and <c>UnitId</c> keep what the line holds (the parsed amount), a quantity needs a unit, and
-/// <c>ToTaste: true</c> clears both (and must not be combined with them). An absent <c>Note</c> keeps the note; an empty one
+/// <c>ToTaste: true</c> (the same as <c>AmountKind: "ToTaste"</c>) clears both and must not be combined with them. <c>AmountKind</c>
+/// (<c>Measured</c>, <c>ToTaste</c>, <c>AsNeeded</c>), <c>Purpose</c>, <c>IsOptional</c> and <c>AlternativeIds</c> (a list replaces; an
+/// empty list clears; absent keeps) follow the same rule: absent keeps what the line holds. A non-measured kind clears quantity and
+/// unit and must not be combined with them. An absent <c>Note</c> keeps the note; an empty one
 /// clears it. To use an ingredient the household does not have yet, create it with <c>POST /ingredients</c> first and pass its id.
 /// </summary>
-public sealed record UpdateImportLineRequest(int? Position, Guid? IngredientId, decimal? Quantity, Guid? UnitId, string? Note, bool? Remove, bool? ToTaste = null);
+public sealed record UpdateImportLineRequest(
+    int? Position,
+    Guid? IngredientId,
+    decimal? Quantity,
+    Guid? UnitId,
+    string? Note,
+    bool? Remove,
+    bool? ToTaste = null,
+    string? AmountKind = null,
+    string? Purpose = null,
+    bool? IsOptional = null,
+    Guid[]? AlternativeIds = null);
 
 public sealed record SaveRecipeImportResponse(Guid RecipeId);
 
@@ -350,16 +370,22 @@ public static class RecipeImportEndpoints
 
             // Patch semantics: an edit that names no amount keeps the parsed quantity and unit; only ToTaste clears them.
             var current = lines[position];
-            var amountGiven = edit.ToTaste == true || edit.Quantity is not null;
+            var kind = EditedKind(edit);
+            var noAmount = kind is AmountKind.ToTaste or AmountKind.AsNeeded;
+            var amountGiven = noAmount || edit.Quantity is not null;
             lines[position] = current with
             {
                 IngredientId = edit.IngredientId,
-                Quantity = amountGiven ? edit.Quantity : current.Quantity,
+                Quantity = noAmount ? null : amountGiven ? edit.Quantity : current.Quantity,
                 QuantityLow = amountGiven ? null : current.QuantityLow,
-                UnitId = amountGiven ? edit.UnitId : current.UnitId,
-                UnitCode = amountGiven ? (edit.UnitId is { } unitId ? unitCodes.GetValueOrDefault(unitId) : null) : current.UnitCode,
+                UnitId = noAmount ? null : amountGiven ? edit.UnitId : current.UnitId,
+                UnitCode = noAmount ? null : amountGiven ? (edit.UnitId is { } unitId ? unitCodes.GetValueOrDefault(unitId) : null) : current.UnitCode,
                 UnitText = amountGiven ? null : current.UnitText,
                 Note = edit.Note is null ? current.Note : string.IsNullOrWhiteSpace(edit.Note) ? null : edit.Note.Trim(),
+                AmountKind = kind ?? (edit.Quantity is not null ? AmountKind.Measured : current.AmountKind),
+                Purpose = IngredientPurposes.TryParse(edit.Purpose?.Trim(), out var purpose) ? purpose : current.Purpose,
+                IsOptional = edit.IsOptional ?? current.IsOptional,
+                AlternativeIds = [.. (edit.AlternativeIds ?? [.. current.Alternatives]).Distinct().Where(a => a != edit.IngredientId)],
                 Confidence = 1,
                 Unparsed = false,
                 Suggestions = [],
@@ -417,7 +443,7 @@ public static class RecipeImportEndpoints
                     errors[$"lines[{i}].ingredientId"] = [$"Choose an ingredient for '{Shorten(line.Original)}'."];
                     break;
                 case ImportLineStatus.UnmatchedUnit:
-                    errors[$"lines[{i}].unitId"] = [$"Choose a unit for '{Shorten(line.Original)}', or make it to taste."];
+                    errors[$"lines[{i}].unitId"] = [$"Choose an amount and unit for '{Shorten(line.Original)}', or make it to taste or as needed."];
                     break;
             }
         }
@@ -434,7 +460,8 @@ public static class RecipeImportEndpoints
             draft.PrepMinutes,
             draft.CookMinutes,
             [.. draft.Steps.Select(s => new RecipeStepRequest(s))],
-            [.. draft.Lines.Select(l => new RecipeIngredientRequest(l.IngredientId, l.Quantity, l.UnitId, l.Note))],
+            [.. draft.Lines.Select(l => new RecipeIngredientRequest(
+                l.IngredientId, l.Quantity, l.UnitId, l.Note, l.AmountKind.ToString(), l.Purpose.ToString(), l.IsOptional, [.. l.Alternatives]))],
             null,
             import.SourceUrl);
 
@@ -550,6 +577,17 @@ public static class RecipeImportEndpoints
         }
     }
 
+    /// <summary>The kind the edit asks for (<c>toTaste: true</c> is ToTaste), or null when it does not say. Only call on validated edits or check the parse.</summary>
+    private static AmountKind? EditedKind(UpdateImportLineRequest edit)
+    {
+        if (!string.IsNullOrWhiteSpace(edit.AmountKind) && AmountKinds.TryParse(edit.AmountKind.Trim(), out var kind))
+        {
+            return kind;
+        }
+
+        return edit.ToTaste == true ? AmountKind.ToTaste : null;
+    }
+
     private static void CheckEdits(UpdateImportLineRequest[] edits, int lineCount, Dictionary<string, string[]> errors)
     {
         var seen = new HashSet<int>();
@@ -585,16 +623,44 @@ public static class RecipeImportEndpoints
                 errors[$"{key}.ingredientId"] = ["An ingredient is required."];
             }
 
-            if (edit.ToTaste == true)
+            var explicitKind = !string.IsNullOrWhiteSpace(edit.AmountKind);
+            if (explicitKind && !AmountKinds.TryParse(edit.AmountKind!.Trim(), out _))
+            {
+                errors[$"{key}.amountKind"] = ["The amount kind must be Measured, ToTaste or AsNeeded."];
+                continue;
+            }
+
+            if (edit.ToTaste == true && explicitKind && EditedKind(edit) != AmountKind.ToTaste)
+            {
+                errors[$"{key}.amountKind"] = ["toTaste conflicts with the amount kind."];
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(edit.Purpose) && !IngredientPurposes.TryParse(edit.Purpose.Trim(), out _))
+            {
+                errors[$"{key}.purpose"] = ["The purpose must be Main, Frying, Serving, Garnish or Seasoning."];
+            }
+
+            var alternatives = edit.AlternativeIds ?? [];
+            if (alternatives.Length > RecipeIngredientAlternative.MaxPerLine)
+            {
+                errors[$"{key}.alternativeIds"] = [$"A line can have at most {RecipeIngredientAlternative.MaxPerLine} alternatives."];
+            }
+            else if (alternatives.Contains(Guid.Empty))
+            {
+                errors[$"{key}.alternativeIds"] = ["An alternative ingredient id is required."];
+            }
+
+            if (EditedKind(edit) is AmountKind.ToTaste or AmountKind.AsNeeded)
             {
                 if (edit.Quantity is not null)
                 {
-                    errors[$"{key}.quantity"] = ["Leave the quantity out when the line is to taste."];
+                    errors[$"{key}.quantity"] = ["Leave the quantity out when the line is to taste or as needed."];
                 }
 
                 if (edit.UnitId is not null)
                 {
-                    errors[$"{key}.unitId"] = ["Leave the unit out when the line is to taste."];
+                    errors[$"{key}.unitId"] = ["Leave the unit out when the line is to taste or as needed."];
                 }
             }
             else if (edit.Quantity is { } quantity)
@@ -630,7 +696,7 @@ public static class RecipeImportEndpoints
         AppDbContext db, UpdateImportLineRequest[] edits, Dictionary<string, string[]> errors, CancellationToken cancellationToken)
     {
         var active = edits.Select((edit, index) => (edit, index)).Where(x => x.edit.Remove != true).ToList();
-        var ingredientIds = active.Select(x => x.edit.IngredientId!.Value).Distinct().ToList();
+        var ingredientIds = active.Select(x => x.edit.IngredientId!.Value).Concat(active.SelectMany(x => x.edit.AlternativeIds ?? [])).Distinct().ToList();
         var unitIds = active.Where(x => x.edit.UnitId is not null).Select(x => x.edit.UnitId!.Value).Distinct().ToList();
         var knownIngredients = ingredientIds.Count == 0
             ? []
@@ -649,6 +715,15 @@ public static class RecipeImportEndpoints
             if (edit.UnitId is { } unitId && !knownUnits.Contains(unitId))
             {
                 errors[$"lines[{index}].unitId"] = ["The unit does not exist."];
+            }
+
+            var alternatives = edit.AlternativeIds ?? [];
+            for (var j = 0; j < alternatives.Length; j++)
+            {
+                if (!knownIngredients.Contains(alternatives[j]))
+                {
+                    errors[$"lines[{index}].alternativeIds[{j}]"] = ["The ingredient does not exist."];
+                }
             }
         }
 
@@ -683,7 +758,8 @@ public static class RecipeImportEndpoints
     private static async Task<RecipeImportResponse> ToResponseAsync(
         AppDbContext db, RecipeImport import, ImportDraft draft, string locale, CancellationToken cancellationToken)
     {
-        var ingredientIds = draft.Lines.Where(l => l.IngredientId is not null).Select(l => l.IngredientId!.Value).Distinct().ToList();
+        var ingredientIds = draft.Lines.Where(l => l.IngredientId is not null).Select(l => l.IngredientId!.Value)
+            .Concat(draft.Lines.SelectMany(l => l.Alternatives)).Distinct().ToList();
         var names = ingredientIds.Count == 0
             ? []
             : await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
@@ -709,7 +785,11 @@ public static class RecipeImportEndpoints
                 line.Confidence,
                 line.Note,
                 line.Status,
-                [.. line.Suggestions.Select(s => new ImportSuggestionResponse(s.IngredientId, s.Name, s.Confidence))]);
+                [.. line.Suggestions.Select(s => new ImportSuggestionResponse(s.IngredientId, s.Name, s.Confidence))],
+                line.AmountKind,
+                line.Purpose,
+                line.IsOptional,
+                [.. line.Alternatives.Select(a => new RecipeAlternativeResponse(a, names.GetValueOrDefault(a, string.Empty)))]);
         }).ToArray();
 
         return new RecipeImportResponse(

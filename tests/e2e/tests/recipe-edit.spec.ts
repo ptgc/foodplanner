@@ -60,7 +60,7 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
     const rows = page.getByTestId("ingredient-row");
     await rows.nth(0).getByLabel("Ingredient", { exact: true }).fill(first.name);
     await rows.nth(0).getByRole("button", { name: first.name, exact: true }).click();
-    await rows.nth(0).getByLabel("Amount").fill("250");
+    await rows.nth(0).getByLabel("Amount", { exact: true }).fill("250");
     await rows.nth(0).getByLabel("Unit").selectOption(gram.id);
 
     // Line 2: a "to taste" line has neither amount nor unit.
@@ -68,8 +68,8 @@ test("an Adult creates a recipe through the form, sees it on the detail page and
     await expect(rows).toHaveCount(2);
     await rows.nth(1).getByLabel("Ingredient", { exact: true }).fill(second.name);
     await rows.nth(1).getByRole("button", { name: second.name, exact: true }).click();
-    await rows.nth(1).getByRole("checkbox", { name: "To taste" }).check();
-    await expect(rows.nth(1).getByLabel("Amount")).toHaveCount(0);
+    await rows.nth(1).getByLabel("Type of amount").selectOption("ToTaste");
+    await expect(rows.nth(1).getByLabel("Amount", { exact: true })).toHaveCount(0);
 
     const steps = page.getByTestId("step-row");
     await steps.nth(0).getByRole("textbox").fill("First step");
@@ -197,7 +197,7 @@ test("a phone-sized photo uploads through the web container, and a too-large one
     const row = page.getByTestId("ingredient-row").first();
     await row.getByLabel("Ingredient", { exact: true }).fill(ingredients[0]!.name);
     await row.getByRole("button", { name: ingredients[0]!.name, exact: true }).click();
-    await row.getByRole("checkbox", { name: "To taste" }).check();
+    await row.getByLabel("Type of amount").selectOption("ToTaste");
     await page.getByTestId("step-row").first().getByRole("textbox").fill("Step");
 
     // Over the 10 MB the form allows: stopped with the translated message before anything is sent.

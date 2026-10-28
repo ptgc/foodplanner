@@ -16,8 +16,21 @@ namespace Foodplanner.Api.Features.Recipes;
 
 public sealed record RecipeStepRequest(string? Text);
 
-/// <summary>An ingredient line: ids and a quantity, never free text. No quantity and no unit means "to taste".</summary>
-public sealed record RecipeIngredientRequest(Guid? IngredientId, decimal? Quantity, Guid? UnitId, string? Note);
+/// <summary>
+/// An ingredient line: ids and a quantity, never free text. <c>AmountKind</c> is <c>Measured</c> (quantity and unit),
+/// <c>ToTaste</c> or <c>AsNeeded</c> (neither); left out it is inferred (a quantity means Measured, none means ToTaste).
+/// <c>Purpose</c> is Main (default), Frying, Serving, Garnish or Seasoning. <c>AlternativeIds</c> are other ingredients that
+/// can stand in for this one (at most 5, global or the household's own).
+/// </summary>
+public sealed record RecipeIngredientRequest(
+    Guid? IngredientId,
+    decimal? Quantity,
+    Guid? UnitId,
+    string? Note,
+    string? AmountKind = null,
+    string? Purpose = null,
+    bool? IsOptional = null,
+    Guid[]? AlternativeIds = null);
 
 public sealed record RecipeRequest(
     string? Title,
@@ -40,7 +53,20 @@ public sealed record RecipeStepResponse(int Position, string Text);
 
 /// <summary>Names are in the request language (Accept-Language); <c>UnitCode</c> is the stable code, <c>UnitName</c> its name.</summary>
 public sealed record RecipeIngredientResponse(
-    Guid IngredientId, string IngredientName, decimal? Quantity, Guid? UnitId, string? UnitCode, string? UnitName, string? Note);
+    Guid IngredientId,
+    string IngredientName,
+    decimal? Quantity,
+    Guid? UnitId,
+    string? UnitCode,
+    string? UnitName,
+    string? Note,
+    AmountKind AmountKind,
+    IngredientPurpose Purpose,
+    bool IsOptional,
+    RecipeAlternativeResponse[] Alternatives);
+
+/// <summary>An ingredient that can stand in for the line's own, named in the request language.</summary>
+public sealed record RecipeAlternativeResponse(Guid IngredientId, string IngredientName);
 
 public sealed record RecipeResponse(
     Guid Id,
@@ -267,7 +293,8 @@ public static class RecipeEndpoints
 
         var lines = loaded.Ingredients.Select(line =>
         {
-            if (line.Quantity is null || line.UnitId is not { } unitId || !byId.TryGetValue(unitId, out var unit))
+            // To taste and as needed are not amounts: they are returned as they are for any number of servings.
+            if (line.AmountKind != AmountKind.Measured || line.Quantity is null || line.UnitId is not { } unitId || !byId.TryGetValue(unitId, out var unit))
             {
                 return line;
             }
@@ -311,18 +338,24 @@ public static class RecipeEndpoints
 
         var recipe = new Recipe(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
         recipe.SetSource(valid.SourceUrl, valid.SourceName);
-        // Two saves in one transaction: the children need the generated recipe id, and a failed second save must not leave a bare recipe.
+        // Saves in one transaction: the children need the generated recipe id, the alternatives the generated line ids, and a
+        // failed later save must not leave a bare recipe.
         var ownTransaction = db.Database.CurrentTransaction is null;
         await using var transaction = ownTransaction ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         db.Recipes.Add(recipe);
         await db.SaveChangesAsync(cancellationToken);
-        AddChildren(db, recipe.Id, request!);
+        var lines = AddChildren(db, recipe.Id, request!);
         foreach (var tagId in DistinctTagIds(request!))
         {
             db.RecipeTags.Add(new RecipeTag(recipe.Id, tagId));
         }
 
         await db.SaveChangesAsync(cancellationToken);
+        if (AddAlternatives(db, lines, request!))
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         if (transaction is not null)
         {
             await transaction.CommitAsync(cancellationToken);
@@ -351,8 +384,9 @@ public static class RecipeEndpoints
         recipe.Update(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
         recipe.SetSource(valid.SourceUrl, valid.SourceName);
         db.RecipeSteps.RemoveRange(await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken));
+        // The database removes the old lines' alternatives with them (cascade).
         db.RecipeIngredients.RemoveRange(await db.RecipeIngredients.Where(i => i.RecipeId == recipeId).ToListAsync(cancellationToken));
-        AddChildren(db, recipeId, request!);
+        var lines = AddChildren(db, recipeId, request!);
 
         // Tags: tracked diff (remove the ones no longer wanted, add the new ones), so an unchanged tag is never deleted and re-inserted.
         var wanted = DistinctTagIds(request!).ToHashSet();
@@ -363,9 +397,22 @@ public static class RecipeEndpoints
             db.RecipeTags.Add(new RecipeTag(recipeId, tagId));
         }
 
+        // Two saves in one transaction: the alternatives need the generated ids of the new lines.
+        var ownTransaction = db.Database.CurrentTransaction is null;
+        await using var transaction = ownTransaction ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
             return conflict;
+        }
+
+        if (AddAlternatives(db, lines, request!) && await TrySaveAsync(db, cancellationToken) is { } conflictAgain)
+        {
+            return conflictAgain;
+        }
+
+        if (transaction is not null)
+        {
+            await transaction.CommitAsync(cancellationToken);
         }
 
         return Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
@@ -452,7 +499,8 @@ public static class RecipeEndpoints
         }
     }
 
-    private static void AddChildren(AppDbContext db, Guid recipeId, RecipeRequest request)
+    /// <summary>Adds the steps and the ingredient lines; returns the lines in request order (the alternatives need their ids).</summary>
+    private static List<RecipeIngredient> AddChildren(AppDbContext db, Guid recipeId, RecipeRequest request)
     {
         var steps = request.Steps ?? [];
         for (var i = 0; i < steps.Length; i++)
@@ -460,14 +508,46 @@ public static class RecipeEndpoints
             db.RecipeSteps.Add(new RecipeStep(recipeId, i, steps[i].Text!.Trim()));
         }
 
-        var lines = request.Ingredients ?? [];
-        for (var i = 0; i < lines.Length; i++)
+        var requested = request.Ingredients ?? [];
+        var added = new List<RecipeIngredient>(requested.Length);
+        for (var i = 0; i < requested.Length; i++)
         {
-            var line = lines[i];
-            db.RecipeIngredients.Add(new RecipeIngredient(
-                recipeId, i, line.IngredientId!.Value, line.Quantity, line.UnitId, NormalizeNote(line.Note)));
+            var line = requested[i];
+            var (kind, purpose) = ParseKindAndPurpose(line);
+            var entity = new RecipeIngredient(
+                recipeId, i, line.IngredientId!.Value, line.Quantity, line.UnitId, NormalizeNote(line.Note),
+                kind, purpose, line.IsOptional ?? false);
+            db.RecipeIngredients.Add(entity);
+            added.Add(entity);
         }
+
+        return added;
     }
+
+    /// <summary>Adds the alternatives of already saved lines (repeats ignored). True when there is anything to save.</summary>
+    private static bool AddAlternatives(AppDbContext db, List<RecipeIngredient> lines, RecipeRequest request)
+    {
+        var requested = request.Ingredients ?? [];
+        var any = false;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var position = 0;
+            foreach (var id in DistinctAlternativeIds(requested[i]))
+            {
+                db.RecipeIngredientAlternatives.Add(new RecipeIngredientAlternative(lines[i].Id, position++, id));
+                any = true;
+            }
+        }
+
+        return any;
+    }
+
+    private static List<Guid> DistinctAlternativeIds(RecipeIngredientRequest line) => (line.AlternativeIds ?? []).Distinct().ToList();
+
+    /// <summary>The kind and purpose of a validated line; a kind left out is inferred from the quantity.</summary>
+    private static (AmountKind Kind, IngredientPurpose Purpose) ParseKindAndPurpose(RecipeIngredientRequest line) =>
+        (AmountKinds.TryParse(line.AmountKind, out var kind) ? kind : AmountRules.Infer(line.Quantity),
+         IngredientPurposes.TryParse(line.Purpose, out var purpose) ? purpose : IngredientPurpose.Main);
 
     private static List<Guid> DistinctTagIds(RecipeRequest request) => (request.TagIds ?? []).Distinct().ToList();
 
@@ -589,27 +669,73 @@ public static class RecipeEndpoints
             errors[$"{key}.ingredientId"] = ["An ingredient is required."];
         }
 
-        if (line.Quantity is { } quantity)
+        var kind = AmountRules.Infer(line.Quantity);
+        if (!string.IsNullOrWhiteSpace(line.AmountKind))
         {
-            if (quantity <= 0 || quantity > RecipeIngredient.MaxQuantity || decimal.Round(quantity, RecipeIngredient.MaxQuantityDecimals) != quantity)
+            if (AmountKinds.TryParse(line.AmountKind.Trim(), out var parsed))
             {
-                errors[$"{key}.quantity"] =
-                    [$"The quantity must be greater than 0 and at most {RecipeIngredient.MaxQuantity:0}, with at most {RecipeIngredient.MaxQuantityDecimals} decimals."];
+                kind = parsed;
             }
-
-            if (line.UnitId is null || line.UnitId == Guid.Empty)
+            else
             {
-                errors[$"{key}.unitId"] = ["A unit is required when there is a quantity."];
+                errors[$"{key}.amountKind"] = ["The amount kind must be Measured, ToTaste or AsNeeded."];
             }
         }
-        else if (line.UnitId is not null)
+
+        if (!string.IsNullOrWhiteSpace(line.Purpose) && !IngredientPurposes.TryParse(line.Purpose.Trim(), out _))
         {
-            errors[$"{key}.unitId"] = ["Leave the unit out when there is no quantity (to taste)."];
+            errors[$"{key}.purpose"] = ["The purpose must be Main, Frying, Serving, Garnish or Seasoning."];
+        }
+
+        if (line.Quantity is { } quantity
+            && (quantity <= 0 || quantity > RecipeIngredient.MaxQuantity || decimal.Round(quantity, RecipeIngredient.MaxQuantityDecimals) != quantity))
+        {
+            errors[$"{key}.quantity"] =
+                [$"The quantity must be greater than 0 and at most {RecipeIngredient.MaxQuantity:0}, with at most {RecipeIngredient.MaxQuantityDecimals} decimals."];
+        }
+
+        if (!errors.ContainsKey($"{key}.amountKind"))
+        {
+            switch (AmountRules.Check(kind, line.Quantity, line.UnitId))
+            {
+                case AmountProblem.QuantityRequired:
+                    errors.TryAdd($"{key}.quantity", ["A measured amount needs a quantity."]);
+                    break;
+                case AmountProblem.UnitRequired:
+                    errors[$"{key}.unitId"] = ["A unit is required when there is a quantity."];
+                    break;
+                case AmountProblem.QuantityForbidden:
+                    errors.TryAdd($"{key}.quantity", ["Leave the quantity out when the amount is to taste or as needed."]);
+                    break;
+                case AmountProblem.UnitForbidden:
+                    errors[$"{key}.unitId"] = ["Leave the unit out when there is no quantity (to taste or as needed)."];
+                    break;
+            }
         }
 
         if (line.Note is { Length: > RecipeIngredient.MaxNoteLength })
         {
             errors[$"{key}.note"] = [$"The note can be at most {RecipeIngredient.MaxNoteLength} characters."];
+        }
+
+        var alternatives = line.AlternativeIds ?? [];
+        if (alternatives.Length > RecipeIngredientAlternative.MaxPerLine)
+        {
+            errors[$"{key}.alternativeIds"] = [$"A line can have at most {RecipeIngredientAlternative.MaxPerLine} alternatives."];
+        }
+        else
+        {
+            for (var j = 0; j < alternatives.Length; j++)
+            {
+                if (alternatives[j] == Guid.Empty)
+                {
+                    errors[$"{key}.alternativeIds[{j}]"] = ["An alternative ingredient id is required."];
+                }
+                else if (alternatives[j] == line.IngredientId)
+                {
+                    errors[$"{key}.alternativeIds[{j}]"] = ["An alternative must be a different ingredient."];
+                }
+            }
         }
     }
 
@@ -623,7 +749,7 @@ public static class RecipeEndpoints
         AppDbContext db, RecipeRequest request, Dictionary<string, string[]> errors, CancellationToken cancellationToken)
     {
         var lines = request.Ingredients ?? [];
-        var ingredientIds = lines.Select(l => l.IngredientId!.Value).Distinct().ToList();
+        var ingredientIds = lines.Select(l => l.IngredientId!.Value).Concat(lines.SelectMany(l => l.AlternativeIds ?? [])).Distinct().ToList();
         var unitIds = lines.Where(l => l.UnitId is not null).Select(l => l.UnitId!.Value).Distinct().ToList();
 
         var knownIngredients = ingredientIds.Count == 0
@@ -643,6 +769,16 @@ public static class RecipeEndpoints
             if (lines[i].UnitId is { } unitId && !knownUnits.Contains(unitId))
             {
                 errors[$"ingredients[{i}].unitId"] = ["The unit does not exist."];
+            }
+
+            // An alternative is resolved like the line's own ingredient: another household's id is "does not exist" (T-073 is the backstop).
+            var alternatives = lines[i].AlternativeIds ?? [];
+            for (var j = 0; j < alternatives.Length; j++)
+            {
+                if (!knownIngredients.Contains(alternatives[j]))
+                {
+                    errors[$"ingredients[{i}].alternativeIds[{j}]"] = ["The ingredient does not exist."];
+                }
             }
         }
 
@@ -671,7 +807,11 @@ public static class RecipeEndpoints
         var lines = await db.RecipeIngredients.AsNoTracking().Where(i => i.RecipeId == recipe.Id)
             .OrderBy(i => i.Position).ToListAsync(cancellationToken);
 
-        var ingredientIds = lines.Select(l => l.IngredientId).Distinct().ToList();
+        var lineIds = lines.Select(l => l.Id).ToList();
+        var alternatives = (await db.RecipeIngredientAlternatives.AsNoTracking().Where(a => lineIds.Contains(a.RecipeIngredientId))
+            .OrderBy(a => a.Position).Select(a => new { a.RecipeIngredientId, a.IngredientId }).ToListAsync(cancellationToken))
+            .ToLookup(a => a.RecipeIngredientId, a => a.IngredientId);
+        var ingredientIds = lines.Select(l => l.IngredientId).Concat(alternatives.SelectMany(a => a)).Distinct().ToList();
         var unitIds = lines.Where(l => l.UnitId is not null).Select(l => l.UnitId!.Value).Distinct().ToList();
         var names = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
             .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
@@ -685,7 +825,11 @@ public static class RecipeEndpoints
             l.UnitId,
             l.UnitId is { } unitId ? units.GetValueOrDefault(unitId).Code : null,
             l.UnitId is { } unitId2 ? units.GetValueOrDefault(unitId2).Name : null,
-            l.Note)).ToArray();
+            l.Note,
+            l.AmountKind,
+            l.Purpose,
+            l.IsOptional,
+            [.. alternatives[l.Id].Select(id => new RecipeAlternativeResponse(id, names.GetValueOrDefault(id, string.Empty)))])).ToArray();
 
         return new RecipeResponse(
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,

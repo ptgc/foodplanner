@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useI18n } from "../i18n";
 import { ErrorText, fieldProps } from "../recipes/form-parts";
 import { IngredientPicker } from "../recipes/ingredient-picker";
+import { AmountKindSelect, LineMetaFields } from "../recipes/line-kind-fields";
 import { UnitSelect } from "../recipes/ingredient-rows";
 import { fieldId, type FieldErrors } from "../recipes/recipe-form";
 import type { Unit } from "../recipes/use-catalog";
@@ -84,7 +85,14 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
 
   const quantity = line.quantity === null ? null : Number(line.quantity);
   const amount =
-    quantity === null ? t("recipe.toTaste") : `${formatNumber(quantity, formatOptions)}${line.unitCode ? ` ${line.unitCode}` : ""}`;
+    line.amountKind === "Measured" && quantity !== null
+      ? `${formatNumber(quantity, formatOptions)}${line.unitCode ? ` ${line.unitCode}` : ""}`
+      : t(`recipe.amountKind.${line.amountKind}`);
+  const extras = [
+    line.purpose !== "Main" ? t(`recipe.purpose.${line.purpose}`) : null,
+    line.isOptional ? t("recipe.optionalTag") : null,
+    line.alternatives.length > 0 ? t("recipe.alternativeOr", { names: line.alternatives.map((a) => a.ingredientName).join(", ") }) : null,
+  ].filter((x): x is string => x !== null);
 
   return (
     <li
@@ -115,6 +123,9 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
       {!attention && !showEditor && (
         <p className="import-parsed">
           <strong>{line.ingredientName}</strong> &middot; {amount}
+          {extras.map((extra) => (
+            <span key={extra}> &middot; {extra}</span>
+          ))}
           {line.note ? <> &middot; {line.note}</> : null}
           <span className="import-confidence"> &middot; {t("import.confidence", { percent: confidencePercent(line) })}</span>
         </p>
@@ -152,16 +163,13 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
             <ErrorText name={`${at}.ingredientId`} errors={errors} />
           </div>
 
-          <label className="check-field">
-            <input
-              type="checkbox"
-              checked={draft.toTaste}
-              onChange={(e) => set(e.target.checked ? { toTaste: true, quantity: "", unitId: "" } : { toTaste: false })}
-            />
-            <span>{t("recipe.toTaste")}</span>
-          </label>
+          <AmountKindSelect
+            id={fieldId(`${at}.amountKind`)}
+            value={draft.amountKind}
+            onChange={(amountKind) => set(amountKind === "Measured" ? { amountKind } : { amountKind, quantity: "", unitId: "" })}
+          />
 
-          {!draft.toTaste && (
+          {draft.amountKind === "Measured" && (
             <div className="quantity-unit">
               <div className="form-field">
                 <label htmlFor={fieldId(`${at}.quantity`)}>{t("recipe.quantity")}</label>
@@ -187,6 +195,15 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
               </div>
             </div>
           )}
+
+          <LineMetaFields
+            householdId={householdId}
+            at={at}
+            ingredientId={draft.ingredient?.id}
+            value={draft}
+            errors={errors}
+            onChange={(patch) => set(patch)}
+          />
 
           <div className="form-field">
             <label htmlFor={fieldId(`${at}.note`)}>{t("recipe.note")}</label>

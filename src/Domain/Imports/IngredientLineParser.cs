@@ -33,11 +33,23 @@ public sealed record ParsedIngredientLine(
     string? UnitText,
     bool UnitImplied,
     string? IngredientText,
-    string? Note)
+    string? Note,
+    AmountKind AmountKind,
+    IngredientPurpose Purpose,
+    bool IsOptional,
+    IReadOnlyList<ParsedAlternative> Alternatives,
+    string? UnsplitText)
 {
     public static ParsedIngredientLine Of(string original, ParsedLineKind kind) =>
-        new(original, kind, null, null, null, null, false, null, null);
+        new(original, kind, null, null, null, null, false, null, null, AmountKind.ToTaste, IngredientPurpose.Main, false, [], null);
 }
+
+/// <summary>
+/// An "or X" of an ingredient line (T-076): <see cref="Text"/> is the ingredient to match against the catalog,
+/// <see cref="NoteText"/> how it reads in the note when it does not match ("eller olje"; unmatched alternatives become note
+/// text, never free-text entities).
+/// </summary>
+public sealed record ParsedAlternative(string Text, string NoteText);
 
 /// <summary>
 /// Rule-based parser for Norwegian and English ingredient lines: "2 dl melk", "1/2 ts salt", "1½ cup flour", "3 egg",
@@ -70,11 +82,63 @@ public static partial class IngredientLineParser
         ['⅒'] = "1/10",
     };
 
-    private static readonly string[] ToTastePhrases =
-    [
-        "etter smak", "til steking", "til servering", "til pensling", "til smøring", "til dekorasjon", "to taste",
-        "for frying", "for serving", "for greasing", "for garnish", "as needed",
-    ];
+    // Phrases that say what a line is for (T-076). Each is matched as whole words, case-insensitively, and removed from the
+    // text when it is fully represented by the structured fields; "til pensling" style phrases set AsNeeded but stay in the note.
+    private const string WordStart = @"(?<![\p{L}\p{N}])";
+    private const string WordEnd = @"(?![\p{L}\p{N}])";
+    private const RegexOptions Ci = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+
+    [GeneratedRegex(WordStart + @"(?:etter\s+smak|to\s+taste)" + WordEnd, Ci)]
+    private static partial Regex ToTasteRegex();
+
+    [GeneratedRegex(WordStart + @"(?:til\s+(?:å\s+)?(?:steking|stekning|steiking|steke(?:\s+i)?)|å\s+steke\s+i|for\s+(?:pan[\s-]?)?frying|to\s+fry\s+(?:with|in))" + WordEnd, Ci)]
+    private static partial Regex FryingRegex();
+
+    [GeneratedRegex(WordStart + @"(?:til\s+(?:å\s+)?servering|til\s+å\s+servere|for\s+serving|to\s+serve(?:\s+with)?)" + WordEnd, Ci)]
+    private static partial Regex ServingRegex();
+
+    [GeneratedRegex(WordStart + @"(?:til\s+pynt(?:ing)?|til\s+dekorasjon|til\s+garnityr|(?:for|to|as)\s+garnish(?:ing)?)" + WordEnd, Ci)]
+    private static partial Regex GarnishRegex();
+
+    [GeneratedRegex(WordStart + @"(?:etter\s+behov|ved\s+behov|as\s+needed|as\s+required)" + WordEnd, Ci)]
+    private static partial Regex AsNeededRegex();
+
+    [GeneratedRegex(WordStart + @"(?:til\s+pensling|til\s+smøring|til\s+å\s+(?:smøre|pensle)|for\s+(?:greasing|brushing))" + WordEnd, Ci)]
+    private static partial Regex AsNeededKeptRegex();
+
+    [GeneratedRegex(WordStart + @"(?:kan\s+(?:sløyfes|utelates|droppes|sløyfe)|valgfri(?:tt)?|optional|if\s+desired|if\s+you\s+like|can\s+be\s+(?:left\s+out|omitted)|may\s+be\s+omitted)" + WordEnd, Ci)]
+    private static partial Regex OptionalRegex();
+
+    [GeneratedRegex(@"^(?:evt\.?|ev\.|eventuelt)\s+(?=\S)", Ci)]
+    private static partial Regex LeadingOptionalRegex();
+
+    [GeneratedRegex(@"^(?:evt|ev|eventuelt)\.?$", Ci)]
+    private static partial Regex LoneOptionalRegex();
+
+    [GeneratedRegex(@"^(?<m>evt\.?|ev\.|eventuelt|eller|or)\s+(?<alt>.+)$", Ci)]
+    private static partial Regex LeadingAlternativeRegex();
+
+    [GeneratedRegex(@"\s+(?<m>eller|or|evt\.?|eventuelt)\s+", Ci)]
+    private static partial Regex AlternativeSplitRegex();
+
+    [GeneratedRegex(@"^(?:annen|annet|andre|other|another|any\s+other)\b", Ci)]
+    private static partial Regex GenericAlternativeRegex();
+
+    private const int MaxAlternatives = RecipeIngredientAlternative.MaxPerLine;
+    private const int MaxAlternativeWords = 5;
+
+    /// <summary>What the phrases of one line said while it was being read.</summary>
+    private sealed class Flags
+    {
+        public bool ToTaste;
+        public bool AsNeeded;
+        public bool Optional;
+        public bool Frying;
+        public bool Serving;
+        public bool Garnish;
+        public List<ParsedAlternative> Alternatives { get; } = [];
+        public List<string> Notes { get; } = [];
+    }
 
     [GeneratedRegex(@"^(?<a>" + Num + @")(?:(?:\s*-\s*|\s+(?:to|til|or|eller)\s+)(?<b>" + Num + @"))?", RegexOptions.CultureInvariant)]
     private static partial Regex QuantityRegex();
@@ -138,13 +202,15 @@ public static partial class IngredientLineParser
             return ParsedIngredientLine.Of(original, ParsedLineKind.Heading);
         }
 
-        var notes = new List<string>();
+        var flags = new Flags();
+        var notes = flags.Notes;
+        var fragments = new List<string>();
         text = ParenRegex().Replace(text, m =>
         {
             var inner = m.Groups[1].Value.Trim();
             if (inner.Length > 0)
             {
-                notes.Add(inner);
+                fragments.Add(inner);
             }
 
             return " ";
@@ -153,9 +219,10 @@ public static partial class IngredientLineParser
         text = SpacesRegex().Replace(text, " ").Trim();
 
         var (main, tail) = SplitAtNoteComma(text);
-        if (tail.Length > 0)
+        if (LeadingOptionalRegex().Match(main) is { Success: true } leadingOptional)
         {
-            notes.Add(tail);
+            flags.Optional = true;
+            main = main[leadingOptional.Length..].TrimStart();
         }
 
         decimal? quantity = null;
@@ -227,21 +294,34 @@ public static partial class IngredientLineParser
             }
         }
 
-        rest = StripLeadingOf(rest);
-        foreach (var phrase in ToTastePhrases)
+        foreach (var fragment in fragments)
         {
-            var at = rest.IndexOf(phrase, StringComparison.OrdinalIgnoreCase);
-            if (at >= 0)
-            {
-                notes.Add(phrase);
-                rest = (rest[..at] + " " + rest[(at + phrase.Length)..]).Trim();
-            }
+            Absorb(fragment, flags);
         }
 
-        rest = SpacesRegex().Replace(rest, " ").Trim().TrimEnd('.', ';', ':', '-').Trim();
+        rest = Clean(Consume(StripLeadingOf(rest), flags));
         if (rest.Length == 0 || !rest.Any(char.IsLetter))
         {
             return ParsedIngredientLine.Of(original, ParsedLineKind.Unparseable);
+        }
+
+        // "margarin eller olje": the first is the ingredient, the others are alternatives (T-076).
+        string? unsplit = null;
+        var splitRest = SplitAlternatives(rest);
+        if (splitRest is not null)
+        {
+            unsplit = rest;
+            rest = splitRest[0].Text;
+            flags.Alternatives.AddRange(splitRest.Skip(1).Select(p => new ParsedAlternative(p.Text, $"{p.Marker} {p.Text}")));
+        }
+
+        if (tail.Length > 0)
+        {
+            var consumedTail = Consume(tail, flags);
+            if (!CompleteGenericAlternative(consumedTail, flags))
+            {
+                Absorb(consumedTail, flags);
+            }
         }
 
         if (low is { } lowValue && quantity is { } high)
@@ -255,7 +335,163 @@ public static partial class IngredientLineParser
             note = note[..RecipeIngredient.MaxNoteLength].TrimEnd();
         }
 
-        return new ParsedIngredientLine(original, ParsedLineKind.Parsed, quantity, low, unitCode, unitText, implied, rest, note);
+        var purpose = flags.Frying ? IngredientPurpose.Frying
+            : flags.Serving ? IngredientPurpose.Serving
+            : flags.Garnish ? IngredientPurpose.Garnish
+            : flags.ToTaste ? IngredientPurpose.Seasoning
+            : IngredientPurpose.Main;
+        AmountKind kind;
+        if (quantity is not null)
+        {
+            kind = AmountKind.Measured;
+        }
+        else if (flags.ToTaste)
+        {
+            kind = AmountKind.ToTaste;
+        }
+        else if (flags.AsNeeded || purpose is IngredientPurpose.Frying or IngredientPurpose.Serving or IngredientPurpose.Garnish)
+        {
+            kind = AmountKind.AsNeeded;
+        }
+        else
+        {
+            // No amount and no phrase ("salt og pepper"): to taste.
+            kind = AmountKind.ToTaste;
+            if (purpose == IngredientPurpose.Main)
+            {
+                purpose = IngredientPurpose.Seasoning;
+            }
+        }
+
+        return new ParsedIngredientLine(
+            original, ParsedLineKind.Parsed, quantity, low, unitCode, unitText, implied, rest, note,
+            kind, purpose, flags.Optional, flags.Alternatives, unsplit);
+    }
+
+    /// <summary>
+    /// Finds the phrases that say what a line is for ("etter smak", "til steking", "til servering", "til pynt", "kan sløyfes")
+    /// and records them in <paramref name="flags"/>. The phrases the structured fields fully represent are removed from the
+    /// text; the "til pensling" kind sets AsNeeded and stays.
+    /// </summary>
+    private static string Consume(string text, Flags flags)
+    {
+        text = Remove(ToTasteRegex(), text, () => flags.ToTaste = true);
+        text = Remove(FryingRegex(), text, () => flags.Frying = true);
+        text = Remove(ServingRegex(), text, () => flags.Serving = true);
+        text = Remove(GarnishRegex(), text, () => flags.Garnish = true);
+        text = Remove(AsNeededRegex(), text, () => flags.AsNeeded = true);
+        text = Remove(OptionalRegex(), text, () => flags.Optional = true);
+        text = AsNeededKeptRegex().Replace(text, m =>
+        {
+            flags.AsNeeded = true;
+            flags.Notes.Add(m.Value);
+            return " ";
+        });
+
+        return Clean(text);
+    }
+
+    private static string Remove(Regex regex, string text, Action found)
+    {
+        var any = false;
+        var result = regex.Replace(text, _ =>
+        {
+            any = true;
+            return " ";
+        });
+        if (any)
+        {
+            found();
+        }
+
+        return result;
+    }
+
+    private static string Clean(string text) =>
+        SpacesRegex().Replace(text, " ").Trim().Trim(',', ';', ':', '-', '.', ' ').Trim();
+
+    /// <summary>
+    /// A note fragment (the inside of parentheses, or the text after the first comma). "evt." alone means optional; "evt. X",
+    /// "eller X" and "or X" are alternatives (also kept as note text if X does not match an ingredient); anything else is a note.
+    /// </summary>
+    private static void Absorb(string fragment, Flags flags)
+    {
+        var text = Consume(fragment, flags);
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (LoneOptionalRegex().IsMatch(text))
+        {
+            flags.Optional = true;
+            return;
+        }
+
+        if (LeadingAlternativeRegex().Match(text) is { Success: true } lead)
+        {
+            var parts = SplitAlternatives(lead.Groups["alt"].Value, lead.Groups["m"].Value);
+            if (parts is not null)
+            {
+                flags.Alternatives.AddRange(parts.Select(p => new ParsedAlternative(p.Text, $"{p.Marker} {p.Text}")));
+                return;
+            }
+        }
+
+        flags.Notes.Add(text);
+    }
+
+    /// <summary>
+    /// "torskefilet eller annen kokt, hvit fisk": a generic last alternative ("annen ...") continues after the comma. The
+    /// tail then belongs to that alternative instead of the note.
+    /// </summary>
+    private static bool CompleteGenericAlternative(string tail, Flags flags)
+    {
+        if (flags.Alternatives.Count == 0 || tail.Length == 0 || tail.Any(char.IsDigit) || tail.Split(' ').Length > 3)
+        {
+            return false;
+        }
+
+        var last = flags.Alternatives[^1];
+        if (!GenericAlternativeRegex().IsMatch(last.Text) || LeadingAlternativeRegex().IsMatch(tail))
+        {
+            return false;
+        }
+
+        flags.Alternatives[^1] = new ParsedAlternative($"{last.Text} {tail}", $"{last.NoteText}, {tail}");
+        return true;
+    }
+
+    /// <summary>
+    /// Splits "a eller b eller c" at the markers; null when it is not a plain list of alternatives (a part has a digit or
+    /// is long, there are too many). The first part is the primary, unless <paramref name="firstMarker"/> is given, which
+    /// then precedes the first part (all parts are alternatives).
+    /// </summary>
+    private static List<(string Text, string Marker)>? SplitAlternatives(string text, string? firstMarker = null)
+    {
+        var pieces = AlternativeSplitRegex().Split(text);
+
+        // Split with a capture group yields: text, marker, text, marker, text ...
+        if (pieces.Length == 1 && firstMarker is null)
+        {
+            return null;
+        }
+
+        var result = new List<(string, string)>();
+        for (var i = 0; i < pieces.Length; i += 2)
+        {
+            var part = Clean(pieces[i]);
+            var marker = i == 0 ? firstMarker ?? string.Empty : pieces[i - 1];
+            if (part.Length == 0 || !part.Any(char.IsLetter) || part.Any(char.IsDigit) || part.Split(' ').Length > MaxAlternativeWords)
+            {
+                return null;
+            }
+
+            result.Add((part, marker.Trim()));
+        }
+
+        var alternatives = firstMarker is null ? result.Count - 1 : result.Count;
+        return alternatives is < 1 or > MaxAlternatives ? null : result;
     }
 
     /// <summary>Lower-cases nothing; fixes the characters: bullets, unicode fractions, dashes, odd spaces.</summary>
@@ -351,7 +587,7 @@ public static partial class IngredientLineParser
     private static IEnumerable<ParsedIngredientLine> SplitAnd(ParsedIngredientLine line)
     {
         if (line.Kind != ParsedLineKind.Parsed || line.Quantity is not null || line.UnitText is not null || line.Note is not null
-            || line.IngredientText is null || line.IngredientText.Any(char.IsDigit))
+            || line.Alternatives.Count > 0 || line.IngredientText is null || line.IngredientText.Any(char.IsDigit))
         {
             yield return line;
             yield break;

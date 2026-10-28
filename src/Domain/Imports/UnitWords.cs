@@ -28,7 +28,7 @@ public static class UnitWords
         "cl", "oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds", "pint", "pints", "quart", "quarts", "gallon", "gallons",
         "can", "cans", "tin", "tins", "pkg", "package", "packages", "packet", "packets", "bag", "bags", "handful", "handfuls",
         "dash", "dashes", "slice", "slices", "bunch", "bunches", "sprig", "sprigs", "stalk", "stalks", "head", "heads",
-        "stick", "sticks", "jar", "jars", "bottle", "bottles", "drop", "drops", "knob",
+        "stick", "sticks", "jar", "jars", "bottle", "bottles", "drop", "drops", "knob", "potte", "potter", "pot", "pots",
     };
 
     /// <summary>The seeded unit code for a unit word (case-insensitive, a trailing dot ignored), or null.</summary>

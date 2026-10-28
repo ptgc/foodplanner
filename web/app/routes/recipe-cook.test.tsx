@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -30,8 +30,8 @@ const recipe: Recipe = {
     { position: 3, text: "Server" },
   ],
   ingredients: [
-    { ingredientId: "i-torsk", ingredientName: "Torsk", quantity: 400, unitId: "u-g", unitCode: "g", unitName: "gram", note: null },
-    { ingredientId: "i-salt", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak" },
+    { ingredientId: "i-torsk", ingredientName: "Torsk", quantity: 400, unitId: "u-g", unitCode: "g", unitName: "gram", note: null, amountKind: "Measured", purpose: "Main", isOptional: false, alternatives: [] },
+    { ingredientId: "i-salt", ingredientName: "Salt", quantity: null, unitId: null, unitCode: null, unitName: null, note: "etter smak", amountKind: "ToTaste", purpose: "Seasoning", isOptional: false, alternatives: [] },
   ],
 };
 
@@ -222,6 +222,15 @@ describe("Cooking mode: ingredients and servings", () => {
     expect(screen.getByText(/Torsk/).closest("li")).toHaveTextContent("400 g");
     expect(screen.getByRole("heading", { level: 2, name: t("cook.ingredients", { servings: 4 }) })).toBeInTheDocument();
     expect(scaledCalls).toEqual([]);
+  });
+
+  it("shows the prep list grouped by purpose, with the to-taste lines under their own heading", async () => {
+    const user = userEvent.setup();
+    await cooking();
+    await user.click(screen.getByRole("button", { name: t("cook.showIngredients") }));
+    expect(screen.getByRole("heading", { level: 3, name: t("recipe.prep.seasoning") })).toBeInTheDocument();
+    expect(within(screen.getByTestId("prep-seasoning")).getByText(/Salt/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("prep-main")).getByText(/Torsk/)).toBeInTheDocument();
   });
 
   it("asks the API for the new servings and shows what it returns", async () => {

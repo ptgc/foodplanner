@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useI18n } from "../i18n";
 import { ErrorText, RowControls, errorId, fieldProps } from "./form-parts";
 import { IngredientPicker } from "./ingredient-picker";
+import { AmountKindSelect, LineMetaFields } from "./line-kind-fields";
 import { emptyIngredient, fieldId, limits, move, type FieldErrors, type IngredientRow, type UnitDimension } from "./recipe-form";
 import type { Unit } from "./use-catalog";
 
@@ -59,18 +60,15 @@ export function IngredientRows({ householdId, rows, units, errors, onChange }: P
                   <ErrorText name={`${at}.ingredientId`} errors={errors} />
                 </div>
 
-                <label className="check-field">
-                  <input
-                    type="checkbox"
-                    checked={row.toTaste}
-                    onChange={(e) =>
-                      update(index, e.target.checked ? { toTaste: true, quantity: "", unitId: "" } : { toTaste: false })
-                    }
-                  />
-                  <span>{t("recipe.toTaste")}</span>
-                </label>
+                <AmountKindSelect
+                  id={fieldId(`${at}.amountKind`)}
+                  value={row.amountKind}
+                  onChange={(amountKind) =>
+                    update(index, amountKind === "Measured" ? { amountKind } : { amountKind, quantity: "", unitId: "" })
+                  }
+                />
 
-                {!row.toTaste && (
+                {row.amountKind === "Measured" && (
                   <div className="quantity-unit">
                     <div className="form-field">
                       <label htmlFor={fieldId(`${at}.quantity`)}>{t("recipe.quantity")}</label>
@@ -96,6 +94,15 @@ export function IngredientRows({ householdId, rows, units, errors, onChange }: P
                     </div>
                   </div>
                 )}
+
+                <LineMetaFields
+                  householdId={householdId}
+                  at={at}
+                  ingredientId={row.ingredient?.id}
+                  value={row}
+                  errors={errors}
+                  onChange={(patch) => update(index, patch)}
+                />
 
                 <div className="form-field">
                   <label htmlFor={fieldId(`${at}.note`)}>{t("recipe.note")}</label>

@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
-import { ingredientAmount } from "../recipes/ingredient-amount";
+import { PrepList } from "../recipes/prep-list-view";
 import { limits } from "../recipes/recipe-form";
 import { useRecipe, type Recipe } from "../recipes/use-recipe";
 import { useScaledIngredients } from "../recipes/use-scaled-ingredients";
@@ -207,14 +207,7 @@ function Cooking({ householdId, recipe }: { householdId: string; recipe: Recipe 
         </div>
         {scaled.failed && <p role="alert">{t("recipe.scaleFailed")}</p>}
         {scaled.loading && <p role="status">{t("cook.updating")}</p>}
-        <ul className="recipe-ingredients cook-ingredient-list" aria-busy={scaled.loading} hidden={scaled.failed}>
-          {scaled.ingredients.map((item, i) => (
-            <li key={`${item.ingredientId}-${i}`}>
-              <span className="recipe-amount">{ingredientAmount(item, { formatNumber })}</span> {item.ingredientName}
-              {item.note ? ` (${item.note})` : ""}
-            </li>
-          ))}
-        </ul>
+        <PrepList ingredients={scaled.ingredients} busy={scaled.loading} hidden={scaled.failed} className="cook-ingredient-list" />
       </div>
     </section>
   );

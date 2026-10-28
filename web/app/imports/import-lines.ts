@@ -1,3 +1,4 @@
+import type { AmountKind, Purpose } from "../recipes/prep-list";
 import { limits, parseQuantity, type FieldErrors, type IngredientChoice } from "../recipes/recipe-form";
 import type { ImportLine, LineEdit } from "./import-api";
 
@@ -14,10 +15,13 @@ export const confidencePercent = (line: Pick<ImportLine, "confidence">): number 
 /** What the inline editor of one line holds. */
 export type LineDraft = {
   ingredient: IngredientChoice | null;
-  /** As typed ("1,5" and "1.5" both work). Ignored when `toTaste`. */
+  /** As typed ("1,5" and "1.5" both work). Ignored unless `amountKind` is Measured. */
   quantity: string;
   unitId: string;
-  toTaste: boolean;
+  amountKind: AmountKind;
+  purpose: Purpose;
+  isOptional: boolean;
+  alternatives: IngredientChoice[];
   note: string;
 };
 
@@ -28,8 +32,11 @@ export function initialLineDraft(line: ImportLine, format: (value: number) => st
     ingredient: line.ingredientId ? { id: line.ingredientId, name: line.ingredientName ?? "" } : null,
     quantity: quantity === null ? "" : format(quantity),
     unitId: line.unitId ?? "",
-    // No amount and no unit word at all reads as "to taste" (a line that could not be read at all does not).
-    toTaste: line.status !== "Unparsed" && quantity === null && !line.unitText,
+    // The server read the kind from the phrases ("etter smak", "til steking"); a line that could not be read is Measured.
+    amountKind: line.amountKind,
+    purpose: line.purpose,
+    isOptional: line.isOptional,
+    alternatives: line.alternatives.map((a) => ({ id: a.ingredientId, name: a.ingredientName })),
     note: line.note ?? "",
   };
 }
@@ -44,7 +51,8 @@ export function buildLineEdit(position: number, draft: LineDraft): BuiltEdit {
   const errors: FieldErrors = {};
   if (!draft.ingredient) errors.ingredientId = { key: "import.error.lineIngredient" };
   let quantity: number | null = null;
-  if (!draft.toTaste) {
+  const measured = draft.amountKind === "Measured";
+  if (measured) {
     quantity = parseQuantity(draft.quantity);
     if (quantity === null || quantity <= 0 || quantity > limits.quantityMax) {
       errors.quantity = { key: "recipe.error.quantity", params: { max: limits.quantityMax, decimals: limits.quantityDecimals } };
@@ -59,11 +67,15 @@ export function buildLineEdit(position: number, draft: LineDraft): BuiltEdit {
     edit: {
       position,
       ingredientId: draft.ingredient.id,
-      quantity: draft.toTaste ? null : quantity,
-      unitId: draft.toTaste ? null : draft.unitId,
+      quantity: measured ? quantity : null,
+      unitId: measured ? draft.unitId : null,
       // An empty note clears it; null would keep the parsed one.
       note: draft.note.trim(),
-      toTaste: draft.toTaste ? true : null,
+      amountKind: draft.amountKind,
+      purpose: draft.purpose,
+      isOptional: draft.isOptional,
+      alternativeIds: draft.alternatives.map((a) => a.id),
+      toTaste: null,
       remove: null,
     },
   };
@@ -88,11 +100,14 @@ export const removalEdit = (position: number): LineEdit => ({
 export function mapImportErrors(serverErrors: Record<string, string[]>, lineIndex?: number): FieldErrors {
   const out: FieldErrors = {};
   for (const key of Object.keys(serverErrors)) {
-    const line = /^lines\[(\d+)\](?:\.(\w+))?$/.exec(key);
+    const line = /^lines\[(\d+)\](?:\.(\w+)(?:\[\d+\])?)?$/.exec(key);
     if (line) {
       const row = lineIndex ?? Number(line[1]);
       const at = `lines[${row}]`;
       switch (line[2]) {
+        case "alternativeIds":
+          out[`${at}.alternativeIds`] = { key: "recipe.error.alternativeUnknown" };
+          break;
         case "ingredientId":
           out[`${at}.ingredientId`] = { key: "import.error.lineIngredient" };
           break;

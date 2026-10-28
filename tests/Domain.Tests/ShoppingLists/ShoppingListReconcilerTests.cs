@@ -55,13 +55,27 @@ public class ShoppingListReconcilerTests
     }
 
     [Fact]
-    public void To_taste_is_stored_without_an_amount_or_a_unit()
+    public void To_taste_is_stored_in_check_you_have_without_an_amount_or_a_unit()
     {
         var generated = Generate(Meal(R1, Ing(Rice, "Ris", Q(null, "stk"))));
 
         var plan = ShoppingListReconciler.Reconcile([], generated);
 
-        Assert.Equal([new StoredQuantity(null, null)], Assert.Single(plan.Add).Quantities);
+        var item = Assert.Single(plan.Add);
+        Assert.Equal(ShoppingSection.CheckYouHave, item.Section);
+        Assert.Empty(item.Quantities);
+    }
+
+    [Fact]
+    public void An_item_that_becomes_to_taste_moves_to_check_you_have_and_starts_unchecked()
+    {
+        var itemId = Guid.NewGuid();
+        var stored = Stored(itemId, Rice, ShoppingSection.Main, isChecked: true, [new StoredQuantity(200, Guid.NewGuid())], [R1]);
+        var generated = Generate(Meal(R1, Ing(Rice, "Ris", Q(null, "stk"))));
+
+        var plan = ShoppingListReconciler.Reconcile([stored], generated);
+
+        Assert.Equal(ShoppingSection.CheckYouHave, Assert.Single(plan.Update).MoveToSection);
     }
 
     [Fact]

@@ -46,6 +46,10 @@ const line = (patch: Partial<Line>): Line => ({
   note: null,
   status: "UnmatchedIngredient",
   suggestions: [],
+  amountKind: "Measured",
+  purpose: "Main",
+  isOptional: false,
+  alternatives: [],
   ...patch,
 });
 
@@ -65,7 +69,7 @@ const freshDraft = (): Draft => ({
     line({ original: "2 dl melk", status: "Matched", ingredientId: "i-melk", ingredientName: "Melk", quantity: 2, unitId: "u-dl", unitCode: "dl", confidence: 1 }),
     line({ original: "1 bunt snograss", quantity: 1, unitId: "u-stk", unitCode: "stk", suggestions: [{ ingredientId: "i-snog", name: "Snogras", confidence: 0.6 }] }),
     line({ original: "3 boks tomater", status: "UnmatchedUnit", ingredientId: "i-tom", ingredientName: "Tomat", quantity: 3, unitText: "boks", confidence: 0.9 }),
-    line({ original: "salt og vann", quantity: null }),
+    line({ original: "salt og vann", quantity: null, amountKind: "ToTaste", purpose: "Seasoning" }),
   ],
   warnings: [],
   canSave: false,
@@ -128,7 +132,7 @@ beforeEach(() => {
           server.discarded = true;
           return new Response(null, { status: 204 });
         }
-        const body = (await request.json()) as Record<string, unknown> & { lines: { position: number; ingredientId: string | null; quantity: number | null; unitId: string | null; note: string | null; remove: boolean | null }[] | null };
+        const body = (await request.json()) as Record<string, unknown> & { lines: { position: number; ingredientId: string | null; quantity: number | null; unitId: string | null; note: string | null; remove: boolean | null; amountKind?: Line["amountKind"] | null; purpose?: Line["purpose"] | null; isOptional?: boolean | null }[] | null };
         server.puts.push(body);
         const edits = body.lines ?? [];
         if (edits.length > 0 && server.putAnswer) return json(server.putAnswer.body, server.putAnswer.status);
@@ -147,6 +151,9 @@ beforeEach(() => {
               unitCode: unit?.code ?? null,
               unitText: null,
               confidence: 1,
+              amountKind: edit.amountKind ?? (edit.quantity === null ? "ToTaste" : "Measured"),
+              purpose: edit.purpose ?? server.draft.lines[edit.position]!.purpose,
+              isOptional: edit.isOptional ?? server.draft.lines[edit.position]!.isOptional,
               suggestions: [],
             };
           }
@@ -302,6 +309,43 @@ describe("step 1: paste a web address or text", () => {
   });
 });
 
+describe("kind, purpose, optional and alternatives in the review (T-076)", () => {
+  it("shows what was read, lets you change it and sends it", async () => {
+    server.draft.lines = [
+      line({
+        original: "2 ss smør eller olje til steking (kan sløyfes)",
+        status: "Matched",
+        ingredientId: "i-melk",
+        ingredientName: "Melk",
+        amountKind: "AsNeeded",
+        purpose: "Frying",
+        isOptional: true,
+        alternatives: [{ ingredientId: "i-salt", ingredientName: "Salt" }],
+        confidence: 1,
+      }),
+    ];
+    server.draft.canSave = true;
+    const user = userEvent.setup();
+    await review();
+    const card = cards()[0]!;
+    // Summarised: the purpose, "optional" and "or ..." are in the parsed line.
+    expect(card).toHaveTextContent(t(`recipe.purpose.Frying`));
+    expect(card).toHaveTextContent(t("recipe.optionalTag"));
+    expect(card).toHaveTextContent(t("recipe.alternativeOr", { names: "Salt" }));
+
+    await user.click(within(card).getByRole("button", { name: t("import.changeLabel", { n: 1 }) }));
+    expect(within(card).getByLabelText(t("recipe.amountKind"))).toHaveValue("AsNeeded");
+    expect(within(card).getByLabelText(t("recipe.purpose"))).toHaveValue("Frying");
+    await user.selectOptions(within(card).getByLabelText(t("recipe.purpose")), "Serving");
+    await user.click(within(card).getByRole("button", { name: t("recipe.alternativeRemove", { name: "Salt" }) }));
+    await user.click(within(card).getByRole("button", { name: t("import.apply") }));
+    await waitFor(() => expect(server.puts).toHaveLength(1));
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({
+      position: 0, ingredientId: "i-melk", quantity: null, unitId: null, amountKind: "AsNeeded", purpose: "Serving", isOptional: true, alternativeIds: [],
+    });
+  });
+});
+
 describe("step 2: review and fix", () => {
   it("shows the original line of every row and marks unmatched ones with an icon and words", async () => {
     await review();
@@ -342,7 +386,7 @@ describe("step 2: review and fix", () => {
     await user.click(await within(row).findByRole("button", { name: "Salt" }, { timeout: searchDelayMs + 2000 }));
     await user.click(within(row).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(cards()[3]).toHaveAttribute("data-status", "Matched"));
-    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 3, ingredientId: "i-salt", quantity: null, unitId: null, toTaste: true });
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 3, ingredientId: "i-salt", quantity: null, unitId: null, amountKind: "ToTaste" });
   });
 
   it("fixes an unrecognised unit by choosing one", async () => {
@@ -364,10 +408,10 @@ describe("step 2: review and fix", () => {
     const user = userEvent.setup();
     await review();
     const row = cards()[2]!;
-    await user.click(within(row).getByLabelText(t("recipe.toTaste")));
+    await user.selectOptions(within(row).getByLabelText(t("recipe.amountKind")), "ToTaste");
     await user.click(within(row).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(cards()[2]).toHaveAttribute("data-status", "Matched"));
-    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: null, unitId: null, toTaste: true });
+    expect((server.puts[0] as { lines: Record<string, unknown>[] }).lines[0]).toMatchObject({ position: 2, ingredientId: "i-tom", quantity: null, unitId: null, amountKind: "ToTaste" });
   });
 
   it("removes a line", async () => {
@@ -388,7 +432,7 @@ describe("step 2: review and fix", () => {
     await user.click(within(cards()[1]!).getByRole("button", { name: t("import.useSuggestion", { name: "Snogras", percent: 60 }) }));
     await waitFor(() => expect(cards()[1]).toHaveAttribute("data-status", "Matched"));
     expect(saveButton()).toBeDisabled();
-    await user.click(within(cards()[2]!).getByLabelText(t("recipe.toTaste")));
+    await user.selectOptions(within(cards()[2]!).getByLabelText(t("recipe.amountKind")), "ToTaste");
     await user.click(within(cards()[2]!).getByRole("button", { name: t("import.apply") }));
     await waitFor(() => expect(saveButton()).toBeEnabled());
     expect(screen.getByTestId("attention-summary")).toHaveTextContent(t("import.allMatched"));

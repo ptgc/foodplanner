@@ -716,6 +716,8 @@ export interface components {
             /** Format: int32 */
             servings: null | number | string;
         };
+        /** @enum {unknown} */
+        AmountKind: "Measured" | "ToTaste" | "AsNeeded";
         AntiforgeryResponse: {
             token: string;
         };
@@ -825,6 +827,10 @@ export interface components {
             note: null | string;
             status: components["schemas"]["ImportLineStatus"];
             suggestions: components["schemas"]["ImportSuggestionResponse"][];
+            amountKind: components["schemas"]["AmountKind"];
+            purpose: components["schemas"]["IngredientPurpose"];
+            isOptional: boolean;
+            alternatives: components["schemas"]["RecipeAlternativeResponse"][];
         };
         /** @enum {unknown} */
         ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";
@@ -839,6 +845,8 @@ export interface components {
             /** Format: double */
             confidence: number | string;
         };
+        /** @enum {unknown} */
+        IngredientPurpose: "Main" | "Frying" | "Serving" | "Garnish" | "Seasoning";
         IngredientResponse: {
             /** Format: uuid */
             id: string;
@@ -955,6 +963,11 @@ export interface components {
             status: string;
             database: string;
         };
+        RecipeAlternativeResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            ingredientName: string;
+        };
         RecipeImageUrlsResponse: {
             thumbUrl: string;
             cardUrl: string;
@@ -1001,6 +1014,10 @@ export interface components {
             /** Format: uuid */
             unitId: null | string;
             note: null | string;
+            amountKind?: null | string;
+            purpose?: null | string;
+            isOptional?: null | boolean;
+            alternativeIds?: null | string[];
         };
         RecipeIngredientResponse: {
             /** Format: uuid */
@@ -1013,6 +1030,10 @@ export interface components {
             unitCode: null | string;
             unitName: null | string;
             note: null | string;
+            amountKind: components["schemas"]["AmountKind"];
+            purpose: components["schemas"]["IngredientPurpose"];
+            isOptional: boolean;
+            alternatives: components["schemas"]["RecipeAlternativeResponse"][];
         };
         RecipeListResponse: {
             items: components["schemas"]["RecipeSummaryResponse"][];
@@ -1123,6 +1144,7 @@ export interface components {
             /** Format: date-time */
             checkedAt: null | string;
             quantityChangedSinceChecked: boolean;
+            alternatives: components["schemas"]["RecipeAlternativeResponse"][];
         };
         ShoppingListResponse: {
             /** Format: uuid */
@@ -1177,6 +1199,10 @@ export interface components {
             note: null | string;
             remove: null | boolean;
             toTaste?: null | boolean;
+            amountKind?: null | string;
+            purpose?: null | string;
+            isOptional?: null | boolean;
+            alternativeIds?: null | string[];
         };
         UpdateMealPlanEntryRequest: {
             /** Format: date */

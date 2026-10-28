@@ -98,6 +98,74 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         lines = lineEdits ?? [],
     };
 
+    // ---- Amount kind, purpose, optional and alternatives (T-076) -----------------------------------------------------------
+
+    [Fact]
+    public async Task Phrases_set_kind_purpose_optional_and_alternatives_in_the_draft_and_they_survive_the_save()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var import = await CreateTextAsync(owner.Client, household, """
+            Stekt fisk
+            Ingredienser
+            salt og pepper
+            2 ss smør eller rapsolje til steking
+            1 dl revet ost (kan sløyfes)
+            2 dl melk
+            Fremgangsmåte
+            1. Stek fisken.
+            """);
+        var importId = import.GetProperty("id").GetGuid();
+
+        var lines = import.GetProperty("lines").EnumerateArray().ToList();
+        string Kind(int i) => $"{lines[i].GetProperty("amountKind").GetString()}/{lines[i].GetProperty("purpose").GetString()}/{lines[i].GetProperty("isOptional").GetBoolean()}";
+        Assert.Equal("ToTaste/Seasoning/False", Kind(0)); // salt
+        Assert.Equal("ToTaste/Seasoning/False", Kind(1)); // pepper
+        Assert.Equal("Measured/Frying/False", Kind(2));
+        Assert.Equal("Smør", lines[2].GetProperty("ingredientName").GetString());
+        Assert.Equal(["Rapsolje"], lines[2].GetProperty("alternatives").EnumerateArray().Select(a => a.GetProperty("ingredientName").GetString()));
+        Assert.Equal("Measured/Main/True", Kind(3));
+        Assert.Equal("Measured/Main/False", Kind(4));
+        Assert.Equal(JsonValueKind.Null, lines[0].GetProperty("quantity").ValueKind);
+
+        // Pepper is ambiguous in the seed ("pepper"): choose it, and turn the cheese line into "as needed" while keeping the rest.
+        var blackPepper = IngredientSeed.All.Single(r => r.Key == "sort_pepper").Id;
+        using (var edit = await owner.Client.PutAsync(Url(household, "/" + importId), FullDraft(import, [
+            new { position = 1, ingredientId = blackPepper, amountKind = "ToTaste", purpose = "Seasoning", isOptional = true },
+            new { position = 3, ingredientId = IngredientSeed.All.Single(r => r.Key == "ost").Id, amountKind = "AsNeeded", purpose = "Serving" },
+        ])))
+        {
+            Assert.Equal(HttpStatusCode.OK, edit.StatusCode);
+            var edited = (await edit.JsonAsync()).GetProperty("lines").EnumerateArray().ToList();
+            Assert.True(edited[1].GetProperty("isOptional").GetBoolean());
+            Assert.Equal("AsNeeded", edited[3].GetProperty("amountKind").GetString());
+            Assert.Equal(JsonValueKind.Null, edited[3].GetProperty("quantity").ValueKind);
+            Assert.Equal("Matched", edited[3].GetProperty("status").GetString());
+            Assert.True(edited[3].GetProperty("isOptional").GetBoolean()); // an absent isOptional keeps what was read
+        }
+
+        // A bad kind, an amount on an "as needed" line and an unknown alternative are refused.
+        using var badKind = await owner.Client.PutAsync(Url(household, "/" + importId), FullDraft(import, [new { position = 3, ingredientId = blackPepper, amountKind = "Maybe" }]));
+        await AssertValidationAsync(badKind, "lines[0].amountKind");
+        using var amount = await owner.Client.PutAsync(Url(household, "/" + importId), FullDraft(import, [new { position = 3, ingredientId = blackPepper, amountKind = "AsNeeded", quantity = 1m, unitId = Dl }]));
+        await AssertValidationAsync(amount, "lines[0].quantity", "lines[0].unitId");
+        using var unknown = await owner.Client.PutAsync(Url(household, "/" + importId), FullDraft(import, [new { position = 3, ingredientId = blackPepper, alternativeIds = new[] { Guid.NewGuid() } }]));
+        await AssertValidationAsync(unknown, "lines[0].alternativeIds[0]");
+
+        using var saved = await owner.Client.PostAsync(Url(household, $"/{importId}/save"));
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        var recipeId = (await saved.JsonAsync()).GetProperty("recipeId").GetGuid();
+        using var recipeResponse = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
+        var recipe = await recipeResponse.JsonAsync();
+        var saved0 = recipe.GetProperty("ingredients").EnumerateArray().ToList();
+        Assert.Equal(["ToTaste", "ToTaste", "Measured", "AsNeeded", "Measured"], saved0.Select(l => l.GetProperty("amountKind").GetString()));
+        Assert.Equal("Frying", saved0[2].GetProperty("purpose").GetString());
+        Assert.Equal(["Rapsolje"], saved0[2].GetProperty("alternatives").EnumerateArray().Select(a => a.GetProperty("ingredientName").GetString()));
+        Assert.Equal("Serving", saved0[3].GetProperty("purpose").GetString());
+        await AssertNoCrossHouseholdLinksAsync();
+    }
+
     // ---- The flow ---------------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -127,8 +195,10 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         Assert.Equal("dl", lines[0].GetProperty("unitCode").GetString());
         Assert.Equal("2,5 dl hvetemel", lines[0].GetProperty("original").GetString());
         Assert.Equal("stk", lines[2].GetProperty("unitCode").GetString());
-        Assert.Equal(JsonValueKind.Null, lines[5].GetProperty("quantity").ValueKind); // "smør til steking": to taste
-        Assert.Equal("til steking", lines[5].GetProperty("note").GetString());
+        Assert.Equal(JsonValueKind.Null, lines[5].GetProperty("quantity").ValueKind); // "smør til steking": as needed, for frying
+        Assert.Equal("AsNeeded", lines[5].GetProperty("amountKind").GetString());
+        Assert.Equal("Frying", lines[5].GetProperty("purpose").GetString());
+        Assert.Equal(JsonValueKind.Null, lines[5].GetProperty("note").ValueKind); // the phrase is now structure
         Assert.Equal(JsonValueKind.Null, lines[4].GetProperty("ingredientId").ValueKind);
         Assert.Equal("dragefrukt", lines[4].GetProperty("ingredientText").GetString());
 

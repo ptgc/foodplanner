@@ -1,4 +1,5 @@
 using System.Net;
+using Foodplanner.Domain.Catalog;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
@@ -471,6 +472,36 @@ public sealed class MigrationTests(SqlServerFixture server)
         Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'From text'"));
         Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'Typed by hand'"));
         Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT SourceUrl FROM Recipes WHERE Title = N'Odd stored scheme'"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
+    public async Task AddIngredientKindPurposeAlternatives_turns_lines_without_a_quantity_into_ToTaste_and_keeps_the_rest()
+    {
+        var connectionString = await server.CreateDatabaseAsync("amountkind", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261027193834_AddRecipeSource", Ct); // before T-076
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('RecipeIngredients') AND name = 'AmountKind'"));
+        var salt = IngredientSeed.All.Single(r => r.Key == "salt").Id;
+        var flour = IngredientSeed.All.Single(r => r.Key == "hvetemel").Id;
+        var gram = UnitSeed.All.Single(r => r.Code == "g").Id;
+        await ScalarAsync(connectionString, $"""
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Kinds', @now, @now);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'Old recipe', 4, @now, @now);
+            INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, Quantity, UnitId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, 0, '{flour}', 200, '{gram}', @now, @now);
+            INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, Note, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @r, 1, '{salt}', N'etter smak', @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal("Measured", await ScalarAsync(connectionString, "SELECT AmountKind FROM RecipeIngredients WHERE Position = 0"));
+        Assert.Equal("ToTaste", await ScalarAsync(connectionString, "SELECT AmountKind FROM RecipeIngredients WHERE Position = 1"));
+        Assert.Equal(2, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeIngredients WHERE Purpose = 'Main' AND IsOptional = 0"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeIngredientAlternatives"));
         Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
     }
 

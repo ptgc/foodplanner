@@ -1,5 +1,6 @@
 import type { components } from "../api/schema";
 import type { MessageKey, Params } from "../i18n";
+import type { AmountKind, Purpose } from "./prep-list";
 import { safeSourceUrl, sourceUrlMax } from "./source-link";
 
 // Request/response shapes come from the generated client; nothing is hand-written here.
@@ -17,6 +18,7 @@ export const limits = {
   stepsMax: 50,
   stepMax: 2000,
   ingredientsMax: 100,
+  alternativesMax: 5,
   noteMax: 200,
   quantityMax: 100000,
   quantityDecimals: 4,
@@ -34,11 +36,15 @@ export type IngredientRow = {
   /** Stable React key; not sent to the API. */
   key: string;
   ingredient: IngredientChoice | null;
-  /** What was typed ("1,5" and "1.5" both work). Ignored when `toTaste`. */
+  /** What was typed ("1,5" and "1.5" both work). Ignored unless `amountKind` is Measured. */
   quantity: string;
   unitId: string;
-  /** "To taste": no quantity and no unit (the two go together, T-021). */
-  toTaste: boolean;
+  /** Measured has a quantity and a unit; ToTaste and AsNeeded have neither (T-076). */
+  amountKind: AmountKind;
+  purpose: Purpose;
+  isOptional: boolean;
+  /** Other ingredients that can stand in (catalog or own, never free text). */
+  alternatives: IngredientChoice[];
   note: string;
 };
 
@@ -79,7 +85,10 @@ export const emptyIngredient = (): IngredientRow => ({
   ingredient: null,
   quantity: "",
   unitId: "",
-  toTaste: false,
+  amountKind: "Measured",
+  purpose: "Main",
+  isOptional: false,
+  alternatives: [],
   note: "",
 });
 
@@ -155,7 +164,10 @@ export function validate(form: FormState): FieldErrors {
     form.ingredients.forEach((row, i) => {
       const at = `ingredients[${i}]`;
       if (!row.ingredient) errors[`${at}.ingredientId`] = { key: "recipe.error.ingredientRequired" };
-      if (!row.toTaste) {
+      if (row.alternatives.length > limits.alternativesMax) {
+        errors[`${at}.alternativeIds`] = { key: "recipe.error.alternatives", params: { max: limits.alternativesMax } };
+      }
+      if (row.amountKind === "Measured") {
         const quantity = parseQuantity(row.quantity);
         if (quantity === null || quantity <= 0 || quantity > limits.quantityMax) {
           errors[`${at}.quantity`] = {
@@ -209,9 +221,13 @@ export function toRequest(form: FormState): RecipeBody {
     tagIds: form.tagIds,
     ingredients: form.ingredients.map((row) => ({
       ingredientId: row.ingredient?.id ?? null,
-      quantity: row.toTaste ? null : parseQuantity(row.quantity),
-      unitId: row.toTaste ? null : row.unitId,
+      quantity: row.amountKind === "Measured" ? parseQuantity(row.quantity) : null,
+      unitId: row.amountKind === "Measured" ? row.unitId : null,
       note: row.note.trim() === "" ? null : row.note.trim(),
+      amountKind: row.amountKind,
+      purpose: row.purpose,
+      isOptional: row.isOptional,
+      alternativeIds: row.alternatives.map((a) => a.id),
     })),
     steps: form.steps.map((step) => ({ text: step.text.trim() })),
     ...sourceRequest(form),
@@ -234,13 +250,16 @@ export function fromRecipe(recipe: Recipe, decimalComma: boolean): FormState {
     cookMinutes: recipe.cookMinutes === null || recipe.cookMinutes === undefined ? "" : String(Number(recipe.cookMinutes)),
     tagIds: recipe.tags.map((tag) => tag.id),
     ingredients: recipe.ingredients.map((line) => {
-      const toTaste = line.quantity === null || line.quantity === undefined;
+      const measured = line.amountKind === "Measured" && line.quantity !== null && line.quantity !== undefined;
       return {
         key: newKey(),
         ingredient: { id: line.ingredientId, name: line.ingredientName },
-        quantity: toTaste ? "" : quantityText(Number(line.quantity), decimalComma),
+        quantity: measured ? quantityText(Number(line.quantity), decimalComma) : "",
         unitId: line.unitId ?? "",
-        toTaste,
+        amountKind: line.amountKind,
+        purpose: line.purpose,
+        isOptional: line.isOptional,
+        alternatives: line.alternatives.map((a) => ({ id: a.ingredientId, name: a.ingredientName })),
         note: line.note ?? "",
       };
     }),
@@ -279,7 +298,14 @@ export function serverErrorsOf(body: unknown): Record<string, string[]> | undefi
 export function mapServerErrors(serverErrors: Record<string, string[]>, form: FormState): FieldErrors {
   const out: FieldErrors = {};
   for (const key of Object.keys(serverErrors)) {
-    const line = /^ingredients\[(\d+)\]\.(ingredientId|quantity|unitId|note)$/.exec(key);
+    const alternative = /^ingredients\[(\d+)\]\.alternativeIds(\[\d+\])?$/.exec(key);
+    if (alternative) {
+      out[key] = alternative[2]
+        ? { key: "recipe.error.alternativeUnknown" }
+        : { key: "recipe.error.alternatives", params: { max: limits.alternativesMax } };
+      continue;
+    }
+    const line = /^ingredients\[(\d+)\]\.(ingredientId|quantity|unitId|note|amountKind|purpose)$/.exec(key);
     if (line) {
       const row = form.ingredients[Number(line[1])];
       switch (line[2]) {
@@ -291,8 +317,12 @@ export function mapServerErrors(serverErrors: Record<string, string[]>, form: Fo
           break;
         case "unitId":
           out[key] = {
-            key: row?.toTaste ? "recipe.error.unitNotAllowed" : row?.unitId === "" ? "recipe.error.unitRequired" : "recipe.error.unitUnknown",
+            key: row && row.amountKind !== "Measured" ? "recipe.error.unitNotAllowed" : row?.unitId === "" ? "recipe.error.unitRequired" : "recipe.error.unitUnknown",
           };
+          break;
+        case "amountKind":
+        case "purpose":
+          out[key] = { key: "recipe.error.unknown" };
           break;
         default:
           out[key] = { key: "recipe.error.note", params: { max: limits.noteMax } };
