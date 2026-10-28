@@ -444,7 +444,9 @@ public sealed class OwnIngredientTests(AuthDatabase db) : IClassFixture<AuthData
         Assert.Equal(source, (await RecipeAsync(owner.Client, household, recipe)).GetProperty("ingredients")[0].GetProperty("ingredientId").GetGuid());
         Assert.Equal(1, await CountAsync("Ingredients", "Id", source));
         Assert.Equal(1, await CountAsync("PantryItems", "IngredientId", source));
-        Assert.Equal(0, await CountAsync("PantryItems", "IngredientId", Salt));
+        // Salt is a global row shared by every test of the class: look only at this household's pantry.
+        Assert.Equal(0, (int)(await HouseholdScenario.ScalarAsync(
+            db.ConnectionString, "SELECT COUNT(*) FROM PantryItems WHERE IngredientId = @i AND HouseholdId = @h", ("@i", Salt), ("@h", household)))!);
         Assert.Equal(1, await CountAsync("RecipeIngredients", "IngredientId", source));
     }
 
