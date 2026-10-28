@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CACHE_SCHEMA,
   clearShoppingStorage,
   readCachedList,
   readQueue,
@@ -47,6 +48,41 @@ describe("offline cache", () => {
       JSON.stringify([{ itemId: 1 }, { householdId: "h", weekStart: "w", itemId: "i", checked: true }]),
     );
     expect(readQueue()).toHaveLength(1);
+  });
+
+  const key = "foodplanner.shopping.list.h1.2026-10-19";
+  const item = { id: "i", name: "Melk", isManual: false, section: "Main", storeSection: "Dairy", quantities: [], recipes: [], alternatives: [], checked: false };
+
+  it("writes the schema version and reads it back", () => {
+    const withItem = { ...list, main: [item] } as unknown as ShoppingList;
+    writeCachedList("h1", "2026-10-19", withItem, "v1");
+    expect(JSON.parse(window.localStorage.getItem(key)!).schema).toBe(CACHE_SCHEMA);
+    expect(readCachedList("h1", "2026-10-19")?.list.main).toHaveLength(1);
+  });
+
+  it("drops (and deletes) a list saved without a schema, e.g. by a build before T-076/T-085", () => {
+    const old = { id: null, weekStart: "2026-10-19", main: [{ id: "i", name: "Melk", quantities: [], recipes: [], checked: false }], checkYouHave: [] };
+    window.localStorage.setItem(key, JSON.stringify({ version: "v0", list: old, savedAt: "x" }));
+    expect(readCachedList("h1", "2026-10-19")).toBeNull();
+    expect(window.localStorage.getItem(key)).toBeNull();
+  });
+
+  it("drops a list of another schema version, and one whose items have an unexpected shape", () => {
+    window.localStorage.setItem(key, JSON.stringify({ schema: CACHE_SCHEMA - 1, version: null, list: { ...list, main: [item] }, savedAt: "x" }));
+    expect(readCachedList("h1", "2026-10-19")).toBeNull();
+    const broken = { ...item, alternatives: undefined };
+    window.localStorage.setItem(key, JSON.stringify({ schema: CACHE_SCHEMA, version: null, list: { ...list, main: [broken] }, savedAt: "x" }));
+    expect(readCachedList("h1", "2026-10-19")).toBeNull();
+    window.localStorage.setItem(key, JSON.stringify({ schema: CACHE_SCHEMA, version: null, list: { weekStart: "2026-10-19" }, savedAt: "x" }));
+    expect(readCachedList("h1", "2026-10-19")).toBeNull();
+  });
+
+  it("keeps the check-off queue when a saved list is dropped", () => {
+    const op = { householdId: "h1", weekStart: "2026-10-19", itemId: "i", checked: true };
+    writeQueue([op]);
+    window.localStorage.setItem(key, JSON.stringify({ version: "v0", list: { ...list, main: [{ id: "i" }] }, savedAt: "x" }));
+    expect(readCachedList("h1", "2026-10-19")).toBeNull();
+    expect(readQueue()).toEqual([op]);
   });
 
   it("clears cached lists and the queue", () => {

@@ -13,8 +13,10 @@ type Item = components["schemas"]["ShoppingListItemResponse"];
 type Unit = components["schemas"]["UnitResponse"];
 
 export function formatQuantities(item: Item, i18n: Pick<I18n, "t" | "formatNumber">): string {
-  if (item.quantities.length === 0) return "";
-  return item.quantities
+  // Optional arrays are treated as empty when missing (an old or partial payload must not crash the page, T-088).
+  const quantities = item.quantities ?? [];
+  if (quantities.length === 0) return "";
+  return quantities
     .map((q) => {
       if (q.amount === null || q.amount === undefined) return i18n.t("shopping.toTaste");
       // Intl groups and separates by locale: 1.5 in en, 1,5 in nb.
@@ -299,8 +301,8 @@ function ItemRow({
   const nameId = useId();
   const detailId = useId();
   const quantity = formatQuantities(item, i18n);
-  const from = item.recipes.map((r) => r.title).join(", ");
-  const alternatives = item.alternatives.map((a) => a.ingredientName).join(", ");
+  const from = (item.recipes ?? []).map((r) => r.title).join(", ");
+  const alternatives = (item.alternatives ?? []).map((a) => a.ingredientName).join(", ");
   const hasDetail = !!quantity || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual;
   return (
     <li className={`shop-row${item.checked ? " is-checked" : ""}`} data-testid="shop-item">

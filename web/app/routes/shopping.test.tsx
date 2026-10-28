@@ -376,6 +376,31 @@ describe("offline", () => {
     expect(await screen.findByTestId("offline-banner")).toBeInTheDocument();
   });
 
+  it("does not render a list cached by an older app version (no alternatives or storeSection), and keeps the queue", async () => {
+    // Shape written before T-076/T-085: items lack alternatives and storeSection; no schema version.
+    const old = { id: null, weekStart: week, main: [{ id: "melk", name: "Melk", isManual: false, section: "Main", quantities: [], recipes: [], checked: false }], checkYouHave: [] };
+    window.localStorage.setItem(`foodplanner.shopping.list.h1.${week}`, JSON.stringify({ version: "v0", list: old, savedAt: "2026-10-01T00:00:00Z" }));
+    window.localStorage.setItem("foodplanner.shopping.queue", JSON.stringify([{ householdId: "h1", weekStart: week, itemId: "melk", checked: true }]));
+    server.down = true;
+    hubState.defaultState = () => {
+      throw new Error("down");
+    };
+    window.localStorage.setItem("foodplanner.session", JSON.stringify({ user, households: [home] }));
+    renderPage();
+    expect(await screen.findByTestId("offline-banner")).toBeInTheDocument();
+    expect(screen.queryByTestId("shop-item")).toBeNull(); // dropped, not rendered raw and not crashed
+    expect(window.localStorage.getItem(`foodplanner.shopping.list.h1.${week}`)).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem("foodplanner.shopping.queue")!)).toHaveLength(1);
+  });
+
+  it("renders a server item that lacks the optional arrays instead of crashing", async () => {
+    const bare = { id: "melk", name: "Melk", isManual: false, section: "Main", storeSection: "Dairy", checked: false, checkedByUserId: null, checkedByEmail: null, checkedAt: null, quantityChangedSinceChecked: false, ingredientId: null };
+    server.list.main = [bare as unknown as Item];
+    renderPage();
+    await ready();
+    expect(screen.getByRole("checkbox", { name: "Melk" })).toBeInTheDocument();
+  });
+
   it("says so when offline with nothing saved for the week", async () => {
     server.down = true;
     renderPage();

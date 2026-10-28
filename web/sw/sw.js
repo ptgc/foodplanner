@@ -40,6 +40,10 @@ self.addEventListener("activate", (event) => {
       for (const name of await caches.keys()) {
         if (name.startsWith("fp-precache-") && name !== PRECACHE) await caches.delete(name);
       }
+      // Cached API answers (recipes, tags) were written by an older build and may lack fields this build reads
+      // (T-088). They are dropped on every new build and re-cached on the next visit. Images are immutable and stay.
+      // On a first install this deletes nothing.
+      await caches.delete(API_CACHE);
       await self.clients.claim();
     })(),
   );

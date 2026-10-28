@@ -12,9 +12,10 @@ export const storeSectionKey = (section: StoreSection): MessageKey => `storeSect
 export function groupByStoreSection<T extends { storeSection: StoreSection }>(items: T[]): { section: StoreSection; items: T[] }[] {
   const groups: { section: StoreSection; items: T[] }[] = [];
   for (const item of items) {
+    const section = item.storeSection ?? "Other"; // a payload without it (older server/app) falls under Other
     const last = groups[groups.length - 1];
-    if (last && last.section === item.storeSection) last.items.push(item);
-    else groups.push({ section: item.storeSection, items: [item] });
+    if (last && last.section === section) last.items.push(item);
+    else groups.push({ section, items: [item] });
   }
   return groups;
 }
