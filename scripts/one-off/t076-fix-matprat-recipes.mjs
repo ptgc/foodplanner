@@ -95,8 +95,8 @@ function readNote(note) {
     }
     const lead = alternativeLead.exec(fragment);
     if (lead && !/\d/.test(lead[2]) && lead[2].split(/\s+/).length <= 5) {
-      // "eller margarin/olje" is one fragment of the note; it is split on eller/or only. The marker is kept as written.
-      for (const part of lead[2].split(/\s+(?:eller|or)\s+/iu)) alternatives.push({ text: part.trim(), noteText: `${lead[1]} ${part.trim()}` });
+      // "eller margarin/olje" is one fragment of the note; it is split on eller/or and "/". The marker is kept as written.
+      for (const part of lead[2].split(/\s+(?:eller|or)\s+|\s*\/\s*/iu)) alternatives.push({ text: part.trim(), noteText: `${lead[1]} ${part.trim()}` });
       continue;
     }
     kept.push(fragment);
@@ -133,7 +133,7 @@ for (const household of households) {
   const findIngredient = async (text) => {
     const key = text.toLocaleLowerCase("nb");
     if (!names.has(key)) {
-      const { json } = await call("GET", `/api/households/${h}/ingredients?search=${encodeURIComponent(text)}`);
+      const { json } = await call("GET", `/api/households/${h}/ingredients?search=${encodeURIComponent(text)}`, undefined, { "Accept-Language": "nb" }); // names are matched in Norwegian (the note text is Norwegian)
       names.set(key, (json ?? []).find((i) => i.name.toLocaleLowerCase("nb") === key)?.id ?? null);
     }
     return names.get(key);
