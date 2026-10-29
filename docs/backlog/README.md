@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-097 (low-memory verify; T-083 merged locally, waiting for a green verify), then T-092 (weekly groceries), T-093 (pantry with amounts), T-087, T-026, T-089, T-090, T-091, one at a time; backlog: T-077, T-086 and T-094 (stretch), T-001
+## Current focus: T-092 (weekly groceries), then T-093, T-087, T-026, T-089, T-090, T-091, one at a time; planned, not scheduled: T-096; backlog: T-077, T-095, T-086 and T-094 (stretch), T-001
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
