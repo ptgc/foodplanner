@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-093 (pantry with amounts), T-098 (API test memory growth), T-001 (Oda via MCP spike), then T-087, T-026, T-089, T-090, T-091, one at a time; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-086 and T-094 (stretch)
+## Current focus: T-093 (pantry with amounts), T-098 (API test memory growth), T-001 (Oda via MCP spike), then T-087, T-026, T-089, T-090, T-091, one at a time; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-100 (planned), T-086 and T-094 (stretch)
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -125,3 +125,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-097 | verify.sh and e2e use little memory on the developer machine | L3 | T-002, T-003, T-027 | implementer-infra | no |
 | T-098 | Find and fix the memory growth in the API test process | L3 | T-097 | implementer-backend | no |
 | T-099 | Store third-party credentials and tokens encrypted | M4 | T-001, T-016 | implementer-backend | yes |
+| T-100 | What can I make with what we have? (recipe suggestions from the pantry) | M4 | T-093 | implementer-backend | no |
