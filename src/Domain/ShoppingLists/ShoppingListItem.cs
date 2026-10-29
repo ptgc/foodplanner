@@ -64,6 +64,55 @@ public sealed class ShoppingListItem : Entity, ITenantEntity
 
     public byte[] RowVersion { get; private set; } = [];
 
+    /// <summary>
+    /// The household's weekly groceries (T-092) put this ingredient on the list. The weekly part is kept here (amount and unit
+    /// both set, or both null for "no amount") and laid over the plan's quantities whenever the list is generated, so the plan
+    /// reconciliation never drops it. Only a generated item (with an ingredient) can have one.
+    /// </summary>
+    public bool IsWeekly { get; private set; }
+
+    public decimal? WeeklyAmount { get; private set; }
+
+    public Guid? WeeklyUnitId { get; private set; }
+
+    /// <summary>Sets the weekly part (replacing an earlier one). Returns true when something changed.</summary>
+    public bool SetWeekly(decimal? amount, Guid? unitId)
+    {
+        if (IngredientId is null)
+        {
+            throw new InvalidOperationException("A manual item cannot be a weekly grocery.");
+        }
+
+        if ((amount is null) != (unitId is null) || unitId == Guid.Empty || (amount is { } a && !WeeklyGrocery.IsValidAmount(a)))
+        {
+            throw new ArgumentException("Amount and unit go together, and the amount must be valid.", nameof(amount));
+        }
+
+        if (IsWeekly && WeeklyAmount == amount && WeeklyUnitId == unitId)
+        {
+            return false;
+        }
+
+        IsWeekly = true;
+        WeeklyAmount = amount;
+        WeeklyUnitId = unitId;
+        return true;
+    }
+
+    /// <summary>Drops the weekly part (the item may stay when the plan needs it). Returns true when there was one.</summary>
+    public bool ClearWeekly()
+    {
+        if (!IsWeekly)
+        {
+            return false;
+        }
+
+        IsWeekly = false;
+        WeeklyAmount = null;
+        WeeklyUnitId = null;
+        return true;
+    }
+
     /// <summary>Points a generated item at another ingredient (merging two ingredients, T-079). The next regeneration reconciles section and quantities.</summary>
     public void ChangeIngredient(Guid ingredientId)
     {
@@ -88,6 +137,14 @@ public sealed class ShoppingListItem : Entity, ITenantEntity
         }
 
         return new ShoppingListItem(shoppingListId, section, ingredientId, null);
+    }
+
+    /// <summary>An item made by the weekly groceries button: main list, ingredient, weekly part set.</summary>
+    public static ShoppingListItem Weekly(Guid shoppingListId, Guid ingredientId, decimal? amount, Guid? unitId)
+    {
+        var item = Generated(shoppingListId, ingredientId, ShoppingSection.Main);
+        item.SetWeekly(amount, unitId);
+        return item;
     }
 
     public static ShoppingListItem Manual(Guid shoppingListId, string label)

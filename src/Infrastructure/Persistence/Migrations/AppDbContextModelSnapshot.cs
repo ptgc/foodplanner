@@ -3806,6 +3806,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("IngredientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool>("IsWeekly")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Label")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -3830,6 +3833,13 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<decimal?>("WeeklyAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("WeeklyUnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CheckedByUserId");
@@ -3837,6 +3847,8 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("HouseholdId");
 
                     b.HasIndex("IngredientId");
+
+                    b.HasIndex("WeeklyUnitId");
 
                     b.HasIndex("ShoppingListId", "IngredientId")
                         .IsUnique()
@@ -3917,6 +3929,44 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ShoppingListItemSources", (string)null);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.WeeklyGrocery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("HouseholdId", "IngredientId")
+                        .IsUnique();
+
+                    b.ToTable("WeeklyGroceries", (string)null);
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.Tenancy.Household", b =>
@@ -4377,6 +4427,11 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ShoppingListId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("WeeklyUnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingListItemQuantity", b =>
@@ -4418,6 +4473,26 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ShoppingListItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.WeeklyGrocery", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Ingredient", null)
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.Tenancy.Invite", b =>

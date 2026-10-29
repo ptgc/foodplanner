@@ -35,6 +35,8 @@ public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 /// (generated items only). <c>QuantityChangedSinceChecked</c>: checked, then a regeneration changed the quantities.
 /// <c>Alternatives</c> (T-076) are ingredients that can stand in ("or margarin"), from the contributing recipes' lines; shown by
 /// the client as "or ...". A to taste, as needed or optional ingredient is in <c>CheckYouHave</c> with no quantity.
+/// <c>IsWeekly</c> (T-092): the household's weekly groceries put (part of) this item on the list; it can be removed one by
+/// one like a manual item (removing a weekly part leaves what the plan needs).
 /// </summary>
 public sealed record ShoppingListItemResponse(
     Guid Id,
@@ -50,7 +52,8 @@ public sealed record ShoppingListItemResponse(
     string? CheckedByEmail,
     DateTimeOffset? CheckedAt,
     bool QuantityChangedSinceChecked,
-    RecipeAlternativeResponse[] Alternatives);
+    RecipeAlternativeResponse[] Alternatives,
+    bool IsWeekly);
 
 /// <summary><c>Id</c> is null when the week has no list yet (a read never creates one).</summary>
 public sealed record ShoppingListResponse(
@@ -81,6 +84,13 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/generate", Generate)
             .WithName("GenerateShoppingList")
+            .Produces<ShoppingListResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        lists.MapPost("/weekly", AddWeeklyGroceries)
+            .WithName("AddWeeklyGroceriesToShoppingList")
             .Produces<ShoppingListResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -242,6 +252,16 @@ public static class ShoppingListEndpoints
 
         var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
             .ToDictionaryAsync(i => i.Id, cancellationToken);
+
+        // Weekly groceries (T-092): the weekly part of an item is laid over the plan's list, so regenerating keeps it.
+        var units = await db.Units.AsNoTracking().ToListAsync(cancellationToken);
+        var unitsById = units.ToDictionary(u => u.Id);
+        generated = WeeklyGroceries.Overlay(
+            generated,
+            items.Values.Where(i => i.IsWeekly).Select(i => new WeeklyEntry(
+                i.IngredientId!.Value,
+                i.WeeklyAmount is { } amount && i.WeeklyUnitId is { } unitId && unitsById.TryGetValue(unitId, out var unit) ? new Quantity(amount, unit) : null)),
+            new UnitCatalog(units));
         var itemIds = items.Keys.ToList();
         var quantities = (await db.ShoppingListItemQuantities.Where(q => itemIds.Contains(q.ShoppingListItemId))
             .OrderBy(q => q.Position).ToListAsync(cancellationToken)).ToLookup(q => q.ShoppingListItemId);
@@ -414,7 +434,7 @@ public static class ShoppingListEndpoints
     }
 
     private static async Task<IResult> DeleteManualItem(
-        Guid householdId, string weekStart, Guid itemId, AppDbContext db, IShoppingListNotifier notifier,
+        Guid householdId, string weekStart, Guid itemId, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
         ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -427,6 +447,20 @@ public static class ShoppingListEndpoints
         if (item is null)
         {
             return ItemNotFound();
+        }
+
+        if (item.IsWeekly)
+        {
+            // T-092: only the weekly part goes. The list is then regenerated, which removes the item when the plan does not need
+            // it and otherwise leaves the plan's amount.
+            var removed = await RemoveWeeklyPartAsync(db, monday, itemId, time, cancellationToken);
+            if (!removed)
+            {
+                return Conflict();
+            }
+
+            await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.ItemRemoved, itemId), cancellationToken);
+            return Results.NoContent();
         }
 
         if (!item.IsManual)
@@ -455,6 +489,114 @@ public static class ShoppingListEndpoints
 
         await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.ItemRemoved, itemId), cancellationToken);
         return Results.NoContent();
+    }
+
+    // ---- Weekly groceries (T-092) ----------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The "Add weekly groceries" button. Every weekly grocery is made sure to be on the week's list (see
+    /// <see cref="WeeklyGroceries.Plan"/>): missing ones are added, changed amounts replaced, the rest untouched, so pressing
+    /// twice changes nothing and an item the user removed comes back. The list is then regenerated from the plan with the weekly
+    /// parts laid over it (same code as the generate button), in one transaction. An empty set changes nothing.
+    /// </summary>
+    private static async Task<IResult> AddWeeklyGroceries(
+        Guid householdId, string weekStart, RequestLocale locale, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
+        ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var groceries = await db.WeeklyGroceries.AsNoTracking().Select(w => new WeeklyGrocerySpec(w.IngredientId, w.Amount, w.UnitId))
+            .ToListAsync(cancellationToken);
+        var changed = false;
+        if (groceries.Count > 0)
+        {
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                    var list = await FindOrCreateListAsync(db, monday, cancellationToken);
+                    var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
+                        .ToListAsync(cancellationToken);
+                    var plan = WeeklyGroceries.Plan(
+                        groceries, items.Select(i => new WeeklyItemState(i.Id, i.IngredientId!.Value, i.IsWeekly, i.WeeklyAmount, i.WeeklyUnitId)));
+                    if (!plan.IsEmpty)
+                    {
+                        var byId = items.ToDictionary(i => i.Id);
+                        foreach (var update in plan.Update)
+                        {
+                            byId[update.ItemId].SetWeekly(update.Grocery.Amount, update.Grocery.UnitId);
+                        }
+
+                        foreach (var add in plan.Add)
+                        {
+                            db.ShoppingListItems.Add(ShoppingListItem.Weekly(list.Id, add.IngredientId, add.Amount, add.UnitId));
+                        }
+
+                        await db.SaveChangesAsync(cancellationToken);
+                        await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken), cancellationToken);
+                        changed = true;
+                    }
+
+                    await transaction.CommitAsync(cancellationToken);
+                    break;
+                }
+                catch (DbUpdateException) when (attempt < MaxAttempts)
+                {
+                    // Two members pressed at once (unique index) or a row changed: the second pass finds little left to do.
+                    db.ChangeTracker.Clear();
+                }
+                catch (DbUpdateException)
+                {
+                    db.ChangeTracker.Clear();
+                    return Conflict();
+                }
+            }
+        }
+
+        if (changed)
+        {
+            await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
+        }
+
+        return Results.Ok(await ReadAsync(db, monday, locale.Code, cancellationToken));
+    }
+
+    /// <summary>Clears the weekly part of an item and regenerates the week (one transaction). False when it kept failing.</summary>
+    private static async Task<bool> RemoveWeeklyPartAsync(
+        AppDbContext db, DateOnly monday, Guid itemId, TimeProvider time, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= MaxAttempts; attempt++)
+        {
+            try
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var item = await FindItemAsync(db, monday, itemId, cancellationToken);
+                if (item is null)
+                {
+                    return true; // removed by someone else in between: gone either way
+                }
+
+                if (item.ClearWeekly())
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                    await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken), cancellationToken);
+                }
+
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        return false;
     }
 
     // ---- Check-off -------------------------------------------------------------------------------------------------
@@ -643,12 +785,15 @@ public static class ShoppingListEndpoints
                 i.CheckedAt,
                 i.QuantityChangedSinceChecked,
                 [.. alternativeIdsByItem.GetValueOrDefault(i.Id, [])
-                    .Select(id => new RecipeAlternativeResponse(id, ingredientNames.GetValueOrDefault(id, string.Empty)))]))
+                    .Select(id => new RecipeAlternativeResponse(id, ingredientNames.GetValueOrDefault(id, string.Empty)))],
+                i.IsWeekly))
             .ToList();
 
         // Store section first (the fixed walking order, T-085), then name in the request language.
         return [.. StoreSectionOrder.Sort(responses, r => r.StoreSection, r => r.Name, comparer, r => r.Id)];
     }
+
+    internal static StringComparer DisplayComparer(string locale) => locale == Locales.Norwegian ? NorwegianComparer : EnglishComparer;
 
     /// <summary>The request language's ordering (nb-NO or en-US) when the runtime has the culture; ordinal ignoring case when it does not (invariant globalization).</summary>
     private static StringComparer CreateDisplayComparer(string culture)

@@ -31,6 +31,11 @@ internal sealed class ShoppingListItemConfiguration : IEntityTypeConfiguration<S
         item.Property(i => i.Label).HasMaxLength(ShoppingListItem.MaxLabelLength);
         item.Ignore(i => i.IsManual);
 
+        // The weekly groceries' part of the item (T-092): amount and unit (NO ACTION, global catalog data), both null = no amount.
+        item.Property(i => i.WeeklyAmount).HasPrecision(18, 4);
+        item.HasIndex(i => i.WeeklyUnitId);
+        item.HasOne<Unit>().WithMany().HasForeignKey(i => i.WeeklyUnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+
         // Optimistic concurrency of the check-off (see docs/domain.md, T-033).
         item.Property(i => i.RowVersion).IsRowVersion();
 
@@ -71,6 +76,22 @@ internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryI
         pantry.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         pantry.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
         pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+// Weekly groceries (T-092): one row per household and ingredient. Unit and ingredient are NO ACTION (global catalog data).
+internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<WeeklyGrocery>
+{
+    public void Configure(EntityTypeBuilder<WeeklyGrocery> weekly)
+    {
+        weekly.ToTable("WeeklyGroceries");
+        weekly.Property(w => w.Amount).HasPrecision(18, 4);
+        weekly.HasIndex(w => new { w.HouseholdId, w.IngredientId }).IsUnique();
+        weekly.HasIndex(w => w.IngredientId);
+        weekly.HasIndex(w => w.UnitId);
+        weekly.HasOne<Household>().WithMany().HasForeignKey(w => w.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+        weekly.HasOne<Ingredient>().WithMany().HasForeignKey(w => w.IngredientId).OnDelete(DeleteBehavior.Restrict);
+        weekly.HasOne<Unit>().WithMany().HasForeignKey(w => w.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

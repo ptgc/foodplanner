@@ -5,6 +5,7 @@ import type { components } from "../api/schema";
 import { call } from "../household/call";
 import { ConfirmDialog } from "../household/confirm-dialog";
 import { useLoaded } from "../household/use-loaded";
+import { WeeklyGroceries } from "../household/weekly-groceries";
 import { allRoles, inviteLink, invitableRoles, powers, roleKeys, type Role } from "../household/roles";
 import { useI18n, type MessageKey, type Params } from "../i18n";
 import { copyText, shareText } from "../shopping/export";
@@ -80,6 +81,7 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
           </Link>
         </div>
       )}
+      <WeeklyGroceries householdId={household.id} canEdit={can.weekly} />
       {can.export && <Export household={household} onNotice={onNotice} />}
       <Leave household={household} onNotice={onNotice} />
       {can.manage && <Delete household={household} onNotice={onNotice} />}

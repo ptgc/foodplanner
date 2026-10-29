@@ -92,6 +92,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
 
+    /// <summary>The household's regular weekly groceries (T-092).</summary>
+    public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
+
     /// <summary>Recipe import artifacts and drafts (T-042).</summary>
     public DbSet<RecipeImport> RecipeImports => Set<RecipeImport>();
 

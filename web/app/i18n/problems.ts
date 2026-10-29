@@ -43,6 +43,10 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:cannot-remove-self": "household.problem.cannotRemoveSelf",
   "urn:foodplanner:problem:owner-cannot-be-removed": "household.problem.ownerCannotBeRemoved",
   "urn:foodplanner:problem:invite-not-found": "household.problem.inviteNotFound",
+  "urn:foodplanner:problem:weekly-grocery-exists": "household.weekly.problem.exists",
+  "urn:foodplanner:problem:weekly-grocery-limit": "household.weekly.problem.limit",
+  "urn:foodplanner:problem:weekly-grocery-not-found": "household.weekly.problem.notFound",
+  "urn:foodplanner:problem:weekly-grocery-conflict": "household.weekly.problem.conflict",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */

@@ -88,12 +88,18 @@ export async function sweep(options: SweepOptions): Promise<Leftover[]> {
       for (const e of plan.entries.filter((x) => testRecipeIds.has(x.recipeId) || matches(x.recipeTitle))) {
         await remove(`/api/households/${h}/meal-plans/${week}/entries/${e.id}`, { kind: "meal plan entry", name: e.recipeTitle, id: e.id, where: `${where} ${week}` });
       }
-      const list = await json<{ main: { id: string; name: string; isManual: boolean }[]; checkYouHave: { id: string; name: string; isManual: boolean }[] }>(
-        request,
-        `/api/households/${h}/shopping-lists/${week}`,
-      );
-      for (const item of [...list.main, ...list.checkYouHave].filter((x) => x.isManual && matches(x.name))) {
-        await remove(`/api/households/${h}/shopping-lists/${week}/items/${item.id}`, { kind: "manual shopping item", name: item.name, id: item.id, where: `${where} ${week}` });
+      const list = await json<{
+        main: { id: string; name: string; isManual: boolean; isWeekly?: boolean }[];
+        checkYouHave: { id: string; name: string; isManual: boolean; isWeekly?: boolean }[];
+      }>(request, `/api/households/${h}/shopping-lists/${week}`);
+      // Manual items, and items the weekly groceries put on the list (T-092; removing one drops its weekly part).
+      for (const item of [...list.main, ...list.checkYouHave].filter((x) => (x.isManual || x.isWeekly) && matches(x.name))) {
+        await remove(`/api/households/${h}/shopping-lists/${week}/items/${item.id}`, {
+          kind: item.isManual ? "manual shopping item" : "weekly shopping item",
+          name: item.name,
+          id: item.id,
+          where: `${where} ${week}`,
+        });
       }
       // Regenerating drops the generated lines of recipes that left the plan (only when something was removed here).
       if (!dryRun && found.some((f) => f.where.endsWith(week))) {
@@ -116,6 +122,10 @@ export async function sweep(options: SweepOptions): Promise<Leftover[]> {
     const pantry = await json<{ ingredientId: string; name: string }[]>(request, `/api/households/${h}/pantry`);
     for (const p of pantry.filter((x) => matches(x.name))) {
       await remove(`/api/households/${h}/pantry/${p.ingredientId}`, { kind: "pantry entry", name: p.name, id: p.ingredientId, where });
+    }
+    const weeklyGroceries = await json<{ id: string; name: string }[]>(request, `/api/households/${h}/weekly-groceries`);
+    for (const w of weeklyGroceries.filter((x) => matches(x.name))) {
+      await remove(`/api/households/${h}/weekly-groceries/${w.id}`, { kind: "weekly grocery", name: w.name, id: w.id, where });
     }
     const own = await json<{ id: string; name: string }[]>(request, `/api/households/${h}/ingredients/own`);
     for (const i of own.filter((x) => matches(x.name))) {

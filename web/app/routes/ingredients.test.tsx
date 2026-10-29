@@ -13,7 +13,7 @@ type Own = components["schemas"]["OwnIngredientResponse"];
 type Usage = components["schemas"]["IngredientUsageResponse"];
 
 const me = { userId: "11111111-1111-1111-1111-111111111111", email: "owner@example.test" };
-const none: Usage = { recipes: 0, shoppingLists: 0, pantryItems: 0, importDrafts: 0 };
+const none: Usage = { recipes: 0, shoppingLists: 0, pantryItems: 0, importDrafts: 0, weeklyGroceries: 0 };
 const own = (id: string, name: string, usage: Partial<Usage> = {}): Own => ({
   id,
   name,
@@ -116,7 +116,7 @@ describe("ingredients screen", () => {
     await screen.findByText("Tagliatelle");
 
     expect(rows()).toHaveLength(3);
-    expect(rows()[0]).toHaveTextContent(t("ingredients.usage", { recipes: 2, lists: 1, pantry: 0, drafts: 0 }));
+    expect(rows()[0]).toHaveTextContent(t("ingredients.usage", { recipes: 2, lists: 1, pantry: 0, drafts: 0, weekly: 0 }));
     expect(rows()[2]).toHaveTextContent(t("ingredients.unused"));
     await user.type(screen.getByLabelText(t("ingredients.search")), "pepp");
     expect(rows()).toHaveLength(1);
@@ -191,7 +191,7 @@ describe("ingredients screen", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: t("ingredients.deleteConfirm") }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      t("ingredients.inUse", { name: "Torskefilet eller annen kokt", recipes: 2, lists: 1, pantry: 0, drafts: 0 }),
+      t("ingredients.inUse", { name: "Torskefilet eller annen kokt", recipes: 2, lists: 1, pantry: 0, drafts: 0, weekly: 0 }),
     );
     expect(screen.queryByRole("dialog")).toBeNull();
   });
@@ -209,7 +209,7 @@ describe("ingredients screen", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent(
-      t("ingredients.mergeBody", { name: "Torskefilet eller annen kokt", target: "Torsk", recipes: 2, lists: 1, pantry: 0, drafts: 0 }),
+      t("ingredients.mergeBody", { name: "Torskefilet eller annen kokt", target: "Torsk", recipes: 2, lists: 1, pantry: 0, drafts: 0, weekly: 0 }),
     );
     expect(callsTo("POST", /merge$/)).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: t("ingredients.mergeConfirm") }));

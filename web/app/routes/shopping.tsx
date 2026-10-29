@@ -68,6 +68,15 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
     }
   };
 
+  const addWeekly = async () => {
+    setBusy(true);
+    try {
+      report(await model.addWeekly());
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (model.forbidden) {
     return (
       <section className="shop">
@@ -127,6 +136,20 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
       <button type="button" className="button shop-generate" disabled={busy || !model.online} onClick={() => void generate()}>
         {busy ? t("shopping.generating") : t("shopping.generate")}
       </button>
+      <button
+        type="button"
+        className="button shop-weekly"
+        data-testid="add-weekly"
+        disabled={busy || !model.online || !model.weeklyCount}
+        onClick={() => void addWeekly()}
+      >
+        {t("shopping.addWeekly")}
+      </button>
+      {model.weeklyCount === 0 && (
+        <p className="shop-hint" data-testid="weekly-empty-hint">
+          {t("shopping.weeklyEmpty")} <Link to="/household">{t("shopping.weeklyEmptyLink")}</Link>
+        </p>
+      )}
       <ExportBar householdId={householdId} weekStart={weekStart} online={model.online} />
       {message && (
         <p role="alert" className="form-error">
@@ -303,7 +326,7 @@ function ItemRow({
   const quantity = formatQuantities(item, i18n);
   const from = (item.recipes ?? []).map((r) => r.title).join(", ");
   const alternatives = (item.alternatives ?? []).map((a) => a.ingredientName).join(", ");
-  const hasDetail = !!quantity || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual;
+  const hasDetail = !!quantity || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual || item.isWeekly;
   return (
     <li className={`shop-row${item.checked ? " is-checked" : ""}`} data-testid="shop-item">
       {/* The whole label is the touch target (>= 56px); the native checkbox keeps keyboard and screen reader support. */}
@@ -325,6 +348,7 @@ function ItemRow({
               {alternatives && <span data-testid="shop-alternatives">{t("shopping.or", { names: alternatives })}</span>}
               {from && <span>{t("shopping.fromRecipes", { titles: from })}</span>}
               {item.isManual && <span>{t("shopping.manual")}</span>}
+              {item.isWeekly && <span data-testid="shop-weekly-badge">{t("shopping.weekly")}</span>}
               {item.quantityChangedSinceChecked && <span className="shop-changed">{t("shopping.quantityChanged")}</span>}
             </span>
           )}
@@ -341,12 +365,12 @@ function ItemRow({
           {t("shopping.haveIt")}
         </button>
       )}
-      {item.isManual && (
+      {(item.isManual || item.isWeekly) && (
         <button
           type="button"
           className="button shop-remove"
           disabled={!canRemove}
-          aria-label={t("shopping.remove", { name: item.name })}
+          aria-label={t(item.isManual ? "shopping.remove" : "shopping.removeWeekly", { name: item.name })}
           onClick={() => void onRemove(item.id)}
         >
           <span aria-hidden="true">&times;</span>

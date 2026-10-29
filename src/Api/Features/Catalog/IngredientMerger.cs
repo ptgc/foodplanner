@@ -80,6 +80,22 @@ public static class IngredientMerger
             }
         }
 
+        // Weekly groceries (T-092): unique per (household, ingredient), so a clash keeps the target's row (its amount) and drops the source's.
+        var weekly = 0;
+        var sourceWeekly = await db.WeeklyGroceries.FirstOrDefaultAsync(w => w.IngredientId == source.Id, cancellationToken);
+        if (sourceWeekly is not null)
+        {
+            weekly = 1;
+            if (await db.WeeklyGroceries.AnyAsync(w => w.IngredientId == target.Id, cancellationToken))
+            {
+                db.WeeklyGroceries.Remove(sourceWeekly);
+            }
+            else
+            {
+                sourceWeekly.ChangeIngredient(target.Id);
+            }
+        }
+
         // Shopping list items: unique per (list, ingredient) too. Quantities are not copied: the list is regenerated below.
         var sourceItems = await db.ShoppingListItems.Where(i => i.IngredientId == source.Id).ToListAsync(cancellationToken);
         var listIds = sourceItems.Select(i => i.ShoppingListId).Distinct().ToList();
@@ -134,7 +150,7 @@ public static class IngredientMerger
         db.Ingredients.Remove(tracked);
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return new MergeOutcome(new IngredientUsage(recipes, pantry, weeks.Count, drafts), weeks);
+        return new MergeOutcome(new IngredientUsage(recipes, pantry, weeks.Count, drafts, weekly), weeks);
     }
 
     private static Task<List<RecipeImport>> ReadDraftsAsync(AppDbContext db, CancellationToken cancellationToken) =>

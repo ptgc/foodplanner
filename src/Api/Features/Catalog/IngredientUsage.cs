@@ -5,11 +5,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Foodplanner.Api.Features.Catalog;
 
 /// <summary>Counts of where an ingredient is referenced (T-079), for the "in use" answer and the management list.</summary>
-public readonly record struct IngredientUsage(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts)
+public readonly record struct IngredientUsage(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts, int WeeklyGroceries = 0)
 {
-    public bool Any => Recipes + PantryItems + ShoppingLists + ImportDrafts > 0;
+    public bool Any => Recipes + PantryItems + ShoppingLists + ImportDrafts + WeeklyGroceries > 0;
 
-    public IngredientUsageResponse ToResponse() => new(Recipes, PantryItems, ShoppingLists, ImportDrafts);
+    public IngredientUsageResponse ToResponse() => new(Recipes, PantryItems, ShoppingLists, ImportDrafts, WeeklyGroceries);
 
     /// <summary>
     /// Usage of each id, through the tenant-filtered sets (so only this household's references count). Recipes and
@@ -28,6 +28,8 @@ public readonly record struct IngredientUsage(int Recipes, int PantryItems, int 
         var recipes = asLine.Concat(asAlternative).Distinct().GroupBy(x => x.IngredientId).ToDictionary(g => g.Key, g => g.Count());
         var pantry = (await db.PantryItems.AsNoTracking().Select(p => p.IngredientId).ToListAsync(cancellationToken))
             .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+        var weekly = (await db.WeeklyGroceries.AsNoTracking().Select(w => w.IngredientId).ToListAsync(cancellationToken))
+            .GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
         var lists = (await db.ShoppingListItems.AsNoTracking().Where(i => i.IngredientId != null)
             .Select(i => new { IngredientId = i.IngredientId!.Value, i.ShoppingListId }).Distinct().ToListAsync(cancellationToken))
             .GroupBy(x => x.IngredientId).ToDictionary(g => g.Key, g => g.Count());
@@ -45,6 +47,6 @@ public readonly record struct IngredientUsage(int Recipes, int PantryItems, int 
         return ingredientIds.Distinct().ToDictionary(
             id => id,
             id => new IngredientUsage(
-                recipes.GetValueOrDefault(id), pantry.GetValueOrDefault(id), lists.GetValueOrDefault(id), drafts.GetValueOrDefault(id)));
+                recipes.GetValueOrDefault(id), pantry.GetValueOrDefault(id), lists.GetValueOrDefault(id), drafts.GetValueOrDefault(id), weekly.GetValueOrDefault(id)));
     }
 }

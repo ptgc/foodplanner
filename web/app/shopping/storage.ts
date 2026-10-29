@@ -21,7 +21,7 @@ const QUEUE_KEY = "foodplanner.shopping.queue";
  * the page: T-088). A saved list with another version is dropped, never rendered; the fresh fetch replaces it.
  * The check-off queue is deliberately not versioned: its ops are only {household, week, item id, checked}.
  */
-export const CACHE_SCHEMA = 3; // 3: the entry records the language its names are in (T-078)
+export const CACHE_SCHEMA = 4; // 3: the entry records the language its names are in (T-078); 4: items carry isWeekly (T-092)
 
 const cacheKey = (householdId: string, weekStart: string) => `${CACHE_PREFIX}${householdId}.${weekStart}`;
 
@@ -32,6 +32,7 @@ function isItem(v: unknown): boolean {
     typeof i.id === "string" &&
     typeof i.name === "string" &&
     typeof i.checked === "boolean" &&
+    typeof i.isWeekly === "boolean" &&
     typeof i.storeSection === "string" &&
     Array.isArray(i.quantities) &&
     Array.isArray(i.recipes) &&
