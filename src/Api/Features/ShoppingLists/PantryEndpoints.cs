@@ -139,7 +139,8 @@ public static class PantryEndpoints
             catch (DbUpdateException)
             {
                 // Two members saved the same ingredient at once (unique index), or the row changed: the second pass
-                // reads the winner's row and applies this request to it.
+                // reads the winner's row and applies this request to it. A foreign key failure (the unit or the ingredient
+                // was removed meanwhile) also lands here: the retry then ends in the 409 below.
                 db.ChangeTracker.Clear();
             }
         }

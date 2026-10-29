@@ -391,6 +391,57 @@ public sealed class OwnIngredientTests(AuthDatabase db) : IClassFixture<AuthData
         await AssertNoCrossHouseholdLinksAsync();
     }
 
+    /// <summary>T-093 review: the merge rules for pantry amounts (PantryItem.Absorb) through the endpoint, not only in Domain.</summary>
+    [Fact]
+    public async Task Merge_combines_pantry_amounts_by_unit_and_recency()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var kilogram = UnitSeed.All.Single(r => r.Code == "kg").Id;
+        var pantryUrl = $"{Base(household)}/pantry";
+
+        async Task PutAsync(Guid ingredient, object body)
+        {
+            using var response = await owner.Client.PutAsync($"{pantryUrl}/{ingredient}", body);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        // Same unit: the amounts are added.
+        var (sumSource, sumTarget) = (await CreateOwnAsync(owner.Client, household), await CreateOwnAsync(owner.Client, household));
+        await PutAsync(sumTarget, new { quantity = 300, unitId = Gram });
+        await PutAsync(sumSource, new { quantity = 200, unitId = Gram });
+        // Different units: no conversion, the more recently confirmed entry wins (the source is newer here).
+        var (unitSource, unitTarget) = (await CreateOwnAsync(owner.Client, household), await CreateOwnAsync(owner.Client, household));
+        await PutAsync(unitTarget, new { quantity = 200, unitId = Gram });
+        host.Time.Now = host.Time.Now.AddHours(1);
+        await PutAsync(unitSource, new { quantity = 1, unitId = kilogram });
+        // An amount beats "some", whichever is newer.
+        var (someOlder, amountNewer) = (await CreateOwnAsync(owner.Client, household), await CreateOwnAsync(owner.Client, household));
+        await PutAsync(someOlder, new { });
+        host.Time.Now = host.Time.Now.AddHours(1);
+        await PutAsync(amountNewer, new { quantity = 50, unitId = Gram });
+        var (amountOlder, someNewer) = (await CreateOwnAsync(owner.Client, household), await CreateOwnAsync(owner.Client, household));
+        await PutAsync(amountOlder, new { quantity = 100, unitId = Gram });
+        host.Time.Now = host.Time.Now.AddHours(1);
+        await PutAsync(someNewer, new { });
+
+        foreach (var (source, target) in new[] { (sumSource, sumTarget), (unitSource, unitTarget), (someOlder, amountNewer), (someNewer, amountOlder) })
+        {
+            using var merged = await MergeAsync(owner.Client, household, source, target);
+            Assert.Equal(HttpStatusCode.OK, merged.StatusCode);
+        }
+
+        using var response = await owner.Client.GetAsync(pantryUrl);
+        var pantry = (await response.JsonAsync()).EnumerateArray().ToDictionary(p => p.GetProperty("ingredientId").GetGuid());
+        Assert.Equal(4, pantry.Count);
+        Assert.Equal((500m, Gram), (pantry[sumTarget].GetProperty("quantity").GetDecimal(), pantry[sumTarget].GetProperty("unitId").GetGuid()));
+        Assert.Equal((1m, kilogram), (pantry[unitTarget].GetProperty("quantity").GetDecimal(), pantry[unitTarget].GetProperty("unitId").GetGuid()));
+        Assert.Equal((50m, Gram), (pantry[amountNewer].GetProperty("quantity").GetDecimal(), pantry[amountNewer].GetProperty("unitId").GetGuid()));
+        Assert.Equal((100m, Gram), (pantry[amountOlder].GetProperty("quantity").GetDecimal(), pantry[amountOlder].GetProperty("unitId").GetGuid()));
+        await AssertNoCrossHouseholdLinksAsync();
+    }
+
     [Fact]
     public async Task Merge_rewrites_open_import_drafts_and_the_draft_still_saves()
     {
