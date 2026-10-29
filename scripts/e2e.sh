@@ -8,6 +8,10 @@
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
+source ./scripts/_test-mode.sh
+# Playwright runs with --workers=1 unless FP_TEST_PARALLEL=full (T-097; CI sets CI and so runs full). An explicit --workers argument wins.
+pw_args=()
+if [ "$FP_TEST_PARALLEL" = low ]; then pw_args=(--workers=1); fi
 if [[ -z "${E2E_ADMIN_EMAIL:-}" || -z "${E2E_ADMIN_PASSWORD:-}" || -z "${E2E_MEMBER_EMAIL:-}" || -z "${E2E_MEMBER_PASSWORD:-}" ]]; then
   secrets="$(dotnet user-secrets list --project src/Api)"
   E2E_ADMIN_EMAIL="$(printf '%s\n' "$secrets" | sed -n 's/^Seed:AdminEmail[ ]=[ ]//p' | tr -d '\r')"
@@ -20,4 +24,4 @@ fi
 cd tests/e2e
 npm ci
 npx playwright install chromium
-npx playwright test "$@"
+npx playwright test "${pw_args[@]}" "$@"

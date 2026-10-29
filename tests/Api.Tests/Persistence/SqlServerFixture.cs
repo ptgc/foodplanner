@@ -27,7 +27,11 @@ public sealed class SqlServerFixture : IAsyncLifetime
     {
         try
         {
-            _container = new MsSqlBuilder(Image).WithPassword(GenerateSaPassword()).Build();
+            // T-097: without a limit SQL Server takes most of the container engine's memory (the capped WSL VM on a developer machine).
+            _container = new MsSqlBuilder(Image)
+                .WithPassword(GenerateSaPassword())
+                .WithEnvironment("MSSQL_MEMORY_LIMIT_MB", "1536")
+                .Build();
             await _container.StartAsync();
         }
         catch (Exception ex)
