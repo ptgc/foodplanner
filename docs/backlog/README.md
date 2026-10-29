@@ -124,3 +124,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-096 | System admin role for support across households (plan first) | M1 | T-011, T-026 | implementer-backend | yes |
 | T-097 | verify.sh and e2e use little memory on the developer machine | L3 | T-002, T-003, T-027 | implementer-infra | no |
 | T-098 | Find and fix the memory growth in the API test process | L3 | T-097 | implementer-backend | no |
+| T-099 | Store third-party credentials and tokens encrypted | M4 | T-001, T-016 | implementer-backend | yes |
