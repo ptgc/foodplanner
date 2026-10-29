@@ -62,7 +62,7 @@ test("weekly groceries are configured on the household page and put on the list 
     await expect(card.getByRole("heading", { name: "Weekly groceries", level: 2 })).toBeVisible();
     await expect(card.getByTestId("weekly-empty")).toBeVisible();
     const add = async (name: string, amount?: { quantity: string; unit: string }) => {
-      await card.getByLabel("Ingredient").fill(name);
+      await card.getByLabel("Ingredient", { exact: true }).fill(name);
       await card.getByRole("button", { name }).click();
       await expect(card.getByText(`Chosen: ${name}`)).toBeVisible();
       if (amount) {
