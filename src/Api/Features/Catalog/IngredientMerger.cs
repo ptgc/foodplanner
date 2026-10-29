@@ -141,8 +141,8 @@ public static class IngredientMerger
         // Regenerate the affected lists from the plan (the recipe lines moved above are already saved).
         foreach (var week in weeks)
         {
-            var generated = await ShoppingListEndpoints.GenerateFromPlanAsync(db, week, now, cancellationToken);
-            await ShoppingListEndpoints.ApplyAsync(db, week, generated, cancellationToken);
+            var generated = await ShoppingListEndpoints.GenerateFromPlanAsync(db, week, cancellationToken);
+            await ShoppingListEndpoints.ApplyAsync(db, week, generated, now, cancellationToken);
         }
 
         var recipes = lines.Select(l => l.RecipeId).Concat(alternativeLines.Select(l => l.RecipeId)).Distinct().Count();

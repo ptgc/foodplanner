@@ -302,6 +302,7 @@ body {
 }
 
 .shop-row {
+  flex-wrap: wrap;
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid #d0d0d8;
@@ -375,6 +376,31 @@ body {
   min-height: var(--touch);
   min-width: var(--touch);
   margin-left: 0.5rem;
+}
+
+.shop-at-home {
+  color: #1f5c2e;
+  font-weight: 600;
+}
+
+/* "We have this": the amount form opens under the row (T-093). */
+.shop-have-form {
+  flex: 1 1 100%;
+  padding: 0.5rem 0 0.75rem;
+}
+
+.shop-have-form select {
+  min-height: var(--touch);
+  font: inherit;
+}
+
+.shop-have-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.shop-pantry-link {
+  margin: 0.5rem 0 1rem;
 }
 
 .shop-pantry {

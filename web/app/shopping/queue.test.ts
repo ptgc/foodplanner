@@ -25,6 +25,7 @@ const item = (id: string, checked = false) => ({
   quantityChangedSinceChecked: false,
   alternatives: [],
   isWeekly: false,
+  atHome: null,
 });
 
 const list = (): ShoppingList => ({

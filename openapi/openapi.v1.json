@@ -3769,6 +3769,14 @@
         "operationId": "ListPantry",
         "parameters": [
           {
+            "name": "includeExpired",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "householdId",
             "in": "path",
             "required": true,
@@ -3791,6 +3799,48 @@
                 }
               }
             }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "PantryEndpoints"
+        ],
+        "operationId": "ClearPantry",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           },
           "403": {
             "description": "Forbidden",
@@ -4705,6 +4755,22 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -5525,7 +5591,12 @@
           "name",
           "confirmedAt",
           "confirmedByUserId",
-          "expiresAt"
+          "expiresAt",
+          "quantity",
+          "unitId",
+          "unitCode",
+          "unitName",
+          "isExpired"
         ],
         "type": "object",
         "properties": {
@@ -5550,6 +5621,37 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "quantity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "unitId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "unitCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "unitName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isExpired": {
+            "type": "boolean"
           }
         }
       },
@@ -6374,6 +6476,24 @@
           }
         }
       },
+      "ShoppingAtHomeResponse": {
+        "required": [
+          "quantity"
+        ],
+        "type": "object",
+        "properties": {
+          "quantity": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ShoppingQuantityResponse"
+              }
+            ]
+          }
+        }
+      },
       "ShoppingListExportResponse": {
         "required": [
           "format",
@@ -6419,7 +6539,8 @@
           "checkedAt",
           "quantityChangedSinceChecked",
           "alternatives",
-          "isWeekly"
+          "isWeekly",
+          "atHome"
         ],
         "type": "object",
         "properties": {
@@ -6492,6 +6613,16 @@
           },
           "isWeekly": {
             "type": "boolean"
+          },
+          "atHome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ShoppingAtHomeResponse"
+              }
+            ]
           }
         }
       },

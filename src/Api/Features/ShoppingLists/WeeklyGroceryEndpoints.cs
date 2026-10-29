@@ -175,8 +175,8 @@ public static class WeeklyGroceryEndpoints
             return AppProblems.Problem(
                 StatusCodes.Status409Conflict,
                 AppProblems.WeeklyGroceryConflict,
-                "Weekly groceries changed",
-                "The weekly groceries were changed by someone else at the same time. Reload and try again.");
+                "Weekly grocery could not be saved",
+                "The unit or ingredient of this weekly grocery was removed while saving. Reload and try again.");
         }
 
         return Results.Ok((await ToResponsesAsync(db, [grocery], locale.Code, cancellationToken)).Single());

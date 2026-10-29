@@ -3720,6 +3720,10 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
                     b.Property<DateTimeOffset>("ConfirmedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -3739,6 +3743,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("IngredientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -3747,6 +3754,8 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasIndex("ConfirmedByUserId");
 
                     b.HasIndex("IngredientId");
+
+                    b.HasIndex("UnitId");
 
                     b.HasIndex("HouseholdId", "IngredientId")
                         .IsUnique();
@@ -3787,6 +3796,13 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("AtHomeAmount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("AtHomeUnitId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("Checked")
                         .HasColumnType("bit");
 
@@ -3805,6 +3821,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("IngredientId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsAtHome")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsWeekly")
                         .HasColumnType("bit");
@@ -3841,6 +3860,8 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AtHomeUnitId");
 
                     b.HasIndex("CheckedByUserId");
 
@@ -4393,6 +4414,11 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasForeignKey("IngredientId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingList", b =>
@@ -4406,6 +4432,11 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingListItem", b =>
                 {
+                    b.HasOne("Foodplanner.Domain.Catalog.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("AtHomeUnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("CheckedByUserId")

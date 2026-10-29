@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Foodplanner.Api.Features.Catalog;
 
 /// <summary>Counts of where an ingredient is referenced (T-079), for the "in use" answer and the management list.</summary>
-public readonly record struct IngredientUsage(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts, int WeeklyGroceries = 0)
+public readonly record struct IngredientUsage(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts, int WeeklyGroceries)
 {
     public bool Any => Recipes + PantryItems + ShoppingLists + ImportDrafts + WeeklyGroceries > 0;
 

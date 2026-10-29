@@ -60,7 +60,7 @@ describe("offline cache", () => {
   });
 
   const key = "foodplanner.shopping.list.h1.2026-10-19";
-  const item = { id: "i", name: "Melk", isManual: false, section: "Main", storeSection: "Dairy", quantities: [], recipes: [], alternatives: [], checked: false, isWeekly: false };
+  const item = { id: "i", name: "Melk", isManual: false, section: "Main", storeSection: "Dairy", quantities: [], recipes: [], alternatives: [], checked: false, isWeekly: false, atHome: null };
 
   it("writes the schema version and reads it back", () => {
     const withItem = { ...list, main: [item] } as unknown as ShoppingList;

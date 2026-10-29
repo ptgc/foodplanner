@@ -29,6 +29,12 @@ public sealed record ShoppingQuantityResponse(decimal? Amount, string? UnitCode,
 public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 
 /// <summary>
+/// What the pantry held when the list was generated (T-093). <c>Quantity</c> null = "we have some", no amount known. On a main
+/// item the item's <c>Quantities</c> are what is left to buy; in <c>CheckYouHave</c> they are what the plan needs.
+/// </summary>
+public sealed record ShoppingAtHomeResponse(ShoppingQuantityResponse? Quantity);
+
+/// <summary>
 /// <c>Section</c> is the part of the list (to buy or check you have); <c>StoreSection</c> (T-085) is the store section of the
 /// ingredient (Other for a manual item) that the list is grouped and sorted by. <c>Name</c> is the ingredient's name, or the label of a manual item. <c>Quantities</c> are display quantities (a
 /// mass line and a volume line of one ingredient stay separate). <c>Recipes</c> are the recipes that contribute
@@ -36,7 +42,8 @@ public sealed record ShoppingRecipeResponse(Guid Id, string Title);
 /// <c>Alternatives</c> (T-076) are ingredients that can stand in ("or margarin"), from the contributing recipes' lines; shown by
 /// the client as "or ...". A to taste, as needed or optional ingredient is in <c>CheckYouHave</c> with no quantity.
 /// <c>IsWeekly</c> (T-092): the household's weekly groceries put (part of) this item on the list; it can be removed one by
-/// one like a manual item (removing a weekly part leaves what the plan needs).
+/// one like a manual item (removing a weekly part leaves what the plan needs). <c>AtHome</c> (T-093): the pantry has some of it; null
+/// when it does not.
 /// </summary>
 public sealed record ShoppingListItemResponse(
     Guid Id,
@@ -53,7 +60,8 @@ public sealed record ShoppingListItemResponse(
     DateTimeOffset? CheckedAt,
     bool QuantityChangedSinceChecked,
     RecipeAlternativeResponse[] Alternatives,
-    bool IsWeekly);
+    bool IsWeekly,
+    ShoppingAtHomeResponse? AtHome);
 
 /// <summary><c>Id</c> is null when the week has no list yet (a read never creates one).</summary>
 public sealed record ShoppingListResponse(
@@ -148,7 +156,8 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var generated = await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken);
+        var generated = await GenerateFromPlanAsync(db, monday, cancellationToken);
+        var now = time.GetUtcNow();
 
         // Two members may regenerate at once, or someone may check an item while we flag it. Both surface as a
         // DbUpdateException (unique index, or a stale row version); the second pass reads the winner's rows and finds
@@ -157,7 +166,7 @@ public static class ShoppingListEndpoints
         {
             try
             {
-                await ApplyAsync(db, monday, generated, cancellationToken);
+                await ApplyAsync(db, monday, generated, now, cancellationToken);
                 break;
             }
             catch (DbUpdateException) when (attempt < MaxAttempts)
@@ -181,7 +190,7 @@ public static class ShoppingListEndpoints
     /// sets: a recipe, an ingredient or a line of another household cannot appear. A "to taste" line has no unit in the
     /// recipe; the generator needs one, so it gets <c>stk</c>, which is dropped again when stored.
     /// </summary>
-    internal static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
+    internal static async Task<GeneratedList> GenerateFromPlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
     {
         var units = await db.Units.AsNoTracking().ToListAsync(cancellationToken);
         var catalog = new UnitCatalog(units);
@@ -239,14 +248,13 @@ public static class ShoppingListEndpoints
             meals.Add(new PlannedMeal(entry.RecipeId, recipeServings, entry.Servings, planned));
         }
 
-        // The pantry (T-037): confirmed, unexpired staples are not prompted again. Pure filter after the pure generator.
-        var pantry = await db.PantryItems.AsNoTracking().Select(p => new { p.IngredientId, p.ExpiresAt }).ToListAsync(cancellationToken);
-        return PantryFilter.Apply(
-            ShoppingListGenerator.Generate(meals, catalog), pantry.Select(p => new PantryEntry(p.IngredientId, p.ExpiresAt)), now);
+        // The pantry (T-037, T-093) is subtracted in ApplyAsync, after the weekly groceries are laid over this list.
+        return ShoppingListGenerator.Generate(meals, catalog);
     }
 
     /// <summary>One attempt: find or create the list, reconcile its generated items with <paramref name="generated"/>, save once.</summary>
-    internal static async Task ApplyAsync(AppDbContext db, DateOnly monday, GeneratedList generated, CancellationToken cancellationToken)
+    internal static async Task ApplyAsync(
+        AppDbContext db, DateOnly monday, GeneratedList generated, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var list = await FindOrCreateListAsync(db, monday, cancellationToken);
 
@@ -262,6 +270,18 @@ public static class ShoppingListEndpoints
                 i.IngredientId!.Value,
                 i.WeeklyAmount is { } amount && i.WeeklyUnitId is { } unitId && unitsById.TryGetValue(unitId, out var unit) ? new Quantity(amount, unit) : null)),
             new UnitCatalog(units));
+
+        // The pantry (T-037, T-093): what the household has is subtracted from the whole need (plan plus weekly part). Pure filter.
+        var pantry = await db.PantryItems.AsNoTracking().Select(p => new { p.IngredientId, p.ExpiresAt, p.Amount, p.UnitId })
+            .ToListAsync(cancellationToken);
+        generated = PantryFilter.Apply(
+            generated,
+            pantry.Select(p => new PantryEntry(
+                p.IngredientId,
+                p.ExpiresAt,
+                p.Amount is { } have && p.UnitId is { } haveUnit && unitsById.TryGetValue(haveUnit, out var pantryUnit) ? new Quantity(have, pantryUnit) : null)),
+            now,
+            new UnitCatalog(units));
         var itemIds = items.Keys.ToList();
         var quantities = (await db.ShoppingListItemQuantities.Where(q => itemIds.Contains(q.ShoppingListItemId))
             .OrderBy(q => q.Position).ToListAsync(cancellationToken)).ToLookup(q => q.ShoppingListItemId);
@@ -274,7 +294,8 @@ public static class ShoppingListEndpoints
             i.Section,
             i.Checked,
             [.. quantities[i.Id].Select(q => new StoredQuantity(q.Amount, q.UnitId))],
-            [.. sources[i.Id].Select(s => s.RecipeId)])).ToList();
+            [.. sources[i.Id].Select(s => s.RecipeId)],
+            i.AtHome)).ToList();
         var plan = ShoppingListReconciler.Reconcile(existing, generated);
 
         foreach (var add in plan.Add)
@@ -283,6 +304,7 @@ public static class ShoppingListEndpoints
             db.ShoppingListItems.Add(item);
             AddQuantities(db, item.Id, add.Quantities);
             AddSources(db, item.Id, add.RecipeIds);
+            item.SetAtHome(add.AtHome);
         }
 
         foreach (var update in plan.Update)
@@ -307,6 +329,11 @@ public static class ShoppingListEndpoints
             {
                 db.ShoppingListItemSources.RemoveRange(sources[item.Id]);
                 AddSources(db, item.Id, newRecipes);
+            }
+
+            if (update.AtHome is { } atHome)
+            {
+                item.SetAtHome(atHome.Value);
             }
         }
 
@@ -538,7 +565,7 @@ public static class ShoppingListEndpoints
                         }
 
                         await db.SaveChangesAsync(cancellationToken);
-                        await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken), cancellationToken);
+                        await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, cancellationToken), time.GetUtcNow(), cancellationToken);
                         changed = true;
                     }
 
@@ -584,7 +611,7 @@ public static class ShoppingListEndpoints
                 if (item.ClearWeekly())
                 {
                     await db.SaveChangesAsync(cancellationToken);
-                    await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken), cancellationToken);
+                    await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, cancellationToken), time.GetUtcNow(), cancellationToken);
                 }
 
                 await transaction.CommitAsync(cancellationToken);
@@ -786,7 +813,13 @@ public static class ShoppingListEndpoints
                 i.QuantityChangedSinceChecked,
                 [.. alternativeIdsByItem.GetValueOrDefault(i.Id, [])
                     .Select(id => new RecipeAlternativeResponse(id, ingredientNames.GetValueOrDefault(id, string.Empty)))],
-                i.IsWeekly))
+                i.IsWeekly,
+                i.IsAtHome
+                    ? new ShoppingAtHomeResponse(i.AtHomeAmount is { } homeAmount
+                        ? new ShoppingQuantityResponse(
+                            homeAmount, i.AtHomeUnitId is { } hu ? units.GetValueOrDefault(hu).Code : null, i.AtHomeUnitId is { } hn ? units.GetValueOrDefault(hn).Name : null)
+                        : null)
+                    : null))
             .ToList();
 
         // Store section first (the fixed walking order, T-085), then name in the request language.

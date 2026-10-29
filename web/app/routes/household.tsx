@@ -82,6 +82,13 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
         </div>
       )}
       <WeeklyGroceries householdId={household.id} canEdit={can.weekly} />
+      <div className="household-card" data-testid="household-pantry">
+        <h2>{t("household.pantry.title")}</h2>
+        <p>{t("household.pantry.body")}</p>
+        <Link className="button button-outline" to="/pantry">
+          {t("household.pantry.link")}
+        </Link>
+      </div>
       {can.export && <Export household={household} onNotice={onNotice} />}
       <Leave household={household} onNotice={onNotice} />
       {can.manage && <Delete household={household} onNotice={onNotice} />}
