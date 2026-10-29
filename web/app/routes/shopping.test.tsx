@@ -88,6 +88,7 @@ const item = (id: string, name: string, over: Partial<Item> = {}): Item => ({
   checkedAt: null,
   quantityChangedSinceChecked: false,
   alternatives: [],
+  isWeekly: false,
   ...over,
 });
 
@@ -129,6 +130,9 @@ type Server = {
   /** Export requests the page made: path + query + Accept-Language. */
   exports: string[];
   exportStatus: number;
+  /** How many weekly groceries the household has (T-092) and how many times the button posted. */
+  weekly: number;
+  weeklyPosts: number;
 };
 let server: Server;
 
@@ -148,6 +152,15 @@ function installFetch() {
         return server.exportStatus === 200
           ? json({ format: "text", title: "Shopping list, week 44", text: "- Melk 1.5 l\n- Kaffe", url: null })
           : json({ title: "x", status: server.exportStatus }, server.exportStatus);
+      }
+      if (path.endsWith("/weekly-groceries")) return json(Array.from({ length: server.weekly }, (_, i) => ({ id: `w${i}`, name: `Vare ${i}` })));
+      if (path.endsWith(`/shopping-lists/${week}/weekly`) && request.method === "POST") {
+        server.weeklyPosts += 1;
+        server.list = {
+          ...server.list,
+          main: [...server.list.main, item("brodW", "Brød", { isWeekly: true, ingredientId: "ing-brodW", storeSection: "DryGoods" })],
+        };
+        return json(server.list);
       }
       const pantryPath = path.match(/\/pantry(?:\/([^/]+))?$/);
       if (pantryPath) {
@@ -206,7 +219,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], exports: [], exportStatus: 200 };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0 };
   installFetch();
 });
 afterEach(() => {
@@ -592,5 +605,43 @@ describe("export (share and copy)", () => {
     expect(button("shopping.share")).toBeDisabled();
     expect(button("shopping.copy")).toBeDisabled();
     expect(screen.getByText(t("shopping.exportNeedsOnline"))).toBeInTheDocument();
+  });
+});
+
+describe("weekly groceries (T-092)", () => {
+  it("adds the weekly groceries with one tap and shows them marked as weekly, with a remove button", async () => {
+    renderPage();
+    await ready();
+    const add = await screen.findByRole("button", { name: t("shopping.addWeekly") });
+    await waitFor(() => expect(add).toBeEnabled());
+
+    await userEvent.click(add);
+
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    await within(main).findByText("Brød");
+    expect(server.weeklyPosts).toBe(1);
+    expect(within(main).getByTestId("shop-weekly-badge")).toHaveTextContent(t("shopping.weekly"));
+    expect(within(main).getByRole("button", { name: t("shopping.removeWeekly", { name: "Brød" }) })).toBeInTheDocument();
+  });
+
+  it("is disabled with a hint and a link to the household page when the household has no weekly groceries", async () => {
+    server.weekly = 0;
+    renderPage();
+    await ready();
+
+    expect(await screen.findByTestId("weekly-empty-hint")).toHaveTextContent(t("shopping.weeklyEmpty"));
+    expect(screen.getByRole("link", { name: t("shopping.weeklyEmptyLink") })).toHaveAttribute("href", "/household");
+    expect(screen.getByRole("button", { name: t("shopping.addWeekly") })).toBeDisabled();
+    expect(server.weeklyPosts).toBe(0);
+  });
+
+  it("is disabled while offline", async () => {
+    renderPage();
+    await ready();
+    server.down = true;
+    await userEvent.click(screen.getByRole("checkbox", { name: "Melk" }));
+    await screen.findByTestId("offline-banner");
+
+    expect(screen.getByRole("button", { name: t("shopping.addWeekly") })).toBeDisabled();
   });
 });

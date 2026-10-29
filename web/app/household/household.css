@@ -215,3 +215,14 @@
   min-height: var(--touch);
   font: inherit;
 }
+
+/* Weekly groceries (T-092) */
+.household-weekly-add,
+.household-weekly-edit {
+  flex: 1 1 100%;
+  margin-top: 0.75rem;
+}
+
+.household-weekly-add h3 {
+  margin-bottom: 0.5rem;
+}

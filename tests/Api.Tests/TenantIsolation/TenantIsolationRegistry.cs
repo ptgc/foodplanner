@@ -159,6 +159,16 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(p => p.ExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddYears(1)),
 
+        // Weekly groceries (T-092): unique per (household, ingredient), so the factory seeds its own household ingredient each time.
+        TenantIsolationCase.For<WeeklyGrocery>(
+            async (env, household) =>
+            {
+                var ingredient = new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: false, UnitDimension.Volume);
+                await env.SaveAsync(household, ingredient);
+                return new WeeklyGrocery(ingredient.Id, 1m, UnitSeed.All[0].Id);
+            },
+            entry => entry.Property(w => w.Amount).CurrentValue = 2m),
+
         // Recipe import artifact (T-042): one table, the draft is JSON (no foreign keys to ingredients or units); the creating user is global identity data.
         TenantIsolationCase.For<RecipeImport>(
             async (env, _) => new RecipeImport(ImportSource.Text, null, "2 dl melk", "{}", await env.NewUserAsync()),

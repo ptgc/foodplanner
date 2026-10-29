@@ -17,6 +17,7 @@ export function powers(role: Role) {
   return {
     manage: role === "Owner", // members, roles, invitations, delete
     export: role === "Owner" || role === "Adult",
+    weekly: role === "Owner" || role === "Adult", // change the weekly groceries (T-092); everyone reads them
     ingredients: role === "Owner" || role === "Adult", // rename, merge, delete own ingredients (T-079)
   };
 }

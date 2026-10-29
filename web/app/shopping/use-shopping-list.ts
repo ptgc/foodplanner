@@ -49,6 +49,10 @@ export type ShoppingListModel = {
   confirmStaple: (ingredientId: string) => Promise<ActionResult>;
   /** Un-confirm a staple and regenerate so it is prompted again. */
   unconfirmStaple: (ingredientId: string) => Promise<ActionResult>;
+  /** How many weekly groceries the household has; null until known (offline, or not read yet). */
+  weeklyCount: number | null;
+  /** "Add weekly groceries" (T-092): puts the household's weekly set on this week's list. Safe to press again. */
+  addWeekly: () => Promise<ActionResult>;
 };
 
 type Options = { hubFactory?: () => HubLike; restartMs?: number };
@@ -298,6 +302,24 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     };
   }, [readPantry, server]);
 
+  // The size of the weekly set decides whether the "add weekly groceries" button works (T-092). Re-read with every accepted
+  // state, so a change on the household page shows when the user comes back.
+  const [weeklyCount, setWeeklyCount] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data } = await api.GET("/api/households/{householdId}/weekly-groceries", { params: { path: { householdId } } });
+        if (!cancelled && data) setWeeklyCount(data.length);
+      } catch {
+        // offline: keep what we have
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [householdId, server]);
+
   // A list asked in the other language is not shown (T-078): after a switch the page waits for the list in the new one.
   const current = server && server.week === weekStart && server.locale === locale ? server : null;
   // Derived, not stored: the saved copy (in this language) stands in until the server answers for this week.
@@ -343,6 +365,17 @@ export function useShoppingList(householdId: string, weekStart: string, options:
         return response;
       }),
     [base, householdId, mutate, weekStart],
+  );
+
+  const addWeekly = useCallback(
+    () =>
+      mutate(async () => {
+        const { response } = await api.POST("/api/households/{householdId}/shopping-lists/{weekStart}/weekly", {
+          params: { path: { householdId, weekStart } },
+        });
+        return response;
+      }),
+    [householdId, mutate, weekStart],
   );
 
   const addItem = useCallback(
@@ -418,5 +451,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     pantry,
     confirmStaple,
     unconfirmStaple,
+    weeklyCount,
+    addWeekly,
   };
 }

@@ -18,7 +18,7 @@ public sealed record RenameIngredientRequest(string? Name, string? Section = nul
 public sealed record MergeIngredientRequest(Guid? TargetIngredientId);
 
 /// <summary>Where an ingredient is used: distinct recipes (as a line's ingredient or as one of its alternatives, T-076), pantry rows (0 or 1), shopping lists (weeks) and open import drafts.</summary>
-public sealed record IngredientUsageResponse(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts);
+public sealed record IngredientUsageResponse(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts, int WeeklyGroceries);
 
 public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, StoreSection Section, IngredientUsageResponse Usage);
 
@@ -40,6 +40,7 @@ public static class IngredientReferences
         (typeof(Foodplanner.Domain.ShoppingLists.ShoppingListItem), nameof(Foodplanner.Domain.ShoppingLists.ShoppingListItem.IngredientId)),
         (typeof(Foodplanner.Domain.ShoppingLists.PantryItem), nameof(Foodplanner.Domain.ShoppingLists.PantryItem.IngredientId)),
         (typeof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative), nameof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative.IngredientId)),
+        (typeof(Foodplanner.Domain.ShoppingLists.WeeklyGrocery), nameof(Foodplanner.Domain.ShoppingLists.WeeklyGrocery.IngredientId)),
     ];
 }
 
@@ -345,6 +346,6 @@ public static class OwnIngredientEndpoints
             StatusCodes.Status409Conflict,
             AppProblems.IngredientInUse,
             "Ingredient in use",
-            $"'{name}' is used by {usage.Recipes} recipe(s), {usage.PantryItems} pantry item(s), {usage.ShoppingLists} shopping list(s) and {usage.ImportDrafts} import draft(s). Merge it into another ingredient instead.",
+            $"'{name}' is used by {usage.Recipes} recipe(s), {usage.PantryItems} pantry item(s), {usage.ShoppingLists} shopping list(s), {usage.WeeklyGroceries} weekly grocery item(s) and {usage.ImportDrafts} import draft(s). Merge it into another ingredient instead.",
             new Dictionary<string, object?> { ["usage"] = usage.ToResponse() });
 }

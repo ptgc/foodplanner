@@ -18,14 +18,21 @@ type Usage = components["schemas"]["IngredientUsageResponse"];
 type Notice = { key: MessageKey; params?: Params };
 type Rowed = { id: string; key: MessageKey; params?: Params };
 
-const usageParams = (u: Usage): Params => ({ recipes: u.recipes, lists: u.shoppingLists, pantry: u.pantryItems, drafts: u.importDrafts });
-const isUsed = (u: Usage) => Number(u.recipes) + Number(u.shoppingLists) + Number(u.pantryItems) + Number(u.importDrafts) > 0;
+const usageParams = (u: Usage): Params => ({ recipes: u.recipes, lists: u.shoppingLists, pantry: u.pantryItems, drafts: u.importDrafts, weekly: u.weeklyGroceries });
+const isUsed = (u: Usage) =>
+  Number(u.recipes) + Number(u.shoppingLists) + Number(u.pantryItems) + Number(u.importDrafts) + Number(u.weeklyGroceries) > 0;
 
 /** The usage counts the API sends with `409 ingredient-in-use` (a ProblemDetails extension member). */
 function usageOf(body: unknown): Usage | null {
   const usage = (body as { usage?: Partial<Usage> } | null)?.usage;
   if (!usage) return null;
-  return { recipes: usage.recipes ?? 0, shoppingLists: usage.shoppingLists ?? 0, pantryItems: usage.pantryItems ?? 0, importDrafts: usage.importDrafts ?? 0 };
+  return {
+    recipes: usage.recipes ?? 0,
+    shoppingLists: usage.shoppingLists ?? 0,
+    pantryItems: usage.pantryItems ?? 0,
+    importDrafts: usage.importDrafts ?? 0,
+    weeklyGroceries: usage.weeklyGroceries ?? 0,
+  };
 }
 
 /**

@@ -260,7 +260,8 @@ body {
   background: #e3f1e8;
 }
 
-.shop-generate {
+.shop-generate,
+.shop-weekly {
   width: 100%;
   margin-bottom: 0.75rem;
 }

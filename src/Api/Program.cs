@@ -99,6 +99,7 @@ api.MapMealPlanEndpoints();
 api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
 api.MapPantryEndpoints();
+api.MapWeeklyGroceryEndpoints();
 api.MapRecipeImageEndpoints();
 app.MapShoppingListHub();
 
