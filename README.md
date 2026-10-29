@@ -222,6 +222,16 @@ bash ./scripts/verify.sh     # uses Git Bash, which comes with Git
 (integration tests need the container engine running) and lints, typechecks, tests and builds `web`.
 Single parts: `dotnet test --solution Foodplanner.slnx` and `npm --prefix web test` (same in both shells).
 
+**Low-memory mode (default locally).** On a 16 GB machine with a capped container VM the full parallel run can exhaust
+memory. When the `CI` environment variable is not set, `verify.sh` and `e2e.sh` run the same tests with fewer at a time:
+.NET test projects one after another and at most 2 test classes at once (`--max-parallel-test-modules 1 --max-threads 2`),
+`Api.Tests` split by namespace over three processes (its memory grows with the tests run in one process, so this halves its peak to about 0.8 GB),
+Vitest with 2 workers, MSBuild with 2 nodes, Playwright with 1 worker. This takes a few minutes longer. With `CI` set
+(GitHub Actions) the tools run with their defaults. Override either way with `FP_TEST_PARALLEL=full` or
+`FP_TEST_PARALLEL=low`, for example `FP_TEST_PARALLEL=full ./scripts/verify.sh`. `verify.sh` also stops the .NET build
+servers when it ends (they hold about 0.5 GB). The SQL Server test container is limited to 1.5 GB (`MSSQL_MEMORY_LIMIT_MB`);
+there is one SQL Server and one Azurite container per `Api.Tests` run, shared by all test classes.
+
 `Api.Tests` start one SQL Server Testcontainer (`mcr.microsoft.com/mssql/server`, pinned 2022 CU tag in `SqlServerFixture.cs`) per run, with a
 password generated at runtime, and give each test class a fresh database with the migrations applied.
 Testcontainers uses `DOCKER_HOST` if set, otherwise the default local endpoint (`npipe://./pipe/docker_engine` on
