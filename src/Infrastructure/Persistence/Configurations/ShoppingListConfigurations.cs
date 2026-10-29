@@ -30,6 +30,12 @@ internal sealed class ShoppingListItemConfiguration : IEntityTypeConfiguration<S
         item.Property(i => i.Section).HasConversion<string>().HasMaxLength(20).IsRequired();
         item.Property(i => i.Label).HasMaxLength(ShoppingListItem.MaxLabelLength);
         item.Ignore(i => i.IsManual);
+        item.Ignore(i => i.AtHome);
+
+        // What the pantry held when the list was generated (T-093): amount and unit (NO ACTION, global catalog data), both null = "some".
+        item.Property(i => i.AtHomeAmount).HasPrecision(18, 4);
+        item.HasIndex(i => i.AtHomeUnitId);
+        item.HasOne<Unit>().WithMany().HasForeignKey(i => i.AtHomeUnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
 
         // The weekly groceries' part of the item (T-092): amount and unit (NO ACTION, global catalog data), both null = no amount.
         item.Property(i => i.WeeklyAmount).HasPrecision(18, 4);
@@ -64,7 +70,7 @@ internal sealed class ShoppingListItemQuantityConfiguration : IEntityTypeConfigu
     }
 }
 
-// Pantry (T-037): one row per household and ingredient. Ingredient and user are NO ACTION (global identity / catalog data).
+// Pantry (T-037, T-093): one row per household and ingredient. Ingredient, unit and user are NO ACTION (global identity / catalog data).
 internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryItem>
 {
     public void Configure(EntityTypeBuilder<PantryItem> pantry)
@@ -73,6 +79,9 @@ internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryI
         pantry.HasIndex(p => new { p.HouseholdId, p.IngredientId }).IsUnique();
         pantry.HasIndex(p => p.IngredientId);
         pantry.HasIndex(p => p.ConfirmedByUserId);
+        pantry.Property(p => p.Amount).HasPrecision(18, 4);
+        pantry.HasIndex(p => p.UnitId);
+        pantry.HasOne<Unit>().WithMany().HasForeignKey(p => p.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         pantry.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         pantry.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
         pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).OnDelete(DeleteBehavior.Restrict);

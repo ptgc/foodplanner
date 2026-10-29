@@ -118,8 +118,8 @@ export async function sweep(options: SweepOptions): Promise<Leftover[]> {
       await remove(`/api/households/${h}/recipes/${r.id}`, { kind: "recipe", name: r.title, id: r.id, where });
     }
 
-    // 4. Pantry entries and own ingredients (an ingredient in use cannot be deleted, so these come last).
-    const pantry = await json<{ ingredientId: string; name: string }[]>(request, `/api/households/${h}/pantry`);
+    // 4. Pantry entries (expired ones too, T-093) and own ingredients (an ingredient in use cannot be deleted, so these come last).
+    const pantry = await json<{ ingredientId: string; name: string }[]>(request, `/api/households/${h}/pantry?includeExpired=true`);
     for (const p of pantry.filter((x) => matches(x.name))) {
       await remove(`/api/households/${h}/pantry/${p.ingredientId}`, { kind: "pantry entry", name: p.name, id: p.ingredientId, where });
     }

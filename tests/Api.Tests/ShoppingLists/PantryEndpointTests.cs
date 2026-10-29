@@ -164,16 +164,14 @@ public sealed class PantryEndpointTests(AuthDatabase db) : IClassFixture<AuthDat
     }
 
     [Fact]
-    public async Task Only_staples_with_a_future_expiry_can_be_confirmed()
+    public async Task Only_existing_ingredients_with_a_future_expiry_can_be_confirmed()
     {
         await using var host = Host();
         var (owner, household) = await ScenarioAsync(host);
 
-        using var notStaple = await owner.Client.PutAsync(Url(household, $"/{Rice}"), new { });
         using var unknown = await owner.Client.PutAsync(Url(household, $"/{Guid.NewGuid()}"), new { });
         using var past = await owner.Client.PutAsync(Url(household, $"/{Salt}"), new { expiresAt = host.Time.Now.AddMinutes(-1) });
 
-        await AssertValidationAsync(notStaple, "ingredientId");
         await AssertValidationAsync(unknown, "ingredientId");
         await AssertValidationAsync(past, "expiresAt");
         Assert.Equal(0, (await ListAsync(owner.Client, household)).GetArrayLength());

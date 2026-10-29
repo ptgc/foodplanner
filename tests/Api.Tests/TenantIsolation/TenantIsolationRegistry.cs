@@ -155,9 +155,9 @@ public static class TenantIsolationRegistry
             {
                 var staple = new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: true, UnitDimension.Mass);
                 await env.SaveAsync(household, staple);
-                return new PantryItem(staple.Id, await env.NewUserAsync(), DateTimeOffset.UtcNow, null);
+                return new PantryItem(staple.Id, await env.NewUserAsync(), DateTimeOffset.UtcNow, null, 250m, UnitSeed.All[0].Id); // T-093: with an amount
             },
-            entry => entry.Property(p => p.ExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddYears(1)),
+            entry => entry.Property(p => p.Amount).CurrentValue = 500m),
 
         // Weekly groceries (T-092): unique per (household, ingredient), so the factory seeds its own household ingredient each time.
         TenantIsolationCase.For<WeeklyGrocery>(

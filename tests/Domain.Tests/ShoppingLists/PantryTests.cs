@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Quantities;
 using Foodplanner.Domain.ShoppingLists;
 
 namespace Foodplanner.Domain.Tests.ShoppingLists;
@@ -17,7 +18,7 @@ public class PantryTests
     [Fact]
     public void An_active_entry_removes_the_staple_and_keeps_the_rest_in_order()
     {
-        var result = PantryFilter.Apply(List(), [new PantryEntry(Salt, null)], Now);
+        var result = PantryFilter.Apply(List(), [new PantryEntry(Salt, null)], Now, UnitCatalog.Seed);
 
         Assert.Equal([Flour], result.CheckYouHave.Select(s => s.IngredientId));
         Assert.Equal([Rice], result.Items.Select(i => i.IngredientId));
@@ -26,18 +27,22 @@ public class PantryTests
     [Fact]
     public void An_entry_that_has_not_expired_still_hides_the_staple_and_an_expired_one_does_not()
     {
-        Assert.Equal([Flour], PantryFilter.Apply(List(), [new PantryEntry(Salt, Now.AddDays(1))], Now).CheckYouHave.Select(s => s.IngredientId));
-        Assert.Equal(2, PantryFilter.Apply(List(), [new PantryEntry(Salt, Now.AddDays(1))], Now.AddDays(2)).CheckYouHave.Count);
-        Assert.Equal(2, PantryFilter.Apply(List(), [new PantryEntry(Salt, Now)], Now).CheckYouHave.Count); // expires at the instant
+        Assert.Equal([Flour], PantryFilter.Apply(List(), [new PantryEntry(Salt, Now.AddDays(1))], Now, UnitCatalog.Seed).CheckYouHave.Select(s => s.IngredientId));
+        Assert.Equal(2, PantryFilter.Apply(List(), [new PantryEntry(Salt, Now.AddDays(1))], Now.AddDays(2), UnitCatalog.Seed).CheckYouHave.Count);
+        Assert.Equal(2, PantryFilter.Apply(List(), [new PantryEntry(Salt, Now)], Now, UnitCatalog.Seed).CheckYouHave.Count); // expires at the instant
     }
 
     [Fact]
-    public void The_pantry_never_filters_the_main_list()
+    public void An_item_on_the_main_list_that_has_no_amount_to_subtract_from_moves_to_check_you_have_with_the_note()
     {
-        var result = PantryFilter.Apply(List(), [new PantryEntry(Rice, null)], Now);
+        // T-093: the pantry covers any ingredient, not only staples. Rice has no quantity here, so nothing can be bought.
+        var result = PantryFilter.Apply(List(), [new PantryEntry(Rice, null)], Now, UnitCatalog.Seed);
 
-        Assert.Single(result.Items);
-        Assert.Equal(2, result.CheckYouHave.Count);
+        Assert.Empty(result.Items);
+        Assert.Equal(3, result.CheckYouHave.Count);
+        var moved = Assert.Single(result.CheckYouHave, s => s.IngredientId == Rice);
+        Assert.NotNull(moved.AtHome);
+        Assert.Null(moved.AtHome.Amount);
     }
 
     [Fact]
@@ -45,7 +50,7 @@ public class PantryTests
     {
         var list = List();
 
-        Assert.Same(list, PantryFilter.Apply(list, [], Now));
+        Assert.Same(list, PantryFilter.Apply(list, [], Now, UnitCatalog.Seed));
     }
 
     [Fact]

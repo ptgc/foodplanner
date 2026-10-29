@@ -654,7 +654,7 @@ export interface paths {
         get: operations["ListPantry"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["ClearPantry"];
         options?: never;
         head?: never;
         patch?: never;
@@ -783,6 +783,10 @@ export interface components {
         ConfirmPantryItemRequest: {
             /** Format: date-time */
             expiresAt: null | string;
+            /** Format: double */
+            quantity?: null | number | string;
+            /** Format: uuid */
+            unitId?: null | string;
         };
         CreateHouseholdRequest: {
             name: null | string;
@@ -998,6 +1002,13 @@ export interface components {
             confirmedByUserId: string;
             /** Format: date-time */
             expiresAt: null | string;
+            /** Format: double */
+            quantity: null | number | string;
+            /** Format: uuid */
+            unitId: null | string;
+            unitCode: null | string;
+            unitName: null | string;
+            isExpired: boolean;
         };
         PickedByResponse: {
             /** Format: uuid */
@@ -1175,6 +1186,9 @@ export interface components {
             servings: number | string;
             ingredients: components["schemas"]["RecipeIngredientResponse"][];
         };
+        ShoppingAtHomeResponse: {
+            quantity: null | components["schemas"]["ShoppingQuantityResponse"];
+        };
         ShoppingListExportResponse: {
             format: string;
             title: string;
@@ -1201,6 +1215,7 @@ export interface components {
             quantityChangedSinceChecked: boolean;
             alternatives: components["schemas"]["RecipeAlternativeResponse"][];
             isWeekly: boolean;
+            atHome: null | components["schemas"]["ShoppingAtHomeResponse"];
         };
         ShoppingListResponse: {
             /** Format: uuid */
@@ -4082,7 +4097,9 @@ export interface operations {
     };
     ListPantry: {
         parameters: {
-            query?: never;
+            query?: {
+                includeExpired?: boolean;
+            };
             header?: never;
             path: {
                 householdId: string;
@@ -4099,6 +4116,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PantryItemResponse"][];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ClearPantry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {

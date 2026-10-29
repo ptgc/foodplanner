@@ -75,6 +75,32 @@ public sealed class ShoppingListItem : Entity, ITenantEntity
 
     public Guid? WeeklyUnitId { get; private set; }
 
+    /// <summary>
+    /// The pantry had some of this when the list was generated (T-093). <see cref="AtHomeAmount"/> and <see cref="AtHomeUnitId"/>
+    /// are both set, or both null for "we have some" (no amount known). Set by regeneration only.
+    /// </summary>
+    public bool IsAtHome { get; private set; }
+
+    public decimal? AtHomeAmount { get; private set; }
+
+    public Guid? AtHomeUnitId { get; private set; }
+
+    /// <summary>The pantry note as the reconciler compares it; null when the pantry had nothing.</summary>
+    public StoredAtHome? AtHome => IsAtHome ? new StoredAtHome(AtHomeAmount, AtHomeUnitId) : null;
+
+    /// <summary>Replaces the pantry note (null = not in the pantry).</summary>
+    public void SetAtHome(StoredAtHome? atHome)
+    {
+        if (atHome is not null && (atHome.Amount is null) != (atHome.UnitId is null))
+        {
+            throw new ArgumentException("Amount and unit go together.", nameof(atHome));
+        }
+
+        IsAtHome = atHome is not null;
+        AtHomeAmount = atHome?.Amount;
+        AtHomeUnitId = atHome?.UnitId;
+    }
+
     /// <summary>Sets the weekly part (replacing an earlier one). Returns true when something changed.</summary>
     public bool SetWeekly(decimal? amount, Guid? unitId)
     {

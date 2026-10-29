@@ -47,6 +47,8 @@ export type ShoppingListModel = {
   pantry: PantryItem[];
   /** "I have it": confirm the staple, then regenerate so it leaves "check you have these" (other sessions follow via the hub). */
   confirmStaple: (ingredientId: string) => Promise<ActionResult>;
+  /** "We have this" (T-093): save the ingredient in the pantry with an optional amount (both amount and unit, or neither), then regenerate. */
+  haveThis: (ingredientId: string, quantity: number | null, unitId: string | null) => Promise<ActionResult>;
   /** Un-confirm a staple and regenerate so it is prompted again. */
   unconfirmStaple: (ingredientId: string) => Promise<ActionResult>;
   /** How many weekly groceries the household has; null until known (offline, or not read yet). */
@@ -413,17 +415,19 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     [base, fetchPantry, householdId, mutate, weekStart],
   );
 
-  const confirmStaple = useCallback(
-    (ingredientId: string) =>
+  const haveThis = useCallback(
+    (ingredientId: string, quantity: number | null, unitId: string | null) =>
       pantryThenGenerate(async () => {
         const { response } = await api.PUT("/api/households/{householdId}/pantry/{ingredientId}", {
           params: { path: { householdId, ingredientId } },
-          body: { expiresAt: null },
+          body: { expiresAt: null, quantity, unitId },
         });
         return response;
       }),
     [householdId, pantryThenGenerate],
   );
+
+  const confirmStaple = useCallback((ingredientId: string) => haveThis(ingredientId, null, null), [haveThis]);
 
   const unconfirmStaple = useCallback(
     (ingredientId: string) =>
@@ -450,6 +454,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     removeItem,
     pantry,
     confirmStaple,
+    haveThis,
     unconfirmStaple,
     weeklyCount,
     addWeekly,

@@ -26,6 +26,26 @@ export function formatQuantities(item: Item, i18n: Pick<I18n, "t" | "formatNumbe
     .join(" + ");
 }
 
+function formatQuantity(q: { amount?: number | string | null; unitCode?: string | null } | null | undefined, i18n: Pick<I18n, "formatNumber">): string | null {
+  if (!q || q.amount === null || q.amount === undefined) return null;
+  const n = i18n.formatNumber(Number(q.amount), { maximumFractionDigits: 2 });
+  return q.unitCode ? `${n} ${q.unitCode}` : n;
+}
+
+/**
+ * The pantry note of an item (T-093): "300 g at home (need 200 g)" for a covered item under "Check you have", "100 g at home"
+ * for a partly covered one (its quantity is what is left to buy), "At home, check there are enough" when the pantry has no
+ * amount or another dimension. Null when the pantry has none of it.
+ */
+export function formatAtHome(item: Item, i18n: Pick<I18n, "t" | "formatNumber">): string | null {
+  if (!item.atHome) return null;
+  const have = formatQuantity(item.atHome.quantity, i18n);
+  // A covered item keeps the quantity the plan needs; on the main list the quantity is what is still to buy.
+  const need = item.section === "CheckYouHave" ? formatQuantities(item, i18n) : "";
+  if (have) return need ? i18n.t("shopping.atHomeNeed", { have, need }) : i18n.t("shopping.atHome", { have });
+  return need ? i18n.t("shopping.atHomeSomeNeed", { need }) : i18n.t("shopping.atHomeSome");
+}
+
 /** Unchecked first, checked last; the server's (nb-NO) order is kept inside each group. */
 export function checkedLast(items: Item[]): Item[] {
   return [...items.filter((i) => !i.checked), ...items.filter((i) => i.checked)];
@@ -179,6 +199,7 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
             onToggle={model.toggle}
             onRemove={async (id) => report(await model.removeItem(id))}
             canRemove={model.online}
+            onWeHaveThis={async (ingredientId, quantity, unitId) => report(await model.haveThis(ingredientId, quantity, unitId))}
           />
           <ItemSection
             title={t("shopping.sectionStaples")}
@@ -196,6 +217,10 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
         canChange={model.online}
         onRemove={async (ingredientId) => report(await model.unconfirmStaple(ingredientId))}
       />
+
+      <Link className="button button-outline shop-pantry-link" to="/pantry" data-testid="pantry-link">
+        {t("shopping.pantryLink")}
+      </Link>
 
       <AddItemForm
         disabled={!model.online}
@@ -274,6 +299,8 @@ function ItemSection(props: {
   canRemove: boolean;
   /** "I have it" for a staple (only the check-you-have section passes it). */
   onHaveIt?: (ingredientId: string) => Promise<void>;
+  /** "We have this" with an optional amount (the to-buy list, T-093). */
+  onWeHaveThis?: (ingredientId: string, quantity: number | null, unitId: string | null) => Promise<void>;
   /** Group by store section with sub-headings (the "to buy" list). */
   bySection?: boolean;
 }) {
@@ -312,21 +339,29 @@ function ItemRow({
   onRemove,
   canRemove,
   onHaveIt,
+  onWeHaveThis,
 }: {
   item: Item;
   onToggle: (id: string, checked: boolean) => void;
   onRemove: (id: string) => Promise<void>;
   canRemove: boolean;
   onHaveIt?: (ingredientId: string) => Promise<void>;
+  onWeHaveThis?: (ingredientId: string, quantity: number | null, unitId: string | null) => Promise<void>;
 }) {
   const i18n = useI18n();
   const { t } = i18n;
   const nameId = useId();
   const detailId = useId();
-  const quantity = formatQuantities(item, i18n);
+  const [haveOpen, setHaveOpen] = useState(false);
+  const atHome = formatAtHome(item, i18n);
+  // A covered item's quantity is part of the pantry note ("need 200 g"), so it is not shown twice.
+  const quantity = atHome && item.section === "CheckYouHave" ? "" : formatQuantities(item, i18n);
   const from = (item.recipes ?? []).map((r) => r.title).join(", ");
   const alternatives = (item.alternatives ?? []).map((a) => a.ingredientName).join(", ");
-  const hasDetail = !!quantity || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual || item.isWeekly;
+  const hasDetail = !!quantity || !!atHome || !!from || !!alternatives || item.quantityChangedSinceChecked || item.isManual || item.isWeekly;
+  // "I have it" is for a staple or "to taste" line the pantry does not hold yet; an item the pantry holds is changed on the pantry screen.
+  const canHaveIt = !!onHaveIt && !!item.ingredientId && !item.isManual && !item.atHome;
+  const canWeHaveThis = !!onWeHaveThis && !!item.ingredientId && !item.isManual;
   return (
     <li className={`shop-row${item.checked ? " is-checked" : ""}`} data-testid="shop-item">
       {/* The whole label is the touch target (>= 56px); the native checkbox keeps keyboard and screen reader support. */}
@@ -345,6 +380,11 @@ function ItemRow({
           {hasDetail && (
             <span id={detailId} className="shop-detail">
               {quantity && <span className="shop-qty">{quantity}</span>}
+              {atHome && (
+                <span className="shop-at-home" data-testid="shop-at-home">
+                  {atHome}
+                </span>
+              )}
               {alternatives && <span data-testid="shop-alternatives">{t("shopping.or", { names: alternatives })}</span>}
               {from && <span>{t("shopping.fromRecipes", { titles: from })}</span>}
               {item.isManual && <span>{t("shopping.manual")}</span>}
@@ -354,15 +394,28 @@ function ItemRow({
           )}
         </span>
       </label>
-      {onHaveIt && item.ingredientId && !item.isManual && (
+      {canHaveIt && (
         <button
           type="button"
           className="button shop-have"
           disabled={!canRemove}
           aria-label={t("shopping.haveItFor", { name: item.name })}
-          onClick={() => void onHaveIt(item.ingredientId!)}
+          onClick={() => void onHaveIt!(item.ingredientId!)}
         >
           {t("shopping.haveIt")}
+        </button>
+      )}
+      {canWeHaveThis && (
+        <button
+          type="button"
+          className="button shop-have"
+          data-testid="we-have-this"
+          disabled={!canRemove}
+          aria-expanded={haveOpen}
+          aria-label={t("shopping.weHaveThisFor", { name: item.name })}
+          onClick={() => setHaveOpen((open) => !open)}
+        >
+          {t("shopping.weHaveThis")}
         </button>
       )}
       {(item.isManual || item.isWeekly) && (
@@ -376,7 +429,94 @@ function ItemRow({
           <span aria-hidden="true">&times;</span>
         </button>
       )}
+      {haveOpen && canWeHaveThis && (
+        <HaveForm
+          name={item.name}
+          onSave={async (quantity, unitId) => {
+            await onWeHaveThis!(item.ingredientId!, quantity, unitId);
+            setHaveOpen(false);
+          }}
+          onCancel={() => setHaveOpen(false)}
+        />
+      )}
     </li>
+  );
+}
+
+/** "We have this" on a list item: an optional amount and unit, then the pantry is saved and the week regenerated. */
+function HaveForm({
+  name,
+  onSave,
+  onCancel,
+}: {
+  name: string;
+  onSave: (quantity: number | null, unitId: string | null) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  const amountId = useId();
+  const unitId = useId();
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .GET("/api/units")
+      .then(({ data }) => {
+        if (!cancelled && data) setUnits(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const amount = quantity.trim() === "" ? null : Number(quantity.trim().replace(",", "."));
+  // The API wants an amount and a unit together, or neither.
+  const invalid = (amount !== null && (!Number.isFinite(amount) || amount <= 0 || !unit)) || (amount === null && unit !== "");
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (invalid || busy) return;
+    setBusy(true);
+    try {
+      await onSave(amount, amount === null ? null : unit);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="shop-have-form" data-testid="have-form" onSubmit={(e) => void submit(e)} aria-label={t("shopping.weHaveThisFor", { name })}>
+      <div className="shop-add-qty">
+        <div className="field">
+          <label htmlFor={amountId}>{t("shopping.haveAmount")}</label>
+          <input id={amountId} inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor={unitId}>{t("shopping.haveUnit")}</label>
+          <select id={unitId} value={unit} onChange={(e) => setUnit(e.target.value)}>
+            <option value="">{t("shopping.haveNoUnit")}</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.code}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="shop-have-actions">
+        <button type="submit" className="button" disabled={invalid || busy}>
+          {t("shopping.haveSave")}
+        </button>
+        <button type="button" className="button button-outline" onClick={onCancel}>
+          {t("shopping.haveCancel")}
+        </button>
+      </div>
+    </form>
   );
 }
 

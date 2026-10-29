@@ -51,12 +51,13 @@ public static class ShoppingListExportEndpoints
 
         var list = await ShoppingListEndpoints.ReadAsync(db, monday, locale.Code, cancellationToken);
         var result = await exporter!.ExportAsync(
-            new ShoppingListExport(monday, locale.Code, [.. list.Main.Select(ToExport)], [.. list.CheckYouHave.Select(ToExport)]),
+            new ShoppingListExport(monday, locale.Code, [.. list.Main.Select(i => ToExport(i, withQuantities: true))], [.. list.CheckYouHave.Select(i => ToExport(i, withQuantities: false))]),
             cancellationToken);
         return Results.Ok(new ShoppingListExportResponse(exporter.Name, result.Title, result.Text, result.Url?.ToString()));
     }
 
-    private static ShoppingListExportItem ToExport(ShoppingListItemResponse item) =>
+    /// <summary>"Check you have" items carry the quantity the plan needs since T-093 (a covered item); the export keeps them as names only, as before.</summary>
+    private static ShoppingListExportItem ToExport(ShoppingListItemResponse item, bool withQuantities) =>
         new(item.Name, item.IsManual, item.Checked,
-            [.. item.Quantities.Select(q => new ShoppingListExportQuantity(q.Amount, q.UnitCode, q.UnitName))]);
+            [.. withQuantities ? item.Quantities.Select(q => new ShoppingListExportQuantity(q.Amount, q.UnitCode, q.UnitName)) : []]);
 }

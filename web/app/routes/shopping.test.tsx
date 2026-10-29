@@ -89,6 +89,7 @@ const item = (id: string, name: string, over: Partial<Item> = {}): Item => ({
   quantityChangedSinceChecked: false,
   alternatives: [],
   isWeekly: false,
+  atHome: null,
   ...over,
 });
 
@@ -127,6 +128,8 @@ type Server = {
   /** The household's pantry; a confirm moves the staple out of the list on the next generate, like the API. */
   pantry: { ingredientId: string; name: string }[];
   pantryCalls: string[];
+  /** Bodies of the pantry PUTs (T-093: amount, unit, expiry). */
+  pantryBodies: unknown[];
   /** Export requests the page made: path + query + Accept-Language. */
   exports: string[];
   exportStatus: number;
@@ -170,6 +173,7 @@ function installFetch() {
         }
         server.pantryCalls.push(`${request.method} ${id}:${request.headers.get("X-XSRF-TOKEN")}`);
         if (request.method === "PUT") {
+          server.pantryBodies.push(await request.clone().json());
           const staple = server.list.checkYouHave.find((i) => i.ingredientId === id);
           server.pantry.push({ ingredientId: id!, name: staple?.name ?? id! });
           return json({});
@@ -219,7 +223,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0 };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0 };
   installFetch();
 });
 afterEach(() => {
@@ -345,6 +349,81 @@ describe("pantry: I have it", () => {
     await screen.findByTestId("offline-banner");
 
     expect(screen.getByRole("button", { name: t("shopping.haveItFor", { name: "Salt" }) })).toBeDisabled();
+  });
+});
+
+describe("pantry with amounts (T-093)", () => {
+  const cheeseNeed = [{ amount: 200, unitCode: "g", unitName: "gram" }];
+
+  it("shows the at-home note: covered under check you have, partly covered on the buy list, no amount at home", async () => {
+    server.list = {
+      ...server.list,
+      main: [
+        item("ost", "Ost", { quantities: [{ amount: 100, unitCode: "g", unitName: "gram" }], atHome: { quantity: { amount: 100, unitCode: "g", unitName: "gram" } } }),
+      ],
+      checkYouHave: [
+        item("cheddar", "Cheddar", { section: "CheckYouHave", quantities: cheeseNeed, atHome: { quantity: { amount: 300, unitCode: "g", unitName: "gram" } } }),
+        item("tortilla", "Tortillas", { section: "CheckYouHave", quantities: [{ amount: 8, unitCode: "stk", unitName: "piece" }], atHome: { quantity: null } }),
+      ],
+    };
+    renderPage();
+    await ready();
+
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    expect(within(main).getByTestId("shop-at-home")).toHaveTextContent(t("shopping.atHome", { have: "100 g" }));
+    expect(within(main).getByText("100 g")).toBeInTheDocument(); // what is left to buy
+
+    const staples = screen.getByRole("region", { name: t("shopping.sectionStaples") });
+    const notes = within(staples).getAllByTestId("shop-at-home").map((n) => n.textContent);
+    expect(notes).toEqual([
+      t("shopping.atHomeNeed", { have: "300 g", need: "200 g" }),
+      t("shopping.atHomeSomeNeed", { need: "8 stk" }),
+    ]);
+    // The need is in the note, not shown twice; an item the pantry holds has no "I have it" (it is changed on the pantry screen).
+    expect(within(staples).queryByText("200 g")).toBeNull();
+    expect(within(staples).queryByRole("button", { name: /./ })).toBeNull();
+  });
+
+  it("We have this: opens an amount form, saves the pantry entry with the amount and regenerates", async () => {
+    renderPage();
+    await ready();
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    const open = within(main).getAllByTestId("we-have-this")[0]!;
+    expect(open).toHaveClass("shop-have"); // 44px target
+    expect(open).toHaveTextContent(t("shopping.weHaveThis"));
+    await userEvent.click(open);
+
+    const form = within(main).getByTestId("have-form");
+    await userEvent.type(within(form).getByLabelText(t("shopping.haveAmount")), "2,5");
+    await userEvent.selectOptions(within(form).getByLabelText(t("shopping.haveUnit")), "u1");
+    await userEvent.click(within(form).getByRole("button", { name: t("shopping.haveSave") }));
+
+    await waitFor(() => expect(server.pantryCalls).toEqual(["PUT ing-melk:tok", "POST generate"]));
+    expect(server.pantryBodies).toEqual([{ expiresAt: null, quantity: 2.5, unitId: "u1" }]);
+  });
+
+  it("We have this without an amount saves the entry with no amount, and an amount needs a unit", async () => {
+    renderPage();
+    await ready();
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    await userEvent.click(within(main).getAllByTestId("we-have-this")[0]!);
+    const form = within(main).getByTestId("have-form");
+
+    await userEvent.type(within(form).getByLabelText(t("shopping.haveAmount")), "3");
+    expect(within(form).getByRole("button", { name: t("shopping.haveSave") })).toBeDisabled(); // amount without a unit
+    await userEvent.clear(within(form).getByLabelText(t("shopping.haveAmount")));
+    await userEvent.click(within(form).getByRole("button", { name: t("shopping.haveSave") }));
+
+    await waitFor(() => expect(server.pantryBodies).toEqual([{ expiresAt: null, quantity: null, unitId: null }]));
+  });
+
+  it("has no We have this button on a manual item", async () => {
+    renderPage();
+    await ready();
+    const main = screen.getByRole("region", { name: t("shopping.sectionMain") });
+    const kaffe = within(main).getByRole("checkbox", { name: "Kaffe" }).closest("li")!;
+
+    expect(within(kaffe).queryByTestId("we-have-this")).toBeNull();
   });
 });
 

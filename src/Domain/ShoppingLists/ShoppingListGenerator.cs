@@ -4,15 +4,41 @@ using Foodplanner.Domain.Recipes;
 
 namespace Foodplanner.Domain.ShoppingLists;
 
-/// <summary>A buyable ingredient: merged quantities for display (see <see cref="QuantityMerger.ForDisplay"/>) and the recipes that contributed.</summary>
+/// <summary>
+/// What the household's pantry holds of an ingredient on the list (T-093). <see cref="Amount"/> null = "we have some", no
+/// amount known. Set only by <see cref="PantryFilter"/>.
+/// </summary>
+public sealed record AtHome(Quantity? Amount);
+
+/// <summary>
+/// A buyable ingredient: merged quantities for display (see <see cref="QuantityMerger.ForDisplay"/>) and the recipes that
+/// contributed. <see cref="AtHome"/> is set when the pantry has some (then <see cref="Quantities"/> is what is left to buy).
+/// </summary>
 public sealed record GeneratedItem(
     Guid IngredientId,
     string IngredientName,
     IReadOnlyList<Quantity> Quantities,
-    IReadOnlyList<Guid> RecipeIds);
+    IReadOnlyList<Guid> RecipeIds,
+    AtHome? AtHome)
+{
+    public GeneratedItem(Guid ingredientId, string ingredientName, IReadOnlyList<Quantity> quantities, IReadOnlyList<Guid> recipeIds)
+        : this(ingredientId, ingredientName, quantities, recipeIds, null)
+    {
+    }
+}
 
-/// <summary>A staple the plan uses; the person checks they have it. No quantity.</summary>
-public sealed record GeneratedStaple(Guid IngredientId, string IngredientName, IReadOnlyList<Guid> RecipeIds);
+/// <summary>
+/// An ingredient the person only checks they have: a staple the plan uses (no quantity), or (T-093) an item the pantry
+/// covers; then <see cref="Needed"/> is what the plan needs and <see cref="AtHome"/> what the pantry holds.
+/// </summary>
+public sealed record GeneratedStaple(
+    Guid IngredientId, string IngredientName, IReadOnlyList<Guid> RecipeIds, IReadOnlyList<Quantity> Needed, AtHome? AtHome)
+{
+    public GeneratedStaple(Guid ingredientId, string ingredientName, IReadOnlyList<Guid> recipeIds)
+        : this(ingredientId, ingredientName, recipeIds, [], null)
+    {
+    }
+}
 
 public sealed record GeneratedList(IReadOnlyList<GeneratedItem> Items, IReadOnlyList<GeneratedStaple> CheckYouHave);
 
