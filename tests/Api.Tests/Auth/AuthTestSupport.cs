@@ -77,6 +77,7 @@ public sealed class AuthHost : IAsyncDisposable
     public const string Password = "correct horse battery";
 
     private readonly WebApplicationFactory<Program> _factory;
+    private bool _started;
 
     private AuthHost(WebApplicationFactory<Program> factory, ManualTimeProvider time, SpyPasswordHasher hasher)
     {
@@ -89,9 +90,23 @@ public sealed class AuthHost : IAsyncDisposable
 
     public SpyPasswordHasher Hasher { get; }
 
-    public IServiceProvider Services => _factory.Services;
+    public IServiceProvider Services
+    {
+        get
+        {
+            _started = true;
+            return _factory.Services;
+        }
+    }
 
-    public Microsoft.AspNetCore.TestHost.TestServer Server => _factory.Server;
+    public Microsoft.AspNetCore.TestHost.TestServer Server
+    {
+        get
+        {
+            _started = true;
+            return _factory.Server;
+        }
+    }
 
     public RecordingEmailSender Email => Services.GetRequiredService<RecordingEmailSender>();
 
@@ -137,13 +152,17 @@ public sealed class AuthHost : IAsyncDisposable
     /// <summary>Accept-Language for the clients this host creates (T-039); null sends none.</summary>
     public string? DefaultLanguage { get; set; }
 
-    public ApiClient CreateClient(string? remoteIp = null, bool useHttp = false) => new(_factory.CreateClient(new WebApplicationFactoryClientOptions
+    public ApiClient CreateClient(string? remoteIp = null, bool useHttp = false)
     {
-        BaseAddress = new Uri(useHttp ? "http://localhost" : "https://localhost"),
-        AllowAutoRedirect = false,
-        HandleCookies = true,
-    }))
-    { RemoteIp = remoteIp, Language = DefaultLanguage };
+        _started = true;
+        return new(_factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri(useHttp ? "http://localhost" : "https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true,
+        }))
+        { RemoteIp = remoteIp, Language = DefaultLanguage };
+    }
 
     /// <summary>Creates a user straight in the store, as an already registered account.</summary>
     public async Task<AppUser> CreateUserAsync(string email, bool confirmed = true, string? password = Password)
@@ -165,7 +184,23 @@ public sealed class AuthHost : IAsyncDisposable
 
     public static string NewEmail() => $"user-{Guid.NewGuid():N}@example.com";
 
-    public ValueTask DisposeAsync() => _factory.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        if (_started)
+        {
+            // T-098: without this every disposed host stays reachable through the rate limiter's timer (see HostCleanup).
+            try
+            {
+                HostCleanup.DisposeRateLimiters(_factory.Server);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // The host never started (a test of a failing startup): there is no pipeline to clean.
+            }
+        }
+
+        return _factory.DisposeAsync();
+    }
 }
 
 /// <summary>An HTTP client with a cookie jar that fetches a fresh antiforgery token before each unsafe request.</summary>
