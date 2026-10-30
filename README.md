@@ -225,7 +225,7 @@ Single parts: `dotnet test --solution Foodplanner.slnx` and `npm --prefix web te
 **Low-memory mode (default locally).** On a 16 GB machine with a capped container VM the full parallel run can exhaust
 memory. When the `CI` environment variable is not set, `verify.sh` and `e2e.sh` run the same tests with fewer at a time:
 .NET test projects one after another and at most 2 test classes at once (`--max-parallel-test-modules 1 --max-threads 2`),
-`Api.Tests` split by namespace over three processes (its memory grows with the tests run in one process, so this halves its peak to about 0.8 GB),
+all .NET tests in one `dotnet test` process (`Api.Tests` stays flat at about 0.6 GB since T-098),
 Vitest with 2 workers, MSBuild with 2 nodes, Playwright with 1 worker. This takes a few minutes longer. With `CI` set
 (GitHub Actions) the tools run with their defaults. Override either way with `FP_TEST_PARALLEL=full` or
 `FP_TEST_PARALLEL=low`, for example `FP_TEST_PARALLEL=full ./scripts/verify.sh`. `verify.sh` also stops the .NET build
