@@ -6,6 +6,7 @@ import { useSession } from "../session";
 import { useI18n, type I18n } from "../i18n";
 import { useShoppingList, type ActionResult, type PantryItem } from "../shopping/use-shopping-list";
 import { copyText, fetchExport, shareText } from "../shopping/export";
+import { StorePicker } from "../shopping/store-picker";
 import { groupByStoreSection, storeSectionKey } from "../shopping/store-sections";
 import { addWeeks, isMonday, isoWeek, mondayOf, weekRange } from "../shopping/week";
 
@@ -170,6 +171,7 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
           {t("shopping.weeklyEmpty")} <Link to="/household">{t("shopping.weeklyEmptyLink")}</Link>
         </p>
       )}
+      <StorePicker householdId={householdId} online={model.online} onChoose={model.chooseStore} />
       <ExportBar householdId={householdId} weekStart={weekStart} online={model.online} />
       {message && (
         <p role="alert" className="form-error">

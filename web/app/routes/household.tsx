@@ -5,6 +5,7 @@ import type { components } from "../api/schema";
 import { call } from "../household/call";
 import { ConfirmDialog } from "../household/confirm-dialog";
 import { useLoaded } from "../household/use-loaded";
+import { Stores } from "../household/stores";
 import { WeeklyGroceries } from "../household/weekly-groceries";
 import { allRoles, inviteLink, invitableRoles, powers, roleKeys, type Role } from "../household/roles";
 import { useI18n, type MessageKey, type Params } from "../i18n";
@@ -82,6 +83,7 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
         </div>
       )}
       <WeeklyGroceries householdId={household.id} canEdit={can.weekly} />
+      <Stores householdId={household.id} canEdit={can.weekly} />
       <div className="household-card" data-testid="household-pantry">
         <h2>{t("household.pantry.title")}</h2>
         <p>{t("household.pantry.body")}</p>

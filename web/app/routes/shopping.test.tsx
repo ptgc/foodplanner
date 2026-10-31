@@ -136,6 +136,10 @@ type Server = {
   /** How many weekly groceries the household has (T-092) and how many times the button posted. */
   weekly: number;
   weeklyPosts: number;
+  /** The household's stores, the caller's chosen one, and the bodies of the choice PUTs (T-087). */
+  stores: { id: string; name: string; sectionOrder: string[] }[];
+  chosenStore: string | null;
+  chosenPuts: unknown[];
 };
 let server: Server;
 
@@ -164,6 +168,19 @@ function installFetch() {
           main: [...server.list.main, item("brodW", "Brød", { isWeekly: true, ingredientId: "ing-brodW", storeSection: "DryGoods" })],
         };
         return json(server.list);
+      }
+      if (path.endsWith("/stores")) return json(server.stores);
+      if (path.endsWith("/chosen-store")) {
+        if (request.method === "PUT") {
+          const body = (await request.json()) as { storeId: string | null };
+          server.chosenPuts.push(body);
+          server.chosenStore = body.storeId;
+          // Like the API: the list comes back in the chosen store's section order.
+          const order = server.stores.find((s) => s.id === body.storeId)?.sectionOrder ?? [];
+          const rank = (i: Item) => (order.includes(i.storeSection) ? order.indexOf(i.storeSection) : 99);
+          server.list = { ...server.list, main: [...server.list.main].sort((a, b) => rank(a) - rank(b)) };
+        }
+        return json({ storeId: server.chosenStore });
       }
       const pantryPath = path.match(/\/pantry(?:\/([^/]+))?$/);
       if (pantryPath) {
@@ -223,7 +240,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0 };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, stores: [], chosenStore: null, chosenPuts: [] };
   installFetch();
 });
 afterEach(() => {
@@ -684,6 +701,52 @@ describe("export (share and copy)", () => {
     expect(button("shopping.share")).toBeDisabled();
     expect(button("shopping.copy")).toBeDisabled();
     expect(screen.getByText(t("shopping.exportNeedsOnline"))).toBeInTheDocument();
+  });
+});
+
+describe("store picker (T-087)", () => {
+  const dairyFirst = ["Dairy", "FruitAndVegetables", "MeatFishAndCheese", "Frozen", "DryGoods", "Other"];
+
+  const produceAndDairy = () => [
+    item("tomat", "Tomat", { storeSection: "FruitAndVegetables" }),
+    item("melk", "Melk", { storeSection: "Dairy" }),
+  ];
+
+  it("is hidden while the household has no stores", async () => {
+    renderPage();
+    await ready();
+
+    await waitFor(() => expect(hubState.hub?.calls.length).toBeGreaterThan(0));
+    expect(screen.queryByTestId("store-picker")).toBeNull();
+  });
+
+  it("picking a store is saved for the user and the headings follow the store's order", async () => {
+    server.stores = [{ id: "s1", name: "Rema Lade", sectionOrder: dairyFirst }];
+    server.list.main = produceAndDairy();
+    renderPage();
+    await ready();
+    const headings = () => screen.getAllByTestId("shop-group").map((g) => within(g).getByRole("heading", { level: 3 }).textContent);
+    expect(headings()).toEqual([t("storeSection.FruitAndVegetables"), t("storeSection.Dairy")]);
+
+    await userEvent.selectOptions(await screen.findByLabelText(t("shopping.store")), "s1");
+
+    await waitFor(() => expect(headings()).toEqual([t("storeSection.Dairy"), t("storeSection.FruitAndVegetables")]));
+    expect(server.chosenPuts).toEqual([{ storeId: "s1" }]);
+  });
+
+  it("shows the remembered choice and clearing it goes back to the usual order", async () => {
+    server.stores = [{ id: "s1", name: "Rema Lade", sectionOrder: dairyFirst }];
+    server.chosenStore = "s1";
+    server.list.main = [item("melk", "Melk", { storeSection: "Dairy" }), item("tomat", "Tomat", { storeSection: "FruitAndVegetables" })];
+    renderPage();
+    await ready();
+    const picker = (await screen.findByLabelText(t("shopping.store"))) as HTMLSelectElement;
+    await waitFor(() => expect(picker.value).toBe("s1"));
+
+    await userEvent.selectOptions(picker, "");
+
+    await waitFor(() => expect(server.chosenPuts).toEqual([{ storeId: null }]));
+    expect(picker.value).toBe("");
   });
 });
 

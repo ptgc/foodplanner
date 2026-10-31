@@ -18,6 +18,37 @@ public static class StoreSectionOrder
         StoreSection.Other,
     ];
 
+    /// <summary>True when <paramref name="order"/> names every <see cref="StoreSection"/> exactly once (the rule for a store's order, T-087).</summary>
+    public static bool IsComplete(IReadOnlyList<StoreSection>? order) =>
+        order is not null
+        && order.Count == Default.Count
+        && order.Distinct().Count() == Default.Count
+        && order.All(Default.Contains);
+
+    /// <summary>
+    /// The full walking order for a custom order: the named sections first, then any the custom order does not name in
+    /// default order. Null gives <see cref="Default"/>. Sorting by <see cref="Rank"/> gives the same order.
+    /// </summary>
+    public static IReadOnlyList<StoreSection> Effective(IReadOnlyList<StoreSection>? custom)
+    {
+        if (custom is null)
+        {
+            return Default;
+        }
+
+        var seen = new HashSet<StoreSection>();
+        var result = new List<StoreSection>();
+        foreach (var section in custom.Concat(Default))
+        {
+            if (Default.Contains(section) && seen.Add(section))
+            {
+                result.Add(section);
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>The position of a section: its index in <paramref name="custom"/> when named there, else after those, in default order.</summary>
     public static int Rank(StoreSection section, IReadOnlyList<StoreSection>? custom = null)
     {

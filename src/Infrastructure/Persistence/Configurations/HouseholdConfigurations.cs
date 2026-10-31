@@ -1,3 +1,4 @@
+using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,11 @@ internal sealed class MembershipConfiguration : IEntityTypeConfiguration<Members
         // the dependent only (a required navigation from the root to a filtered entity raises EF warning 10622).
         membership.HasOne<Household>().WithMany().HasForeignKey(m => m.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         membership.HasOne<AppUser>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+
+        // The store this member shops at (T-087). NO ACTION: the household cascades to both tables already. The store delete
+        // endpoint clears the choice first.
+        membership.HasIndex(m => m.ChosenStoreId);
+        membership.HasOne<Store>().WithMany().HasForeignKey(m => m.ChosenStoreId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

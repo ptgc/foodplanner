@@ -3952,6 +3952,40 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("ShoppingListItemSources", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.Store", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SectionOrderText")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Stores", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.WeeklyGrocery", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4071,6 +4105,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ChosenStoreId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -4090,6 +4127,8 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ChosenStoreId");
 
                     b.HasIndex("UserId");
 
@@ -4506,6 +4545,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.Store", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.WeeklyGrocery", b =>
                 {
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
@@ -4548,6 +4596,11 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Foodplanner.Domain.Tenancy.Membership", b =>
                 {
+                    b.HasOne("Foodplanner.Domain.ShoppingLists.Store", null)
+                        .WithMany()
+                        .HasForeignKey("ChosenStoreId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
                         .WithMany()
                         .HasForeignKey("HouseholdId")
