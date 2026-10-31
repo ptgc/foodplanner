@@ -572,7 +572,8 @@ public sealed class MigrationTests(SqlServerFixture server)
                 ('00000000-0000-0000-0000-0000000000b6', @h, N'Fish only as serving', 4, @now, @now),
                 ('00000000-0000-0000-0000-0000000000b7', @h, N'Pasta with milk', 4, @now, @now),
                 ('00000000-0000-0000-0000-0000000000b8', @h, N'Only plants', 4, @now, @now),
-                ('00000000-0000-0000-0000-0000000000b9', @h, N'Tagged meat, pork', 4, @now, @now);
+                ('00000000-0000-0000-0000-0000000000b9', @h, N'Tagged meat, pork', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000c1', @h, N'Mince and bacon', 4, @now, @now);
             INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, Quantity, UnitId, Purpose, IsOptional, AmountKind, CreatedAt, UpdatedAt) VALUES
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b1', 0, '{Ing("laks")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b1', 1, '{Ing("potet")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
@@ -585,7 +586,9 @@ public sealed class MigrationTests(SqlServerFixture server)
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b7', 1, '{Ing("parmesan")}', 50, '{gram}', 'Main', 0, 'Measured', @now, @now),
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b7', 2, '{Ing("bacon")}', 50, '{gram}', 'Main', 1, 'Measured', @now, @now),
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b8', 0, '{Ing("potet")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
-                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b9', 0, '{Ing("svinekotelett")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now);
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b9', 0, '{Ing("svinekotelett")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000c1', 0, '{Ing("kjottdeig")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000c1', 1, '{Ing("bacon")}', 100, '{gram}', 'Main', 0, 'Measured', @now, @now);
             INSERT INTO RecipeTags (Id, HouseholdId, RecipeId, TagId, CreatedAt, UpdatedAt) VALUES
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b2', '{vegetar}', @now, @now),
                 (NEWID(), @h, '00000000-0000-0000-0000-0000000000b3', '{kjott}', @now, @now),
@@ -611,6 +614,7 @@ public sealed class MigrationTests(SqlServerFixture server)
         await AssertTypeAsync("Fish only as serving", "Vegan", false); // only Main lines count
         await AssertTypeAsync("Pasta with milk", "Vegetarian", false); // the optional bacon does not count
         await AssertTypeAsync("Only plants", "Vegan", false);
+        await AssertTypeAsync("Mince and bacon", "MixedMeat", false); // unspecified meat next to a specific kind is mixed
         await AssertTypeAsync("Tagged meat, pork", "Pork", false); // Kjott keeps the more specific derived meat type
 
         // The four food tags and their links are gone; other tags and links stay.

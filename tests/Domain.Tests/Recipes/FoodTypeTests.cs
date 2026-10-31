@@ -52,8 +52,8 @@ public class FoodTypeTests
         Assert.Equal(FoodType.Chicken, Derive(ProteinClass.Chicken, ProteinClass.Chicken));
 
     [Fact]
-    public void Unspecified_meat_next_to_one_specific_kind_is_that_kind() =>
-        Assert.Equal(FoodType.Pork, Derive(ProteinClass.Meat, ProteinClass.Pork));
+    public void Unspecified_meat_next_to_a_specific_kind_is_mixed() =>
+        Assert.Equal(FoodType.MixedMeat, Derive(ProteinClass.Meat, ProteinClass.Pork));
 
     [Fact]
     public void An_unclassified_ingredient_blocks_vegetarian_and_vegan_but_not_meat_or_fish()

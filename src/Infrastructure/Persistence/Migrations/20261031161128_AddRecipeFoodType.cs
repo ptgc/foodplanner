@@ -827,7 +827,7 @@ WITH Lines AS (
     FROM Lines GROUP BY RecipeId
 )
 UPDATE r SET r.FoodType = CASE
-    WHEN (CASE WHEN a.Chicken > 0 THEN 1 ELSE 0 END + CASE WHEN a.Beef > 0 THEN 1 ELSE 0 END + CASE WHEN a.Pork > 0 THEN 1 ELSE 0 END + CASE WHEN a.Lamb > 0 THEN 1 ELSE 0 END) > 1 THEN 'MixedMeat'
+    WHEN (CASE WHEN a.Chicken > 0 THEN 1 ELSE 0 END + CASE WHEN a.Beef > 0 THEN 1 ELSE 0 END + CASE WHEN a.Pork > 0 THEN 1 ELSE 0 END + CASE WHEN a.Lamb > 0 THEN 1 ELSE 0 END + CASE WHEN a.Meat > 0 THEN 1 ELSE 0 END) > 1 THEN 'MixedMeat'
     WHEN a.Chicken > 0 THEN 'Chicken'
     WHEN a.Beef > 0 THEN 'Beef'
     WHEN a.Pork > 0 THEN 'Pork'

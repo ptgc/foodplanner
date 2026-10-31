@@ -48,8 +48,8 @@ public readonly record struct FoodTypeLine(ProteinClass Protein, IngredientPurpo
 /// Derives the food type of a recipe from its ingredient lines (pure, CLAUDE.md rule 3). Only Main-purpose, non-optional lines
 /// count (frying fat, serving sides, garnish and seasoning do not decide the type, nor does anything the cook may leave out).
 /// <list type="number">
-/// <item>Meat beats everything: one kind of meat gives that type; two or more different specific kinds, or only unspecified meat,
-/// give <see cref="FoodType.MixedMeat"/> (unspecified meat next to one specific kind is taken as that kind).</item>
+/// <item>Meat beats everything: exactly one specific kind of meat (and no unspecified meat) gives that type; two or more different
+/// kinds, or any unspecified meat (mince, sausages: could be anything), give <see cref="FoodType.MixedMeat"/>.</item>
 /// <item>Else fish (fish beats seafood), else seafood.</item>
 /// <item>Else, if a counted ingredient is unclassified, Unknown (it might be meat); else any animal product (dairy, egg) gives
 /// Vegetarian, and none gives Vegan.</item>
@@ -67,7 +67,7 @@ public static class FoodTypeDeriver
         }
 
         var specificMeats = counted.Where(p => p is ProteinClass.Chicken or ProteinClass.Beef or ProteinClass.Pork or ProteinClass.Lamb).Distinct().ToList();
-        if (specificMeats.Count > 1)
+        if (specificMeats.Count > 1 || (specificMeats.Count > 0 && counted.Contains(ProteinClass.Meat)))
         {
             return FoodType.MixedMeat;
         }
