@@ -191,28 +191,43 @@ public static class StoreEndpoints
     /// <summary>Idempotent. Every user's choice of this store is cleared first (they fall back to the fixed order).</summary>
     private static async Task<IResult> DeleteStore(Guid id, AppDbContext db, CancellationToken cancellationToken)
     {
-        var store = await db.Stores.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
-        if (store is null)
+        // Two passes: a member may choose the store between loading the memberships and the commit (foreign key violation);
+        // the second pass reloads and clears them again.
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            return Results.NoContent();
+            var store = await db.Stores.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+            if (store is null)
+            {
+                return Results.NoContent();
+            }
+
+            foreach (var membership in await db.Memberships.Where(m => m.ChosenStoreId == id).ToListAsync(cancellationToken))
+            {
+                membership.ChooseStore(null);
+            }
+
+            db.Stores.Remove(store);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Results.NoContent();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear(); // removed by someone else in between: gone either way
+                return Results.NoContent();
+            }
+            catch (DbUpdateException)
+            {
+                db.ChangeTracker.Clear();
+            }
         }
 
-        foreach (var membership in await db.Memberships.Where(m => m.ChosenStoreId == id).ToListAsync(cancellationToken))
-        {
-            membership.ChooseStore(null);
-        }
-
-        db.Stores.Remove(store);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            db.ChangeTracker.Clear(); // removed by someone else in between: gone either way
-        }
-
-        return Results.NoContent();
+        return AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.StoreConflict,
+            "Store could not be deleted",
+            "Someone chose the store while it was being deleted. Try again.");
     }
 
     private static async Task<IResult> GetChosenStore(ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)

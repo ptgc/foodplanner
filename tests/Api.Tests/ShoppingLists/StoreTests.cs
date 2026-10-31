@@ -241,6 +241,82 @@ public sealed class StoreTests(AuthDatabase db) : IClassFixture<AuthDatabase>
     }
 
     [Fact]
+    public async Task Deleting_a_household_whose_members_chose_a_store_leaves_nothing_behind()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var child = await host.JoinAsync(owner, household, "Child");
+        var store = await CreateAsync(owner.Client, household, "Rema Lade");
+        await ChooseAsync(owner.Client, household, store);
+        await ChooseAsync(child.Client, household, store);
+
+        using var deleted = await owner.Client.DeleteAsync($"/api/households/{household}");
+
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        foreach (var table in new[] { "Stores", "Memberships", "Households" })
+        {
+            var column = table == "Households" ? "Id" : "HouseholdId";
+            Assert.Equal(0, Convert.ToInt32(await HouseholdScenario.ScalarAsync(
+                db.ConnectionString, $"SELECT COUNT(*) FROM {table} WHERE {column} = @h", ("@h", household))));
+        }
+    }
+
+    [Fact]
+    public async Task A_member_with_a_chosen_store_can_leave_and_be_removed()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var leaver = await host.JoinAsync(owner, household, "Adult");
+        var removed = await host.JoinAsync(owner, household, "Child");
+        var store = await CreateAsync(owner.Client, household, "Rema Lade");
+        await ChooseAsync(leaver.Client, household, store);
+        await ChooseAsync(removed.Client, household, store);
+
+        using var left = await leaver.Client.PostAsync($"/api/households/{household}/leave");
+        using var remove = await owner.Client.DeleteAsync($"/api/households/{household}/members/{removed.User.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, left.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, remove.StatusCode);
+        using var stores = await owner.Client.GetAsync(Url(household));
+        Assert.Equal(1, (await stores.JsonAsync()).GetArrayLength()); // the store itself stays
+    }
+
+    [Fact]
+    public async Task Deleting_a_store_survives_members_choosing_it_at_the_same_time()
+    {
+        // Not deterministic by design: it races choices against the delete. Whatever the interleaving, the answer is 204 (or the
+        // documented 409 store-conflict), never a 500, and no choice of a deleted store is left behind.
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var members = new List<SignedInUser>();
+        for (var i = 0; i < 3; i++)
+        {
+            members.Add(await host.JoinAsync(owner, household, "Adult"));
+        }
+
+        var store = await CreateAsync(owner.Client, household, "Rema Lade");
+        var choosing = members.Select(m => m.Client.PutAsync(ChosenUrl(household), new { storeId = store })).ToList();
+        var deleting = owner.Client.DeleteAsync(Url(household, $"/{store}"));
+        await Task.WhenAll([.. choosing, deleting]);
+
+        using var delete = await deleting;
+        Assert.Contains(delete.StatusCode, new[] { HttpStatusCode.NoContent, HttpStatusCode.Conflict });
+        foreach (var task in choosing)
+        {
+            using var response = await task;
+            Assert.DoesNotContain(response.StatusCode, new[] { HttpStatusCode.InternalServerError });
+        }
+
+        using var again = await owner.Client.DeleteAsync(Url(household, $"/{store}"));
+        Assert.Equal(HttpStatusCode.NoContent, again.StatusCode);
+        Assert.Equal(0, Convert.ToInt32(await HouseholdScenario.ScalarAsync(
+            db.ConnectionString, "SELECT COUNT(*) FROM Memberships WHERE ChosenStoreId = @s", ("@s", store))));
+    }
+
+    [Fact]
     public async Task Deleting_a_store_clears_every_users_choice_of_it()
     {
         await using var host = Host();
