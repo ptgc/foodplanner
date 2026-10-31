@@ -1,9 +1,11 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence.Configurations;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
@@ -97,6 +99,15 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     /// <summary>The household's regular weekly groceries (T-092).</summary>
     public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
+
+    /// <summary>Kid profiles of a household (T-026).</summary>
+    public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();
+
+    /// <summary>Which kid profile likes which recipe (T-026).</summary>
+    public DbSet<RecipeLike> RecipeLikes => Set<RecipeLike>();
+
+    /// <summary>The account's PIN hash and attempt counter (T-026). Global, like the identity tables.</summary>
+    public DbSet<UserPin> UserPins => Set<UserPin>();
 
     /// <summary>Recipe import artifacts and drafts (T-042).</summary>
     public DbSet<RecipeImport> RecipeImports => Set<RecipeImport>();

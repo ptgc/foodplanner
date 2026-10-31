@@ -40,6 +40,7 @@ public static class HouseholdEndpoints
         var households = api.MapGroup("/households");
 
         households.MapPost("", CreateHousehold)
+            .RequireAuthorization(Policies.FullSession)
             .WithName("CreateHousehold")
             .Produces<HouseholdResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
@@ -57,6 +58,7 @@ public static class HouseholdEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         api.MapPost("/invites/{token}/accept", AcceptInvite)
+            .RequireAuthorization(Policies.FullSession)
             .WithName("AcceptInvite")
             .Produces<AcceptInviteResponse>()
             .ProducesProblem(StatusCodes.Status409Conflict)
@@ -95,7 +97,7 @@ public static class HouseholdEndpoints
         }
 
         var memberships = await resolution.GetMembershipsForUser(userId, cancellationToken);
-        return Results.Ok(memberships.Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role)).ToArray());
+        return Results.Ok(memberships.Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role.Effective(user.IsKidMode))).ToArray());
     }
 
     private static async Task<IResult> CreateInvite(

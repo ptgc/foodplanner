@@ -1,5 +1,7 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -23,6 +25,7 @@ public static class TenantCoverage
         [typeof(Unit)] = "Global measuring units (T-020): the seed defines them, no household owns or creates one, no HouseholdId. Read-only at request time because nothing writes the set.",
         [typeof(CatalogTranslation)] = "Global names of seeded units, ingredients and tags per locale (T-039): written only by the seed, no HouseholdId, never written at request time. A household's own rows have no translations.",
         [typeof(AppUser)] = "Global login identity (ADR 0004, T-009), not household data.",
+        [typeof(UserPin)] = "Per-account secret, like the identity tables (T-026): the PIN hash and attempt counter of one account, keyed by the account, no HouseholdId.",
         [typeof(IdentityUserClaim<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserLogin<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserToken<Guid>)] = "Global login identity (T-009).",

@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
@@ -173,6 +174,23 @@ public static class TenantIsolationRegistry
                 return new WeeklyGrocery(ingredient.Id, 1m, UnitSeed.All[0].Id);
             },
             entry => entry.Property(w => w.Amount).CurrentValue = 2m),
+
+        // Kid profiles (T-026): name unique per household, so the factory makes a fresh name each time.
+        TenantIsolationCase.For<MemberProfile>(
+            (_, _) => Task.FromResult(new MemberProfile("Isolation " + Guid.NewGuid().ToString("N")[..12], "fox")),
+            entry => entry.Property(p => p.Avatar).CurrentValue = "owl"),
+
+        // Likes (T-026): unique per (profile, recipe); the factory seeds its own profile and recipe in the household.
+        TenantIsolationCase.For<RecipeLike>(
+            async (env, household) =>
+            {
+                var profile = new MemberProfile("Parent " + Guid.NewGuid().ToString("N")[..12], "cat");
+                await env.SaveAsync(household, profile);
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new RecipeLike(profile.Id, recipe.Id);
+            },
+            entry => entry.Property(l => l.RecipeId).CurrentValue = Guid.NewGuid()), // never saved: every update of another household's row is refused before or in the UPDATE
 
         // Recipe import artifact (T-042): one table, the draft is JSON (no foreign keys to ingredients or units); the creating user is global identity data.
         TenantIsolationCase.For<RecipeImport>(

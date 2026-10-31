@@ -57,6 +57,8 @@ public static class AuthEndpoints
             .WithName("Logout")
             .Produces(StatusCodes.Status204NoContent);
 
+        auth.MapPinEndpoints();
+
         auth.MapGet("/me", GetMe)
             .WithName("GetMe")
             .Produces<MeResponse>()
@@ -320,7 +322,8 @@ public static class AuthEndpoints
 
     private static IResult GetMe(ICurrentUser current) =>
         current is { IsAuthenticated: true, UserId: { } id, Email: { } email }
-            ? Results.Ok(new MeResponse(id, email))
+            ? Results.Ok(new MeResponse(
+                id, email, current.IsKidMode ? new KidModeInfo(current.ActiveProfileId, current.ActiveProfileHouseholdId) : null))
             : AppProblems.Problem(StatusCodes.Status401Unauthorized, AppProblems.Unauthenticated, "Not signed in");
 
     private static string? ValidateEmail(string? value, Dictionary<string, string[]> errors)
@@ -375,5 +378,8 @@ public static class AuthEndpoints
 
     public sealed record LoginRequest(string? Email, string? Password);
 
-    public sealed record MeResponse(Guid UserId, string Email);
+    /// <summary>Kid mode (T-026): the device is locked to this profile. The ids are null when the claim is malformed.</summary>
+    public sealed record KidModeInfo(Guid? ProfileId, Guid? HouseholdId);
+
+    public sealed record MeResponse(Guid UserId, string Email, KidModeInfo? KidMode);
 }

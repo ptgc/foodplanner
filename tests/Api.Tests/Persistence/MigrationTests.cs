@@ -546,6 +546,60 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddMemberProfiles_upgrades_a_database_with_plans_unlocked_and_entries_without_profile_and_household_delete_removes_profiles()
+    {
+        var connectionString = await server.CreateDatabaseAsync("memberprofiles", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261031010855_AddStores", Ct); // before T-026
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID(), @r uniqueidentifier = NEWID(), @p uniqueidentifier = NEWID(), @u uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Before', @now, @now);
+            INSERT INTO AspNetUsers (Id, AccessFailedCount, EmailConfirmed, LockoutEnabled, PhoneNumberConfirmed, TwoFactorEnabled) VALUES (@u, 0, 0, 0, 0, 0);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES (@r, @h, N'R', 4, @now, @now);
+            INSERT INTO MealPlans (Id, HouseholdId, WeekStart, CreatedAt, UpdatedAt) VALUES (@p, @h, '2026-10-26', @now, @now);
+            INSERT INTO MealPlanEntries (Id, HouseholdId, MealPlanId, Date, RecipeId, Servings, PickedByUserId, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, @p, '2026-10-27', @r, 4, @u, @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddMemberProfiles'"));
+        foreach (var column in new[] { "LockedAt", "LockedByUserId" })
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('MealPlans') AND name = '{column}'"));
+        }
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM MealPlans WHERE LockedAt IS NULL AND LockedByUserId IS NULL")); // existing plans are unlocked
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM MealPlanEntries WHERE PickedByProfileId IS NULL"));
+        foreach (var table in new[] { "MemberProfiles", "RecipeLikes" })
+        {
+            Assert.Equal(1, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('{table}') AND name = 'HouseholdId'"));
+        }
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('UserPins') AND name = 'HouseholdId'")); // global, like the identity tables
+
+        // Deleting the household still removes everything, kid data included (one cascade statement, NO ACTION links notwithstanding).
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = (SELECT TOP 1 Id FROM Households), @r uniqueidentifier = (SELECT TOP 1 Id FROM Recipes), @k uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO MemberProfiles (Id, HouseholdId, DisplayName, Avatar, CreatedAt, UpdatedAt) VALUES (@k, @h, N'Mia', N'fox', @now, @now);
+            INSERT INTO RecipeLikes (Id, HouseholdId, MemberProfileId, RecipeId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, @k, @r, @now, @now);
+            UPDATE MealPlanEntries SET PickedByProfileId = @k;
+            UPDATE MealPlans SET LockedAt = @now, LockedByUserId = (SELECT TOP 1 Id FROM AspNetUsers);
+            """);
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+        foreach (var table in new[] { "MealPlans", "MealPlanEntries", "MemberProfiles", "RecipeLikes", "Recipes" })
+        {
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM {table}"));
+        }
+
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task Api_startup_does_not_migrate()
     {
         var connectionString = await server.CreateDatabaseAsync("startup", Ct);

@@ -8,6 +8,18 @@ public static class AppProblems
 {
     public const string Unauthenticated = "unauthenticated";
     public const string Forbidden = "forbidden";
+    public const string KidMode = "kid-mode";
+    public const string ProfileNotFound = "profile-not-found";
+    public const string ProfileExists = "profile-exists";
+    public const string ProfileLimit = "profile-limit";
+    public const string ProfileConflict = "profile-conflict";
+    public const string PinNotSet = "pin-not-set";
+    public const string PinIncorrect = "pin-incorrect";
+    public const string PinLocked = "pin-locked";
+    public const string NotInKidMode = "not-in-kid-mode";
+    public const string NoActiveProfile = "no-active-profile";
+    public const string PickNotAllowed = "pick-not-allowed";
+    public const string WeekLocked = "week-locked";
     public const string LoginFailed = "login-failed";
     public const string ConfirmationInvalid = "confirmation-invalid";
     public const string AntiforgeryInvalid = "antiforgery-invalid";

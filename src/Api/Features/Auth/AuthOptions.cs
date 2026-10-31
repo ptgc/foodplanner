@@ -17,6 +17,12 @@ public sealed class AuthOptions
 
     public int LockoutMinutes { get; set; } = 15;
 
+    /// <summary>Consecutive wrong PINs (unlock, or the proof to change a PIN) that lock the account's PIN (T-026).</summary>
+    public int PinMaxFailedAttempts { get; set; } = 5;
+
+    /// <summary>How long the PIN stays locked after <see cref="PinMaxFailedAttempts"/> wrong attempts (T-026).</summary>
+    public int PinLockoutMinutes { get; set; } = 2;
+
     public int CookieLifetimeDays { get; set; } = 14;
 
     /// <summary>

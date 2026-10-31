@@ -28,6 +28,8 @@ const recipe = (id: string, title: string, tags: Tag[] = [], servings = 4): Summ
   tags,
   thumbUrl: null,
   cardUrl: null,
+  likedBy: [],
+  liked: false,
 });
 
 const entry = (id: string, date: string, r: Summary, servings: number, pickedBy = me): Entry => ({
@@ -37,6 +39,7 @@ const entry = (id: string, date: string, r: Summary, servings: number, pickedBy 
   recipeTitle: r.title,
   servings,
   pickedBy,
+  pickedByProfile: null,
 });
 
 const json = (body: unknown, status = 200) =>

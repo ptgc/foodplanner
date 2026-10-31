@@ -71,6 +71,9 @@ public sealed class SaveTimeReferenceCheckTests(TenancyDatabase db) : IClassFixt
         Assert.Contains("RecipeIngredientAlternative.RecipeIngredientId -> RecipeIngredient", names);
         Assert.Contains("MealPlanEntry.RecipeId -> Recipe", names);
         Assert.Contains("ShoppingListItemSource.RecipeId -> Recipe", names);
+        Assert.Contains("RecipeLike.MemberProfileId -> MemberProfile", names); // T-026
+        Assert.Contains("RecipeLike.RecipeId -> Recipe", names);
+        Assert.Contains("MealPlanEntry.PickedByProfileId -> MemberProfile", names);
         Assert.All(ForeignKeys, k =>
         {
             _ = CaseFor(k.Dependent); // fails loudly, naming the type, when a new entity has no case

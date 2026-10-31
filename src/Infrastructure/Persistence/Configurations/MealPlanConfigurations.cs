@@ -1,3 +1,4 @@
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Tenancy;
@@ -18,6 +19,9 @@ internal sealed class MealPlanConfiguration : IEntityTypeConfiguration<MealPlan>
         plan.ToTable("MealPlans");
         plan.HasIndex(p => new { p.HouseholdId, p.WeekStart }).IsUnique();
         plan.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+
+        // The week lock (T-026): the user who locked it is global identity data, NO ACTION like the other user references.
+        plan.HasOne<AppUser>().WithMany().HasForeignKey(p => p.LockedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
 
@@ -35,5 +39,10 @@ internal sealed class MealPlanEntryConfiguration : IEntityTypeConfiguration<Meal
         // A planned recipe cannot be deleted (the recipe endpoint answers 409 first); the user is global identity data.
         entry.HasOne<Recipe>().WithMany().HasForeignKey(e => e.RecipeId).OnDelete(DeleteBehavior.Restrict);
         entry.HasOne<AppUser>().WithMany().HasForeignKey(e => e.PickedByUserId).OnDelete(DeleteBehavior.Restrict);
+
+        // The kid profile that picked it (T-026). NO ACTION: Household -> MealPlan -> Entry already cascades, and a second path
+        // from Household via MemberProfile is rejected. The profile delete endpoint clears this column first.
+        entry.HasIndex(e => e.PickedByProfileId);
+        entry.HasOne<MemberProfile>().WithMany().HasForeignKey(e => e.PickedByProfileId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
