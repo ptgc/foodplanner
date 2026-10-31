@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { failureText } from "../routes/recipes";
 import type { IngredientChoice } from "./recipe-form";
+import { PROTEIN_CLASSES, proteinClassKey, type ProteinClass } from "./food-types";
 import { createIngredient, searchIngredients, type Ingredient } from "./use-catalog";
 import type { Failure } from "./use-recipes";
 
@@ -139,9 +140,11 @@ function CreateIngredient({
   const { t } = useI18n();
   const nameId = useId();
   const dimensionId = useId();
+  const proteinId = useId();
   const [name, setName] = useState(initialName);
   const [dimension, setDimension] = useState<Ingredient["dimension"]>("Mass");
   const [staple, setStaple] = useState(false);
+  const [proteinClass, setProteinClass] = useState<ProteinClass>("Unknown");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,7 +152,7 @@ function CreateIngredient({
     if (busy || name.trim() === "") return;
     setBusy(true);
     setError(null);
-    const result = await createIngredient(householdId, { name: name.trim(), dimension, isStaple: staple });
+    const result = await createIngredient(householdId, { name: name.trim(), dimension, isStaple: staple, proteinClass });
     setBusy(false);
     if (result.ok) onCreated(result.value);
     else setError(result.failure === "unreachable" ? t("problem.unreachable") : t(problemKey(result.failure.problemType)));
@@ -168,6 +171,16 @@ function CreateIngredient({
           <option value="Mass">{t("recipe.dimensionMass")}</option>
           <option value="Volume">{t("recipe.dimensionVolume")}</option>
           <option value="Count">{t("recipe.dimensionCount")}</option>
+        </select>
+      </div>
+      <div className="form-field">
+        <label htmlFor={proteinId}>{t("recipe.ingredientProtein")}</label>
+        <select id={proteinId} value={proteinClass} onChange={(e) => setProteinClass(e.target.value as ProteinClass)}>
+          {PROTEIN_CLASSES.map((value) => (
+            <option key={value} value={value}>
+              {t(proteinClassKey(value))}
+            </option>
+          ))}
         </select>
       </div>
       <label className="check-field">

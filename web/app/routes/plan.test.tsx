@@ -30,6 +30,7 @@ const recipe = (id: string, title: string, tags: Tag[] = [], servings = 4): Summ
   cardUrl: null,
   likedBy: [],
   liked: false,
+  foodType: "Unknown",
 });
 
 const entry = (id: string, date: string, r: Summary, servings: number, pickedBy = me): Entry => ({

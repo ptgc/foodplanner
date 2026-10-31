@@ -24,9 +24,9 @@ const units = [
   { id: "u-stk", code: "stk", name: "stykk", dimension: "Count", factorToBase: 1 },
 ];
 const catalog: Ingredient[] = [
-  { id: "i-torsk", name: "Torsk", isStaple: false, dimension: "Mass", isGlobal: true, section: "MeatFishAndCheese" },
-  { id: "i-salt", name: "Salt", isStaple: true, dimension: "Mass", isGlobal: true, section: "DryGoods" },
-  { id: "i-melk", name: "Melk", isStaple: false, dimension: "Volume", isGlobal: true, section: "Dairy" },
+  { id: "i-torsk", name: "Torsk", isStaple: false, dimension: "Mass", isGlobal: true, section: "MeatFishAndCheese", proteinClass: "None" },
+  { id: "i-salt", name: "Salt", isStaple: true, dimension: "Mass", isGlobal: true, section: "DryGoods", proteinClass: "None" },
+  { id: "i-melk", name: "Melk", isStaple: false, dimension: "Volume", isGlobal: true, section: "Dairy", proteinClass: "None" },
 ];
 const tags = [
   { id: "t-dinner", name: "Middag", kind: "Category", isGlobal: true },
@@ -36,6 +36,8 @@ const tags = [
 const existing = (patch: Partial<Recipe> = {}): Recipe => ({
   likedBy: [],
   liked: false,
+  foodType: "Unknown",
+  foodTypeIsManual: false,
   sourceUrl: null,
   sourceName: null,
   id: "r1",
@@ -352,6 +354,7 @@ describe("creating a recipe", () => {
       prepMinutes: null,
       cookMinutes: 30,
       tagIds: ["t-quick"],
+      foodType: null,
       ingredients: [
         { ingredientId: "i-torsk", quantity: 1.5, unitId: "u-g", note: null, amountKind: "Measured", purpose: "Main", isOptional: false, alternativeIds: [] },
         { ingredientId: "i-salt", quantity: null, unitId: null, note: "etter smak", amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] },
@@ -372,7 +375,7 @@ describe("creating a recipe", () => {
     await user.click(within(rows()[0]!).getByRole("checkbox", { name: t("recipe.ingredientStaple") }));
     await user.click(within(rows()[0]!).getByRole("button", { name: t("recipe.ingredientCreateSubmit") }));
     expect(await within(rows()[0]!).findByText(t("recipe.ingredientChosen", { name: "kardemomme" }))).toBeInTheDocument();
-    expect(server.createdIngredients).toEqual([{ name: "kardemomme", dimension: "Count", isStaple: true }]);
+    expect(server.createdIngredients).toEqual([{ name: "kardemomme", dimension: "Count", isStaple: true, proteinClass: "Unknown" }]);
   });
 
   it("explains a duplicate ingredient name in the user's language", async () => {
@@ -432,6 +435,38 @@ describe("ingredient and step rows", () => {
 });
 
 describe("editing a recipe", () => {
+  it("offers the food type: automatic by default, a chosen type is sent and an automatic one shows what it is now (T-089)", async () => {
+    const user = userEvent.setup();
+    await formReady();
+    const select = screen.getByLabelText(t("recipe.foodType"));
+    expect(select).toHaveValue("");
+    expect(within(select).getAllByRole("option")).toHaveLength(11);
+    expect(within(select).getAllByRole("option")[0]).toHaveTextContent(t("recipe.foodTypeAuto"));
+    await user.type(screen.getByLabelText(t("recipe.fieldTitle")), "Tacos");
+    await pick(user, 0, "tor", "Torsk");
+    await user.type(within(rows()[0]!).getByLabelText(t("recipe.quantity")), "1");
+    await selectUnit(user, 0, "u-g");
+    await user.type(within(steps()[0]!).getByRole("textbox"), "Kok");
+    await user.selectOptions(select, "Beef");
+    await user.click(save());
+    await waitFor(() => expect(server.saved).toHaveLength(1));
+    expect(server.saved[0]!.body).toMatchObject({ foodType: "Beef" });
+  });
+
+  it("shows an automatic type as such when editing, and a manual one selected", async () => {
+    server.recipe = existing({ foodType: "Fish", foodTypeIsManual: false });
+    await formReady("/recipes/r1/edit");
+    const auto = screen.getByLabelText(t("recipe.foodType"));
+    expect(auto).toHaveValue("");
+    expect(within(auto).getAllByRole("option")[0]).toHaveTextContent(t("recipe.foodTypeAutoNow", { type: t("foodType.Fish") }));
+  });
+
+  it("keeps a manual type selected when editing", async () => {
+    server.recipe = existing({ foodType: "Lamb", foodTypeIsManual: true });
+    await formReady("/recipes/r1/edit");
+    expect(screen.getByLabelText(t("recipe.foodType"))).toHaveValue("Lamb");
+  });
+
   it("fills the form from the recipe and saves with PUT, in the lines' new order", async () => {
     const user = userEvent.setup();
     await formReady("/recipes/r1/edit");

@@ -1,6 +1,7 @@
 import type { components } from "../api/schema";
 import type { MessageKey, Params } from "../i18n";
 import type { AmountKind, Purpose } from "./prep-list";
+import type { FoodType } from "./food-types";
 import { safeSourceUrl, sourceUrlMax } from "./source-link";
 
 // Request/response shapes come from the generated client; nothing is hand-written here.
@@ -57,6 +58,10 @@ export type FormState = {
   prepMinutes: string;
   cookMinutes: string;
   tagIds: string[];
+  /** The food type chosen by hand (T-089), or "" for automatic (derived from the ingredients by the API). */
+  foodType: FoodType | "";
+  /** What an automatic type is right now (display only); null for a new recipe. */
+  autoFoodType: FoodType | null;
   ingredients: IngredientRow[];
   steps: StepRow[];
   /** A website (link + optional name, T-075) or a book/other source (name only, T-081). */
@@ -101,6 +106,8 @@ export const emptyForm = (): FormState => ({
   prepMinutes: "",
   cookMinutes: "",
   tagIds: [],
+  foodType: "",
+  autoFoodType: null,
   ingredients: [emptyIngredient()],
   steps: [emptyStep()],
   sourceKind: "website",
@@ -219,6 +226,7 @@ export function toRequest(form: FormState): RecipeBody {
     prepMinutes: blankToNull(form.prepMinutes),
     cookMinutes: blankToNull(form.cookMinutes),
     tagIds: form.tagIds,
+    foodType: form.foodType === "" ? null : form.foodType,
     ingredients: form.ingredients.map((row) => ({
       ingredientId: row.ingredient?.id ?? null,
       quantity: row.amountKind === "Measured" ? parseQuantity(row.quantity) : null,
@@ -249,6 +257,8 @@ export function fromRecipe(recipe: Recipe, decimalComma: boolean): FormState {
     prepMinutes: recipe.prepMinutes === null || recipe.prepMinutes === undefined ? "" : String(Number(recipe.prepMinutes)),
     cookMinutes: recipe.cookMinutes === null || recipe.cookMinutes === undefined ? "" : String(Number(recipe.cookMinutes)),
     tagIds: recipe.tags.map((tag) => tag.id),
+    foodType: recipe.foodTypeIsManual ? recipe.foodType : "",
+    autoFoodType: recipe.foodTypeIsManual ? null : recipe.foodType,
     ingredients: recipe.ingredients.map((line) => {
       const measured = line.amountKind === "Measured" && line.quantity !== null && line.quantity !== undefined;
       return {

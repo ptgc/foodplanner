@@ -146,6 +146,7 @@ describe("toRequest", () => {
       prepMinutes: null,
       cookMinutes: 30,
       tagIds: ["a", "b"],
+      foodType: null,
       ingredients: [
         { ingredientId: "i1", quantity: 1.5, unitId: "u-g", note: "finhakket", amountKind: "Measured", purpose: "Main", isOptional: false, alternativeIds: [] },
         { ingredientId: "i2", quantity: null, unitId: null, note: null, amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] },
@@ -273,6 +274,8 @@ describe("fromRecipe", () => {
       id: "r1",
       likedBy: [],
       liked: false,
+      foodType: "Unknown",
+      foodTypeIsManual: false,
       sourceUrl: "https://www.matprat.no/x",
       sourceName: "matprat.no",
       title: "Suppe",
