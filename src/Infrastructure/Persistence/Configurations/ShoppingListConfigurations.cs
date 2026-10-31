@@ -88,6 +88,22 @@ internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryI
     }
 }
 
+// Stores (T-087): the household's stores with a section order. Name unique per household (SQL Server's default collation compares
+// ignoring case). A membership's chosen store is NO ACTION (SQL Server rejects two cascade paths from the household); the delete
+// endpoint clears the choices first.
+internal sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
+{
+    public void Configure(EntityTypeBuilder<Store> store)
+    {
+        store.ToTable("Stores");
+        store.Property(s => s.Name).HasMaxLength(Store.MaxNameLength).IsRequired();
+        store.Property(s => s.SectionOrderText).HasMaxLength(200).IsRequired();
+        store.Ignore(s => s.SectionOrder);
+        store.HasIndex(s => new { s.HouseholdId, s.Name }).IsUnique();
+        store.HasOne<Household>().WithMany().HasForeignKey(s => s.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 // Weekly groceries (T-092): one row per household and ingredient. Unit and ingredient are NO ACTION (global catalog data).
 internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<WeeklyGrocery>
 {

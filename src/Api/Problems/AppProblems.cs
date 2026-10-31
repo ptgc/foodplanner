@@ -30,6 +30,10 @@ public static class AppProblems
     public const string WeeklyGroceryNotFound = "weekly-grocery-not-found";
     public const string WeeklyGroceryLimit = "weekly-grocery-limit";
     public const string WeeklyGroceryConflict = "weekly-grocery-conflict";
+    public const string StoreExists = "store-exists";
+    public const string StoreNotFound = "store-not-found";
+    public const string StoreLimit = "store-limit";
+    public const string StoreConflict = "store-conflict";
     public const string ForbiddenOrigin = "forbidden-origin";
     public const string ImportNotFound = "import-not-found";
     public const string ImportNotDraft = "import-not-draft";

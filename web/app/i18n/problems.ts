@@ -47,6 +47,10 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:weekly-grocery-limit": "household.weekly.problem.limit",
   "urn:foodplanner:problem:weekly-grocery-not-found": "household.weekly.problem.notFound",
   "urn:foodplanner:problem:weekly-grocery-conflict": "household.weekly.problem.conflict",
+  "urn:foodplanner:problem:store-exists": "household.stores.problem.exists",
+  "urn:foodplanner:problem:store-limit": "household.stores.problem.limit",
+  "urn:foodplanner:problem:store-not-found": "household.stores.problem.notFound",
+  "urn:foodplanner:problem:store-conflict": "household.stores.problem.conflict",
   "urn:foodplanner:problem:pantry-conflict": "pantry.problem.conflict",
 };
 

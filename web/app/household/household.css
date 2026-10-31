@@ -223,6 +223,47 @@
   margin-top: 0.75rem;
 }
 
+/* Stores (T-087) */
+.household-store-form {
+  flex: 1 1 100%;
+  margin-top: 0.75rem;
+}
+
+.household-store-form h3 {
+  margin-bottom: 0.5rem;
+}
+
+.store-order {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.store-order-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-top: 1px solid #e4e4ea;
+}
+
+.store-order-row:first-child {
+  border-top: 0;
+}
+
+.store-order-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.store-order-button {
+  flex: 0 0 auto;
+  min-width: var(--touch);
+  min-height: var(--touch);
+  padding: 0;
+}
+
 /* Pantry (T-093) */
 .pantry-clear {
   margin-top: 0.75rem;

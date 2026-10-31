@@ -55,6 +55,8 @@ export type ShoppingListModel = {
   weeklyCount: number | null;
   /** "Add weekly groceries" (T-092): puts the household's weekly set on this week's list. Safe to press again. */
   addWeekly: () => Promise<ActionResult>;
+  /** Pick the store being shopped at (null = none, the usual order). The server remembers it per user; the list is re-read in that order (T-087). */
+  chooseStore: (storeId: string | null) => Promise<ActionResult>;
 };
 
 type Options = { hubFactory?: () => HubLike; restartMs?: number };
@@ -440,7 +442,21 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     [householdId, pantryThenGenerate],
   );
 
+  // Remembered per user and household on the server (T-087); the list comes back in the new store's order.
+  const chooseStore = useCallback(
+    (storeId: string | null) =>
+      mutate(async () => {
+        const { response } = await api.PUT("/api/households/{householdId}/chosen-store", {
+          params: { path: { householdId } },
+          body: { storeId },
+        });
+        return response;
+      }),
+    [householdId, mutate],
+  );
+
   return {
+    chooseStore,
     list,
     fromCache: !current && !!cached,
     loading: !list && !error && !forbidden,

@@ -159,6 +159,11 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(p => p.Amount).CurrentValue = 500m),
 
+        // Stores (T-087): name unique per household, so the factory makes a fresh name each time.
+        TenantIsolationCase.For<Store>(
+            (_, _) => Task.FromResult(new Store("Isolation " + Guid.NewGuid().ToString("N"))),
+            entry => entry.Property(s => s.SectionOrderText).CurrentValue = "Dairy,Frozen,MeatFishAndCheese,FruitAndVegetables,DryGoods,Other"),
+
         // Weekly groceries (T-092): unique per (household, ingredient), so the factory seeds its own household ingredient each time.
         TenantIsolationCase.For<WeeklyGrocery>(
             async (env, household) =>

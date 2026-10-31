@@ -92,6 +92,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
 
+    /// <summary>The stores the household shops at, each with a section order (T-087).</summary>
+    public DbSet<Store> Stores => Set<Store>();
+
     /// <summary>The household's regular weekly groceries (T-092).</summary>
     public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
 

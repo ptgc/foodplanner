@@ -96,7 +96,9 @@ internal sealed class ShoppingListHub(HouseholdMembershipGuard guard, AppDbConte
             throw new HubException("weekStart must be the Monday of an ISO week, as yyyy-MM-dd.");
         }
 
-        var list = await ShoppingListEndpoints.ReadAsync(db, monday, Locales.Negotiate(acceptLanguage), Context.ConnectionAborted);
+        // The order is the viewer's own (T-087): the shared list is the same for everyone, the store order is per user.
+        Guid? userId = Guid.TryParse(Context.UserIdentifier, out var id) ? id : null;
+        var list = await ShoppingListEndpoints.ReadAsync(db, monday, Locales.Negotiate(acceptLanguage), userId, Context.ConnectionAborted);
         var hash = SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(list, VersionJson));
         return new ShoppingListState(Convert.ToHexStringLower(hash.AsSpan(0, 12)), list);
     }
