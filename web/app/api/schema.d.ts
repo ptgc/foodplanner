@@ -964,6 +964,7 @@ export interface components {
             isStaple: null | boolean;
             dimension: null | string;
             section?: null | string;
+            proteinClass?: null | string;
         };
         CreateInviteRequest: {
             role: null | string;
@@ -990,6 +991,8 @@ export interface components {
             cardUrl: string;
             fullUrl: string;
         };
+        /** @enum {unknown} */
+        FoodType: "Unknown" | "Fish" | "Seafood" | "Chicken" | "Beef" | "Pork" | "Lamb" | "MixedMeat" | "Vegetarian" | "Vegan";
         HealthResponse: {
             status: string;
         };
@@ -1076,6 +1079,7 @@ export interface components {
             dimension: components["schemas"]["UnitDimension"];
             isGlobal: boolean;
             section: components["schemas"]["StoreSection"];
+            proteinClass: components["schemas"]["ProteinClass"];
         };
         IngredientUsageResponse: {
             /** Format: int32 */
@@ -1176,6 +1180,7 @@ export interface components {
             isStaple: boolean;
             dimension: components["schemas"]["UnitDimension"];
             section: components["schemas"]["StoreSection"];
+            proteinClass: components["schemas"]["ProteinClass"];
             usage: components["schemas"]["IngredientUsageResponse"];
         };
         PantryItemResponse: {
@@ -1219,6 +1224,8 @@ export interface components {
             displayName: string;
             avatar: string;
         };
+        /** @enum {unknown} */
+        ProteinClass: "Unknown" | "None" | "AnimalProduct" | "Fish" | "Seafood" | "Chicken" | "Beef" | "Pork" | "Lamb" | "Meat";
         ReadyResponse: {
             status: string;
             database: string;
@@ -1318,6 +1325,7 @@ export interface components {
             tagIds: null | string[];
             sourceUrl?: null | string;
             sourceName?: null | string;
+            foodType?: null | string;
         };
         RecipeResponse: {
             /** Format: uuid */
@@ -1340,6 +1348,8 @@ export interface components {
             sourceName: null | string;
             likedBy: components["schemas"]["ProfileResponse"][];
             liked: boolean;
+            foodType: components["schemas"]["FoodType"];
+            foodTypeIsManual: boolean;
         };
         RecipeStepRequest: {
             text: null | string;
@@ -1362,6 +1372,7 @@ export interface components {
             cardUrl: null | string;
             likedBy: components["schemas"]["ProfileResponse"][];
             liked: boolean;
+            foodType: components["schemas"]["FoodType"];
         };
         RegisterRequest: {
             email: null | string;
@@ -1372,6 +1383,7 @@ export interface components {
         RenameIngredientRequest: {
             name: null | string;
             section?: null | string;
+            proteinClass?: null | string;
         };
         SaveRecipeImportResponse: {
             /** Format: uuid */
@@ -2934,6 +2946,7 @@ export interface operations {
                 maxMinutes?: number | string;
                 ingredientId?: string[];
                 likedByProfileId?: string[];
+                foodType?: string[];
                 limit?: number | string;
                 offset?: number | string;
             };
