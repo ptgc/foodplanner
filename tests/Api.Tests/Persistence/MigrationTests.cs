@@ -546,6 +546,86 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task AddRecipeFoodType_derives_the_type_of_existing_recipes_turns_the_food_tags_into_the_type_and_removes_them()
+    {
+        var connectionString = await server.CreateDatabaseAsync("foodtype", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261031020452_AddMemberProfiles", Ct); // before T-089
+        string Ing(string key) => IngredientSeed.All.Single(r => r.Key == key).Id.ToString();
+        var gram = UnitSeed.All.Single(r => r.Code == "g").Id;
+        const string vegetar = "1b7b0e72-5763-5bbf-abbd-dd710f275db5";
+        const string kjott = "275e7f12-8016-5cca-86bc-24e60a545b02";
+        const string fisk = "a6f985f6-8c31-526b-9090-1115c56cde39";
+        const string kylling = "c9540730-73c0-5f9e-af48-8dbebeaf9f04";
+        await ScalarAsync(connectionString, $"""
+            DECLARE @h uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Types', @now, @now);
+            INSERT INTO Recipes (Id, HouseholdId, Title, Servings, CreatedAt, UpdatedAt) VALUES
+                ('00000000-0000-0000-0000-0000000000b1', @h, N'Salmon', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b2', @h, N'Tagged vegetarian, no lines', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b3', @h, N'Tagged meat, mince', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b4', @h, N'Tagged chicken, pork lines', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b5', @h, N'Tagged fish, salmon', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b6', @h, N'Fish only as serving', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b7', @h, N'Pasta with milk', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b8', @h, N'Only plants', 4, @now, @now),
+                ('00000000-0000-0000-0000-0000000000b9', @h, N'Tagged meat, pork', 4, @now, @now);
+            INSERT INTO RecipeIngredients (Id, HouseholdId, RecipeId, Position, IngredientId, Quantity, UnitId, Purpose, IsOptional, AmountKind, CreatedAt, UpdatedAt) VALUES
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b1', 0, '{Ing("laks")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b1', 1, '{Ing("potet")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b3', 0, '{Ing("kjottdeig")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b4', 0, '{Ing("bacon")}', 100, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b5', 0, '{Ing("laks")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b6', 0, '{Ing("potet")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b6', 1, '{Ing("laks")}', 100, '{gram}', 'Serving', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b7', 0, '{Ing("pasta")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b7', 1, '{Ing("parmesan")}', 50, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b7', 2, '{Ing("bacon")}', 50, '{gram}', 'Main', 1, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b8', 0, '{Ing("potet")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b9', 0, '{Ing("svinekotelett")}', 400, '{gram}', 'Main', 0, 'Measured', @now, @now);
+            INSERT INTO RecipeTags (Id, HouseholdId, RecipeId, TagId, CreatedAt, UpdatedAt) VALUES
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b2', '{vegetar}', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b3', '{kjott}', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b4', '{kylling}', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b5', '{fisk}', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b5', '{TagSeedId("rask")}', @now, @now),
+                (NEWID(), @h, '00000000-0000-0000-0000-0000000000b9', '{kjott}', @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        async Task AssertTypeAsync(string title, string type, bool manual)
+        {
+            Assert.Equal(type, await ScalarAsync(connectionString, $"SELECT FoodType FROM Recipes WHERE Title = N'{title}'"));
+            Assert.Equal(manual, (bool)(await ScalarAsync(connectionString, $"SELECT FoodTypeIsManual FROM Recipes WHERE Title = N'{title}'"))!);
+        }
+
+        await AssertTypeAsync("Salmon", "Fish", false);
+        await AssertTypeAsync("Tagged vegetarian, no lines", "Vegetarian", true); // the tag is kept as a manual choice
+        await AssertTypeAsync("Tagged meat, mince", "MixedMeat", false); // tag agrees with the derived type
+        await AssertTypeAsync("Tagged chicken, pork lines", "Chicken", true); // the tag wins over the derived Pork
+        await AssertTypeAsync("Tagged fish, salmon", "Fish", false);
+        await AssertTypeAsync("Fish only as serving", "Vegan", false); // only Main lines count
+        await AssertTypeAsync("Pasta with milk", "Vegetarian", false); // the optional bacon does not count
+        await AssertTypeAsync("Only plants", "Vegan", false);
+        await AssertTypeAsync("Tagged meat, pork", "Pork", false); // Kjott keeps the more specific derived meat type
+
+        // The four food tags and their links are gone; other tags and links stay.
+        Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM Tags WHERE Id IN ('{vegetar}', '{kjott}', '{fisk}', '{kylling}')"));
+        Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM CatalogTranslations WHERE EntityId IN ('{vegetar}', '{kjott}', '{fisk}', '{kylling}')"));
+        Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM RecipeTags WHERE TagId IN ('{vegetar}', '{kjott}', '{fisk}', '{kylling}')"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM RecipeTags"));
+        Assert.Equal(9, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Tags WHERE HouseholdId IS NULL"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients WHERE HouseholdId IS NULL AND ProteinClass = 'Unknown'"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    private static Guid TagSeedId(string key) => Foodplanner.Domain.Recipes.TagSeed.All.Single(t => t.Key == key).Id;
+
+    [Fact]
     public async Task AddMemberProfiles_upgrades_a_database_with_plans_unlocked_and_entries_without_profile_and_household_delete_removes_profiles()
     {
         var connectionString = await server.CreateDatabaseAsync("memberprofiles", Ct);
