@@ -21,6 +21,12 @@ public static class Policies
 
     /// <summary>Resource policy (T-030): Adult or Owner, or the member who picked the meal plan entry. Evaluated with the entry as resource.</summary>
     public const string MealPlanEntryOwnerOrAdult = "MealPlanEntryOwnerOrAdult";
+
+    /// <summary>Resource policy (T-026): Adult or Owner, or any other role while the week is not locked. Evaluated with the plan as resource.</summary>
+    public const string MealPlanWeekWritable = "MealPlanWeekWritable";
+
+    /// <summary>The session is not locked to a kid profile (T-026). For account-level actions that are not under a household role policy.</summary>
+    public const string FullSession = "FullSession";
 }
 
 /// <summary>Satisfied when the caller's role in the current household is at least <see cref="Minimum"/>.</summary>
@@ -52,12 +58,22 @@ public static class AuthorizationSetup
     {
         services.AddScoped<IAuthorizationHandler, HouseholdRoleHandler>();
         services.AddScoped<IAuthorizationHandler, MealPlanEntryOwnerOrAdultHandler>();
+        services.AddScoped<IAuthorizationHandler, MealPlanWeekWritableHandler>();
+        services.AddScoped<IAuthorizationHandler, FullSessionHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, KidModeAuthorizationResultHandler>();
+        services.AddScoped<IMealPlanWeekAccess, MealPlanWeekAccess>();
         services.AddScoped<IMealPlanEntryAccess, MealPlanEntryAccess>();
         services.AddAuthorization(authorization =>
         {
             authorization.AddPolicy(
                 Policies.MealPlanEntryOwnerOrAdult,
                 new AuthorizationPolicyBuilder().RequireAuthenticatedUser().AddRequirements(new MealPlanEntryOwnerOrAdultRequirement()).Build());
+            authorization.AddPolicy(
+                Policies.MealPlanWeekWritable,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser().AddRequirements(new MealPlanWeekWritableRequirement()).Build());
+            authorization.AddPolicy(
+                Policies.FullSession,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser().AddRequirements(new FullSessionRequirement()).Build());
             authorization.AddPolicy(Policies.HouseholdMember, Build(HouseholdRole.Child));
             authorization.AddPolicy(Policies.HouseholdAdult, Build(HouseholdRole.Adult));
             authorization.AddPolicy(Policies.HouseholdOwner, Build(HouseholdRole.Owner));

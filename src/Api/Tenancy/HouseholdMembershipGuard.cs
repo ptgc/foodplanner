@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Foodplanner.Api.Authorization;
+using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -29,7 +30,7 @@ internal sealed class HouseholdMembershipGuard(
             return false;
         }
 
-        household.Set(householdId, role);
+        household.Set(householdId, role.Effective(Features.Auth.KidModeClaims.IsKidMode(principal)));
         return (await authorization.AuthorizeAsync(principal, Policies.HouseholdMember)).Succeeded;
     }
 }

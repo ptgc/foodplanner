@@ -30,6 +30,8 @@ const recipe = (id: string, title: string, totalMinutes: number | null, tags: Ta
   tags,
   thumbUrl: withImage ? `/img/${id}/thumb` : null,
   cardUrl: withImage ? `/img/${id}/card` : null,
+  likedBy: [],
+  liked: false,
 });
 
 const json = (body: unknown, status = 200) =>
@@ -352,6 +354,8 @@ describe("Recipe detail (minimal, T-025 extends)", () => {
     const user = userEvent.setup();
     server.detail = {
       id: "r1",
+      likedBy: [],
+      liked: false,
       sourceUrl: null,
       sourceName: null,
       title: "Fiskesuppe",

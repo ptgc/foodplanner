@@ -1,4 +1,5 @@
 using Foodplanner.Api.Authorization;
+using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
 
@@ -49,7 +50,7 @@ internal sealed class HouseholdContextMiddleware(RequestDelegate next)
             && Guid.TryParse(context.GetRouteValue(HouseholdRoutes.RouteParameter)?.ToString(), out var householdId)
             && await resolution.FindRole(userId, householdId, context.RequestAborted) is { } role)
         {
-            household.Set(householdId, role);
+            household.Set(householdId, role.Effective(user.IsKidMode));
         }
 
         await next(context);

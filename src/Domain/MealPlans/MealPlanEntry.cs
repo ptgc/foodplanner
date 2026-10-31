@@ -17,8 +17,14 @@ public sealed class MealPlanEntry : Entity, ITenantEntity
     {
     }
 
-    public MealPlanEntry(Guid mealPlanId, DateOnly weekStart, DateOnly date, Guid recipeId, int servings, Guid pickedByUserId)
+    public MealPlanEntry(
+        Guid mealPlanId, DateOnly weekStart, DateOnly date, Guid recipeId, int servings, Guid pickedByUserId, Guid? pickedByProfileId = null)
     {
+        if (pickedByProfileId == Guid.Empty)
+        {
+            throw new ArgumentException("A profile id cannot be empty; use null for no profile.", nameof(pickedByProfileId));
+        }
+
         if (mealPlanId == Guid.Empty)
         {
             throw new ArgumentException("An entry needs a plan.", nameof(mealPlanId));
@@ -37,6 +43,7 @@ public sealed class MealPlanEntry : Entity, ITenantEntity
         MealPlanId = mealPlanId;
         RecipeId = recipeId;
         PickedByUserId = pickedByUserId;
+        PickedByProfileId = pickedByProfileId;
         Change(weekStart, date, servings);
     }
 
@@ -51,6 +58,15 @@ public sealed class MealPlanEntry : Entity, ITenantEntity
     public int Servings { get; private set; }
 
     public Guid PickedByUserId { get; private set; }
+
+    /// <summary>
+    /// The kid profile that picked this entry (T-026), or null: picked by the account holder, or the profile was deleted.
+    /// <see cref="PickedByUserId"/> is always the signed-in account.
+    /// </summary>
+    public Guid? PickedByProfileId { get; private set; }
+
+    /// <summary>The profile was deleted: the history keeps only the account holder.</summary>
+    public void ClearPickedByProfile() => PickedByProfileId = null;
 
     /// <summary>Moves the entry to another day of the same week and/or changes the servings.</summary>
     public void Change(DateOnly weekStart, DateOnly date, int servings)

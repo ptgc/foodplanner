@@ -34,6 +34,8 @@ const tags = [
 ];
 
 const existing = (patch: Partial<Recipe> = {}): Recipe => ({
+  likedBy: [],
+  liked: false,
   sourceUrl: null,
   sourceName: null,
   id: "r1",

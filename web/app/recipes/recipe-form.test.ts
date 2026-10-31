@@ -271,6 +271,8 @@ describe("fromRecipe", () => {
   it("fills the form from the API response, ordering steps by position and marking to-taste lines", () => {
     const recipe: Recipe = {
       id: "r1",
+      likedBy: [],
+      liked: false,
       sourceUrl: "https://www.matprat.no/x",
       sourceName: "matprat.no",
       title: "Suppe",

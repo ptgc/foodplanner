@@ -12,4 +12,16 @@ public interface ICurrentUser
     Guid? UserId { get; }
 
     string? Email { get; }
+
+    /// <summary>
+    /// Kid mode (T-026): the profile this device's session is locked to, or null. Set by the server only, in the auth cookie
+    /// (claims). A stale id (the profile was deleted) still means kid mode.
+    /// </summary>
+    Guid? ActiveProfileId { get; }
+
+    /// <summary>The household the active profile belongs to (the one it was activated in).</summary>
+    Guid? ActiveProfileHouseholdId { get; }
+
+    /// <summary>True while the session is locked to a profile. Read by policy code and the household resolution only.</summary>
+    bool IsKidMode { get; }
 }

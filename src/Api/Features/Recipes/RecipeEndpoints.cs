@@ -1,4 +1,5 @@
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Features.Profiles;
 using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
@@ -7,6 +8,7 @@ using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Images;
 using Foodplanner.Domain.Quantities;
 using Foodplanner.Domain.Recipes;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
 using Foodplanner.Infrastructure.Storage;
@@ -45,7 +47,9 @@ public sealed record RecipeRequest(
     string? SourceName = null);
 
 /// <summary>A grid card: enough to list recipes. <c>TotalMinutes</c> is prep plus cook, null when neither is set.</summary>
-public sealed record RecipeSummaryResponse(Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags, string? ThumbUrl, string? CardUrl);
+public sealed record RecipeSummaryResponse(
+    Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags, string? ThumbUrl, string? CardUrl,
+    ProfileResponse[] LikedBy, bool Liked);
 
 public sealed record RecipeListResponse(RecipeSummaryResponse[] Items, int Total, int Limit, int Offset);
 
@@ -81,7 +85,9 @@ public sealed record RecipeResponse(
     TagResponse[] Tags,
     RecipeImageUrlsResponse? Image,
     string? SourceUrl,
-    string? SourceName);
+    string? SourceName,
+    ProfileResponse[] LikedBy,
+    bool Liked);
 
 /// <summary>Ingredient lines scaled to <c>Servings</c> (from <c>BaseServings</c>), quantities and units ready to display.</summary>
 public sealed record ScaledRecipeResponse(Guid RecipeId, int BaseServings, int Servings, RecipeIngredientResponse[] Ingredients);
@@ -149,11 +155,12 @@ public static class RecipeEndpoints
     /// <c>search</c> (case-insensitive "contains" on the title), <c>tagIds</c> (the recipe has every one of them),
     /// <c>maxMinutes</c> (prep plus cook at most n; a recipe with neither time set is not matched, because its time is
     /// unknown) and <c>ingredientId</c> (the recipe has a line for every one of them). An unknown tag or ingredient id
-    /// simply matches nothing.
+    /// simply matches nothing. <c>likedByProfileId</c> (T-026) keeps the recipes liked by EVERY given kid profile; an unknown or
+    /// foreign profile matches nothing.
     /// </summary>
     private static async Task<IResult> ListRecipes(
-        Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, int? limit, int? offset,
-        RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, Guid[]? likedByProfileId, int? limit, int? offset,
+        RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var term = search?.Trim();
@@ -189,6 +196,12 @@ public static class RecipeEndpoints
             errors["ingredientId"] = [$"Give at most {MaxFilterIds} valid ingredient ids."];
         }
 
+        var likers = (likedByProfileId ?? []).Distinct().ToList();
+        if (likers.Count > MaxFilterIds || likers.Contains(Guid.Empty))
+        {
+            errors["likedByProfileId"] = [$"Give at most {MaxFilterIds} valid profile ids."];
+        }
+
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
@@ -217,6 +230,12 @@ public static class RecipeEndpoints
             query = query.Where(r => db.RecipeIngredients.Any(l => l.RecipeId == r.Id && l.IngredientId == id));
         }
 
+        foreach (var liker in likers)
+        {
+            var id = liker;
+            query = query.Where(r => db.RecipeLikes.Any(l => l.RecipeId == r.Id && l.MemberProfileId == id));
+        }
+
         var take = limit ?? DefaultLimit;
         var skip = offset ?? 0;
         var total = await query.CountAsync(cancellationToken);
@@ -225,12 +244,15 @@ public static class RecipeEndpoints
             .ToListAsync(cancellationToken);
 
         var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), locale.Code, cancellationToken);
+        var likesByRecipe = await RecipeLikeReads.LikedByAsync(db, rows.Select(r => r.Id).ToList(), cancellationToken);
         var items = rows.Select(r => new RecipeSummaryResponse(
             r.Id, r.Title, r.Servings,
             r.PrepMinutes is null && r.CookMinutes is null ? null : (r.PrepMinutes ?? 0) + (r.CookMinutes ?? 0),
             tagsByRecipe.GetValueOrDefault(r.Id, []),
             RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Thumb),
-            RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Card))).ToArray();
+            RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Card),
+            likesByRecipe.GetValueOrDefault(r.Id, []),
+            RecipeLikeReads.IsLikedBy(likesByRecipe.GetValueOrDefault(r.Id, []), user.ActiveProfileId))).ToArray();
         return Results.Ok(new RecipeListResponse(items, total, take, skip));
     }
 
@@ -255,10 +277,11 @@ public static class RecipeEndpoints
             g => g.Where(l => byId.ContainsKey(l.TagId)).OrderBy(l => order[l.TagId]).Select(l => TagEndpoints.ToResponse(byId[l.TagId])).ToArray());
     }
 
-    private static async Task<IResult> GetRecipe(Guid recipeId, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> GetRecipe(
+        Guid recipeId, RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var recipe = await db.Recipes.AsNoTracking().FirstOrDefaultAsync(r => r.Id == recipeId, cancellationToken);
-        return recipe is null ? NotFound() : Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
+        return recipe is null ? NotFound() : Results.Ok(await LoadAsync(db, recipe, locale.Code, user.ActiveProfileId, cancellationToken));
     }
 
     /// <summary>
@@ -285,7 +308,7 @@ public static class RecipeEndpoints
         }
 
         var target = servings ?? recipe.Servings;
-        var loaded = await LoadAsync(db, recipe, locale.Code, cancellationToken);
+        var loaded = await LoadAsync(db, recipe, locale.Code, null, cancellationToken);
         var units = await db.Units.AsNoTracking().WithNames(db, CatalogTranslation.KindUnit, locale.Code).ToListAsync(cancellationToken);
         var catalog = new UnitCatalog(units.Select(u => u.Row));
         var byCode = units.ToDictionary(u => u.Row.Code, StringComparer.Ordinal);
@@ -308,7 +331,7 @@ public static class RecipeEndpoints
     }
 
     private static async Task<IResult> CreateRecipe(
-        Guid householdId, RecipeRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        Guid householdId, RecipeRequest? request, RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var recipe = await TryCreateAsync(db, request, errors, cancellationToken);
@@ -318,7 +341,7 @@ public static class RecipeEndpoints
         }
 
         return Results.Created(
-            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, locale.Code, cancellationToken));
+            $"/api/households/{householdId}/recipes/{recipe.Id}", await LoadAsync(db, recipe, locale.Code, user.ActiveProfileId, cancellationToken));
     }
 
     /// <summary>
@@ -366,7 +389,7 @@ public static class RecipeEndpoints
 
     /// <summary>Replaces the recipe's fields, steps and ingredients (tracked deletes and inserts, in one save).</summary>
     private static async Task<IResult> UpdateRecipe(
-        Guid recipeId, RecipeRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        Guid recipeId, RecipeRequest? request, RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var valid = Validate(request, errors);
@@ -415,7 +438,7 @@ public static class RecipeEndpoints
             await transaction.CommitAsync(cancellationToken);
         }
 
-        return Results.Ok(await LoadAsync(db, recipe, locale.Code, cancellationToken));
+        return Results.Ok(await LoadAsync(db, recipe, locale.Code, user.ActiveProfileId, cancellationToken));
     }
 
     private static async Task<IResult> DeleteRecipe(
@@ -437,6 +460,10 @@ public static class RecipeEndpoints
         // regenerated, so the source rows go with the recipe.
         var sources = await db.ShoppingListItemSources.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken);
         db.ShoppingListItemSources.RemoveRange(sources);
+
+        // Kid profiles' likes of the recipe go with it (T-026): the foreign key is NO ACTION, so they are removed first, in the
+        // same save (one transaction) as the recipe.
+        db.RecipeLikes.RemoveRange(await db.RecipeLikes.Where(l => l.RecipeId == recipeId).ToListAsync(cancellationToken));
 
         // Steps and ingredient lines go with the recipe (database cascade).
         var hadImage = recipe.ImageVersion is not null;
@@ -800,7 +827,8 @@ public static class RecipeEndpoints
         return errors.Count == 0;
     }
 
-    private static async Task<RecipeResponse> LoadAsync(AppDbContext db, Recipe recipe, string locale, CancellationToken cancellationToken)
+    private static async Task<RecipeResponse> LoadAsync(
+        AppDbContext db, Recipe recipe, string locale, Guid? activeProfileId, CancellationToken cancellationToken)
     {
         var steps = await db.RecipeSteps.AsNoTracking().Where(s => s.RecipeId == recipe.Id)
             .OrderBy(s => s.Position).Select(s => new RecipeStepResponse(s.Position, s.Text)).ToListAsync(cancellationToken);
@@ -831,13 +859,16 @@ public static class RecipeEndpoints
             l.IsOptional,
             [.. alternatives[l.Id].Select(id => new RecipeAlternativeResponse(id, names.GetValueOrDefault(id, string.Empty)))])).ToArray();
 
+        var likedBy = (await RecipeLikeReads.LikedByAsync(db, [recipe.Id], cancellationToken)).GetValueOrDefault(recipe.Id, []);
         return new RecipeResponse(
             recipe.Id, recipe.Title, recipe.Description, recipe.Servings, recipe.PrepMinutes, recipe.CookMinutes,
             recipe.TotalMinutes, [.. steps], ingredients,
             (await LoadTagsAsync(db, [recipe.Id], locale, cancellationToken)).GetValueOrDefault(recipe.Id, []),
             RecipeImageUrls.All(recipe),
             recipe.SourceUrl,
-            recipe.SourceDisplayName);
+            recipe.SourceDisplayName,
+            likedBy,
+            RecipeLikeReads.IsLikedBy(likedBy, activeProfileId));
     }
 
     private static IResult NotFound() =>

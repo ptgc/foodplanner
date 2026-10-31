@@ -30,6 +30,37 @@ public sealed class MealPlan : Entity, ITenantEntity
 
     public DateOnly WeekStart { get; private set; }
 
+    /// <summary>When an Adult locked the week (T-026), or null. A locked week cannot be changed by a Child or a kid profile.</summary>
+    public DateTimeOffset? LockedAt { get; private set; }
+
+    /// <summary>Who locked the week. Set together with <see cref="LockedAt"/>.</summary>
+    public Guid? LockedByUserId { get; private set; }
+
+    public bool IsLocked => LockedAt is not null;
+
+    /// <summary>Locks the week. Locking a locked week changes nothing: the first locker and time stay.</summary>
+    public void Lock(DateTimeOffset now, Guid userId)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("A lock needs the user who made it.", nameof(userId));
+        }
+
+        if (IsLocked)
+        {
+            return;
+        }
+
+        LockedAt = now;
+        LockedByUserId = userId;
+    }
+
+    public void Unlock()
+    {
+        LockedAt = null;
+        LockedByUserId = null;
+    }
+
     public static bool IsWeekStart(DateOnly date) => date.DayOfWeek == DayOfWeek.Monday;
 
     /// <summary>True when <paramref name="date"/> is one of the seven days Monday to Sunday of the week starting <paramref name="weekStart"/>.</summary>
