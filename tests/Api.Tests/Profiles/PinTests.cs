@@ -284,7 +284,7 @@ public sealed class PinTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         await wrong.AssertProblemAsync(HttpStatusCode.Forbidden, "pin-incorrect");
         Assert.Equal(1, (await PinRowAsync(s.Owner.User.Id)).Failed); // counted like a wrong unlock
 
-        using var withPassword = await s.Owner.Client.PutAsync("/api/auth/pin", new { pin = "5913", password = AuthHost.Password });
+        using var withPassword = await s.Owner.Client.PutAsync("/api/auth/pin", new Dictionary<string, string> { ["pin"] = "5913", ["password"] = AuthHost.Password });
         Assert.Equal(HttpStatusCode.NoContent, withPassword.StatusCode);
         Assert.Equal(0, (await PinRowAsync(s.Owner.User.Id)).Failed);
 
