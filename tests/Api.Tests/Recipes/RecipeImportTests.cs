@@ -859,4 +859,22 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
             }
         }
     }
+
+    [Fact]
+    public async Task Saving_an_import_derives_the_food_type_from_the_main_lines()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var import = await CreateTextAsync(owner.Client, household, "Ovnsbakt laks\nIngredienser\n400 g laks\n2 dl melk\nFremgangsmåte\nBak.");
+        var id = import.GetProperty("id").GetGuid();
+
+        using var saved = await owner.Client.PostAsync(Url(household, $"/{id}/save"));
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        var recipeId = (await saved.JsonAsync()).GetProperty("recipeId").GetGuid();
+        using var recipe = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
+        var body = await recipe.JsonAsync();
+        Assert.Equal("Fish", body.GetProperty("foodType").GetString());
+        Assert.False(body.GetProperty("foodTypeIsManual").GetBoolean());
+    }
 }
