@@ -17,8 +17,13 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
     }
 
     /// <summary>A household's own ingredient. Pass <see cref="Guid.Empty"/> to let Infrastructure assign the current household.</summary>
-    public Ingredient(Guid householdId, string name, bool isStaple, UnitDimension dimension, StoreSection section = StoreSection.Other)
+    public Ingredient(Guid householdId, string name, bool isStaple, UnitDimension dimension, StoreSection section = StoreSection.Other, ProteinClass proteinClass = ProteinClass.Unknown)
     {
+        if (!Enum.IsDefined(proteinClass))
+        {
+            throw new ArgumentOutOfRangeException(nameof(proteinClass));
+        }
+
         if (!Enum.IsDefined(section))
         {
             throw new ArgumentOutOfRangeException(nameof(section));
@@ -34,6 +39,7 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
         IsStaple = isStaple;
         Dimension = dimension;
         Section = section;
+        ProteinClass = proteinClass;
     }
 
     public Guid? HouseholdId { get; private set; }
@@ -46,6 +52,19 @@ public sealed class Ingredient : Entity, ICatalogEntity, ICatalogNamed
 
     /// <summary>The store section the ingredient is found in (T-085). Own ingredients default to Other; the seed sets it for every global row.</summary>
     public StoreSection Section { get; private set; }
+
+    /// <summary>What the ingredient is for the food type of a recipe (T-089). The seed sets it for every global row; own ingredients start as Unknown.</summary>
+    public ProteinClass ProteinClass { get; private set; }
+
+    public void ChangeProteinClass(ProteinClass proteinClass)
+    {
+        if (!Enum.IsDefined(proteinClass))
+        {
+            throw new ArgumentOutOfRangeException(nameof(proteinClass));
+        }
+
+        ProteinClass = proteinClass;
+    }
 
     public void ChangeSection(StoreSection section)
     {

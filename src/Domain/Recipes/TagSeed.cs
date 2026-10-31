@@ -25,10 +25,6 @@ public static class TagSeed
         new("dessert", "Dessert", "Dessert", TagKind.Category),
         new("bakst", "Baking", "Bakst", TagKind.Category),
 
-        new("vegetar", "Vegetarian", "Vegetar", TagKind.Tag),
-        new("fisk", "Fish", "Fisk", TagKind.Tag),
-        new("kylling", "Chicken", "Kylling", TagKind.Tag),
-        new("kjott", "Meat", "Kjøtt", TagKind.Tag),
         new("pasta", "Pasta", "Pasta", TagKind.Tag),
         new("suppe", "Soup", "Suppe", TagKind.Tag),
         new("rask", "Quick", "Rask", TagKind.Tag), // under 30 minutes, by convention

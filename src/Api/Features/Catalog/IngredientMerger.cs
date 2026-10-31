@@ -1,3 +1,4 @@
+using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Features.ShoppingLists;
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Imports;
@@ -146,6 +147,8 @@ public static class IngredientMerger
         }
 
         var recipes = lines.Select(l => l.RecipeId).Concat(alternativeLines.Select(l => l.RecipeId)).Distinct().Count();
+        // The moved lines may carry another protein class (T-089): re-derive the types of those recipes (manual types stay).
+        await RecipeFoodTypes.RecomputeAsync(db, [.. lines.Select(l => l.RecipeId).Distinct()], cancellationToken);
         var tracked = await db.Ingredients.FirstAsync(i => i.Id == source.Id, cancellationToken);
         db.Ingredients.Remove(tracked);
         await db.SaveChangesAsync(cancellationToken);

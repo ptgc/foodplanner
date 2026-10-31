@@ -20,6 +20,7 @@ const own = (id: string, name: string, usage: Partial<Usage> = {}): Own => ({
   isStaple: false,
   dimension: "Mass",
   section: "Other",
+  proteinClass: "Unknown",
   usage: { ...none, ...usage },
 });
 
@@ -75,10 +76,11 @@ beforeEach(() => {
       const m = path.match(/^\/api\/households\/h1\/ingredients\/([^/]+)(\/merge)?$/);
       if (m && method === "PUT") {
         const item = ingredients.find((i) => i.id === m[1])!;
-        const sent = body as { name: string; section?: Own["section"] };
+        const sent = body as { name: string; section?: Own["section"]; proteinClass?: Own["proteinClass"] };
         item.name = sent.name;
         if (sent.section) item.section = sent.section;
-        return json({ id: item.id, name: item.name, isStaple: false, dimension: "Mass", isGlobal: false, section: item.section });
+        if (sent.proteinClass) item.proteinClass = sent.proteinClass;
+        return json({ id: item.id, name: item.name, isStaple: false, dimension: "Mass", isGlobal: false, section: item.section, proteinClass: item.proteinClass });
       }
       if (m && method === "DELETE") {
         ingredients = ingredients.filter((i) => i.id !== m[1]);
@@ -121,6 +123,23 @@ describe("ingredients screen", () => {
     await user.type(screen.getByLabelText(t("ingredients.search")), "pepp");
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toHaveTextContent("Kvernet pepper");
+  });
+
+  it("sets the food type (protein class) of an own ingredient from its picker (T-089)", async () => {
+    const user = renderPage();
+    await screen.findByText("Tagliatelle");
+
+    const picker = screen.getByLabelText(t("ingredients.proteinFor", { name: "Tagliatelle" }));
+    expect(picker).toHaveValue("Unknown");
+    expect(within(picker).getAllByRole("option")).toHaveLength(10);
+
+    await user.selectOptions(picker, "Meat");
+
+    expect(await screen.findByTestId("ingredients-notice")).toHaveTextContent(
+      t("ingredients.proteinSaved", { name: "Tagliatelle", protein: t("proteinClass.Meat") }),
+    );
+    expect(callsTo("PUT", /ingredients\/i3$/).at(-1)?.body).toEqual({ name: "Tagliatelle", proteinClass: "Meat" });
+    expect(screen.getByLabelText(t("ingredients.proteinFor", { name: "Tagliatelle" }))).toHaveValue("Meat");
   });
 
   it("shows the store section of each ingredient and saves a change from the picker", async () => {

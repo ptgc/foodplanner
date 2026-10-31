@@ -34,6 +34,10 @@ public sealed record RecipeIngredientRequest(
     bool? IsOptional = null,
     Guid[]? AlternativeIds = null);
 
+/// <summary>
+/// <c>FoodType</c> (T-089) is one of Unknown, Fish, Seafood, Chicken, Beef, Pork, Lamb, MixedMeat, Vegetarian, Vegan; left out
+/// (or null) means automatic: the type is derived from the Main, non-optional ingredient lines and follows them when they change.
+/// </summary>
 public sealed record RecipeRequest(
     string? Title,
     string? Description,
@@ -44,12 +48,13 @@ public sealed record RecipeRequest(
     RecipeIngredientRequest[]? Ingredients,
     Guid[]? TagIds,
     string? SourceUrl = null,
-    string? SourceName = null);
+    string? SourceName = null,
+    string? FoodType = null);
 
 /// <summary>A grid card: enough to list recipes. <c>TotalMinutes</c> is prep plus cook, null when neither is set.</summary>
 public sealed record RecipeSummaryResponse(
     Guid Id, string Title, int Servings, int? TotalMinutes, TagResponse[] Tags, string? ThumbUrl, string? CardUrl,
-    ProfileResponse[] LikedBy, bool Liked);
+    ProfileResponse[] LikedBy, bool Liked, FoodType FoodType);
 
 public sealed record RecipeListResponse(RecipeSummaryResponse[] Items, int Total, int Limit, int Offset);
 
@@ -87,7 +92,9 @@ public sealed record RecipeResponse(
     string? SourceUrl,
     string? SourceName,
     ProfileResponse[] LikedBy,
-    bool Liked);
+    bool Liked,
+    FoodType FoodType,
+    bool FoodTypeIsManual);
 
 /// <summary>Ingredient lines scaled to <c>Servings</c> (from <c>BaseServings</c>), quantities and units ready to display.</summary>
 public sealed record ScaledRecipeResponse(Guid RecipeId, int BaseServings, int Servings, RecipeIngredientResponse[] Ingredients);
@@ -159,7 +166,7 @@ public static class RecipeEndpoints
     /// foreign profile matches nothing.
     /// </summary>
     private static async Task<IResult> ListRecipes(
-        Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, Guid[]? likedByProfileId, int? limit, int? offset,
+        Guid householdId, string? search, Guid[]? tagIds, int? maxMinutes, Guid[]? ingredientId, Guid[]? likedByProfileId, string[]? foodType, int? limit, int? offset,
         RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -202,12 +209,30 @@ public static class RecipeEndpoints
             errors["likedByProfileId"] = [$"Give at most {MaxFilterIds} valid profile ids."];
         }
 
+        var types = new List<FoodType>();
+        foreach (var value in (foodType ?? []).Distinct())
+        {
+            if (FoodTypes.TryParse(value?.Trim(), out var parsedType))
+            {
+                types.Add(parsedType);
+            }
+            else
+            {
+                errors["foodType"] = ["The food type must be Unknown, Fish, Seafood, Chicken, Beef, Pork, Lamb, MixedMeat, Vegetarian or Vegan."];
+            }
+        }
+
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
         }
 
         var query = db.Recipes.AsNoTracking();
+        if (types.Count > 0)
+        {
+            query = query.Where(r => types.Contains(r.FoodType));
+        }
+
         if (!string.IsNullOrEmpty(term))
         {
             query = query.Where(r => r.Title.Contains(term));
@@ -240,7 +265,7 @@ public static class RecipeEndpoints
         var skip = offset ?? 0;
         var total = await query.CountAsync(cancellationToken);
         var rows = await query.OrderBy(r => r.Title).ThenBy(r => r.Id).Skip(skip).Take(take)
-            .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes, r.ImageVersion })
+            .Select(r => new { r.Id, r.Title, r.Servings, r.PrepMinutes, r.CookMinutes, r.ImageVersion, r.FoodType })
             .ToListAsync(cancellationToken);
 
         var tagsByRecipe = await LoadTagsAsync(db, rows.Select(r => r.Id).ToList(), locale.Code, cancellationToken);
@@ -252,7 +277,8 @@ public static class RecipeEndpoints
             RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Thumb),
             RecipeImageUrls.For(householdId, r.Id, r.ImageVersion, RecipeImageSize.Card),
             likesByRecipe.GetValueOrDefault(r.Id, []),
-            RecipeLikeReads.IsLikedBy(likesByRecipe.GetValueOrDefault(r.Id, []), user.ActiveProfileId))).ToArray();
+            RecipeLikeReads.IsLikedBy(likesByRecipe.GetValueOrDefault(r.Id, []), user.ActiveProfileId),
+            r.FoodType)).ToArray();
         return Results.Ok(new RecipeListResponse(items, total, take, skip));
     }
 
@@ -361,6 +387,7 @@ public static class RecipeEndpoints
 
         var recipe = new Recipe(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
         recipe.SetSource(valid.SourceUrl, valid.SourceName);
+        recipe.SetFoodType(valid.FoodType, await RecipeFoodTypes.DeriveForRequestAsync(db, request!, cancellationToken));
         // Saves in one transaction: the children need the generated recipe id, the alternatives the generated line ids, and a
         // failed later save must not leave a bare recipe.
         var ownTransaction = db.Database.CurrentTransaction is null;
@@ -406,6 +433,7 @@ public static class RecipeEndpoints
 
         recipe.Update(valid.Title, valid.Description, valid.Servings, valid.PrepMinutes, valid.CookMinutes);
         recipe.SetSource(valid.SourceUrl, valid.SourceName);
+        recipe.SetFoodType(valid.FoodType, await RecipeFoodTypes.DeriveForRequestAsync(db, request!, cancellationToken));
         db.RecipeSteps.RemoveRange(await db.RecipeSteps.Where(s => s.RecipeId == recipeId).ToListAsync(cancellationToken));
         // The database removes the old lines' alternatives with them (cascade).
         db.RecipeIngredients.RemoveRange(await db.RecipeIngredients.Where(i => i.RecipeId == recipeId).ToListAsync(cancellationToken));
@@ -581,7 +609,7 @@ public static class RecipeEndpoints
     private static string? NormalizeNote(string? note) => string.IsNullOrWhiteSpace(note) ? null : note.Trim();
 
     private sealed record ValidRecipe(
-        string Title, string? Description, int Servings, int? PrepMinutes, int? CookMinutes, string? SourceUrl, string? SourceName);
+        string Title, string? Description, int Servings, int? PrepMinutes, int? CookMinutes, string? SourceUrl, string? SourceName, FoodType? FoodType);
 
     /// <summary>Shape and range checks only; whether the ids exist for this household is <see cref="ResolveReferencesAsync"/>.</summary>
     private static ValidRecipe? Validate(RecipeRequest? request, Dictionary<string, string[]> errors)
@@ -619,6 +647,19 @@ public static class RecipeEndpoints
         if (sourceName is { Length: > Recipe.MaxSourceNameLength } || sourceName?.Any(char.IsControl) == true)
         {
             errors["sourceName"] = [$"The source name can be at most {Recipe.MaxSourceNameLength} characters, without control characters."];
+        }
+
+        FoodType? foodType = null;
+        if (!string.IsNullOrWhiteSpace(request.FoodType))
+        {
+            if (FoodTypes.TryParse(request.FoodType.Trim(), out var parsedType))
+            {
+                foodType = parsedType;
+            }
+            else
+            {
+                errors["foodType"] = ["The food type must be Unknown, Fish, Seafood, Chicken, Beef, Pork, Lamb, MixedMeat, Vegetarian or Vegan."];
+            }
         }
 
         CheckMinutes(request.PrepMinutes, "prepMinutes", errors);
@@ -671,7 +712,7 @@ public static class RecipeEndpoints
         }
 
         return errors.Count > 0 ? null : new ValidRecipe(
-            title!, description, request.Servings!.Value, request.PrepMinutes, request.CookMinutes, sourceUrl, sourceName);
+            title!, description, request.Servings!.Value, request.PrepMinutes, request.CookMinutes, sourceUrl, sourceName, foodType);
     }
 
     private static void CheckMinutes(int? minutes, string key, Dictionary<string, string[]> errors)
@@ -868,7 +909,9 @@ public static class RecipeEndpoints
             recipe.SourceUrl,
             recipe.SourceDisplayName,
             likedBy,
-            RecipeLikeReads.IsLikedBy(likedBy, activeProfileId));
+            RecipeLikeReads.IsLikedBy(likedBy, activeProfileId),
+            recipe.FoodType,
+            recipe.FoodTypeIsManual);
     }
 
     private static IResult NotFound() =>

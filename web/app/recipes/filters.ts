@@ -1,3 +1,5 @@
+import { isFoodType, type FoodType } from "./food-types";
+
 export type RecipeFilters = {
   /** Case-insensitive "contains" on the title (T-023). */
   search: string;
@@ -5,9 +7,11 @@ export type RecipeFilters = {
   tagIds: string[];
   /** Prep plus cook at most this many minutes, or null for any. */
   maxMinutes: number | null;
+  /** Selected food types; a recipe has ANY of them (T-089). */
+  foodTypes: FoodType[];
 };
 
-export const emptyFilters: RecipeFilters = { search: "", tagIds: [], maxMinutes: null };
+export const emptyFilters: RecipeFilters = { search: "", tagIds: [], maxMinutes: null, foodTypes: [] };
 
 /** Quick time limits offered as chips. */
 export const maxMinuteOptions = [20, 30, 60] as const;
@@ -24,7 +28,8 @@ export function parseFilters(params: URLSearchParams): RecipeFilters {
   const rawMax = params.get("max");
   const max = rawMax !== null && /^\d+$/.test(rawMax) ? Number(rawMax) : null;
   const maxMinutes = max !== null && max > 0 && max <= maxMinutesLimit ? max : null;
-  return { search, tagIds, maxMinutes };
+  const foodTypes = [...new Set(params.getAll("type").filter(isFoodType))];
+  return { search, tagIds, maxMinutes, foodTypes };
 }
 
 /** Filters -> URL query (`?q=..&tag=..&tag=..&max=30`); empty filters give an empty query. */
@@ -33,6 +38,7 @@ export function toSearchParams(filters: RecipeFilters): URLSearchParams {
   if (filters.search !== "") params.set("q", filters.search);
   for (const id of filters.tagIds) params.append("tag", id);
   if (filters.maxMinutes !== null) params.set("max", String(filters.maxMinutes));
+  for (const type of filters.foodTypes) params.append("type", type);
   return params;
 }
 
@@ -42,12 +48,18 @@ export function toggleTag(filters: RecipeFilters, tagId: string): RecipeFilters 
   return { ...filters, tagIds: [...filters.tagIds, tagId] };
 }
 
+export function toggleFoodType(filters: RecipeFilters, type: FoodType): RecipeFilters {
+  return filters.foodTypes.includes(type)
+    ? { ...filters, foodTypes: filters.foodTypes.filter((t) => t !== type) }
+    : { ...filters, foodTypes: [...filters.foodTypes, type] };
+}
+
 export function toggleMaxMinutes(filters: RecipeFilters, minutes: number): RecipeFilters {
   return { ...filters, maxMinutes: filters.maxMinutes === minutes ? null : minutes };
 }
 
 export function hasFilters(filters: RecipeFilters): boolean {
-  return filters.search.trim() !== "" || filters.tagIds.length > 0 || filters.maxMinutes !== null;
+  return filters.search.trim() !== "" || filters.tagIds.length > 0 || filters.maxMinutes !== null || filters.foodTypes.length > 0;
 }
 
 /** Query for GET .../recipes. Empty filters are left out; `search` is trimmed. */
@@ -57,6 +69,7 @@ export function toListQuery(filters: RecipeFilters, limit: number, offset: numbe
     ...(search !== "" ? { search } : {}),
     ...(filters.tagIds.length > 0 ? { tagIds: filters.tagIds } : {}),
     ...(filters.maxMinutes !== null ? { maxMinutes: filters.maxMinutes } : {}),
+    ...(filters.foodTypes.length > 0 ? { foodType: filters.foodTypes } : {}),
     limit,
     offset,
   };

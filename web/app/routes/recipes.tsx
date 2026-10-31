@@ -8,10 +8,12 @@ import {
   maxMinuteOptions,
   parseFilters,
   toSearchParams,
+  toggleFoodType,
   toggleMaxMinutes,
   toggleTag,
   type RecipeFilters,
 } from "../recipes/filters";
+import { FOOD_TYPES, foodTypeKey } from "../recipes/food-types";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
@@ -105,6 +107,13 @@ function RecipesScreen({ householdId }: { householdId: string }) {
             onClick={() => apply(toggleMaxMinutes(filters, minutes))}
           >
             {t("recipes.maxMinutes", { minutes })}
+          </Chip>
+        ))}
+      </ChipGroup>
+      <ChipGroup label={t("recipes.foodType")}>
+        {FOOD_TYPES.map((type) => (
+          <Chip key={type} pressed={filters.foodTypes.includes(type)} onClick={() => apply(toggleFoodType(filters, type))}>
+            {t(foodTypeKey(type))}
           </Chip>
         ))}
       </ChipGroup>
@@ -212,8 +221,13 @@ function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       <span className="recipe-card-body">
         <span className="recipe-card-title">{recipe.title}</span>
         {minutes !== null && <span className="recipe-card-time">{t("recipes.minutes", { minutes })}</span>}
-        {recipe.tags.length > 0 && (
+        {(recipe.foodType !== "Unknown" || recipe.tags.length > 0) && (
           <span className="recipe-card-tags">
+            {recipe.foodType !== "Unknown" && (
+              <span className="tag-pill food-type-pill" data-testid="recipe-card-food-type">
+                {t(foodTypeKey(recipe.foodType))}
+              </span>
+            )}
             {recipe.tags.slice(0, tagsOnCard).map((tag) => (
               <span key={tag.id} className="tag-pill">
                 {tag.name}

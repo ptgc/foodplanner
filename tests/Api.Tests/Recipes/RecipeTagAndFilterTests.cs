@@ -15,7 +15,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
     private static readonly Guid Salt = IngredientSeed.All.Single(r => r.Key == "salt").Id;
     private static readonly Guid Flour = IngredientSeed.All.Single(r => r.Key == "hvetemel").Id;
     private static readonly Guid Gram = UnitSeed.All.Single(r => r.Code == "g").Id;
-    private static readonly Guid Vegetar = TagSeed.All.Single(t => t.Key == "vegetar").Id;
+    private static readonly Guid PastaTag = TagSeed.All.Single(t => t.Key == "pasta").Id;
     private static readonly Guid Rask = TagSeed.All.Single(t => t.Key == "rask").Id;
     private static readonly Guid Middag = TagSeed.All.Single(t => t.Key == "middag").Id;
 
@@ -132,7 +132,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         // Duplicates: own name (any case) and a global name are refused.
         using var again = await adult.Client.PostAsync(TagUrl(household), new { name = name.ToUpperInvariant(), kind = "Tag" });
         await again.AssertProblemAsync(HttpStatusCode.Conflict, "tag-exists");
-        using var shadow = await adult.Client.PostAsync(TagUrl(household), new { name = "vegetar", kind = "Tag" });
+        using var shadow = await adult.Client.PostAsync(TagUrl(household), new { name = "pasta", kind = "Tag" });
         await shadow.AssertProblemAsync(HttpStatusCode.Conflict, "tag-exists");
 
         // Validation.
@@ -152,8 +152,8 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         // There is no edit or delete route for tags.
         foreach (var response in new[]
         {
-            await adult.Client.PutAsync(TagUrl(household, "/" + Vegetar), new { name = "Kjøttkaker", kind = "Tag" }),
-            await adult.Client.DeleteAsync(TagUrl(household, "/" + Vegetar)),
+            await adult.Client.PutAsync(TagUrl(household, "/" + PastaTag), new { name = "Kjøttkaker", kind = "Tag" }),
+            await adult.Client.DeleteAsync(TagUrl(household, "/" + PastaTag)),
         })
         {
             using (response)
@@ -162,7 +162,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
             }
         }
 
-        Assert.Equal(1, await CountAsync("Tags", "Id = @t AND Name = N'Vegetarian' AND HouseholdId IS NULL", ("@t", Vegetar)));
+        Assert.Equal(1, await CountAsync("Tags", "Id = @t AND Name = N'Pasta' AND HouseholdId IS NULL", ("@t", PastaTag)));
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         {
             title = Name("Tacos"),
             servings = 4,
-            tagIds = new[] { Vegetar, Middag, own, Vegetar }, // a repeated id is ignored
+            tagIds = new[] { PastaTag, Middag, own, PastaTag }, // a repeated id is ignored
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var body = await created.JsonAsync();
@@ -192,10 +192,10 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         var item = Assert.Single((await list.JsonAsync()).GetProperty("items").EnumerateArray());
         Assert.Equal(3, item.GetProperty("tags").GetArrayLength());
 
-        // PUT replaces: keep Vegetar, drop the rest, add Rask.
-        using var updated = await owner.Client.PutAsync(Url(household, "/" + id), new { title = Name("Tacos"), servings = 4, tagIds = new[] { Vegetar, Rask } });
+        // PUT replaces: keep PastaTag, drop the rest, add Rask.
+        using var updated = await owner.Client.PutAsync(Url(household, "/" + id), new { title = Name("Tacos"), servings = 4, tagIds = new[] { PastaTag, Rask } });
         Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
-        Assert.Equal(["Rask", "Vegetar"], (await updated.JsonAsync()).GetProperty("tags").EnumerateArray().Select(t => t.GetProperty("name").GetString()).Order());
+        Assert.Equal(["Pasta", "Rask"], (await updated.JsonAsync()).GetProperty("tags").EnumerateArray().Select(t => t.GetProperty("name").GetString()).Order());
         Assert.Equal(2, await CountAsync("RecipeTags", "RecipeId = @r", ("@r", id)));
 
         // PUT without tagIds clears them; the recipe has no tags, not null.
@@ -204,7 +204,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         Assert.Equal(0, await CountAsync("RecipeTags", "RecipeId = @r", ("@r", id)));
 
         // Deleting the recipe removes its links but not the tags.
-        await owner.Client.PutAsync(Url(household, "/" + id), new { title = Name("Tacos"), servings = 4, tagIds = new[] { Vegetar, own } });
+        await owner.Client.PutAsync(Url(household, "/" + id), new { title = Name("Tacos"), servings = 4, tagIds = new[] { PastaTag, own } });
         using var deleted = await owner.Client.DeleteAsync(Url(household, "/" + id));
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Equal(0, await CountAsync("RecipeTags", "RecipeId = @r", ("@r", id)));
@@ -222,27 +222,27 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         var child = await host.JoinAsync(a, householdA, "Child");
         var bTag = await CreateTagAsync(b.Client, householdB, Name("Hemmelig"));
 
-        using var foreign = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { Vegetar, bTag } });
+        using var foreign = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { PastaTag, bTag } });
         Assert.Equal(HttpStatusCode.BadRequest, foreign.StatusCode);
         Assert.True((await foreign.JsonAsync()).GetProperty("errors").TryGetProperty("tagIds[1]", out _));
-        using var unknown = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { Vegetar, Guid.NewGuid() } });
+        using var unknown = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { PastaTag, Guid.NewGuid() } });
         Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
         Assert.Equal(await foreign.ProblemShapeAsync(), await unknown.ProblemShapeAsync()); // "someone else's" looks like "does not exist"
         using var empty = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { Guid.Empty } });
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
-        var tooMany = Enumerable.Range(0, Foodplanner.Api.Features.Recipes.RecipeEndpoints.MaxTagsPerRecipe + 1).Select(_ => Vegetar).ToArray();
+        var tooMany = Enumerable.Range(0, Foodplanner.Api.Features.Recipes.RecipeEndpoints.MaxTagsPerRecipe + 1).Select(_ => PastaTag).ToArray();
         using var many = await a.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = tooMany });
         Assert.Equal(HttpStatusCode.BadRequest, many.StatusCode);
         Assert.Equal(0, await CountAsync("Recipes", "HouseholdId = @h", ("@h", householdA)));
 
         // PUT: the existing recipe keeps its tags.
-        var id = await CreateRecipeAsync(a.Client, householdA, Name("R"), [Vegetar]);
+        var id = await CreateRecipeAsync(a.Client, householdA, Name("R"), [PastaTag]);
         using var foreignPut = await a.Client.PutAsync(Url(householdA, "/" + id), new { title = Name("R"), servings = 2, tagIds = new[] { bTag } });
         Assert.Equal(HttpStatusCode.BadRequest, foreignPut.StatusCode);
-        Assert.Equal(1, await CountAsync("RecipeTags", "RecipeId = @r AND TagId = @t", ("@r", id), ("@t", Vegetar)));
+        Assert.Equal(1, await CountAsync("RecipeTags", "RecipeId = @r AND TagId = @t", ("@r", id), ("@t", PastaTag)));
         Assert.Equal(0, await CountAsync("RecipeTags", "TagId = @t", ("@t", bTag)));
 
-        using var childCreate = await child.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { Vegetar } });
+        using var childCreate = await child.Client.PostAsync(Url(householdA), new { title = Name("R"), servings = 2, tagIds = new[] { PastaTag } });
         await childCreate.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         using var childPut = await child.Client.PutAsync(Url(householdA, "/" + id), new { title = Name("R"), servings = 2, tagIds = Array.Empty<Guid>() });
         await childPut.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
@@ -261,9 +261,9 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         await using var host = Host();
         var owner = await host.SignInAsync();
         var household = await owner.Client.CreateHouseholdAsync();
-        var r1 = await CreateRecipeAsync(owner.Client, household, "Suppe A", [Vegetar, Rask], 5, 15, Salt);
-        var r2 = await CreateRecipeAsync(owner.Client, household, "Suppe B", [Vegetar], 20, null, Flour);
-        var r3 = await CreateRecipeAsync(owner.Client, household, "Grot C", [Vegetar, Rask], 10, 40, Salt, Flour);
+        var r1 = await CreateRecipeAsync(owner.Client, household, "Suppe A", [PastaTag, Rask], 5, 15, Salt);
+        var r2 = await CreateRecipeAsync(owner.Client, household, "Suppe B", [PastaTag], 20, null, Flour);
+        var r3 = await CreateRecipeAsync(owner.Client, household, "Grot C", [PastaTag, Rask], 10, 40, Salt, Flour);
         var r4 = await CreateRecipeAsync(owner.Client, household, "Suppe D", [Rask], null, null, Salt);
         var r5 = await CreateRecipeAsync(owner.Client, household, "Kake E", [], 30, 0);
 
@@ -273,25 +273,25 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
             ("", [r1, r2, r3, r4, r5]),
             // single filters
             ("search=suppe", [r1, r2, r4]),
-            (Tags(Vegetar), [r1, r2, r3]),
-            (Tags(Vegetar, Rask), [r1, r3]),
+            (Tags(PastaTag), [r1, r2, r3]),
+            (Tags(PastaTag, Rask), [r1, r3]),
             ("maxMinutes=30", [r1, r2, r5]), // r4 has no times, so it never matches a time limit
             ("maxMinutes=0", []),
             ($"ingredientId={Salt}", [r1, r3, r4]),
             ($"ingredientId={Salt}&ingredientId={Flour}", [r3]),
             // each pair
-            ($"search=suppe&{Tags(Vegetar)}", [r1, r2]),
+            ($"search=suppe&{Tags(PastaTag)}", [r1, r2]),
             ("search=suppe&maxMinutes=30", [r1, r2]),
             ($"search=suppe&ingredientId={Salt}", [r1, r4]),
-            ($"{Tags(Vegetar)}&maxMinutes=30", [r1, r2]),
-            ($"{Tags(Vegetar)}&ingredientId={Salt}", [r1, r3]),
+            ($"{Tags(PastaTag)}&maxMinutes=30", [r1, r2]),
+            ($"{Tags(PastaTag)}&ingredientId={Salt}", [r1, r3]),
             ($"maxMinutes=30&ingredientId={Salt}", [r1]),
             // all together
-            ($"search=suppe&{Tags(Vegetar, Rask)}&maxMinutes=30&ingredientId={Salt}", [r1]),
-            ($"search=suppe&{Tags(Vegetar)}&maxMinutes=30&ingredientId={Flour}", [r2]),
+            ($"search=suppe&{Tags(PastaTag, Rask)}&maxMinutes=30&ingredientId={Salt}", [r1]),
+            ($"search=suppe&{Tags(PastaTag)}&maxMinutes=30&ingredientId={Flour}", [r2]),
             // an unmatched member of the AND matches nothing
-            ($"{Tags(Vegetar)}&ingredientId={Guid.NewGuid()}", []),
-            ($"{Tags(Vegetar, Guid.NewGuid())}", []),
+            ($"{Tags(PastaTag)}&ingredientId={Guid.NewGuid()}", []),
+            ($"{Tags(PastaTag, Guid.NewGuid())}", []),
         };
 
         foreach (var (query, expected) in cases)
@@ -314,11 +314,11 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         var householdA = await a.Client.CreateHouseholdAsync();
         var householdB = await b.Client.CreateHouseholdAsync();
         var child = await host.JoinAsync(a, householdA, "Child");
-        await CreateRecipeAsync(a.Client, householdA, "Aa", [Vegetar], 5, 5, Salt);
-        await CreateRecipeAsync(b.Client, householdB, "Bb", [Vegetar], 5, 5, Salt);
+        await CreateRecipeAsync(a.Client, householdA, "Aa", [PastaTag], 5, 5, Salt);
+        await CreateRecipeAsync(b.Client, householdB, "Bb", [PastaTag], 5, 5, Salt);
 
-        Assert.Single((await ListAsync(a.Client, householdA, $"tagIds={Vegetar}&ingredientId={Salt}&maxMinutes=10")).Ids);
-        Assert.Single((await ListAsync(child.Client, householdA, $"tagIds={Vegetar}")).Ids); // a Child may filter
+        Assert.Single((await ListAsync(a.Client, householdA, $"tagIds={PastaTag}&ingredientId={Salt}&maxMinutes=10")).Ids);
+        Assert.Single((await ListAsync(child.Client, householdA, $"tagIds={PastaTag}")).Ids); // a Child may filter
         Assert.Equal(0, (await ListAsync(a.Client, householdA, $"search=Bb")).Total);
 
         var tooMany = string.Join("&", Enumerable.Range(0, 11).Select(_ => "tagIds=" + Guid.NewGuid()));
@@ -339,7 +339,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         var created = new List<Guid>();
         foreach (var title in new[] { "Gryte", "Gryte", "Gryte", "Bolle", "Pai", "Pai", "Suppe", "Suppe", "Wok" })
         {
-            created.Add(await CreateRecipeAsync(owner.Client, household, title, [Vegetar]));
+            created.Add(await CreateRecipeAsync(owner.Client, household, title, [PastaTag]));
         }
 
         // The database order (title, then id) is the reference; the API must reproduce it exactly.
@@ -349,7 +349,7 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
         var seen = new List<Guid>();
         for (var offset = 0; offset < created.Count; offset += 4)
         {
-            var (total, ids) = await ListAsync(owner.Client, household, $"tagIds={Vegetar}&limit=4&offset={offset}");
+            var (total, ids) = await ListAsync(owner.Client, household, $"tagIds={PastaTag}&limit=4&offset={offset}");
             Assert.Equal(created.Count, total);
             seen.AddRange(ids);
         }

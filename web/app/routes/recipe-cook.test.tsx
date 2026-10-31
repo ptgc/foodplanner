@@ -16,6 +16,8 @@ const recipe: Recipe = {
   id: "r1",
   likedBy: [],
   liked: false,
+  foodType: "Unknown",
+  foodTypeIsManual: false,
   sourceUrl: null,
   sourceName: null,
   title: "Fiskesuppe",

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "../api/schema";
+import type { MessageKey } from "../i18n";
 import { pageSize } from "../recipes/use-recipes";
 import { SessionProvider } from "../session";
 import { t } from "../test-i18n";
@@ -19,7 +20,7 @@ const home = { id: "h1", name: "Home", role: "Owner" };
 const tag = (id: string, name: string, kind: Tag["kind"] = "Tag"): Tag => ({ id, name, kind, isGlobal: true });
 const dinner = tag("dinner", "Middag", "Category");
 const dessert = tag("dessert", "Dessert", "Category");
-const veg = tag("veg", "Vegetar");
+const veg = tag("veg", "Pasta");
 const quick = tag("quick", "Rask");
 
 const recipe = (id: string, title: string, totalMinutes: number | null, tags: Tag[], withImage = false): Summary => ({
@@ -32,6 +33,7 @@ const recipe = (id: string, title: string, totalMinutes: number | null, tags: Ta
   cardUrl: withImage ? `/img/${id}/card` : null,
   likedBy: [],
   liked: false,
+  foodType: "Unknown",
 });
 
 const json = (body: unknown, status = 200) =>
@@ -61,10 +63,12 @@ function list(url: URL): Response {
   const search = q.get("search")?.toLowerCase();
   const tagIds = q.getAll("tagIds");
   const max = q.get("maxMinutes");
+  const foodTypes = q.getAll("foodType");
   const matches = server.recipes.filter(
     (r) =>
       (!search || r.title.toLowerCase().includes(search)) &&
       tagIds.every((id) => r.tags.some((x) => x.id === id)) &&
+      (foodTypes.length === 0 || foodTypes.includes(r.foodType)) &&
       (max === null || (r.totalMinutes !== null && Number(r.totalMinutes) <= Number(max))),
   );
   const limit = Number(q.get("limit") ?? 20);
@@ -178,7 +182,7 @@ describe("Recipes grid", () => {
     const categories = screen.getByRole("group", { name: t("recipes.categories") });
     expect(within(categories).getAllByRole("button").map((b) => b.textContent)).toEqual(["Middag", "Dessert"]);
     const tags = screen.getByRole("group", { name: t("recipes.tags") });
-    expect(within(tags).getAllByRole("button").map((b) => b.textContent)).toEqual(["Vegetar", "Rask"]);
+    expect(within(tags).getAllByRole("button").map((b) => b.textContent)).toEqual(["Pasta", "Rask"]);
     for (const minutes of [20, 30, 60]) {
       expect(chip(t("recipes.maxMinutes", { minutes }))).toHaveAttribute("aria-pressed", "false");
     }
@@ -190,9 +194,9 @@ describe("Recipes grid", () => {
     renderPage();
     await loaded();
 
-    await user.click(chip("Vegetar"));
+    await user.click(chip("Pasta"));
     await waitFor(() => expect(cards()).toEqual(["Grønnsakslasagne", "Pannekaker"]));
-    expect(chip("Vegetar")).toHaveAttribute("aria-pressed", "true");
+    expect(chip("Pasta")).toHaveAttribute("aria-pressed", "true");
     expect(url()).toBe("/recipes?tag=veg");
 
     await user.click(chip("Rask"));
@@ -209,6 +213,34 @@ describe("Recipes grid", () => {
     await user.click(chip("Rask"));
     await waitFor(() => expect(url()).toBe("/recipes?tag=veg&max=30"));
     expect(chip("Rask")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("filters by food type with ANY semantics, shows the type on the card, and mirrors it in the URL (T-089)", async () => {
+    const user = userEvent.setup();
+    server.recipes = [
+      { ...recipe("r1", "Fiskesuppe", 40, [dinner]), foodType: "Fish" },
+      { ...recipe("r2", "Lasagne", 60, [dinner]), foodType: "Vegetarian" },
+      { ...recipe("r3", "Tacos", 20, [dinner]), foodType: "Beef" },
+      { ...recipe("r4", "Ukjent rett", 20, [dinner]), foodType: "Unknown" },
+    ];
+    renderPage();
+    await loaded();
+    const group = screen.getByRole("group", { name: t("recipes.foodType") });
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual(
+      ["Fish", "Seafood", "Chicken", "Beef", "Pork", "Lamb", "MixedMeat", "Vegetarian", "Vegan", "Unknown"].map((type) => t(`foodType.${type}` as MessageKey)),
+    );
+    const first = screen.getAllByTestId("recipe-card")[0]!;
+    expect(within(first).getByTestId("recipe-card-food-type")).toHaveTextContent(t("foodType.Fish"));
+    expect(within(screen.getAllByTestId("recipe-card")[3]!).queryByTestId("recipe-card-food-type")).toBeNull();
+
+    await user.click(within(group).getByRole("button", { name: t("foodType.Fish") }));
+    await waitFor(() => expect(cards()).toEqual(["Fiskesuppe"]));
+    expect(url()).toBe("/recipes?type=Fish");
+    await user.click(within(group).getByRole("button", { name: t("foodType.Vegetarian") }));
+    await waitFor(() => expect(cards()).toEqual(["Fiskesuppe", "Lasagne"]));
+    expect(new URLSearchParams(server.listCalls.at(-1)).getAll("foodType")).toEqual(["Fish", "Vegetarian"]);
+    await user.click(within(group).getByRole("button", { name: t("foodType.Fish") }));
+    await waitFor(() => expect(cards()).toEqual(["Lasagne"]));
   });
 
   it("starts from the filters in the URL (reload, shared link)", async () => {
@@ -267,7 +299,7 @@ describe("Recipes grid", () => {
     await waitFor(() => expect(url()).toBe("/recipes"));
     await waitFor(() => expect(cards()).toHaveLength(3));
     expect(screen.getByLabelText(t("recipes.search"))).toHaveValue("");
-    expect(chip("Vegetar")).toHaveAttribute("aria-pressed", "false");
+    expect(chip("Pasta")).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByRole("button", { name: t("recipes.clearFilters") })).toBeNull();
   });
 
@@ -356,6 +388,8 @@ describe("Recipe detail (minimal, T-025 extends)", () => {
       id: "r1",
       likedBy: [],
       liked: false,
+      foodType: "Unknown",
+      foodTypeIsManual: false,
       sourceUrl: null,
       sourceName: null,
       title: "Fiskesuppe",

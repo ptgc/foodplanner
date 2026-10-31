@@ -1,4 +1,5 @@
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Features.ShoppingLists;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
@@ -13,14 +14,14 @@ using Microsoft.EntityFrameworkCore;
 namespace Foodplanner.Api.Features.Catalog;
 
 /// <summary>Name is required; <c>Section</c> (T-085, a <see cref="StoreSection"/> name) is optional: omitted keeps the current section.</summary>
-public sealed record RenameIngredientRequest(string? Name, string? Section = null);
+public sealed record RenameIngredientRequest(string? Name, string? Section = null, string? ProteinClass = null);
 
 public sealed record MergeIngredientRequest(Guid? TargetIngredientId);
 
 /// <summary>Where an ingredient is used: distinct recipes (as a line's ingredient or as one of its alternatives, T-076), pantry rows (0 or 1), shopping lists (weeks) and open import drafts.</summary>
 public sealed record IngredientUsageResponse(int Recipes, int PantryItems, int ShoppingLists, int ImportDrafts, int WeeklyGroceries);
 
-public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, StoreSection Section, IngredientUsageResponse Usage);
+public sealed record OwnIngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, StoreSection Section, ProteinClass ProteinClass, IngredientUsageResponse Usage);
 
 /// <summary>
 /// <c>Warnings</c> are codes the client translates: <c>dimension-differs</c> (the target is normally measured in another
@@ -116,7 +117,7 @@ public static class OwnIngredientEndpoints
         var rows = await query.OrderByName(locale.Code).ToListAsync(cancellationToken);
         var usage = await IngredientUsage.LoadAsync(db, [.. rows.Select(r => r.Row.Id)], cancellationToken);
         return Results.Ok(rows.Select(r => new OwnIngredientResponse(
-            r.Row.Id, r.Name, r.Row.IsStaple, r.Row.Dimension, r.Row.Section, usage[r.Row.Id].ToResponse())).ToArray());
+            r.Row.Id, r.Name, r.Row.IsStaple, r.Row.Dimension, r.Row.Section, r.Row.ProteinClass, usage[r.Row.Id].ToResponse())).ToArray());
     }
 
     // ---- Rename ----------------------------------------------------------------------------------------------------
@@ -147,6 +148,17 @@ public static class OwnIngredientEndpoints
             section = parsed;
         }
 
+        ProteinClass? proteinClass = null;
+        if (request?.ProteinClass is not null)
+        {
+            if (!ProteinClasses.TryParse(request.ProteinClass, out var parsedClass))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["proteinClass"] = [CatalogEndpoints.ProteinClassMessage] });
+            }
+
+            proteinClass = parsedClass;
+        }
+
         var ingredient = await db.Ingredients.FirstOrDefaultAsync(i => i.Id == ingredientId, cancellationToken);
         if (ingredient is null)
         {
@@ -174,7 +186,20 @@ public static class OwnIngredientEndpoints
 
         try
         {
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+            if (proteinClass is { } newClass && newClass != ingredient.ProteinClass)
+            {
+                ingredient.ChangeProteinClass(newClass);
+
+                // The recipes that use it follow (a recipe with a manual type keeps it): save the class, re-derive, save again, one transaction.
+                var recipeIds = await db.RecipeIngredients.AsNoTracking().Where(l => l.IngredientId == ingredientId).Select(l => l.RecipeId)
+                    .Distinct().ToListAsync(cancellationToken);
+                await db.SaveChangesAsync(cancellationToken);
+                await RecipeFoodTypes.RecomputeAsync(db, recipeIds, cancellationToken);
+            }
+
             await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException exception) when (exception.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
         {
@@ -185,7 +210,7 @@ public static class OwnIngredientEndpoints
             return Changed();
         }
 
-        return Results.Ok(new IngredientResponse(ingredient.Id, ingredient.Name, ingredient.IsStaple, ingredient.Dimension, false, ingredient.Section));
+        return Results.Ok(new IngredientResponse(ingredient.Id, ingredient.Name, ingredient.IsStaple, ingredient.Dimension, false, ingredient.Section, ingredient.ProteinClass));
     }
 
     // ---- Delete ----------------------------------------------------------------------------------------------------
@@ -311,7 +336,7 @@ public static class OwnIngredientEndpoints
         var name = await db.Ingredients.AsNoTracking().WithNames(db, CatalogTranslation.KindIngredient, locale.Code)
             .Where(i => i.Row.Id == target.Id).Select(i => i.Name).FirstAsync(cancellationToken);
         return Results.Ok(new MergeIngredientResponse(
-            new IngredientResponse(target.Id, name, target.IsStaple, target.Dimension, target.HouseholdId is null, target.Section),
+            new IngredientResponse(target.Id, name, target.IsStaple, target.Dimension, target.HouseholdId is null, target.Section, target.ProteinClass),
             outcome.Moved.ToResponse(),
             [.. warnings]));
     }

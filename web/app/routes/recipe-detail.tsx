@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
+import { foodTypeKey } from "../recipes/food-types";
 import { PrepList } from "../recipes/prep-list-view";
 import { RecipeImage } from "../recipes/recipe-image";
 import { limits } from "../recipes/recipe-form";
@@ -143,8 +144,13 @@ function RecipeArticle({
           {t("recipe.sourceText", { name: recipe.sourceName })}
         </p>
       )}
-      {recipe.tags.length > 0 && (
+      {(recipe.foodType !== "Unknown" || recipe.tags.length > 0) && (
         <p className="recipe-card-tags">
+          {recipe.foodType !== "Unknown" && (
+            <span className="tag-pill food-type-pill" data-testid="recipe-food-type">
+              {t(foodTypeKey(recipe.foodType))}
+            </span>
+          )}
           {recipe.tags.map((tag) => (
             <span key={tag.id} className="tag-pill">
               {tag.name}

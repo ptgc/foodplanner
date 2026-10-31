@@ -14,7 +14,7 @@ public class CatalogTranslationTests
 
         Assert.Equal(110, IngredientSeed.All.Count);
         Assert.Equal(11, UnitSeed.All.Count);
-        Assert.Equal(13, TagSeed.All.Count);
+        Assert.Equal(9, TagSeed.All.Count);
         Assert.Equal(expected, rows.Count);
         Assert.Equal(expected, rows.Select(r => (r.Kind, r.EntityId, r.Locale)).Distinct().Count()); // no duplicate key
         Assert.All(rows, r =>

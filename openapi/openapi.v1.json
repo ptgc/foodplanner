@@ -1817,6 +1817,16 @@
             }
           },
           {
+            "name": "foodType",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -6112,6 +6122,12 @@
               "null",
               "string"
             ]
+          },
+          "proteinClass": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6215,6 +6231,20 @@
             "type": "string"
           }
         }
+      },
+      "FoodType": {
+        "enum": [
+          "Unknown",
+          "Fish",
+          "Seafood",
+          "Chicken",
+          "Beef",
+          "Pork",
+          "Lamb",
+          "MixedMeat",
+          "Vegetarian",
+          "Vegan"
+        ]
       },
       "HealthResponse": {
         "required": [
@@ -6550,7 +6580,8 @@
           "isStaple",
           "dimension",
           "isGlobal",
-          "section"
+          "section",
+          "proteinClass"
         ],
         "type": "object",
         "properties": {
@@ -6572,6 +6603,9 @@
           },
           "section": {
             "$ref": "#/components/schemas/StoreSection"
+          },
+          "proteinClass": {
+            "$ref": "#/components/schemas/ProteinClass"
           }
         }
       },
@@ -6941,6 +6975,7 @@
           "isStaple",
           "dimension",
           "section",
+          "proteinClass",
           "usage"
         ],
         "type": "object",
@@ -6960,6 +6995,9 @@
           },
           "section": {
             "$ref": "#/components/schemas/StoreSection"
+          },
+          "proteinClass": {
+            "$ref": "#/components/schemas/ProteinClass"
           },
           "usage": {
             "$ref": "#/components/schemas/IngredientUsageResponse"
@@ -7133,6 +7171,20 @@
             "type": "string"
           }
         }
+      },
+      "ProteinClass": {
+        "enum": [
+          "Unknown",
+          "None",
+          "AnimalProduct",
+          "Fish",
+          "Seafood",
+          "Chicken",
+          "Beef",
+          "Pork",
+          "Lamb",
+          "Meat"
+        ]
       },
       "ReadyResponse": {
         "required": [
@@ -7603,6 +7655,12 @@
               "null",
               "string"
             ]
+          },
+          "foodType": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7622,7 +7680,9 @@
           "sourceUrl",
           "sourceName",
           "likedBy",
-          "liked"
+          "liked",
+          "foodType",
+          "foodTypeIsManual"
         ],
         "type": "object",
         "properties": {
@@ -7722,6 +7782,12 @@
           },
           "liked": {
             "type": "boolean"
+          },
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
+          },
+          "foodTypeIsManual": {
+            "type": "boolean"
           }
         }
       },
@@ -7769,7 +7835,8 @@
           "thumbUrl",
           "cardUrl",
           "likedBy",
-          "liked"
+          "liked",
+          "foodType"
         ],
         "type": "object",
         "properties": {
@@ -7823,6 +7890,9 @@
           },
           "liked": {
             "type": "boolean"
+          },
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
           }
         }
       },
@@ -7864,6 +7934,12 @@
             ]
           },
           "section": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "proteinClass": {
             "type": [
               "null",
               "string"

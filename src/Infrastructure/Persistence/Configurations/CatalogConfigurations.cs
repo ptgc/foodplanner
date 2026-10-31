@@ -45,6 +45,7 @@ internal sealed class IngredientConfiguration : IEntityTypeConfiguration<Ingredi
         ingredient.Property(i => i.Name).HasMaxLength(Ingredient.MaxNameLength).IsRequired();
         ingredient.Property(i => i.Dimension).HasConversion<string>().HasMaxLength(20).IsRequired();
         ingredient.Property(i => i.Section).HasConversion<string>().HasMaxLength(30).IsRequired();
+        ingredient.Property(i => i.ProteinClass).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(ProteinClass.Unknown);
 
         // Unique per household, and among the global rows (HouseholdId null). EF would add "WHERE HouseholdId IS NOT
         // NULL" to a unique index over a nullable column, which would leave global names unconstrained; SQL Server treats
@@ -90,6 +91,7 @@ internal static class CatalogSeedData
             i.IsStaple,
             i.Dimension,
             i.Section,
+            ProteinClass = i.Protein,
             CreatedAt = SeededAt,
             UpdatedAt = SeededAt,
         }));

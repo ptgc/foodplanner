@@ -15,7 +15,7 @@ public sealed class CatalogTranslationTests(AuthDatabase db) : IClassFixture<Aut
     private static readonly Guid Flour = IngredientSeed.All.Single(r => r.Key == "hvetemel").Id;
     private static readonly Guid Rice = IngredientSeed.All.Single(r => r.Key == "ris").Id;
     private static readonly Guid Tablespoon = UnitSeed.All.Single(r => r.Code == "ss").Id;
-    private static readonly Guid Vegetarian = TagSeed.All.Single(t => t.Key == "vegetar").Id;
+    private static readonly Guid Soup = TagSeed.All.Single(t => t.Key == "suppe").Id;
     private static readonly Guid Dinner = TagSeed.All.Single(t => t.Key == "middag").Id;
 
     private AuthHost Host() => HouseholdHost.Create(db.ConnectionString);
@@ -98,8 +98,8 @@ public sealed class CatalogTranslationTests(AuthDatabase db) : IClassFixture<Aut
         owner.Client.Language = "en";
         var en = await GetListAsync(owner.Client, url);
 
-        Assert.Equal("Vegetar", NameOf(nb, Vegetarian));
-        Assert.Equal("Vegetarian", NameOf(en, Vegetarian));
+        Assert.Equal("Suppe", NameOf(nb, Soup));
+        Assert.Equal("Soup", NameOf(en, Soup));
         Assert.Equal("Middag", NameOf(nb, Dinner));
         Assert.Equal("Dinner", NameOf(en, Dinner));
         // Categories first, then tags, each by name in that language.
@@ -166,7 +166,7 @@ public sealed class CatalogTranslationTests(AuthDatabase db) : IClassFixture<Aut
             await response.AssertProblemAsync(HttpStatusCode.Conflict, "ingredient-exists");
         }
 
-        foreach (var name in new[] { "Vegetarian", "vegetar", "VEGETAR", "Kid friendly", "barnevennlig" })
+        foreach (var name in new[] { "Soup", "suppe", "SUPPE", "Kid friendly", "barnevennlig" })
         {
             using var response = await owner.Client.PostAsync(tags, new { name, kind = "Tag" });
             await response.AssertProblemAsync(HttpStatusCode.Conflict, "tag-exists");
@@ -212,15 +212,15 @@ public sealed class CatalogTranslationTests(AuthDatabase db) : IClassFixture<Aut
             title = "Mormors lapskaus",
             servings = 4,
             ingredients = new[] { new { ingredientId = Flour, quantity = 2m, unitId = Tablespoon, note = (string?)null } },
-            tagIds = new[] { Vegetarian, Dinner },
+            tagIds = new[] { Soup, Dinner },
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var id = (await created.JsonAsync()).GetProperty("id").GetGuid();
 
         foreach (var (language, flour, unit, tags) in new[]
         {
-            ("en", "Wheat flour", "tablespoon", new[] { "Dinner", "Vegetarian" }),
-            ("nb", "Hvetemel", "spiseskje", new[] { "Middag", "Vegetar" }),
+            ("en", "Wheat flour", "tablespoon", new[] { "Dinner", "Soup" }),
+            ("nb", "Hvetemel", "spiseskje", new[] { "Middag", "Suppe" }),
         })
         {
             owner.Client.Language = language;
