@@ -1,0 +1,14 @@
+HTTP/1.1 401 Unauthorized
+Connection: keep-alive
+Content-Length: 0
+server: uvicorn
+www-authenticate: Bearer resource_metadata="https://oda.com/.well-known/oauth-protected-resource/mcp"
+via: 1.1 google, 1.1 varnish, 1.1 varnish
+Accept-Ranges: bytes
+Date: Fri, 30 Oct 2026 23:57:30 GMT
+X-Served-By: cache-ams-eham8680034-AMS, cache-osl6550-OSL
+X-Cache: MISS, MISS
+X-Cache-Hits: 0, 0
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+

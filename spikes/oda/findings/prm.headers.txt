@@ -1,0 +1,17 @@
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 145
+cache-control: public, max-age=3600
+content-type: application/json
+server: uvicorn
+via: 1.1 google, 1.1 varnish, 1.1 varnish
+Accept-Ranges: bytes
+Date: Fri, 30 Oct 2026 23:57:35 GMT
+Age: 1850
+X-Served-By: cache-ams-eham8680050-AMS, cache-osl6526-OSL
+X-Cache: HIT, HIT
+X-Cache-Hits: 2, 2
+Vary: Accept-Encoding
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+
