@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-001 (Oda via MCP spike) blocked on manual Phase B (see T-001.md); T-087, T-026 and T-089 done; next T-090, T-091, one at a time; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-100 (planned), T-086 and T-094 (stretch)
+## Current focus: T-001 (Oda via MCP spike) blocked on manual Phase B (see T-001.md); T-087, T-026 and T-089 done; next T-102 (flaky test), T-090, T-103, T-091, one at a time; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-100, T-104 (planned), T-086 and T-094 (stretch)
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -128,3 +128,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-100 | What can I make with what we have? (recipe suggestions from the pantry) | M4 | T-093 | implementer-backend | no |
 | T-101 | verify.sh runs the API tests in one pass again | L3 | T-097, T-098 | implementer-infra | no |
 | T-102 | Flaky test: concurrent shopping-list regeneration deadlocks | L3 | T-033 | implementer-backend | no |
+| T-103 | Kid mode is confined to the profile's own household (Q-026) | M1 | T-026 | implementer-backend | no |
+| T-104 | Import suggests a protein class for new own ingredients | M1 | T-089 | implementer-backend | no |
