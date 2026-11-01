@@ -307,10 +307,10 @@ public static class OwnIngredientEndpoints
         {
             outcome = await IngredientMerger.MergeAsync(db, source, target, time.GetUtcNow(), cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (Exception ex) when (ShoppingListEndpoints.IsRetryable(ex))
         {
             // A recipe edit, a plan change or another merge committed in between (stale row, or a new reference to the source
-            // that the foreign key refused). The transaction is rolled back, nothing changed.
+            // that the foreign key refused), or we were a deadlock victim (T-102). The transaction is rolled back, nothing changed.
             db.ChangeTracker.Clear();
             return Changed();
         }

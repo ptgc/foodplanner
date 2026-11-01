@@ -157,7 +157,6 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var generated = await GenerateFromPlanAsync(db, monday, cancellationToken);
         var now = time.GetUtcNow();
 
         // Two members may regenerate at once, or someone may check an item while we flag it. ApplyAsync serialises regenerations on
@@ -167,7 +166,12 @@ public static class ShoppingListEndpoints
         {
             try
             {
-                await ApplyAsync(db, monday, generated, now, cancellationToken);
+                // The plan is read after the list row is taken, so a request that waited cannot overwrite a newer result with an older plan.
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var row = await FindOrCreateListAsync(db, monday, cancellationToken);
+                await LockListRowAsync(db, row, cancellationToken);
+                await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, cancellationToken), now, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 break;
             }
             catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
@@ -359,7 +363,7 @@ public static class ShoppingListEndpoints
     /// plan row in T-026) and re-reads it. Every writer that replaces items takes it first, so they queue instead of inserting the
     /// same (list, ingredient) keys in different orders.
     /// </summary>
-    private static async Task LockListRowAsync(AppDbContext db, ShoppingList list, CancellationToken cancellationToken)
+    internal static async Task LockListRowAsync(AppDbContext db, ShoppingList list, CancellationToken cancellationToken)
     {
         db.Entry(list).Property("UpdatedAt").IsModified = true;
         await db.SaveChangesAsync(cancellationToken);
@@ -650,6 +654,8 @@ public static class ShoppingListEndpoints
                 {
                     await LockListRowAsync(db, week, cancellationToken); // list row first, before any item row
                 }
+
+                db.ChangeTracker.Clear(); // the item may be tracked from the caller, with state from before the lock
 
                 var item = await FindItemAsync(db, monday, itemId, cancellationToken);
                 if (item is null)
