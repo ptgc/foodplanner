@@ -30,6 +30,18 @@ public sealed record MealPlanEntryResponse(
 public sealed record MealPlanResponse(
     Guid? Id, DateOnly WeekStart, MealPlanEntryResponse[] Entries, bool Locked, DateTimeOffset? LockedAt, PickedByResponse? LockedBy);
 
+/// <summary>
+/// Whether a recipe can be added to the day without breaking the household's meal mix rules (T-090). <c>Reason</c> is
+/// <c>not-dinner</c> (kid mode only) or <c>breaks-meal-mix</c> when <c>Allowed</c> is false, else null.
+/// </summary>
+public sealed record PickOptionResponse(Guid RecipeId, bool Allowed, string? Reason);
+
+/// <summary>
+/// The recipes for a day with allowed or not. <c>OpenDinnerDays</c> counts the week's days without a dinner;
+/// <c>AllowedFoodTypes</c> are the food types that can still be added on that day.
+/// </summary>
+public sealed record PickOptionsResponse(DateOnly Date, int OpenDinnerDays, FoodType[] AllowedFoodTypes, PickOptionResponse[] Recipes);
+
 /// <summary>The week is locked: who and when.</summary>
 public sealed record MealPlanLockResponse(bool Locked, DateTimeOffset LockedAt, PickedByResponse LockedBy);
 
@@ -49,6 +61,12 @@ public static class MealPlanEndpoints
         plans.MapGet("", GetPlan)
             .WithName("GetMealPlan")
             .Produces<MealPlanResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        plans.MapGet("/pick-options", GetPickOptions)
+            .WithName("GetMealPlanPickOptions")
+            .Produces<PickOptionsResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
@@ -170,20 +188,7 @@ public static class MealPlanEndpoints
 
         // In kid mode the pick is attributed to the active profile (from the cookie claim, never the body), and a kid may only
         // add what IKidPickRules allows (T-026: dinners; T-090 extends it).
-        Guid? profileId = null;
-        if (user.IsKidMode)
-        {
-            if (!await KidMayAddAsync(db, kidRules, monday, request.Date!.Value, recipe.Id, cancellationToken))
-            {
-                return AppProblems.Problem(
-                    StatusCodes.Status409Conflict,
-                    AppProblems.PickNotAllowed,
-                    "That meal cannot be picked",
-                    "Kids can pick dinners for the week plan.");
-            }
-
-            profileId = await ActiveProfileIdAsync(householdId, user, db, cancellationToken);
-        }
+        Guid? profileId = user.IsKidMode ? await ActiveProfileIdAsync(householdId, user, db, cancellationToken) : null;
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var plan = await FindOrCreatePlanAsync(db, monday, cancellationToken);
@@ -194,6 +199,13 @@ public static class MealPlanEndpoints
         if (!await week.CanWriteAsync(plan))
         {
             return WeekLocked();
+        }
+
+        // The kid pick rules (dinner only + the household's meal mix, T-090) are asked INSIDE the plan lock, so two picks at once
+        // cannot both pass a check that only one of them satisfies.
+        if (user.IsKidMode && !await KidMayAddAsync(db, kidRules, monday, request.Date!.Value, recipe.Id, cancellationToken))
+        {
+            return PickNotAllowed();
         }
 
         var servings = request.Servings ?? Math.Min(recipe.Servings, MealPlanEntry.MaxServings);
@@ -266,6 +278,7 @@ public static class MealPlanEndpoints
             return Forbidden();
         }
 
+        // No pick-rule check on a move: moving an entry never makes the meal mix harder to meet (it keeps or frees a day).
         entry.Change(monday, request!.Date!.Value, request.Servings!.Value);
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
@@ -394,7 +407,35 @@ public static class MealPlanEndpoints
         }
     }
 
-    /// <summary>Asks the kid pick rules (the seam T-090 extends) whether the recipe may be added on that day of that week.</summary>
+    private static IResult PickNotAllowed() =>
+        AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.PickNotAllowed,
+            "That meal cannot be picked",
+            "Kids can pick dinners for the week plan, within the household's meal mix rules.");
+
+    private static readonly Guid DinnerCategoryId = TagSeed.All.Single(t => t.Key == "middag").Id;
+
+    /// <summary>The week as the pick rules see it: what is planned and the household's rules.</summary>
+    private static async Task<KidPickPlan> LoadPickPlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    {
+        var rules = await db.MealMixRules.AsNoTracking().Select(r => new MealMixRequirement(r.FoodType, r.MinPerWeek)).ToListAsync(cancellationToken);
+        var dinnerId = DinnerCategoryId;
+        var planned = await (from entry in db.MealPlanEntries.AsNoTracking()
+                             join plan in db.MealPlans.AsNoTracking() on entry.MealPlanId equals plan.Id
+                             join recipe in db.Recipes.AsNoTracking() on entry.RecipeId equals recipe.Id
+                             where plan.WeekStart == monday
+                             select new
+                             {
+                                 entry.Date,
+                                 entry.RecipeId,
+                                 recipe.FoodType,
+                                 IsDinner = db.RecipeTags.Any(l => l.RecipeId == entry.RecipeId && l.TagId == dinnerId),
+                             }).ToListAsync(cancellationToken);
+        return new KidPickPlan(monday, [.. planned.Select(p => new KidPickEntry(p.Date, p.RecipeId, p.IsDinner, p.FoodType))], rules);
+    }
+
+    /// <summary>Asks the kid pick rules whether the recipe may be added on that day of that week (call inside the plan lock).</summary>
     private static async Task<bool> KidMayAddAsync(
         AppDbContext db, IKidPickRules rules, DateOnly monday, DateOnly day, Guid recipeId, CancellationToken cancellationToken)
     {
@@ -402,14 +443,60 @@ public static class MealPlanEndpoints
                                 join tag in db.Tags.AsNoTracking() on link.TagId equals tag.Id
                                 where link.RecipeId == recipeId && tag.Kind == TagKind.Category
                                 select tag.Id).ToListAsync(cancellationToken);
-        var planned = await (from entry in db.MealPlanEntries.AsNoTracking()
-                             join plan in db.MealPlans.AsNoTracking() on entry.MealPlanId equals plan.Id
-                             where plan.WeekStart == monday
-                             select new { entry.Date, entry.RecipeId }).ToListAsync(cancellationToken);
+        var foodType = await db.Recipes.AsNoTracking().Where(r => r.Id == recipeId).Select(r => r.FoodType).FirstOrDefaultAsync(cancellationToken);
         return rules.IsAllowed(
-            new KidPickRecipe(recipeId, categories.ToHashSet()),
+            new KidPickRecipe(recipeId, categories.ToHashSet(), foodType),
             day,
-            new KidPickPlan(monday, [.. planned.Select(p => (p.Date, p.RecipeId))]));
+            await LoadPickPlanAsync(db, monday, cancellationToken));
+    }
+
+    /// <summary>
+    /// For a day: every recipe with whether it can be added and, when not, why (<see cref="PickReasons"/>). In kid mode a recipe that
+    /// is not a dinner is not allowed (a kid pick would be refused); for an adult only the meal mix counts, and an adult may still add a
+    /// "not allowed" recipe (override). Recipe details come from the recipe list; this only answers allowed or not.
+    /// </summary>
+    private static async Task<IResult> GetPickOptions(
+        string weekStart, string? date, ICurrentUser user, AppDbContext db, MealMixKidPickRules rules, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) || !MealPlan.IsInWeek(monday, day))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["date"] = ["The date must be a day of the plan's week (Monday to Sunday), as yyyy-MM-dd."] });
+        }
+
+        var dinnerId = DinnerCategoryId;
+        var plan = await LoadPickPlanAsync(db, monday, cancellationToken);
+        var recipes = await db.Recipes.AsNoTracking().OrderBy(r => r.Title).ThenBy(r => r.Id).Select(r => new
+        {
+            r.Id,
+            r.FoodType,
+            IsDinner = db.RecipeTags.Any(l => l.RecipeId == r.Id && l.TagId == dinnerId),
+        }).ToListAsync(cancellationToken);
+
+        var options = recipes.Select(r =>
+        {
+            var recipe = new KidPickRecipe(r.Id, r.IsDinner ? new HashSet<Guid> { dinnerId } : [], r.FoodType);
+            if (user.IsKidMode && !rules.IsDinner(recipe))
+            {
+                return new PickOptionResponse(r.Id, false, PickReasons.NotDinner);
+            }
+
+            return rules.FitsMealMix(recipe, day, plan)
+                ? new PickOptionResponse(r.Id, true, null)
+                : new PickOptionResponse(r.Id, false, PickReasons.BreaksMealMix);
+        }).ToArray();
+
+        var dinners = plan.Entries.Where(e => e.IsDinner).ToList();
+        var dinnerDays = dinners.Select(e => e.Date).Distinct().Count();
+        var openDays = Math.Max(0, MealMix.DinnerDaysPerWeek - dinnerDays);
+        var fillsOpenDay = !dinners.Any(e => e.Date == day);
+        var allowedTypes = MealMix.AllowedTypes(plan.Rules ?? [], openDays, [.. dinners.Select(e => e.FoodType)], fillsOpenDay);
+        return Results.Ok(new PickOptionsResponse(day, openDays, [.. allowedTypes], options));
     }
 
     /// <summary>The active profile when it still exists in this household; null otherwise (a stale claim attributes to nobody).</summary>

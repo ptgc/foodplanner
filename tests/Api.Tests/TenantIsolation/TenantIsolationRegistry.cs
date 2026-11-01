@@ -192,6 +192,12 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(l => l.RecipeId).CurrentValue = Guid.NewGuid()), // never saved: every update of another household's row is refused before or in the UPDATE
 
+        // Weekly meal mix rules (T-090): unique per (household, food type), so the factory picks a random type; no references besides the household.
+        TenantIsolationCase.For<MealMixRule>(
+            (_, _) => Task.FromResult(new MealMixRule(
+                Enum.GetValues<FoodType>().Where(t => t != FoodType.Unknown).OrderBy(_ => Random.Shared.Next()).First(), 1)),
+            entry => entry.Property(r => r.MinPerWeek).CurrentValue = 3),
+
         // Recipe import artifact (T-042): one table, the draft is JSON (no foreign keys to ingredients or units); the creating user is global identity data.
         TenantIsolationCase.For<RecipeImport>(
             async (env, _) => new RecipeImport(ImportSource.Text, null, "2 dl melk", "{}", await env.NewUserAsync()),

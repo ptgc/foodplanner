@@ -32,7 +32,7 @@ public class KidPickAndLockTests
         var dinner = Recipe(Dinner);
 
         Assert.True(firstDinnerOnly.IsAllowed(dinner, Monday, Empty));
-        Assert.False(firstDinnerOnly.IsAllowed(dinner, Monday, new KidPickPlan(Monday, [(Monday, Guid.NewGuid())])));
+        Assert.False(firstDinnerOnly.IsAllowed(dinner, Monday, new KidPickPlan(Monday, [new KidPickEntry(Monday, Guid.NewGuid())])));
     }
 
     private sealed class FirstDinnerOnly : IKidPickRules

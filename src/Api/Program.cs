@@ -98,6 +98,7 @@ api.MapRecipeEndpoints();
 api.MapRecipeImportEndpoints();
 api.MapTagEndpoints();
 api.MapMealPlanEndpoints();
+api.MapMealMixRuleEndpoints();
 api.MapProfileEndpoints();
 api.MapRecipeLikeEndpoints();
 api.MapShoppingListEndpoints();
