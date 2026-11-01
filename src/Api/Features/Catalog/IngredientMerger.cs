@@ -27,6 +27,20 @@ public static class IngredientMerger
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
+        // Lock order (T-102): the lists whose items move come first, in Id order, before any item row is edited. That is the order of
+        // ApplyAsync (list row, then items), so a merge and a regeneration of the same list queue instead of deadlocking.
+        var affectedListIds = await (from item in db.ShoppingListItems.AsNoTracking()
+                                     where item.IngredientId == source.Id
+                                     select item.ShoppingListId).Distinct().OrderBy(id => id).ToListAsync(cancellationToken);
+        foreach (var listId in affectedListIds)
+        {
+            var list = await db.ShoppingLists.FirstOrDefaultAsync(l => l.Id == listId, cancellationToken);
+            if (list is not null)
+            {
+                await ShoppingListEndpoints.LockListRowAsync(db, list, cancellationToken);
+            }
+        }
+
         // Recipe lines.
         var lines = await db.RecipeIngredients.Where(l => l.IngredientId == source.Id).ToListAsync(cancellationToken);
         foreach (var line in lines)
