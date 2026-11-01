@@ -160,9 +160,9 @@ public static class ShoppingListEndpoints
         var generated = await GenerateFromPlanAsync(db, monday, cancellationToken);
         var now = time.GetUtcNow();
 
-        // Two members may regenerate at once, or someone may check an item while we flag it. Both surface as a
-        // DbUpdateException (unique index, or a stale row version); the second pass reads the winner's rows and finds
-        // little or nothing left to change, so the result is the same list.
+        // Two members may regenerate at once, or someone may check an item while we flag it. ApplyAsync serialises regenerations on
+        // the list row; what still surfaces (a stale row version, a unique index, a deadlock victim) is retried, and the next pass
+        // reads the winner's rows and finds little or nothing left to change, so the result is the same list.
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -170,11 +170,11 @@ public static class ShoppingListEndpoints
                 await ApplyAsync(db, monday, generated, now, cancellationToken);
                 break;
             }
-            catch (DbUpdateException) when (attempt < MaxAttempts)
+            catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
             {
                 db.ChangeTracker.Clear();
             }
-            catch (DbUpdateException)
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 db.ChangeTracker.Clear();
                 return Conflict();
@@ -253,11 +253,17 @@ public static class ShoppingListEndpoints
         return ShoppingListGenerator.Generate(meals, catalog);
     }
 
-    /// <summary>One attempt: find or create the list, reconcile its generated items with <paramref name="generated"/>, save once.</summary>
+    /// <summary>
+    /// One attempt: find or create the list, take its row, reconcile its generated items with <paramref name="generated"/>, save
+    /// once. Runs in a transaction (the caller's, or its own) so the list row lock holds until the end: regenerations of one list
+    /// then run one after the other and cannot deadlock on the item rows and the unique (list, ingredient) index (T-102).
+    /// </summary>
     internal static async Task ApplyAsync(
         AppDbContext db, DateOnly monday, GeneratedList generated, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        await using var own = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         var list = await FindOrCreateListAsync(db, monday, cancellationToken);
+        await LockListRowAsync(db, list, cancellationToken);
 
         var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
             .ToDictionaryAsync(i => i.Id, cancellationToken);
@@ -342,6 +348,41 @@ public static class ShoppingListEndpoints
         db.ShoppingListItems.RemoveRange(plan.RemoveItemIds.Select(id => items[id]));
 
         await db.SaveChangesAsync(cancellationToken);
+        if (own is not null)
+        {
+            await own.CommitAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Takes the list row for the rest of the transaction (a tracked no-op update of the audit column, the same pattern as the
+    /// plan row in T-026) and re-reads it. Every writer that replaces items takes it first, so they queue instead of inserting the
+    /// same (list, ingredient) keys in different orders.
+    /// </summary>
+    private static async Task LockListRowAsync(AppDbContext db, ShoppingList list, CancellationToken cancellationToken)
+    {
+        db.Entry(list).Property("UpdatedAt").IsModified = true;
+        await db.SaveChangesAsync(cancellationToken);
+        await db.Entry(list).ReloadAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// A failure another attempt can fix: a unique index or row version lost to a concurrent writer, or a deadlock victim (1205,
+    /// which EF wraps in an InvalidOperationException because no retrying execution strategy is set).
+    /// </summary>
+    internal static bool IsRetryable(Exception exception) => exception is DbUpdateException || IsDeadlock(exception);
+
+    internal static bool IsDeadlock(Exception? exception)
+    {
+        for (; exception is not null; exception = exception.InnerException)
+        {
+            if (exception is Microsoft.Data.SqlClient.SqlException { Number: 1205 })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void AddQuantities(AppDbContext db, Guid itemId, IReadOnlyList<StoredQuantity> quantities)
@@ -548,6 +589,7 @@ public static class ShoppingListEndpoints
                 {
                     await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
                     var list = await FindOrCreateListAsync(db, monday, cancellationToken);
+                    await LockListRowAsync(db, list, cancellationToken); // list row first, before any item row (same order as ApplyAsync)
                     var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
                         .ToListAsync(cancellationToken);
                     var plan = WeeklyGroceries.Plan(
@@ -573,12 +615,12 @@ public static class ShoppingListEndpoints
                     await transaction.CommitAsync(cancellationToken);
                     break;
                 }
-                catch (DbUpdateException) when (attempt < MaxAttempts)
+                catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
                 {
-                    // Two members pressed at once (unique index) or a row changed: the second pass finds little left to do.
+                    // Two members pressed at once (unique index, deadlock victim) or a row changed: the second pass finds little left to do.
                     db.ChangeTracker.Clear();
                 }
-                catch (DbUpdateException)
+                catch (Exception ex) when (IsRetryable(ex))
                 {
                     db.ChangeTracker.Clear();
                     return Conflict();
@@ -603,6 +645,12 @@ public static class ShoppingListEndpoints
             try
             {
                 await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var week = await db.ShoppingLists.FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
+                if (week is not null)
+                {
+                    await LockListRowAsync(db, week, cancellationToken); // list row first, before any item row
+                }
+
                 var item = await FindItemAsync(db, monday, itemId, cancellationToken);
                 if (item is null)
                 {
@@ -618,7 +666,7 @@ public static class ShoppingListEndpoints
                 await transaction.CommitAsync(cancellationToken);
                 return true;
             }
-            catch (DbUpdateException)
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 db.ChangeTracker.Clear();
             }
@@ -676,7 +724,7 @@ public static class ShoppingListEndpoints
             {
                 await db.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex) when (ex is DbUpdateConcurrencyException || IsDeadlock(ex))
             {
                 db.ChangeTracker.Clear();
                 continue;
