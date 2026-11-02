@@ -4,6 +4,8 @@ import { api } from "../api/client";
 import { useI18n, type I18n, type MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import { avatarColor, initialsOf } from "../planner/avatar";
+import { usePickOptions, type PickOption, type PickOptions } from "../planner/use-pick-options";
+import { foodTypeKey } from "../recipes/food-types";
 import {
   maxServings,
   minServings,
@@ -21,6 +23,13 @@ import { addDays, addWeeks, dateOf, isMonday, isoWeek, mondayOf, toIsoDate, week
 
 /** How long typing must pause before the picker searches. */
 export const pickerSearchDebounceMs = 300;
+
+/** The short reason a recipe is greyed out for the day (T-090). An adult can still add it. */
+function reasonText(t: I18n["t"], option: PickOption, options: PickOptions | null): string {
+  if (option.reason === "not-dinner") return t("planner.reason.notDinner");
+  const types = (options?.allowedFoodTypes ?? []).map((type) => t(foodTypeKey(type))).join(", ");
+  return t("planner.reason.breaksMix", { types });
+}
 
 const failureText = (t: I18n["t"], failure: Failure) =>
   failure === "unreachable" ? t("problem.unreachable") : t(problemKey(failure.problemType));
@@ -263,6 +272,8 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
         <Picker
           key={picking}
           householdId={householdId}
+          weekStart={weekStart}
+          date={picking}
           title={t("planner.pickerTitle", { day: dayLabel(picking) })}
           onClose={closePicker}
           onPick={(recipe) => pick(picking, recipe)}
@@ -367,11 +378,15 @@ function EntryCard({
  */
 function Picker({
   householdId,
+  weekStart,
+  date,
   title,
   onClose,
   onPick,
 }: {
   householdId: string;
+  weekStart: string;
+  date: string;
   title: string;
   onClose: () => void;
   onPick: (recipe: RecipeSummary) => Promise<WriteResult>;
@@ -385,6 +400,7 @@ function Picker({
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
   const tags = useTags(householdId);
+  const { options, byRecipe } = usePickOptions(householdId, weekStart, date);
   const { list, loadMore, retry } = useRecipeList(householdId, filters);
   const categories = tags.filter((tag) => tag.kind === "Category");
 
@@ -485,12 +501,16 @@ function Picker({
           {list.status === "ok" && list.items.length > 0 && (
             <>
               <ul className="recipe-grid">
-                {list.items.map((recipe) => (
+                {list.items.map((recipe) => {
+                  const option = byRecipe.get(recipe.id);
+                  const blocked = option?.allowed === false;
+                  return (
                   <li key={recipe.id}>
                     <button
                       type="button"
-                      className="recipe-card picker-card"
+                      className={blocked ? "recipe-card picker-card picker-card-greyed" : "recipe-card picker-card"}
                       data-testid="picker-card"
+                      data-allowed={blocked ? "false" : "true"}
                       aria-label={t("planner.pickRecipe", { title: recipe.title })}
                       disabled={adding}
                       onClick={() => void choose(recipe)}
@@ -498,10 +518,16 @@ function Picker({
                       <RecipeImage title={recipe.title} thumbUrl={recipe.thumbUrl} cardUrl={recipe.cardUrl} />
                       <span className="recipe-card-body">
                         <span className="recipe-card-title">{recipe.title}</span>
+                        {blocked && (
+                          <span className="picker-reason" data-testid="picker-reason" data-reason={option.reason ?? ""}>
+                            {reasonText(t, option, options)}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               {list.hasMore && (
                 <div className="recipes-more">
