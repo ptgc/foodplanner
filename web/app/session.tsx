@@ -32,6 +32,11 @@ type SessionApi = {
    * `preferId` active if it is in the list, else keeps the stored choice, else the first. False if it could not be read.
    */
   refreshHouseholds: (preferId?: string) => Promise<boolean>;
+  /**
+   * Reads who we are again after the server changed the device's mode (a profile was activated, or the PIN unlocked it,
+   * T-091). Forgets the per-person caches (likes live in cached recipe lists). If the server cannot be read the page reloads (and returns false): the old shell must not stay up.
+   */
+  reloadSession: () => Promise<boolean>;
 };
 
 const storageKey = (userId: string) => `foodplanner.activeHousehold.${userId}`;
@@ -58,6 +63,9 @@ function pickActive(userId: string, households: Household[]): string | null {
   if (stored && households.some((h) => h.id === stored)) return stored;
   return households[0]?.id ?? null;
 }
+
+/** The page reload used when the mode change cannot be read back (a seam so tests can watch it). */
+export const pageReload = { run: () => window.location.reload() };
 
 const sessionKey = "foodplanner.session";
 
@@ -195,9 +203,37 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const reloadSession = useCallback(async (): Promise<boolean> => {
+    // The device's mode just changed on the server. Everything of the previous mode goes first, so that a failed read below
+    // can never leave the old (grown-up or kid) data around: the saved session, the caches and the antiforgery token.
+    const hardReload = () => {
+      pageReload.run();
+      return false;
+    };
+    clearSavedSession();
+    resetAntiforgeryToken();
+    clearShoppingStorage();
+    try {
+      await clearRuntimeCaches();
+      const me = await api.GET("/api/auth/me");
+      const list = await api.GET("/api/households");
+      if (!me.data || !list.data) return hardReload();
+      const user = me.data;
+      const households = list.data;
+      saveSession({ user, households });
+      // In kid mode the server lists only the profile's household; make that the active one.
+      const kidHousehold = user.kidMode?.householdId;
+      if (kidHousehold && households.some((h) => h.id === kidHousehold)) writeStored(user.userId, kidHousehold);
+      setSession({ status: "signedIn", user, households, activeHouseholdId: pickActive(user.userId, households) });
+      return true;
+    } catch {
+      return hardReload();
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds }),
-    [session, signIn, signOut, setActiveHousehold, refreshHouseholds],
+    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession }),
+    [session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

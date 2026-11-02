@@ -6,6 +6,7 @@ import { call } from "../household/call";
 import { ConfirmDialog } from "../household/confirm-dialog";
 import { useLoaded } from "../household/use-loaded";
 import { Stores } from "../household/stores";
+import { KidProfiles } from "../household/kid-profiles";
 import { MealMixRules } from "../household/meal-mix-rules";
 import { WeeklyGroceries } from "../household/weekly-groceries";
 import { allRoles, inviteLink, invitableRoles, powers, roleKeys, type Role } from "../household/roles";
@@ -83,6 +84,7 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
           </Link>
         </div>
       )}
+      {can.kidProfiles && <KidProfiles householdId={household.id} />}
       <MealMixRules householdId={household.id} canEdit={can.weekly} />
       <WeeklyGroceries householdId={household.id} canEdit={can.weekly} />
       <Stores householdId={household.id} canEdit={can.weekly} />

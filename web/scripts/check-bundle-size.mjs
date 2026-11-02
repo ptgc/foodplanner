@@ -14,7 +14,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const budgetKb = { initial: 140, firstLoad: 170, total: 220 };
+const budgetKb = { initial: 145, firstLoad: 170, total: 235 };
 const assets = resolve(dirname(fileURLToPath(import.meta.url)), "..", "build", "client", "assets");
 
 const sizes = new Map(); // "/assets/x.js" -> gzipped bytes

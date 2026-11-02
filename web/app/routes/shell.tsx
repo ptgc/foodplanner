@@ -1,9 +1,13 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { loginPathFor } from "../auth-paths";
 import { APP_NAME, useI18n } from "../i18n";
 import { LanguageSwitch } from "../i18n/language-switch";
 import { useSession } from "../session";
+
+// Kid mode and the profile picker are rarely used on a grown-up session: their own chunks keep the first load small.
+const KidApp = lazy(() => import("../kid/kid-app"));
+const ProfilePicker = lazy(() => import("../kid/profile-picker").then((m) => ({ default: m.ProfilePicker })));
 
 export default function Shell() {
   const { t } = useI18n();
@@ -11,6 +15,7 @@ export default function Shell() {
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const signedIn = session.status === "signedIn";
+  const [picking, setPicking] = useState(false);
 
   // Move focus to the content when the route changes, so keyboard and screen reader users start there.
   useEffect(() => {
@@ -20,7 +25,17 @@ export default function Shell() {
   if (session.status === "loading") return <p role="status">{t("common.loading")}</p>;
   if (session.status === "signedOut") return <Navigate to={loginPathFor(location)} replace />;
 
+  // The server says this device is a child profile (T-026): show the kid shell, nothing of the grown-up app.
+  if (session.user.kidMode) {
+    return (
+      <Suspense fallback={<p role="status">{t("common.loading")}</p>}>
+        <KidApp />
+      </Suspense>
+    );
+  }
+
   const active = session.households.find((h) => h.id === session.activeHouseholdId);
+  const canSwitchProfile = active !== undefined && active.role !== "Child";
 
   return (
     <div className="shell">
@@ -54,6 +69,11 @@ export default function Shell() {
             <span data-testid="household-name">{active?.name ?? t("shell.noHousehold")}</span>
           )}
           <LanguageSwitch />
+          {canSwitchProfile && (
+            <button type="button" className="button button-light" data-testid="switch-profile" onClick={() => setPicking(true)}>
+              {t("kid.switchProfile")}
+            </button>
+          )}
           <button type="button" className="button button-light" onClick={() => void signOut()}>
             {t("shell.logOut")}
           </button>
@@ -71,6 +91,11 @@ export default function Shell() {
       <main id="main" ref={mainRef} tabIndex={-1} className="shell-main">
         <Outlet />
       </main>
+      {picking && active && (
+        <Suspense fallback={null}>
+          <ProfilePicker householdId={active.id} kidMode={false} activeProfileId={null} onClose={() => setPicking(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
