@@ -225,7 +225,8 @@ public static class MealPlanEndpoints
 
     private static async Task<IResult> UpdateEntry(
         Guid householdId, string weekStart, Guid entryId, UpdateMealPlanEntryRequest? request, IMealPlanEntryAccess access,
-        IMealPlanWeekAccess week, AppDbContext db, IMealPlanNotifier notifier, ILogger<MealPlan> logger, CancellationToken cancellationToken)
+        IMealPlanWeekAccess week, AppDbContext db, ICurrentUser user, MealMixKidPickRules kidRules, IMealPlanNotifier notifier,
+        ILogger<MealPlan> logger, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -278,7 +279,13 @@ public static class MealPlanEndpoints
             return Forbidden();
         }
 
-        // No pick-rule check on a move: moving an entry never makes the meal mix harder to meet (it keeps or frees a day).
+        // A move can break the meal mix (moving one of two dinners off a day onto an empty day uses up an open day), so a kid is
+        // held to the rules again: the plan without this entry, then the entry on its new day. Inside the plan lock, like an add.
+        if (user.IsKidMode && entry.Date != request!.Date!.Value && !await KidMayMoveAsync(db, kidRules, monday, entry, request.Date!.Value, cancellationToken))
+        {
+            return PickNotAllowed();
+        }
+
         entry.Change(monday, request!.Date!.Value, request.Servings!.Value);
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
@@ -417,14 +424,14 @@ public static class MealPlanEndpoints
     private static readonly Guid DinnerCategoryId = TagSeed.All.Single(t => t.Key == "middag").Id;
 
     /// <summary>The week as the pick rules see it: what is planned and the household's rules.</summary>
-    private static async Task<KidPickPlan> LoadPickPlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    private static async Task<KidPickPlan> LoadPickPlanAsync(AppDbContext db, DateOnly monday, Guid? exceptEntryId, CancellationToken cancellationToken)
     {
         var rules = await db.MealMixRules.AsNoTracking().Select(r => new MealMixRequirement(r.FoodType, r.MinPerWeek)).ToListAsync(cancellationToken);
         var dinnerId = DinnerCategoryId;
         var planned = await (from entry in db.MealPlanEntries.AsNoTracking()
                              join plan in db.MealPlans.AsNoTracking() on entry.MealPlanId equals plan.Id
                              join recipe in db.Recipes.AsNoTracking() on entry.RecipeId equals recipe.Id
-                             where plan.WeekStart == monday
+                             where plan.WeekStart == monday && (exceptEntryId == null || entry.Id != exceptEntryId)
                              select new
                              {
                                  entry.Date,
@@ -433,6 +440,19 @@ public static class MealPlanEndpoints
                                  IsDinner = db.RecipeTags.Any(l => l.RecipeId == entry.RecipeId && l.TagId == dinnerId),
                              }).ToListAsync(cancellationToken);
         return new KidPickPlan(monday, [.. planned.Select(p => new KidPickEntry(p.Date, p.RecipeId, p.IsDinner, p.FoodType))], rules);
+    }
+
+    private static async Task<bool> KidMayMoveAsync(
+        AppDbContext db, MealMixKidPickRules rules, DateOnly monday, MealPlanEntry entry, DateOnly day, CancellationToken cancellationToken)
+    {
+        var dinnerId = DinnerCategoryId;
+        var recipe = await db.Recipes.AsNoTracking().Where(r => r.Id == entry.RecipeId).Select(r => new
+        {
+            r.FoodType,
+            IsDinner = db.RecipeTags.Any(l => l.RecipeId == r.Id && l.TagId == dinnerId),
+        }).FirstAsync(cancellationToken);
+        var without = await LoadPickPlanAsync(db, monday, entry.Id, cancellationToken);
+        return rules.FitsMealMix(new KidPickRecipe(entry.RecipeId, recipe.IsDinner ? new HashSet<Guid> { dinnerId } : [], recipe.FoodType), day, without);
     }
 
     /// <summary>Asks the kid pick rules whether the recipe may be added on that day of that week (call inside the plan lock).</summary>
@@ -447,7 +467,7 @@ public static class MealPlanEndpoints
         return rules.IsAllowed(
             new KidPickRecipe(recipeId, categories.ToHashSet(), foodType),
             day,
-            await LoadPickPlanAsync(db, monday, cancellationToken));
+            await LoadPickPlanAsync(db, monday, exceptEntryId: null, cancellationToken));
     }
 
     /// <summary>
@@ -470,7 +490,7 @@ public static class MealPlanEndpoints
         }
 
         var dinnerId = DinnerCategoryId;
-        var plan = await LoadPickPlanAsync(db, monday, cancellationToken);
+        var plan = await LoadPickPlanAsync(db, monday, exceptEntryId: null, cancellationToken);
         var recipes = await db.Recipes.AsNoTracking().OrderBy(r => r.Title).ThenBy(r => r.Id).Select(r => new
         {
             r.Id,

@@ -52,7 +52,7 @@ public static class MealMixRuleEndpoints
     private static async Task<IResult> GetRules(AppDbContext db, CancellationToken cancellationToken) =>
         Results.Ok(ToResponse(await db.MealMixRules.AsNoTracking().ToListAsync(cancellationToken)));
 
-    private static async Task<IResult> PutRules(MealMixRulesRequest? request, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> PutRules(Guid householdId, MealMixRulesRequest? request, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         var wanted = new List<MealMixRequirement>();
@@ -94,6 +94,9 @@ public static class MealMixRuleEndpoints
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // The household row is locked first (as in T-048): two adults saving at once are serialised, so the stored set is always
+        // exactly one request and its sum was validated.
+        await Foodplanner.Api.Features.Households.HouseholdManagementEndpoints.LockHouseholdAsync(db, householdId, cancellationToken);
         var existing = await db.MealMixRules.ToListAsync(cancellationToken);
         foreach (var row in existing.Where(r => wanted.All(w => w.FoodType != r.FoodType)))
         {

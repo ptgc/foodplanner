@@ -220,6 +220,21 @@ public class MealMixKidPickRulesTests
     }
 
     [Fact]
+    public void Moving_one_of_two_dinners_off_a_day_onto_an_empty_day_breaks_the_mix()
+    {
+        // Beef twice on Monday, Beef Tue-Fri: 5 days used, 2 open, shortfall 2 (slack 0).
+        var beefDays = new[] { 0, 0, 1, 2, 3, 4 }.Select(i => new KidPickEntry(Monday.AddDays(i), Guid.NewGuid(), true, FoodType.Beef)).ToList();
+        var moved = beefDays[1];
+        var without = new KidPickPlan(Monday, [.. beefDays.Where(e => e != moved)], Rules);
+        var beef = Recipe(FoodType.Beef, Dinner);
+
+        // Saturday is empty: the move would use an open day, so it is refused. Staying on a filled day is fine.
+        Assert.False(_rules.FitsMealMix(beef, Monday.AddDays(5), without));
+        Assert.True(_rules.FitsMealMix(beef, Monday.AddDays(1), without));
+        Assert.True(_rules.FitsMealMix(Recipe(FoodType.Fish, Dinner), Monday.AddDays(5), without));
+    }
+
+    [Fact]
     public void The_interface_is_the_one_the_endpoints_use()
     {
         IKidPickRules rules = _rules;

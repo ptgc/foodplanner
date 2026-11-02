@@ -242,6 +242,87 @@ public sealed class MealMixRuleTests(AuthDatabase db) : IClassFixture<AuthDataba
     }
 
     [Fact]
+    public async Task A_kid_move_that_uses_up_an_open_day_is_refused_with_pick_not_allowed_but_an_adult_may()
+    {
+        await using var host = Host();
+        var x = await NewAsync(host);
+        await SetRulesAsync(x.Admin, x.S.Household, FishAndVegetarian);
+        await x.S.Owner.Client.EnterKidModeAsync(x.S.Household, x.S.Profile1);
+        var beef = await RecipeAsync(x.Admin, x.S.Household, "Beef");
+        var ids = new List<Guid>();
+        foreach (var day in new[] { 0, 0, 1, 2, 3, 4 })
+        {
+            using var response = await AddAsync(x.S.Owner.Client, x.S.Household, beef, day);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            ids.Add((await response.JsonAsync()).GetProperty("id").GetGuid());
+        }
+
+        var saturday = Monday.AddDays(5).ToString("yyyy-MM-dd");
+        using var refused = await x.S.Owner.Client.PutAsync(Url(x.S.Household, $"/entries/{ids[1]}"), new { date = saturday, servings = 4 });
+        await refused.AssertProblemAsync(HttpStatusCode.Conflict, "pick-not-allowed");
+        using var plan = await x.Admin.GetAsync(Url(x.S.Household));
+        var entry = (await plan.JsonAsync()).GetProperty("entries").EnumerateArray().Single(e => e.GetProperty("id").GetGuid() == ids[1]);
+        Assert.Equal(Monday.ToString("yyyy-MM-dd"), entry.GetProperty("date").GetString()); // not moved
+
+        // Onto a day that already has a dinner, and a servings-only change, are fine.
+        using var ok = await x.S.Owner.Client.PutAsync(Url(x.S.Household, $"/entries/{ids[1]}"), new { date = Monday.AddDays(1).ToString("yyyy-MM-dd"), servings = 4 });
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+        using var servings = await x.S.Owner.Client.PutAsync(Url(x.S.Household, $"/entries/{ids[2]}"), new { date = Monday.AddDays(1).ToString("yyyy-MM-dd"), servings = 6 });
+        Assert.Equal(HttpStatusCode.OK, servings.StatusCode);
+
+        // An adult is never blocked.
+        using var adult = await x.Admin.PutAsync(Url(x.S.Household, $"/entries/{ids[0]}"), new { date = saturday, servings = 4 });
+        Assert.Equal(HttpStatusCode.OK, adult.StatusCode);
+    }
+
+    [Fact]
+    public async Task Two_kid_picks_at_once_with_room_for_one_let_exactly_one_through()
+    {
+        await using var host = Host();
+        var x = await NewAsync(host);
+        await SetRulesAsync(x.Admin, x.S.Household, new { foodType = "Fish", minPerWeek = 1 });
+        await FillMeatDaysAsync(x.Admin, x.S.Household, 5); // 2 open days, shortfall 1: slack 1, room for one meat dinner
+        var meat = await RecipeAsync(x.Admin, x.S.Household, "Beef");
+        await x.S.Owner.Client.EnterKidModeAsync(x.S.Household, x.S.Profile1);
+        var second = host.CreateClient();
+        using var login = await second.LoginAsync(x.S.Owner.User.Email, AuthHost.Password);
+        await second.EnterKidModeAsync(x.S.Household, x.S.Profile2);
+
+        var results = await Task.WhenAll(AddAsync(x.S.Owner.Client, x.S.Household, meat, 5), AddAsync(second, x.S.Household, meat, 6));
+        try
+        {
+            Assert.Equal(1, results.Count(r => r.StatusCode == HttpStatusCode.Created));
+            await results.Single(r => r.StatusCode != HttpStatusCode.Created).AssertProblemAsync(HttpStatusCode.Conflict, "pick-not-allowed");
+        }
+        finally
+        {
+            foreach (var r in results)
+            {
+                r.Dispose();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Two_adults_saving_rules_at_once_never_store_more_than_the_dinners_of_a_week()
+    {
+        await using var host = Host();
+        var x = await NewAsync(host);
+
+        var results = await Task.WhenAll(
+            x.Admin.PutAsync(Rules(x.S.Household), new { rules = new[] { new { foodType = "Fish", minPerWeek = 4 } } }),
+            x.Adult.Client.PutAsync(Rules(x.S.Household), new { rules = new[] { new { foodType = "Vegetarian", minPerWeek = 4 } } }));
+        foreach (var r in results)
+        {
+            r.Dispose();
+        }
+
+        using var read = await x.Admin.GetAsync(Rules(x.S.Household));
+        var stored = (await read.JsonAsync()).GetProperty("rules").EnumerateArray().ToArray();
+        Assert.Single(stored); // one request won as a whole, the sum is never 8
+    }
+
+    [Fact]
     public async Task Pick_options_validate_the_week_and_the_date()
     {
         await using var host = Host();
