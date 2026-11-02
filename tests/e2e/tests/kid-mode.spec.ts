@@ -1,17 +1,27 @@
 import { request as playwrightRequest, type APIRequestContext, type Page } from "@playwright/test";
-import { adminState, expect, test, uniqueStamp, uniqueWeek } from "./fixtures";
+import { adminState, expect, memberCredentials, signIn, test, uniqueStamp, uniqueWeek } from "./fixtures";
 
-test.use({ storageState: adminState });
+// The page is NOT signed in as the seeded admin (the architect's real account). It signs in as the seeded e2e member and joins the
+// test household as an Adult; the PIN therefore belongs to that e2e-only account. The admin API context only sets up and deletes.
+test.use({ storageState: { cookies: [], origins: [] } });
 test.setTimeout(180_000);
 
 // T-091: kid mode on a shared device. An adult makes a kid profile and a PIN, switches the device to the kid; the kid likes dishes
 // and plans dinners within the household rules; the PIN brings the adult back. Everything runs in the test's own household (named
 // with the run tag), set up and torn down through a SEPARATE api context signed in as the adult, because the page's own cookie
-// becomes a kid-mode cookie (which cannot delete a household). The adult's PIN belongs to the account, not the household, and
-// there is no endpoint that removes it: the spec sets it to 4827 (or confirms 4827 when one is already set) and leaves it.
+// becomes a kid-mode cookie (which cannot delete a household). A PIN belongs to the account and no endpoint removes it, so each test
+// puts a fresh random PIN on the e2e member (proof: the member's password) and nothing is ever set on the admin.
 const baseMonday = Date.UTC(2039, 2, 7); // 2039-03-07 is a Monday
-const PIN = "4827";
-const WRONG_PIN = "9183";
+/** A random 4-digit PIN the server accepts (not all equal, not a straight run), different from `not` when given. */
+function randomPin(not?: string): string {
+  for (;;) {
+    const pin = String(Math.floor(Math.random() * 10_000)).padStart(4, "0");
+    const d = [...pin].map(Number);
+    const steps = d.slice(1).map((x, i) => x - d[i]!);
+    const weak = d.every((x) => x === d[0]) || steps.every((s) => s === 1) || steps.every((s) => s === -1);
+    if (!weak && pin !== not) return pin;
+  }
+}
 
 async function csrf(request: APIRequestContext): Promise<Record<string, string>> {
   const res = await request.get("/api/auth/antiforgery");
@@ -94,12 +104,12 @@ async function setUpHousehold(admin: APIRequestContext, stamp: string): Promise<
   return { id: h, recipes };
 }
 
-/** Makes sure the signed-in adult has PIN 4827 through the API (used where the UI flow is not under test). */
-async function ensurePin(request: APIRequestContext) {
-  // One call is enough: with no PIN yet the current PIN is ignored, with one it is the proof. The PIN endpoints share the
+/** Gives the signed-in e2e member this PIN through the API, proving with their password (works with or without an earlier PIN). */
+async function setMemberPin(request: APIRequestContext, pin: string, password: string) {
+  // One call is enough: with no PIN yet the proof is ignored, with one it is checked. The PIN endpoints share the
   // pin-unlock rate limit (10 a minute per user), which the sign-in flow above also uses, so a 429 waits and tries again.
   for (let attempt = 0; ; attempt++) {
-    const res = await request.put("/api/auth/pin", { headers: await csrf(request), data: { pin: PIN, currentPin: PIN, password: null } });
+    const res = await request.put("/api/auth/pin", { headers: await csrf(request), data: { pin, currentPin: null, password } });
     if (res.status() === 429 && attempt < 3) {
       await new Promise((resolve) => setTimeout(resolve, Number(res.headers()["retry-after"] ?? 30) * 1000));
       continue;
@@ -120,8 +130,11 @@ test("kid mode: profile and PIN as adult, likes, a week within the rules, the PI
     const household = await setUpHousehold(admin, stamp);
     h = household.id;
     const { beef, chicken, fish, vegetarian, pancakes } = household.recipes;
-    const me = (await (await admin.get("/api/auth/me")).json()) as { userId: string };
-    await page.addInitScript(([key, id]) => window.localStorage.setItem(key!, id!), [`foodplanner.activeHousehold.${me.userId}`, h]);
+    const member = await joinAsMember(page, admin, h);
+    const oldPin = randomPin();
+    const pin = randomPin(oldPin);
+    const wrongPin = randomPin(pin);
+    await setMemberPin(page.request, oldPin, member.password);
 
     // The adult has planned meat for Monday to Friday.
     const mondayEntry = await admin.post(`/api/households/${h}/meal-plans/${week}/entries`, {
@@ -158,15 +171,12 @@ test("kid mode: profile and PIN as adult, likes, a week within the rules, the PI
     const pinCard = page.getByTestId("kid-pin-card");
     await pinCard.getByTestId("pin-open").click();
     const pinForm = pinCard.getByTestId("pin-setup");
-    await pinForm.getByLabel("New PIN (4 digits)").fill(PIN);
+    // A PIN exists (set above), so changing it needs the current one: without it the form asks for it.
+    await pinForm.getByLabel("New PIN (4 digits)").fill(pin);
     await pinForm.getByRole("button", { name: "Save PIN" }).click();
-    const needsCurrent = pinForm.getByTestId("pin-setup-error");
-    // An earlier run (or the other project) already set it: the form then asks for the current PIN, which is the same one.
-    await expect(pinCard.getByTestId("pin-saved").or(needsCurrent)).toBeVisible();
-    if (await needsCurrent.isVisible()) {
-      await pinForm.getByLabel("Current PIN").fill(PIN);
-      await pinForm.getByRole("button", { name: "Save PIN" }).click();
-    }
+    await expect(pinForm.getByTestId("pin-setup-error")).toHaveText("You already have a PIN. Enter it below to change it.");
+    await pinForm.getByLabel("Current PIN").fill(oldPin);
+    await pinForm.getByRole("button", { name: "Save PIN" }).click();
     await expect(pinCard.getByTestId("pin-saved")).toBeVisible();
 
     // ---- Switch to the kid ----
@@ -277,17 +287,17 @@ test("kid mode: profile and PIN as adult, likes, a week within the rules, the PI
 
     // ---- Back to the adult: a wrong PIN, then the right one ----
     await page.getByTestId("kid-unlock").click();
-    const pin = page.getByRole("dialog", { name: "Enter your PIN" });
-    const key = (digit: string) => pin.getByRole("group", { name: "Keypad" }).getByRole("button", { name: digit, exact: true });
+    const pinSheet = page.getByRole("dialog", { name: "Enter your PIN" });
+    const key = (digit: string) => pinSheet.getByRole("group", { name: "Keypad" }).getByRole("button", { name: digit, exact: true });
     if (mobile) await atLeast(key("5"), 64, "keypad key");
     await shot(page, "05-pin-sheet");
-    for (const d of WRONG_PIN) await key(d).click();
-    await expect(pin.getByTestId("pin-pips")).toBeVisible();
-    await expect(pin.getByTestId("pin-dots")).toHaveClass(/kid-shake/);
-    await expect(pin.getByTestId("pin-status")).toContainText("Wrong PIN");
+    for (const d of wrongPin) await key(d).click();
+    await expect(pinSheet.getByTestId("pin-pips")).toBeVisible();
+    await expect(pinSheet.getByTestId("pin-dots")).toHaveClass(/kid-shake/);
+    await expect(pinSheet.getByTestId("pin-status")).toContainText("Wrong PIN");
     await shot(page, "06-pin-wrong");
     await expect(page.getByTestId("kid-shell")).toBeVisible();
-    for (const d of PIN) await key(d).click();
+    for (const d of pin) await key(d).click();
     await expect(page.getByTestId("user-email")).toBeVisible();
     await expect(page.getByTestId("kid-shell")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Main", exact: true })).toBeVisible();
@@ -316,9 +326,8 @@ test("kid mode: a locked week shows a padlock and refuses picks, the adult can u
   try {
     const household = await setUpHousehold(admin, stamp);
     h = household.id;
-    const me = (await (await admin.get("/api/auth/me")).json()) as { userId: string };
-    await page.addInitScript(([key, id]) => window.localStorage.setItem(key!, id!), [`foodplanner.activeHousehold.${me.userId}`, h]);
-    await ensurePin(admin);
+    const member = await joinAsMember(page, admin, h);
+    await setMemberPin(page.request, randomPin(), member.password);
     const created = await admin.post(`/api/households/${h}/profiles`, { headers: await csrf(admin), data: { displayName: "Ola", avatar: "owl" } });
     expect(created.status(), await created.text()).toBe(201);
     const profile = ((await created.json()) as { id: string }).id;
@@ -367,6 +376,18 @@ test("kid mode: a locked week shows a padlock and refuses picks, the adult can u
     await admin.dispose();
   }
 });
+
+/** Signs the page in as the e2e member and joins the household through an Adult invitation (the flow household.spec covers). */
+async function joinAsMember(page: Page, admin: APIRequestContext, h: string): Promise<{ email: string; password: string }> {
+  const member = memberCredentials();
+  const invite = await admin.post(`/api/households/${h}/invites`, { headers: await csrf(admin), data: { role: "Adult" } });
+  expect(invite.status(), await invite.text()).toBe(201);
+  const { token } = (await invite.json()) as { token: string };
+  await signIn(page, `/invite/${token}`, member);
+  await page.getByRole("button", { name: "Join household" }).click();
+  await expect(page.getByText("You joined the household as Adult.")).toBeVisible();
+  return member;
+}
 
 async function profileId(admin: APIRequestContext, h: string): Promise<string> {
   const list = (await (await admin.get(`/api/households/${h}/profiles`)).json()) as { id: string }[];
