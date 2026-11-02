@@ -43,6 +43,8 @@ export type Fake = {
   /** The PIN that unlocks; a wrong one counts down from 5. */
   pin: string;
   wrongPins: number;
+  /** /api/auth/me answers 500 (the read after a switch fails). */
+  meFails: boolean;
   /** Recipe ids the rules allow per date; a date missing allows all. */
   allowed: Record<string, string[]>;
   /** Forces the next entry POST to answer with this. */
@@ -64,6 +66,7 @@ export function newFake(): Fake {
     pinSet: true,
     pin: "4827",
     wrongPins: 0,
+    meFails: false,
     allowed: {},
     postError: null,
     likeError: null,
@@ -81,6 +84,7 @@ export function install(fake: Fake) {
       const path = url.pathname;
       const method = request.method;
       fake.calls.push(`${method} ${path}`);
+      if (path === "/api/auth/me" && fake.meFails) return json({ status: 500, title: "x" }, 500);
       if (path === "/api/auth/me") return json({ ...adultUser, kidMode: fake.kidMode });
       if (path === "/api/households") {
         return json([{ id: "h1", name: "Home", role: fake.kidMode ? "Child" : fake.role }]);

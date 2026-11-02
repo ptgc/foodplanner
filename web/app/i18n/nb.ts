@@ -740,7 +740,7 @@ export const nb: Dictionary = {
   "kid.pin.wrong": "Feil PIN.",
   "kid.pin.triesLeft.one": "{count} forsøk igjen.",
   "kid.pin.triesLeft.other": "{count} forsøk igjen.",
-  "kid.pin.locked": "For mange forsøk. Låst, prøv igjen om {time}.",
+  "kid.pin.locked": "For mange forsøk. Låst en stund.",
   "kid.pin.passwordSignIn": "Logg inn med passord",
   "kid.picker.title": "Hvem er du?",
   "kid.picker.loading": "Laster...",

@@ -68,7 +68,7 @@ export function PinSetup({ onDone }: { onDone: () => void }) {
           id={newId}
           type="password"
           inputMode="numeric"
-          autoComplete="off"
+          autoComplete="new-password"
           maxLength={PIN_LENGTH}
           value={pin}
           onChange={(e) => setNewPin(digitsOnly(e.target.value))}
@@ -84,7 +84,7 @@ export function PinSetup({ onDone }: { onDone: () => void }) {
           id={currentId}
           type="password"
           inputMode="numeric"
-          autoComplete="off"
+          autoComplete="one-time-code"
           maxLength={PIN_LENGTH}
           value={current}
           required={needsCurrent}

@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SessionProvider, useSession } from "../session";
+import { pageReload, SessionProvider, useSession } from "../session";
 import { t } from "../test-i18n";
 import { install, newFake, type Fake } from "./fake-server";
 import { ProfilePicker } from "./profile-picker";
@@ -74,6 +74,31 @@ describe("profile picker", () => {
     await u.click(within(needs).getByRole("button", { name: t("kid.pinSetup.save") }));
     await waitFor(() => expect(screen.getByTestId("mode")).toHaveTextContent("kid:p-mia"));
     expect(fake.calls).toContain("PUT /api/auth/pin");
+  });
+
+  it("if the switch worked but reading who we are fails, caches and saved data are cleared first and the page reloads", async () => {
+    const u = userEvent.setup();
+    window.localStorage.setItem("foodplanner.shopping.list.h1.2031-03-03", "{}");
+    vi.stubGlobal("caches", {
+      keys: async () => ["fp-runtime-api"],
+      delete: async () => {
+        fake.calls.push("CACHES-CLEARED");
+        return true;
+      },
+    });
+    const reload = vi.spyOn(pageReload, "run").mockImplementation(() => undefined);
+    renderPicker(false);
+    const tile = await screen.findByRole("button", { name: t("kid.picker.switchTo", { name: "Mia" }) });
+    await screen.findByText("adult");
+    fake.meFails = true;
+    await u.click(tile);
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    const calls = fake.calls;
+    expect(calls.indexOf("CACHES-CLEARED")).toBeGreaterThan(calls.indexOf("POST /api/households/h1/profiles/p-mia/activate"));
+    expect(calls.indexOf("CACHES-CLEARED")).toBeLessThan(calls.lastIndexOf("GET /api/auth/me"));
+    expect(window.localStorage.getItem("foodplanner.shopping.list.h1.2031-03-03")).toBeNull();
+    expect(window.localStorage.getItem("foodplanner.session")).toBeNull();
+    reload.mockRestore();
   });
 
   it("says so when there are no kid profiles yet", async () => {

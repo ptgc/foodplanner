@@ -313,10 +313,10 @@ function PickSheet({
   const [adding, setAdding] = useState(false);
   useModal(sheet, onClose);
 
-  // Without an answer from the rules lookup nothing is known to be forbidden; the server still refuses a wrong pick (409).
-  const allowed =
-    recipes.status === "ok" ? recipes.items.filter((r) => options === null || byRecipe.get(r.id)?.allowed === true) : [];
-  const ready = recipes.status === "ok" && !loading;
+  // Fail closed: without an answer from the rules lookup nothing is offered, only a retry (the server also refuses a wrong pick).
+  const allowed = recipes.status === "ok" ? recipes.items.filter((r) => byRecipe.get(r.id)?.allowed === true) : [];
+  const lookupFailed = !loading && options === null;
+  const ready = recipes.status === "ok" && !loading && !lookupFailed;
 
   const choose = async (recipe: RecipeSummary) => {
     if (adding) return;
@@ -338,7 +338,14 @@ function PickSheet({
             <CrossIcon />
           </button>
         </div>
-        {!ready && recipes.status !== "error" && <p role="status">{t("kid.week.loading")}</p>}
+        {!ready && recipes.status !== "error" && !lookupFailed && <p role="status">{t("kid.week.loading")}</p>}
+        {lookupFailed && recipes.status !== "error" && (
+          <div role="alert" className="planner-message" data-testid="kid-options-failed">
+            <button type="button" className="button kid-big-button" onClick={refresh}>
+              {t("planner.retry")}
+            </button>
+          </div>
+        )}
         {recipes.status === "error" && (
           <div role="alert" className="planner-message">
             <p>{recipes.unreachable ? t("problem.unreachable") : t(problemKey(recipes.problemType))}</p>

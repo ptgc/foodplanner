@@ -130,7 +130,7 @@ export function PinSheet({ onClose }: { onClose: () => void }) {
         ? `${t("kid.pin.wrong")} ${t("kid.pin.triesLeft", { count: attempts })}`
         : t("kid.pin.wrong")
       : locked
-        ? t("kid.pin.locked", { time: clock(remainingSeconds) })
+        ? t("kid.pin.locked") // once; the ticking countdown is visual only (aria-hidden)
         : state === "error" && errorKey
           ? t(errorKey)
           : "";

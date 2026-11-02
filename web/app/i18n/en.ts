@@ -741,7 +741,7 @@ export const en = {
   "kid.pin.wrong": "Wrong PIN.",
   "kid.pin.triesLeft.one": "{count} try left.",
   "kid.pin.triesLeft.other": "{count} tries left.",
-  "kid.pin.locked": "Too many tries. Locked, try again in {time}.",
+  "kid.pin.locked": "Too many tries. Locked for a while.",
   "kid.pin.passwordSignIn": "Sign in with password",
   "kid.picker.title": "Who are you?",
   "kid.picker.loading": "Loading...",

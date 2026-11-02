@@ -187,6 +187,24 @@ describe("kid week", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("fails closed: when the rules lookup fails no dish is offered, only a retry, and the retry shows the allowed ones", async () => {
+    const u = userEvent.setup();
+    const realFetch = globalThis.fetch;
+    let failing = true;
+    vi.stubGlobal("fetch", async (request: Request) => {
+      if (failing && new URL(request.url).pathname.endsWith("/pick-options")) return new Response("{}", { status: 500 });
+      return realFetch(request);
+    });
+    renderKid("/plan");
+    await u.click((await screen.findAllByTestId("kid-day"))[1]!);
+    expect(await screen.findByTestId("kid-options-failed")).toBeInTheDocument();
+    expect(screen.queryByTestId("kid-pick-grid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("kid-pick")).not.toBeInTheDocument();
+    failing = false;
+    await u.click(screen.getByRole("button", { name: t("planner.retry") }));
+    expect(await screen.findByTestId("kid-pick-grid")).toBeInTheDocument();
+  });
+
   it("says when nothing fits the day", async () => {
     const u = userEvent.setup();
     fake.allowed[date(2)] = [];

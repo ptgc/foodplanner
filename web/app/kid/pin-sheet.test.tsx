@@ -128,7 +128,7 @@ describe("PIN sheet (kid to adult)", () => {
     await screen.findByTestId("mode");
     await tap(u, "4821");
     expect(await screen.findByTestId("pin-locked-timer")).toHaveTextContent("2:00");
-    expect(screen.getByTestId("pin-status")).toHaveTextContent(t("kid.pin.locked", { time: "2:00" }));
+    expect(screen.getByTestId("pin-status")).toHaveTextContent(t("kid.pin.locked"));
     for (const button of within(keypad()).getAllByRole("button")) expect(button).toBeDisabled();
     expect(screen.getByRole("button", { name: t("kid.pin.passwordSignIn") })).toBeInTheDocument();
     expect(screen.getByRole("dialog")).toHaveAttribute("data-state", "locked");

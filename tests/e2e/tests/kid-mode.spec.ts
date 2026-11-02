@@ -4,6 +4,9 @@ import { adminState, expect, memberCredentials, signIn, test, uniqueStamp, uniqu
 // The page is NOT signed in as the seeded admin (the architect's real account). It signs in as the seeded e2e member and joins the
 // test household as an Adult; the PIN therefore belongs to that e2e-only account. The admin API context only sets up and deletes.
 test.use({ storageState: { cookies: [], origins: [] } });
+// Both tests put a PIN on the same e2e member account, so they must not run at the same time (the suite runs with one worker;
+// serial mode keeps that true even if someone raises the worker count).
+test.describe.configure({ mode: "serial" });
 test.setTimeout(180_000);
 
 // T-091: kid mode on a shared device. An adult makes a kid profile and a PIN, switches the device to the kid; the kid likes dishes
