@@ -36,6 +36,16 @@ public static class HouseholdRoutes
 }
 
 /// <summary>
+/// Q-026 / T-103: in kid mode the account reaches only the profile's household; every other household answers as for a
+/// non-member. Fails closed: kid mode with a missing, empty or malformed profile-household claim reaches no household.
+/// </summary>
+internal static class KidModeScope
+{
+    public static bool MayReach(bool kidMode, Guid? profileHouseholdId, Guid householdId) =>
+        !kidMode || (profileHouseholdId is { } own && own != Guid.Empty && own == householdId);
+}
+
+/// <summary>
 /// Resolves the caller's membership once per request and sets <see cref="RequestCurrentHousehold"/>. It is a
 /// middleware, not an endpoint filter, because authorization policies run before endpoint filters and the policy
 /// handler needs the role. It must run after authentication and routing and before authorization.
@@ -48,6 +58,7 @@ internal sealed class HouseholdContextMiddleware(RequestDelegate next)
         if (context.GetEndpoint()?.Metadata.GetMetadata<HouseholdScopedMetadata>() is not null
             && user.UserId is { } userId
             && Guid.TryParse(context.GetRouteValue(HouseholdRoutes.RouteParameter)?.ToString(), out var householdId)
+            && KidModeScope.MayReach(user.IsKidMode, user.ActiveProfileHouseholdId, householdId)
             && await resolution.FindRole(userId, householdId, context.RequestAborted) is { } role)
         {
             household.Set(householdId, role.Effective(user.IsKidMode));

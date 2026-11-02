@@ -25,6 +25,8 @@ internal sealed class HouseholdMembershipGuard(
         if (principal?.Identity?.IsAuthenticated != true
             || !Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
             || householdId == Guid.Empty
+            || !KidModeScope.MayReach(
+                Features.Auth.KidModeClaims.IsKidMode(principal), Features.Auth.KidModeClaims.ProfileHouseholdId(principal), householdId)
             || await resolution.FindRole(userId, householdId, cancellationToken) is not { } role)
         {
             return false;

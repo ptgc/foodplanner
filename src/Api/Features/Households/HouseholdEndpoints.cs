@@ -97,7 +97,11 @@ public static class HouseholdEndpoints
         }
 
         var memberships = await resolution.GetMembershipsForUser(userId, cancellationToken);
-        return Results.Ok(memberships.Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role.Effective(user.IsKidMode))).ToArray());
+        // Kid mode (Q-026): only the profile's household is listed; a missing profile household lists none.
+        return Results.Ok(memberships
+            .Where(m => KidModeScope.MayReach(user.IsKidMode, user.ActiveProfileHouseholdId, m.HouseholdId))
+            .Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role.Effective(user.IsKidMode)))
+            .ToArray());
     }
 
     private static async Task<IResult> CreateInvite(
