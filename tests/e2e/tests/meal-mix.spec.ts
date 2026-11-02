@@ -38,7 +38,7 @@ test("rules at least one fish and one vegetarian: after five meat dinners only t
     await page.addInitScript(([key, id]) => window.localStorage.setItem(key!, id!), [`foodplanner.activeHousehold.${me.userId}`, h]);
 
     const tags = (await (await request.get(`/api/households/${h}/tags`)).json()) as { id: string; name: string; kind: string }[];
-    const dinner = tags.find((t) => t.name === "Middag" && t.kind === "Category")!;
+    const dinner = tags.find((t) => /^(Middag|Dinner)$/.test(t.name) && t.kind === "Category")!; // the name follows the request language
     const ingredients = (await (await request.get(`/api/households/${h}/ingredients`)).json()) as { id: string; isStaple: boolean }[];
     const ingredient = ingredients.find((i) => !i.isStaple)!;
     const units = (await (await request.get("/api/units")).json()) as { id: string; code: string }[];
