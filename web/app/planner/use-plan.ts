@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
 import type { MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import type { RecipeSummary } from "../recipes/use-recipes";
+import { connectPlanRealtime } from "./plan-realtime";
 
 export type PlanEntry = components["schemas"]["MealPlanEntryResponse"];
 
@@ -21,9 +22,13 @@ export type Images = Record<string, { thumbUrl: string | null; cardUrl: string |
 export type Plan =
   | { status: "loading" }
   | { status: "error"; failure: Failure }
-  | { status: "ok"; entries: PlanEntry[] };
+  /** `locked`: an adult froze the week, so kids cannot change it (T-026). */
+  | { status: "ok"; entries: PlanEntry[]; locked: boolean };
 
-type Loaded = { key: string; result: { status: "ok"; entries: PlanEntry[] } | { status: "error"; failure: Failure } };
+type Loaded = {
+  key: string;
+  result: { status: "ok"; entries: PlanEntry[]; locked: boolean } | { status: "error"; failure: Failure };
+};
 
 /**
  * Message for a refused write. The ProblemDetails type wins (403 forbidden, 404 entry gone, 409 conflict); a
@@ -59,12 +64,16 @@ export function usePlan(householdId: string, weekStart: string) {
           params: { path: { householdId, weekStart } },
         });
         result = data
-          ? { status: "ok", entries: data.entries }
+          ? { status: "ok", entries: data.entries, locked: data.locked === true }
           : { status: "error", failure: { problemType: problemTypeOf(error) } };
       } catch {
         result = { status: "error", failure: "unreachable" };
       }
-      if (!cancelled) setLoaded({ key, result });
+      // A background re-read (somebody else changed the week) that fails keeps what is on screen.
+      if (!cancelled)
+        setLoaded((prev) =>
+          result.status === "error" && attempt > 0 && prev?.key === key && prev.result.status === "ok" ? prev : { key, result },
+        );
     })();
     return () => {
       cancelled = true;
@@ -101,11 +110,21 @@ export function usePlan(householdId: string, weekStart: string) {
 
   const reload = useCallback(() => setAttempt((a) => a + 1), []);
 
+  // Other people (a kid on the tablet, a parent on the phone) change the week: read it again when the hub says so.
+  const weekRef = useRef(weekStart);
+  useEffect(() => {
+    weekRef.current = weekStart;
+  });
+  useEffect(() => {
+    const realtime = connectPlanRealtime(householdId, { getWeek: () => weekRef.current, onChange: reload });
+    return () => void realtime.stop();
+  }, [householdId, reload]);
+
   const change = useCallback(
     (update: (list: PlanEntry[]) => PlanEntry[]) =>
       setLoaded((prev) =>
         prev?.key === key && prev.result.status === "ok"
-          ? { key, result: { status: "ok", entries: update(prev.result.entries).sort(byDateThenOrder) } }
+          ? { key, result: { ...prev.result, entries: update(prev.result.entries).sort(byDateThenOrder) } }
           : prev,
       ),
     [key],
@@ -183,6 +202,27 @@ export function usePlan(householdId: string, weekStart: string) {
     [change, householdId, weekStart, write],
   );
 
+  /** Adults freeze or free the week (T-026). */
+  const setLocked = useCallback(
+    (locked: boolean) =>
+      write(async () => {
+        const params = { params: { path: { householdId, weekStart } } };
+        const { error, response } = locked
+          ? await api.PUT("/api/households/{householdId}/meal-plans/{weekStart}/lock", params)
+          : await api.DELETE("/api/households/{householdId}/meal-plans/{weekStart}/lock", params);
+        return {
+          ok: response.ok,
+          status: response.status,
+          type: problemTypeOf(error),
+          apply: () =>
+            setLoaded((prev) =>
+              prev?.key === key && prev.result.status === "ok" ? { key, result: { ...prev.result, locked } } : prev,
+            ),
+        };
+      }),
+    [householdId, key, weekStart, write],
+  );
+
   const plan: Plan = !current ? { status: "loading" } : current;
-  return { plan, images, add, setServings, remove, reload };
+  return { plan, images, add, setServings, remove, reload, setLocked };
 }

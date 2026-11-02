@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api/client";
 import { useI18n, type I18n, type MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
+import { ProfileAvatar } from "../kid/avatar";
+import { PadlockIcon } from "../kid/icons";
 import { avatarColor, initialsOf } from "../planner/avatar";
 import { usePickOptions, type PickOption, type PickOptions } from "../planner/use-pick-options";
 import { foodTypeKey } from "../recipes/food-types";
@@ -58,7 +60,8 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
   const requested = params.get("week");
   const weekStart = isMonday(requested) ? requested : mondayOf(new Date());
   const { week, year } = isoWeek(weekStart);
-  const { plan, images, add, setServings, remove, reload } = usePlan(householdId, weekStart);
+  const { plan, images, add, setServings, remove, reload, setLocked } = usePlan(householdId, weekStart);
+  const locked = plan.status === "ok" && plan.locked;
 
   const [picking, setPicking] = useState<string | null>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -66,6 +69,7 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
 
   const today = toIsoDate(new Date());
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -176,6 +180,36 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
           <p role="alert" className="form-error" data-testid="planner-problem">
             {problem}
           </p>
+        )}
+
+        {plan.status === "ok" && (
+          <div className="planner-lock" data-testid="planner-lock" data-locked={locked}>
+            {locked && (
+              <span className="planner-lock-badge">
+                <span className="planner-lock-icon" aria-hidden="true">
+                  <PadlockIcon />
+                </span>
+                {t("planner.lockedNote")}
+              </span>
+            )}
+            {!isChild && (
+              <button
+                type="button"
+                className="button button-outline"
+                aria-pressed={locked}
+                data-testid="planner-lock-toggle"
+                disabled={lockBusy}
+                onClick={() => {
+                  setLockBusy(true);
+                  void setLocked(!locked)
+                    .then((r) => report(r, t(locked ? "planner.unlockedDone" : "planner.lockedDone")))
+                    .finally(() => setLockBusy(false));
+                }}
+              >
+                {locked ? t("planner.unlock") : t("planner.lock")}
+              </button>
+            )}
+          </div>
         )}
 
         {plan.status === "loading" && <p role="status">{t("planner.loading")}</p>}
@@ -346,15 +380,23 @@ function EntryCard({
               {t("planner.servings", { count: formatNumber(servings) })}
             </span>
           )}
-          <span
-            className="avatar"
-            role="img"
-            aria-label={t("planner.pickedBy", { who })}
-            style={{ backgroundColor: avatarColor(entry.pickedBy.userId) }}
-            data-testid="avatar"
-          >
-            {initialsOf(entry.pickedBy.email, entry.pickedBy.userId)}
-          </span>
+          {entry.pickedByProfile ? (
+            <ProfileAvatar
+              profile={entry.pickedByProfile}
+              size="sm"
+              label={t("planner.pickedBy", { who: entry.pickedByProfile.displayName })}
+            />
+          ) : (
+            <span
+              className="avatar"
+              role="img"
+              aria-label={t("planner.pickedBy", { who })}
+              style={{ backgroundColor: avatarColor(entry.pickedBy.userId) }}
+              data-testid="avatar"
+            >
+              {initialsOf(entry.pickedBy.email, entry.pickedBy.userId)}
+            </span>
+          )}
           {canChange && (
             <button
               type="button"

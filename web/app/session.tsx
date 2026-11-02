@@ -32,6 +32,11 @@ type SessionApi = {
    * `preferId` active if it is in the list, else keeps the stored choice, else the first. False if it could not be read.
    */
   refreshHouseholds: (preferId?: string) => Promise<boolean>;
+  /**
+   * Reads who we are again after the server changed the device's mode (a profile was activated, or the PIN unlocked it,
+   * T-091). Forgets the per-person caches (likes live in cached recipe lists). False if the server could not be reached.
+   */
+  reloadSession: () => Promise<boolean>;
 };
 
 const storageKey = (userId: string) => `foodplanner.activeHousehold.${userId}`;
@@ -195,9 +200,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const reloadSession = useCallback(async (): Promise<boolean> => {
+    try {
+      const me = await api.GET("/api/auth/me");
+      const list = await api.GET("/api/households");
+      if (!me.data || !list.data) return false;
+      const user = me.data;
+      const households = list.data;
+      await clearRuntimeCaches();
+      saveSession({ user, households });
+      // In kid mode the server lists only the profile's household; make that the active one.
+      const kidHousehold = user.kidMode?.householdId;
+      if (kidHousehold && households.some((h) => h.id === kidHousehold)) writeStored(user.userId, kidHousehold);
+      setSession({ status: "signedIn", user, households, activeHouseholdId: pickActive(user.userId, households) });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds }),
-    [session, signIn, signOut, setActiveHousehold, refreshHouseholds],
+    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession }),
+    [session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

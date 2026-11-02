@@ -53,6 +53,18 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:store-conflict": "household.stores.problem.conflict",
   "urn:foodplanner:problem:pantry-conflict": "pantry.problem.conflict",
   "urn:foodplanner:problem:meal-mix-rules-conflict": "household.mix.problem.conflict",
+  "urn:foodplanner:problem:pin-not-set": "kid.problem.pinNotSet",
+  "urn:foodplanner:problem:pin-incorrect": "kid.problem.pinIncorrect",
+  "urn:foodplanner:problem:pin-locked": "kid.problem.pinLocked",
+  "urn:foodplanner:problem:not-in-kid-mode": "kid.problem.notInKidMode",
+  "urn:foodplanner:problem:kid-mode": "kid.problem.kidMode",
+  "urn:foodplanner:problem:no-active-profile": "kid.problem.noActiveProfile",
+  "urn:foodplanner:problem:profile-exists": "kid.problem.profileExists",
+  "urn:foodplanner:problem:profile-limit": "kid.problem.profileLimit",
+  "urn:foodplanner:problem:profile-not-found": "kid.problem.profileNotFound",
+  "urn:foodplanner:problem:profile-conflict": "kid.problem.profileConflict",
+  "urn:foodplanner:problem:week-locked": "planner.problem.weekLocked",
+  "urn:foodplanner:problem:pick-not-allowed": "planner.problem.pickNotAllowed",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */
