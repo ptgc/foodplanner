@@ -46,3 +46,15 @@ internal sealed class MealPlanEntryConfiguration : IEntityTypeConfiguration<Meal
         entry.HasOne<MemberProfile>().WithMany().HasForeignKey(e => e.PickedByProfileId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+// The household's weekly meal mix rules (T-090): one row per food type, no references besides the household.
+internal sealed class MealMixRuleConfiguration : IEntityTypeConfiguration<MealMixRule>
+{
+    public void Configure(EntityTypeBuilder<MealMixRule> rule)
+    {
+        rule.ToTable("MealMixRules");
+        rule.Property(r => r.FoodType).HasConversion<string>().HasMaxLength(20).IsRequired();
+        rule.HasIndex(r => new { r.HouseholdId, r.FoodType }).IsUnique();
+        rule.HasOne<Household>().WithMany().HasForeignKey(r => r.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}

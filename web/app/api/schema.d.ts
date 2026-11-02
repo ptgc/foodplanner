@@ -532,6 +532,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/meal-plans/{weekStart}/pick-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMealPlanPickOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/meal-plans/{weekStart}/entries": {
         parameters: {
             query?: never;
@@ -575,6 +591,22 @@ export interface paths {
         put: operations["LockMealPlanWeek"];
         post?: never;
         delete: operations["UnlockMealPlanWeek"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/meal-mix-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMealMixRules"];
+        put: operations["PutMealMixRules"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1109,6 +1141,24 @@ export interface components {
             email: null | string;
             password: null | string;
         };
+        MealMixRuleRequest: {
+            foodType: null | string;
+            /** Format: int32 */
+            minPerWeek: null | number | string;
+        };
+        MealMixRuleResponse: {
+            foodType: components["schemas"]["FoodType"];
+            /** Format: int32 */
+            minPerWeek: number | string;
+        };
+        MealMixRulesRequest: {
+            rules: null | components["schemas"]["MealMixRuleRequest"][];
+        };
+        MealMixRulesResponse: {
+            rules: components["schemas"]["MealMixRuleResponse"][];
+            /** Format: int32 */
+            dinnerDaysPerWeek: number | string;
+        };
         MealPlanEntryResponse: {
             /** Format: uuid */
             id: string;
@@ -1205,6 +1255,20 @@ export interface components {
             /** Format: uuid */
             userId: string;
             email: null | string;
+        };
+        PickOptionResponse: {
+            /** Format: uuid */
+            recipeId: string;
+            allowed: boolean;
+            reason: null | string;
+        };
+        PickOptionsResponse: {
+            /** Format: date */
+            date: string;
+            /** Format: int32 */
+            openDinnerDays: number | string;
+            allowedFoodTypes: components["schemas"]["FoodType"][];
+            recipes: components["schemas"]["PickOptionResponse"][];
         };
         ProblemDetails: {
             type?: null | string;
@@ -3835,6 +3899,58 @@ export interface operations {
             };
         };
     };
+    GetMealPlanPickOptions: {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path: {
+                weekStart: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickOptionsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AddMealPlanEntry: {
         parameters: {
             query?: never;
@@ -4118,6 +4234,108 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMealMixRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealMixRulesResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PutMealMixRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["MealMixRulesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealMixRulesResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

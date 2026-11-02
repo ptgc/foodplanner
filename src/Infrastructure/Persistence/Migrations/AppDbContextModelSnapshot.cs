@@ -3406,6 +3406,38 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeImports", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.MealPlans.MealMixRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FoodType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MinPerWeek")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "FoodType")
+                        .IsUnique();
+
+                    b.ToTable("MealMixRules", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.MealPlans.MealPlan", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4478,6 +4510,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.MealPlans.MealMixRule", b =>
+                {
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
                         .WithMany()
                         .HasForeignKey("HouseholdId")

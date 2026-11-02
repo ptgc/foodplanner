@@ -289,6 +289,17 @@
   cursor: pointer;
 }
 
+.picker-card-greyed {
+  opacity: 0.55;
+}
+
+.picker-reason {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: #4a4a55;
+}
+
 .picker-card:disabled {
   opacity: 0.6;
   cursor: default;

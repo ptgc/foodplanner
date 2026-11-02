@@ -46,9 +46,11 @@ public static class MealPlanServicesSetup
     public static IServiceCollection AddMealPlanServices(this IServiceCollection services)
     {
         services.AddSingleton<IMealPlanNotifier, SignalRMealPlanNotifier>();
-        services.AddSingleton<Foodplanner.Domain.MealPlans.IKidPickRules>(_ =>
-            new Foodplanner.Domain.MealPlans.DinnerOnlyKidPickRules(
+        services.AddSingleton(_ =>
+            new Foodplanner.Domain.MealPlans.MealMixKidPickRules(
                 Foodplanner.Domain.Recipes.TagSeed.All.Single(t => t.Key == "middag").Id));
+        services.AddSingleton<Foodplanner.Domain.MealPlans.IKidPickRules>(sp =>
+            sp.GetRequiredService<Foodplanner.Domain.MealPlans.MealMixKidPickRules>());
         return services;
     }
 }

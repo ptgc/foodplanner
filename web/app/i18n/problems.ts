@@ -52,6 +52,7 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:store-not-found": "household.stores.problem.notFound",
   "urn:foodplanner:problem:store-conflict": "household.stores.problem.conflict",
   "urn:foodplanner:problem:pantry-conflict": "pantry.problem.conflict",
+  "urn:foodplanner:problem:meal-mix-rules-conflict": "household.mix.problem.conflict",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */

@@ -106,6 +106,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>Which kid profile likes which recipe (T-026).</summary>
     public DbSet<RecipeLike> RecipeLikes => Set<RecipeLike>();
 
+    /// <summary>The household's weekly meal mix rules (T-090).</summary>
+    public DbSet<MealMixRule> MealMixRules => Set<MealMixRule>();
+
     /// <summary>The account's PIN hash and attempt counter (T-026). Global, like the identity tables.</summary>
     public DbSet<UserPin> UserPins => Set<UserPin>();
 
