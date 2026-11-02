@@ -180,7 +180,7 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
     }
 
     [Fact]
-    public async Task Effective_role_is_child_in_every_household()
+    public async Task Effective_role_is_child_in_the_profiles_household()
     {
         await using var host = Host();
         var s = await host.NewScenarioAsync(); // Owner of A
@@ -201,9 +201,9 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
             await adultOnly.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         }
 
-        var during = await s.Owner.Client.ListHouseholdsAsync();
-        Assert.Equal(2, during.Count);
-        Assert.All(during, x => Assert.Equal("Child", x.Role));
+        // Q-026 / T-103: B is not reachable in kid mode (full coverage in KidModeOwnHouseholdTests).
+        var during = Assert.Single(await s.Owner.Client.ListHouseholdsAsync());
+        Assert.Equal((s.Household, "Child"), (during.Id, during.Role));
         var me = await s.Owner.Client.MeAsync();
         Assert.Equal(s.Profile1, me.GetProperty("kidMode").GetProperty("profileId").GetGuid());
         Assert.Equal(s.Household, me.GetProperty("kidMode").GetProperty("householdId").GetGuid());

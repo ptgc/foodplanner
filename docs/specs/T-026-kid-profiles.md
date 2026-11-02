@@ -28,7 +28,7 @@ A "kid profile" is not a user and not a membership. It is a named, credential-le
 | Leave household, create household, accept invite | 401 | create/accept: yes | per role | per role | per role | 403 `kid-mode` |
 | Sign out | 401 | yes | yes | yes | yes | yes (signing in again needs the password) |
 
-In kid mode the effective role is Child in EVERY household of the account, not only the household of the profile (a child must not reach a household where the account is Owner by switching the household in the client). Kid mode is per device: the account's other devices are unaffected.
+In kid mode the effective role is Child in the profile's household, and the account reaches no other household at all: they answer as for a non-member, over HTTP and SignalR, and `GET /households` lists only the profile's household (T-103, architect decision Q-026 option 2; originally Child in every household). Kid mode is per device: the account's other devices are unaffected.
 
 Tenancy: `MemberProfile` is a household-owned entity. A caller sees and changes only profiles of the household in the route, found through the tenant filter. Another household's profile id (in a route or in a body) never resolves. `UserPin` is a per-account secret and is global like the identity tables (no `HouseholdId`).
 
