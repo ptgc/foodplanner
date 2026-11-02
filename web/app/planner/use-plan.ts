@@ -4,7 +4,6 @@ import type { components } from "../api/schema";
 import type { MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import type { RecipeSummary } from "../recipes/use-recipes";
-import { connectPlanRealtime } from "./plan-realtime";
 
 export type PlanEntry = components["schemas"]["MealPlanEntryResponse"];
 
@@ -116,8 +115,17 @@ export function usePlan(householdId: string, weekStart: string) {
     weekRef.current = weekStart;
   });
   useEffect(() => {
-    const realtime = connectPlanRealtime(householdId, { getWeek: () => weekRef.current, onChange: reload });
-    return () => void realtime.stop();
+    // SignalR is a big dependency and only needed once the screen is up: its own chunk, loaded after the first paint.
+    let stopped = false;
+    let stop: (() => Promise<void>) | undefined;
+    void import("./plan-realtime").then(({ connectPlanRealtime }) => {
+      if (stopped) return;
+      stop = connectPlanRealtime(householdId, { getWeek: () => weekRef.current, onChange: reload }).stop;
+    });
+    return () => {
+      stopped = true;
+      void stop?.();
+    };
   }, [householdId, reload]);
 
   const change = useCallback(

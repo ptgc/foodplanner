@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { avatarColor, initialsOf } from "../planner/avatar";
@@ -6,7 +7,7 @@ import { usePickOptions } from "../planner/use-pick-options";
 import { usePlan, type Failure, type Images, type PlanEntry } from "../planner/use-plan";
 import { RecipeImage } from "../recipes/recipe-image";
 import type { RecipeSummary } from "../recipes/use-recipes";
-import { addDays, addWeeks, dateOf, isoWeek, mondayOf, toIsoDate } from "../shopping/week";
+import { addDays, addWeeks, dateOf, isMonday, isoWeek, mondayOf, toIsoDate } from "../shopping/week";
 import { ProfileAvatar } from "./avatar";
 import { CrossIcon, PadlockIcon, PlusIcon, SwapIcon, TrashIcon } from "./icons";
 import { useKidRecipes } from "./kid-recipes";
@@ -22,7 +23,11 @@ const failureText = (t: ReturnType<typeof useI18n>["t"], failure: Failure) =>
  */
 export function KidWeek({ householdId, profileId }: { householdId: string; profileId: string | null }) {
   const { t, locale, formatNumber } = useI18n();
-  const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
+  // The week is in the URL like on the grown-up planner (?week=yyyy-MM-dd, a Monday), so a reload or a link keeps it.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("week");
+  const weekStart = isMonday(requested) ? requested : mondayOf(new Date());
+  const setWeekStart = (monday: string) => setParams({ week: monday }, { replace: true });
   const { plan, images, add, remove, reload } = usePlan(householdId, weekStart);
   const [dayOpen, setDayOpen] = useState<string | null>(null);
   const [picking, setPicking] = useState<string | null>(null);

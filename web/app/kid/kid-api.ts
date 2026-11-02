@@ -104,7 +104,9 @@ export async function setPin(pin: string, currentPin?: string): Promise<SetPinRe
     if (type === problem("pin-locked") || response.status === 429) return { kind: "locked" };
     if (response.status === 400) {
       const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {};
-      return "pin" in errors ? { kind: "invalid" } : { kind: "needs-current" };
+      if ("currentPin" in errors) return { kind: "needs-current" };
+      if ("pin" in errors) return { kind: "invalid" };
+      return { kind: "failed", key: "problem.generic" };
     }
     return { kind: "failed", key: response.status === 403 ? "problem.forbidden" : "problem.generic" };
   } catch {
