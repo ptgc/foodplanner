@@ -44,7 +44,7 @@ React Router already emits one chunk per route and loads it on navigation. Until
 |---|---|---|---|
 | Initial | what `index.html` loads before any route: router manifest, entry, root route, React, i18n, session | 127.6 KB | 140 KB |
 | First load | the initial JS plus one route (and its layout); the budget applies to the heaviest route (`/shopping`, it carries SignalR) | 149.1 KB (others 129-142 KB) | 170 KB (the former total budget, unchanged) |
-| Total | every chunk; the service worker precaches all of them in the background | 179.2 KB | 210 KB |
+| Total | every chunk; the service worker precaches all of them in the background | 210.9 KB (T-090) | 220 KB (raised from 210 in T-090: the household mix rules and the greyed-out picker added about 3 KB; many screens since T-041 use the headroom) |
 
 Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The total budget is a proposal: the old 170 KB plus about 20% headroom for the next screens (T-042, T-043, T-050), since a cold visit pays only "first load" and the rest is a one-time background download. The next saving, if needed, is loading the `nb` messages only when that locale is active (the `problems` chunk, 11 KB gzipped, holds both languages). Raising a budget is a deliberate change to this table and the script.
 
