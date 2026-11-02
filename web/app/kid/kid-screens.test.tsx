@@ -123,6 +123,17 @@ describe("kid home (feed)", () => {
     expect(fake.calls).toContain("DELETE /api/households/h1/recipes/r-meat/like");
   });
 
+  it("every fast tap counts: like, unlike, like again are sent in that order and the last one wins", async () => {
+    const u = userEvent.setup();
+    renderKid();
+    const heart = (await screen.findAllByTestId("kid-heart"))[1]!;
+    await u.tripleClick(heart);
+    expect(heart).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => expect(fake.calls.filter((c) => c.includes("/like"))).toHaveLength(3));
+    expect(fake.calls.filter((c) => c.includes("/like")).map((c) => c.split(" ")[0])).toEqual(["PUT", "DELETE", "PUT"]);
+    expect(fake.liked.has("r-meat")).toBe(true);
+  });
+
   it("gives back the heart (with a shake, no error text) when the server refuses the like", async () => {
     const u = userEvent.setup();
     fake.likeError = problem(409, "no-active-profile");

@@ -96,11 +96,17 @@ async function setUpHousehold(admin: APIRequestContext, stamp: string): Promise<
 
 /** Makes sure the signed-in adult has PIN 4827 through the API (used where the UI flow is not under test). */
 async function ensurePin(request: APIRequestContext) {
-  const set = async (data: object) => request.put("/api/auth/pin", { headers: await csrf(request), data });
-  const first = await set({ pin: PIN, currentPin: null, password: null });
-  if (first.status() === 204) return;
-  const again = await set({ pin: PIN, currentPin: PIN, password: null });
-  expect(again.status(), await again.text()).toBe(204);
+  // One call is enough: with no PIN yet the current PIN is ignored, with one it is the proof. The PIN endpoints share the
+  // pin-unlock rate limit (10 a minute per user), which the sign-in flow above also uses, so a 429 waits and tries again.
+  for (let attempt = 0; ; attempt++) {
+    const res = await request.put("/api/auth/pin", { headers: await csrf(request), data: { pin: PIN, currentPin: PIN, password: null } });
+    if (res.status() === 429 && attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, Number(res.headers()["retry-after"] ?? 30) * 1000));
+      continue;
+    }
+    expect(res.status(), await res.text()).toBe(204);
+    return;
+  }
 }
 
 test("kid mode: profile and PIN as adult, likes, a week within the rules, the PIN back", async ({ page, baseURL }, testInfo) => {
@@ -339,7 +345,7 @@ test("kid mode: a locked week shows a padlock and refuses picks, the adult can u
     await shot(page, "07-kid-week-locked");
     const saturday = dayOf(week, 5);
     await expect(tile(page, saturday)).toHaveAttribute("aria-disabled", "true");
-    await tile(page, saturday).click();
+    await tile(page, saturday).click({ force: true }); // aria-disabled, but a child still taps it
     await expect(page.getByTestId("kid-pick-sheet")).toHaveCount(0); // nothing opens, no error text
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expect(page.getByTestId("kid-week-lock")).toHaveClass(/kid-shake/);

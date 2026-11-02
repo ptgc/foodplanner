@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { RecipeImage } from "../recipes/recipe-image";
 import type { RecipeSummary } from "../recipes/use-recipes";
@@ -42,20 +42,24 @@ function KidDish({ householdId, recipe }: { householdId: string; recipe: RecipeS
   const [liked, setLiked] = useState(recipe.liked);
   const [pops, setPops] = useState(0);
   const [refused, setRefused] = useState(0);
-  const [busy, setBusy] = useState(false);
+  // What the server last confirmed, and the writes in the order they were tapped: a child taps fast, every tap counts,
+  // and the last one wins on the server too.
+  const confirmed = useRef(recipe.liked);
+  const queue = useRef<Promise<void>>(Promise.resolve());
 
-  const toggle = async () => {
-    if (busy) return;
+  const toggle = () => {
     const next = !liked;
     setLiked(next); // at once: a small child taps and expects the heart to answer
     if (next) setPops((n) => n + 1);
-    setBusy(true);
-    const result = await setLike(householdId, recipe.id, next);
-    setBusy(false);
-    if (!result.ok) {
-      setLiked(!next); // the server did not take it: back to what is true, with a short shake (no error text)
+    queue.current = queue.current.then(async () => {
+      const result = await setLike(householdId, recipe.id, next);
+      if (result.ok) {
+        confirmed.current = next;
+        return;
+      }
+      setLiked(confirmed.current); // the server did not take it: back to what is true, with a short shake (no error text)
       setRefused((n) => n + 1);
-    }
+    });
   };
 
   return (
@@ -68,7 +72,7 @@ function KidDish({ householdId, recipe }: { householdId: string; recipe: RecipeS
           aria-pressed={liked}
           aria-label={t("kid.like", { title: recipe.title })}
           data-testid="kid-heart"
-          onClick={() => void toggle()}
+          onClick={toggle}
         >
           {/* The key restarts the CSS animation on every tap. */}
           <span key={`${pops}-${refused}`} className={`kid-heart-glyph${pops > 0 && liked ? " kid-pop" : ""}${refused > 0 ? " kid-shake" : ""}`}>
