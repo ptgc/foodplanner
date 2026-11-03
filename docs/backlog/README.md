@@ -130,6 +130,6 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-102 | Flaky test: concurrent shopping-list regeneration deadlocks | L3 | T-033 | implementer-backend | no |
 | T-103 | Kid mode is confined to the profile's own household (Q-026) | M1 | T-026 | implementer-backend | no |
 | T-104 | Import suggests a protein class for new own ingredients | M1 | T-089 | implementer-backend | no |
-| T-105 | Kid-styled shopping list in kid mode | M1 | T-091 | implementer-frontend | no |
+| T-105 | Kid-styled shopping list in kid mode (read only) | M1 | T-091 | implementer-backend, implementer-frontend | no |
 | T-106 | Smaller web bundle and cleaner API types after kid mode | L3 | T-091 | implementer-frontend | no |
 | T-107 | Oda prices and offers: suggest meals and things to buy (stretch) | M4 | T-001, T-053, T-089, T-090, T-093 | implementer-backend | yes |
