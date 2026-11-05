@@ -141,6 +141,14 @@ public class ProteinClassSuggesterTests
     [InlineData("rognebær", ProteinClass.None)]
     [InlineData("soyasaus", ProteinClass.None)]
     [InlineData("tomatsaus", ProteinClass.None)]
+    [InlineData("kyllingbuljongterning", ProteinClass.None)]
+    [InlineData("kjøttkraftterning", ProteinClass.None)]
+    [InlineData("fiskefondkube", ProteinClass.None)]
+    [InlineData("egg nudler", ProteinClass.None)]
+    [InlineData("egg-nudler", ProteinClass.None)]
+    [InlineData("østerssopp", ProteinClass.None)]
+    [InlineData("oyster mushrooms", ProteinClass.None)]
+    [InlineData("rekesaus", ProteinClass.None)]
     public void Flavourings_are_none(string name, ProteinClass expected) =>
         Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
 
@@ -158,6 +166,11 @@ public class ProteinClassSuggesterTests
     [InlineData("kyllingfilet i buljong", ProteinClass.Chicken)]
     [InlineData("pasta", ProteinClass.None)]
     [InlineData("kost", ProteinClass.Unknown)]
+    [InlineData("østers", ProteinClass.Seafood)]
+    [InlineData("oysters", ProteinClass.Seafood)]
+    [InlineData("eggpasta", ProteinClass.AnimalProduct)]
+    [InlineData("kraftig ost", ProteinClass.AnimalProduct)]
+    [InlineData("fondue", ProteinClass.Unknown)]
     public void Real_protein_next_to_flavouring_words_is_kept(string name, ProteinClass expected) =>
         Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
 

@@ -89,7 +89,10 @@ public static class ProteinClassSuggester
     private static readonly HashSet<string> NotAnimal = new(StringComparer.Ordinal) { "eggplante", "eggeplante", "eggplant", "butternut" };
 
     // "Rognebær" (rowanberry) starts with "rogn" (roe).
-    private static readonly string[] NotAnimalPrefixes = ["rognebær"];
+    private static readonly string[] NotAnimalPrefixes = ["rognebær", "østerssopp"];
+
+    // "Kyllingbuljongterning", "kjøttkraftterning": a stock word followed by its form.
+    private static readonly string[] StockForms = ["terning", "terninger", "kube", "kuber", "pulver", "konsentrat"];
 
     private static readonly Rule Plant = new(
         ProteinClass.None,
@@ -219,7 +222,7 @@ public static class ProteinClassSuggester
         var w = words[i];
         var next = i + 1 < words.Count ? words[i + 1] : null;
 
-        if (StockPrefixes.Any(p => w.StartsWith(p, StringComparison.Ordinal)) || StockExact.Contains(w) || StockSuffixes.Any(s => IsCompound(w, s, 2)))
+        if (IsStock(w) || StockForms.Any(f => IsCompound(w, f, 3) && IsStock(w[..^f.Length])))
         {
             return true;
         }
@@ -245,6 +248,12 @@ public static class ProteinClassSuggester
             return true;
         }
 
+        if (w == "egg" && next is "nudler" or "nudel")
+        {
+            skipNext = true;
+            return true;
+        }
+
         if (w.StartsWith("egg", StringComparison.Ordinal) && (w.EndsWith("nudler", StringComparison.Ordinal) || w.EndsWith("nudel", StringComparison.Ordinal)))
         {
             return true;
@@ -253,6 +262,12 @@ public static class ProteinClassSuggester
         // "chicken stock", "beef broth", "fish bouillon", "chicken seasoning": the animal word only names the flavour.
         if (next is "stock" or "broth" or "bouillon" or "seasoning" or "seasonings")
         {
+            return true;
+        }
+
+        if (w == "oyster" && next is not null && next.StartsWith("mushroom", StringComparison.Ordinal))
+        {
+            skipNext = true;
             return true;
         }
 
@@ -269,6 +284,9 @@ public static class ProteinClassSuggester
 
         return false;
     }
+
+    private static bool IsStock(string w) =>
+        StockPrefixes.Any(p => w.StartsWith(p, StringComparison.Ordinal)) || StockExact.Contains(w) || StockSuffixes.Any(s => IsCompound(w, s, 2));
 
     /// <summary>Bread, buns, bases and biscuits are plant even when named after a filling ("pølsebrød", "hamburgerbrød", "pizzabunn", "lomper").</summary>
     private static bool IsBread(string word) =>
