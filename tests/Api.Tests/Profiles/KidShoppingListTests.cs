@@ -109,6 +109,24 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
     }
 
     [Fact]
+    public async Task Kid_mode_account_level_writes_keep_kid_mode_and_an_unknown_household_stays_forbidden()
+    {
+        await using var host = Host();
+        var s = await host.NewScenarioAsync();
+        await s.Owner.Client.EnterKidModeAsync(s.Household, s.Profile1);
+
+        // No household in the route: the FullSession answer is untouched by the T-105 handler change.
+        using var pin = await s.Owner.Client.PutAsync("/api/auth/pin", new { pin = "1234", currentPin = (string?)null, password = "x" });
+        await pin.AssertProblemAsync(HttpStatusCode.Forbidden, "kid-mode");
+        using var create = await s.Owner.Client.PostAsync("/api/households", new { name = "Nope" });
+        await create.AssertProblemAsync(HttpStatusCode.Forbidden, "kid-mode");
+
+        // A household that does not exist looks like any household the caller cannot reach: plain forbidden, never kid-mode.
+        using var unknown = await s.Owner.Client.PostAsync(ListUrl(Guid.NewGuid(), "/generate"));
+        await unknown.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
+    }
+
+    [Fact]
     public async Task Kid_mode_on_another_household_gets_the_non_member_answer_not_kid_mode()
     {
         await using var host = Host();
