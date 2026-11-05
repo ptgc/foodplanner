@@ -42,7 +42,7 @@ public static class ProteinClassSuggester
         new(
             ProteinClass.Pork,
             Exact: ["ham", "ribbe"],
-            Prefix: ["svin", "bacon", "skinke", "flesk", "pork", "pancetta", "prosciutto", "ribbe"],
+            Prefix: ["svin", "bacon", "skinke", "flesk", "pork", "pancetta", "prosciutto", "ribbe", "hamburgerrygg"],
             Suffix: ["skinke", "flesk", "bacon"]),
         new(
             ProteinClass.Lamb,
@@ -53,15 +53,15 @@ public static class ProteinClassSuggester
 
     private static readonly Rule GenericMeat = new(
         ProteinClass.Meat,
-        Exact: ["mince", "salami", "sausage", "sausages", "meat"],
-        Prefix: ["kjøtt", "pølse", "pølser", "karbonade", "pepperoni", "salami", "chorizo", "mortadella", "leverpostei", "medister", "wiener", "frankfurter", "sausage"],
-        Suffix: ["kjøtt", "pølse", "pølser", "salami", "karbonade"]);
+        Exact: ["mince", "salami", "sausage", "sausages", "meat", "lever", "liver", "rein", "elg", "hjort", "gås", "vilt", "duck", "goose", "venison"],
+        Prefix: ["kjøtt", "pølse", "pølser", "karbonade", "pepperoni", "salami", "chorizo", "mortadella", "leverpostei", "medister", "wiener", "frankfurter", "sausage", "hamburger", "andebryst", "andelår", "andefilet", "andekjøtt", "andelever", "gåse", "hjort", "elg", "reinsdyr", "reinskav", "reinsdyrskav", "vilt", "duck", "goose", "venison"],
+        Suffix: ["kjøtt", "pølse", "pølser", "salami", "karbonade", "lever"]);
 
     private static readonly Rule Fish = new(
         ProteinClass.Fish,
         Exact: ["sei", "ål", "cod", "fish", "tuna", "salmon", "trout", "herring", "haddock", "mackerel", "halibut", "pollock", "surimi"],
         Prefix: ["fisk", "laks", "ørret", "torsk", "seifilet", "seifisk", "hyse", "makrell", "tunfisk", "sild", "kveite", "steinbit", "rødspette", "ansjos", "anchov", "sardin", "kaviar", "rogn", "sjøtunge", "breiflabb", "salmon", "haddock", "mackerel", "tunfisk"],
-        Suffix: ["fisk", "laks", "torsk", "ørret", "sild"]);
+        Suffix: ["fisk", "laks", "torsk", "ørret", "sild", "kaviar"]);
 
     private static readonly Rule Seafood = new(
         ProteinClass.Seafood,
@@ -81,8 +81,8 @@ public static class ProteinClassSuggester
     private static readonly Rule Plant = new(
         ProteinClass.None,
         Exact: ["ris", "mel", "salt", "sukker", "pepper", "olje", "løk", "eddik", "vann", "tofu", "pasta", "brød", "nudler", "rice", "flour", "sugar", "oil", "onion", "garlic", "tomato", "tomatoes", "water", "vinegar", "carrot", "carrots", "potato", "potatoes", "bread", "noodles", "lime", "lemon", "rismelk", "risdrikk"],
-        Prefix: ["tomat", "paprika", "hvitløk", "gulrot", "gulrøt", "potet", "brokkoli", "blomkål", "kål", "salat", "agurk", "squash", "aubergine", "sopp", "champignon", "spinat", "mais", "erter", "ert", "bønner", "linser", "kikert", "soya", "havre", "hvete", "spagetti", "makaroni", "tagliatelle", "penne", "fusilli", "nudler", "basilikum", "persille", "koriander", "timian", "oregano", "rosmarin", "ingefær", "chili", "karri", "kanel", "spisskummen", "gurkemeie", "kardemomme", "muskat", "laurbær", "dill", "mynte", "sitron", "lime", "appelsin", "eple", "epler", "banan", "pære", "jordbær", "blåbær", "bringebær", "mandel", "valnøtt", "cashew", "peanøtt", "pinje", "sesam", "solsikke", "gresskar", "søtpotet", "selleri", "fennikel", "reddik", "rødbet", "ruccola", "mangold", "grønnkål", "rosenkål", "asparges", "avokado", "oliven", "kapers", "ketchup", "sennep", "margarin", "kokos", "couscous", "bulgur", "quinoa", "nøtter", "rosin", "vanilje", "bakepulver", "natron", "gjær", "maisstivelse", "potetmel", "løk", "purre", "vårløk", "sjalottløk", "kålrot", "kålrabi", "tørkede", "kakaosmør", "garlic", "onion", "tomato", "pepper", "oliv", "fullkorn", "tortilla", "brød", "knekkebrød", "lefse", "lasagneplater"],
-        Suffix: ["løk", "mel", "olje", "sukker", "salt", "pepper", "pasta", "eddik", "ris", "puré", "krydder", "frukt", "grønnsaker", "bønner", "linser", "nøtter", "brød"]);
+        Prefix: ["tomat", "paprika", "hvitløk", "gulrot", "gulrøt", "potet", "brokkoli", "blomkål", "kål", "salat", "agurk", "squash", "aubergine", "sopp", "champignon", "spinat", "mais", "erter", "ert", "bønner", "linser", "kikert", "soya", "havre", "hvete", "spagetti", "makaroni", "tagliatelle", "penne", "fusilli", "nudler", "basilikum", "persille", "koriander", "timian", "oregano", "rosmarin", "ingefær", "chili", "karri", "kanel", "spisskummen", "gurkemeie", "kardemomme", "muskat", "laurbær", "dill", "mynte", "sitron", "lime", "appelsin", "eple", "epler", "banan", "pære", "jordbær", "blåbær", "bringebær", "mandel", "valnøtt", "cashew", "peanøtt", "pinje", "sesam", "solsikke", "gresskar", "søtpotet", "selleri", "fennikel", "reddik", "rødbet", "ruccola", "mangold", "grønnkål", "rosenkål", "asparges", "avokado", "oliven", "kapers", "ketchup", "sennep", "margarin", "kokos", "couscous", "bulgur", "quinoa", "nøtter", "rosin", "vanilje", "bakepulver", "natron", "gjær", "maisstivelse", "potetmel", "løk", "purre", "vårløk", "sjalottløk", "kålrot", "kålrabi", "tørkede", "kakaosmør", "garlic", "onion", "tomato", "pepper", "oliv", "fullkorn", "tortilla", "brød", "knekkebrød", "lefse", "lasagneplater", "hummus", "tahini", "gnocchi"],
+        Suffix: ["sopp", "løk", "mel", "olje", "sukker", "salt", "pepper", "pasta", "eddik", "ris", "puré", "krydder", "frukt", "grønnsaker", "bønner", "linser", "nøtter", "brød"]);
 
     /// <summary>The lookup key of a name in the classified catalog (lower case, diacritics folded, punctuation removed).</summary>
     public static string CatalogKey(string? name) => string.Join(' ', Words(name));
@@ -118,7 +118,7 @@ public static class ProteinClassSuggester
         for (var i = 0; i < words.Count; i++)
         {
             var word = words[i];
-            if (NotAnimal.Contains(word) || IsPlantDairy(word) || (i > 0 && PlantQualifiers.Contains(words[i - 1]) && DairyEnglish.Contains(word)))
+            if (NotAnimal.Contains(word) || IsBread(word) || IsPlantDairy(word) || (i > 0 && PlantQualifiers.Contains(words[i - 1]) && DairyEnglish.Contains(word)))
             {
                 plant = true;
                 continue;
@@ -155,11 +155,12 @@ public static class ProteinClassSuggester
             return specifics.Single();
         }
 
-        if (specifics.Count > 1 || generic)
+        if (specifics.Count > 1)
         {
             return ProteinClass.Meat;
         }
 
+        // A generic meat word ("kjøtt" in "krabbekjøtt") only gives Meat when nothing more specific was found.
         if (fish)
         {
             return ProteinClass.Fish;
@@ -170,6 +171,11 @@ public static class ProteinClassSuggester
             return ProteinClass.Seafood;
         }
 
+        if (generic)
+        {
+            return ProteinClass.Meat;
+        }
+
         if (dairy)
         {
             return ProteinClass.AnimalProduct;
@@ -177,6 +183,12 @@ public static class ProteinClassSuggester
 
         return plant ? ProteinClass.None : ProteinClass.Unknown;
     }
+
+    /// <summary>Bread, buns, bases and biscuits are plant even when named after a filling ("pølsebrød", "hamburgerbrød", "pizzabunn", "lomper").</summary>
+    private static bool IsBread(string word) =>
+        BreadWords.Any(b => word == b || IsCompound(word, b, 2));
+
+    private static readonly string[] BreadWords = ["brød", "bunn", "lompe", "lomper", "kjeks"]; // not "bolle": kjøttboller are meat
 
     private static bool IsPlantDairy(string word)
     {
