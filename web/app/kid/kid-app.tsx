@@ -1,12 +1,13 @@
 import { useState } from "react";
 import "./kid.css";
-import { NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { NavLink, Navigate, useLocation } from "react-router";
 import { useI18n } from "../i18n";
 import { useSession } from "../session";
 import { ProfileAvatar } from "./avatar";
 import { CalendarIcon, CartIcon, DishIcon, KeyIcon } from "./icons";
 import { KidHome } from "./kid-home";
 import { useProfiles } from "./kid-api";
+import { KidShopping } from "./kid-shopping";
 import { KidWeek } from "./kid-week";
 import { PinSheet } from "./pin-sheet";
 import { ProfilePicker } from "./profile-picker";
@@ -14,7 +15,7 @@ import { ProfilePicker } from "./profile-picker";
 /**
  * The shell of kid mode (T-091), shown instead of the grown-up shell while `/api/auth/me` says `kidMode`. Only an avatar (opens
  * the profile picker) and a key (opens the PIN sheet) are in the header; three big icons below reach the dishes, the week and the
- * shopping list. No menu, no settings, no email. Every other address goes back to the dishes; the server closes the adult API anyway.
+ * shopping list (T-105: the read-only kid list, never the adult page or the pantry). No menu, no settings, no email. Every other address goes back to the dishes; the server closes the adult API anyway.
  */
 export default function KidApp() {
   const { t } = useI18n();
@@ -45,7 +46,7 @@ export default function KidApp() {
     ) : path === "/plan" ? (
       <KidWeek householdId={householdId} profileId={profileId} />
     ) : path === "/shopping" ? (
-      <Outlet />
+      <KidShopping householdId={householdId} />
     ) : (
       <Navigate to="/" replace />
     );

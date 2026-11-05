@@ -59,7 +59,12 @@ export type ShoppingListModel = {
   chooseStore: (storeId: string | null) => Promise<ActionResult>;
 };
 
-type Options = { hubFactory?: () => HubLike; restartMs?: number };
+type Options = {
+  hubFactory?: () => HubLike;
+  restartMs?: number;
+  /** Kid mode (T-105): only GETs and the live hub. No queued check-offs are sent or shown, and the pantry and weekly set are not read. */
+  readOnly?: boolean;
+};
 
 /**
  * State of one household's shopping list for the week on screen.
@@ -71,7 +76,8 @@ export function useShoppingList(householdId: string, weekStart: string, options:
   const [server, setServer] = useState<Server | null>(null);
   const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [forbidden, setForbidden] = useState(false);
-  const [queue, setQueueState] = useState<CheckOp[]>(() => readQueue());
+  const readOnly = options.readOnly === true;
+  const [queue, setQueueState] = useState<CheckOp[]>(() => (readOnly ? [] : readQueue()));
   const [browserOnline, setBrowserOnline] = useState(() => (typeof navigator === "undefined" ? true : navigator.onLine));
   const [reachable, setReachable] = useState(true);
   const [pantry, setPantry] = useState<PantryItem[]>([]);
@@ -174,7 +180,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
   );
 
   const flush = useCallback(async () => {
-    if (flushing.current || queueRef.current.length === 0) return;
+    if (readOnly || flushing.current || queueRef.current.length === 0) return;
     flushing.current = true;
     let sentAny = false;
     try {
@@ -197,7 +203,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
       flushing.current = false;
     }
     if (sentAny) await reconcile();
-  }, [reconcile, send, setQueue]);
+  }, [reconcile, readOnly, send, setQueue]);
 
   // Initial load of a week: flush anything pending first, then read.
   useEffect(() => {
@@ -296,6 +302,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
 
   // Re-read the pantry whenever an accepted server state arrives (a confirmation elsewhere regenerates the list).
   useEffect(() => {
+    if (readOnly) return;
     let cancelled = false;
     void (async () => {
       const data = await readPantry();
@@ -304,12 +311,13 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     return () => {
       cancelled = true;
     };
-  }, [readPantry, server]);
+  }, [readOnly, readPantry, server]);
 
   // The size of the weekly set decides whether the "add weekly groceries" button works (T-092). Re-read with every accepted
   // state, so a change on the household page shows when the user comes back.
   const [weeklyCount, setWeeklyCount] = useState<number | null>(null);
   useEffect(() => {
+    if (readOnly) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -322,7 +330,7 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     return () => {
       cancelled = true;
     };
-  }, [householdId, server]);
+  }, [householdId, readOnly, server]);
 
   // A list asked in the other language is not shown (T-078): after a switch the page waits for the list in the new one.
   const current = server && server.week === weekStart && server.locale === locale ? server : null;

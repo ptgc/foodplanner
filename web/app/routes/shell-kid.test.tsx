@@ -92,12 +92,13 @@ describe("Shell: kid mode follows /api/auth/me", () => {
     expect(screen.getByRole("navigation", { name: t("shell.mainNavigation") })).toBeInTheDocument();
   });
 
-  it("reaches the shopping list from the kid shell by its icon", async () => {
+  it("reaches the read-only kid shopping list from the kid shell by its icon, not the grown-up page", async () => {
     const u = userEvent.setup();
     fake.kidMode = { profileId: mia.id, householdId: "h1" };
     renderApp();
     await u.click(await screen.findByRole("link", { name: t("kid.nav.shopping") }));
-    expect(await screen.findByText("shopping page")).toBeInTheDocument();
+    expect(await screen.findByTestId("kid-shopping")).toBeInTheDocument();
+    expect(screen.queryByText("shopping page")).not.toBeInTheDocument();
     expect(screen.getByTestId("kid-shell")).toBeInTheDocument();
   });
 });

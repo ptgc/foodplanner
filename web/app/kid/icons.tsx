@@ -99,6 +99,14 @@ export function SwapIcon() {
   );
 }
 
+export function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true" focusable="false">
+      <path d="M4.5 12.5l5 5 10-11" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function CrossIcon() {
   return (
     <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true" focusable="false">

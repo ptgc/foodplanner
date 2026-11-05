@@ -380,6 +380,79 @@ test("kid mode: a locked week shows a padlock and refuses picks, the adult can u
   }
 });
 
+// T-105: in kid mode the shopping list is look only: big tiles, checked items done, no controls, and the API refuses writes.
+test("kid mode: the shopping list is read only", async ({ page, baseURL }) => {
+  const mobile = (page.viewportSize()?.width ?? 0) <= 390;
+  const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+  const admin = await playwrightRequest.newContext({ baseURL, storageState: adminState });
+  let h: string | undefined;
+  // The kid view shows the current week, worked out in the browser's local time like the app does.
+  const now = new Date();
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+  const week = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, "0")}-${String(monday.getDate()).padStart(2, "0")}`;
+
+  try {
+    const created = await admin.post("/api/households", { headers: await csrf(admin), data: { name: `E2E kid list ${stamp}` } });
+    expect(created.status(), await created.text()).toBe(201);
+    h = ((await created.json()) as { id: string }).id;
+    const member = await joinAsMember(page, admin, h);
+    await setMemberPin(page.request, randomPin(), member.password);
+    const profile = await admin.post(`/api/households/${h}/profiles`, { headers: await csrf(admin), data: { displayName: "Mia", avatar: "fox" } });
+    expect(profile.status(), await profile.text()).toBe(201);
+    const profileId = ((await profile.json()) as { id: string }).id;
+
+    const add = async (label: string) => {
+      const res = await admin.post(`/api/households/${h}/shopping-lists/${week}/items`, { headers: await csrf(admin), data: { label, quantity: null, unitId: null } });
+      expect(res.status(), await res.text()).toBe(201);
+      return ((await res.json()) as { id: string }).id;
+    };
+    await add(`Melk ${stamp}`);
+    const doneId = await add(`Brod ${stamp}`);
+    const checked = await admin.put(`/api/households/${h}/shopping-lists/${week}/items/${doneId}/check`, { headers: await csrf(admin), data: { checked: true } });
+    expect(checked.ok()).toBe(true);
+
+    const activated = await page.request.post(`/api/households/${h}/profiles/${profileId}/activate`, { headers: await csrf(page.request) });
+    expect(activated.status(), await activated.text()).toBe(204);
+
+    const writes: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() !== "GET" && !r.url().includes("/api/hubs/")) writes.push(`${r.method()} ${new URL(r.url()).pathname}`);
+    });
+    await page.goto("/");
+    await page.getByRole("link", { name: "Shopping list" }).click();
+    const tiles = page.getByTestId("kid-shop-tile");
+    await expect(tiles).toHaveCount(2);
+    await expect(tiles.filter({ hasText: `Melk ${stamp}` }).getByTestId("kid-shop-check")).toHaveCount(0);
+    await expect(tiles.filter({ hasText: `Brod ${stamp}` }).getByTestId("kid-shop-check")).toHaveCount(1);
+    await expect(page.getByRole("main").getByRole("button")).toHaveCount(0);
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+    if (mobile) {
+      await atLeast(tiles.first(), 44, "tile");
+      await noHorizontalScroll(page);
+    }
+    await shot(page, "08-kid-shopping");
+
+    // A tap on a tile does nothing, and the grown-up pages are out of reach by address.
+    await tiles.first().click();
+    await page.goto("/pantry");
+    await expect(page.getByTestId("kid-home")).toBeVisible();
+    await page.goto("/shopping");
+    await expect(page.getByTestId("kid-shopping")).toBeVisible();
+    expect(writes).toEqual([]);
+
+    // The server refuses the write too.
+    const refused = await page.request.put(`/api/households/${h}/shopping-lists/${week}/items/${doneId}/check`, {
+      headers: await csrf(page.request),
+      data: { checked: false },
+    });
+    expect(refused.status()).toBe(403);
+  } finally {
+    if (h) await admin.delete(`/api/households/${h}`, { headers: await csrf(admin) });
+    await admin.dispose();
+  }
+});
+
 /** Signs the page in as the e2e member and joins the household through an Adult invitation (the flow household.spec covers). */
 async function joinAsMember(page: Page, admin: APIRequestContext, h: string): Promise<{ email: string; password: string }> {
   const member = memberCredentials();
