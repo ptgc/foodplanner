@@ -25,6 +25,8 @@ public sealed record ImportSuggestionResponse(Guid IngredientId, string Name, do
 /// <c>UnitId</c>, <c>ToTaste</c> and <c>AsNeeded</c> have neither. <c>Purpose</c>, <c>IsOptional</c> and <c>Alternatives</c> (other
 /// ingredients that can stand in; unmatched ones are text in <c>Note</c>) are read from phrases like "til steking" and "eller olje".
 /// <c>UnitText</c> is a unit word the catalog lacks ("boks"); <c>UnitCode</c>/<c>UnitName</c> describe the chosen or parsed unit.
+/// <c>SuggestedProteinClass</c> (T-104) is only set for a line with no ingredient yet: the class to preselect when the person
+/// creates the new own ingredient from <c>IngredientText</c> (best effort, <c>Unknown</c> when it cannot tell, null for matched lines).
 /// </summary>
 public sealed record ImportLineResponse(
     int Position,
@@ -45,7 +47,8 @@ public sealed record ImportLineResponse(
     AmountKind AmountKind,
     IngredientPurpose Purpose,
     bool IsOptional,
-    RecipeAlternativeResponse[] Alternatives);
+    RecipeAlternativeResponse[] Alternatives,
+    ProteinClass? SuggestedProteinClass);
 
 /// <summary><c>CanSave</c> is true when every line is <c>Matched</c>. <c>ImageUrl</c> is only a candidate; nothing is downloaded.</summary>
 public sealed record RecipeImportResponse(
@@ -749,6 +752,33 @@ public static class RecipeImportEndpoints
         }));
     }
 
+    private static bool NeedsSuggestion(ImportDraftLine line) =>
+        line.IngredientId is null && !line.Unparsed && !string.IsNullOrWhiteSpace(line.IngredientText);
+
+    /// <summary>
+    /// The classified ingredients the household can see (global plus own, through the tenant filter) by every name they have, for
+    /// <see cref="ProteinClassSuggester"/>. The household's own row wins over a global one with the same name. Unknown is left out.
+    /// </summary>
+    private static async Task<Dictionary<string, ProteinClass>> LoadClassifiedCatalogAsync(AppDbContext db, CancellationToken cancellationToken)
+    {
+        var rows = await db.Ingredients.AsNoTracking().Where(i => i.ProteinClass != ProteinClass.Unknown)
+            .Select(i => new { i.Id, i.Name, i.ProteinClass, Own = i.HouseholdId != null }).ToListAsync(cancellationToken);
+        var translations = await db.CatalogTranslations.AsNoTracking().Where(t => t.Kind == CatalogTranslation.KindIngredient)
+            .Select(t => new { t.EntityId, t.Name }).ToListAsync(cancellationToken);
+        var aliases = translations.ToLookup(t => t.EntityId, t => t.Name);
+
+        var catalog = new Dictionary<string, ProteinClass>();
+        foreach (var row in rows.OrderBy(r => r.Own))
+        {
+            foreach (var name in aliases[row.Id].Append(row.Name))
+            {
+                catalog[ProteinClassSuggester.CatalogKey(name)] = row.ProteinClass;
+            }
+        }
+
+        return catalog;
+    }
+
     private static async Task<Func<string, Guid?>> LoadUnitLookupAsync(AppDbContext db, CancellationToken cancellationToken)
     {
         var units = await db.Units.AsNoTracking().ToDictionaryAsync(u => u.Code, u => u.Id, cancellationToken);
@@ -766,6 +796,8 @@ public static class RecipeImportEndpoints
                 .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
         var units = (await db.Units.AsNoTracking().WithNames(db, CatalogTranslation.KindUnit, locale).ToListAsync(cancellationToken))
             .ToDictionary(u => u.Row.Id, u => (u.Row.Code, u.Name));
+
+        var catalog = draft.Lines.Any(NeedsSuggestion) ? await LoadClassifiedCatalogAsync(db, cancellationToken) : null;
 
         var lines = draft.Lines.Select((line, index) =>
         {
@@ -789,7 +821,8 @@ public static class RecipeImportEndpoints
                 line.AmountKind,
                 line.Purpose,
                 line.IsOptional,
-                [.. line.Alternatives.Select(a => new RecipeAlternativeResponse(a, names.GetValueOrDefault(a, string.Empty)))]);
+                [.. line.Alternatives.Select(a => new RecipeAlternativeResponse(a, names.GetValueOrDefault(a, string.Empty)))],
+                NeedsSuggestion(line) ? ProteinClassSuggester.Suggest(line.IngredientText, catalog) : null);
         }).ToArray();
 
         return new RecipeImportResponse(

@@ -877,4 +877,91 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         Assert.Equal("Fish", body.GetProperty("foodType").GetString());
         Assert.False(body.GetProperty("foodTypeIsManual").GetBoolean());
     }
+
+    [Fact]
+    public async Task Unmatched_lines_carry_a_suggested_protein_class_and_saving_with_it_gives_the_expected_food_type()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var import = await CreateTextAsync(owner.Client, household, """
+            Pizza med pepperoni
+            Ingredienser
+            2 dl melk
+            100 g Pepperoni
+            2 dl dragefrukt
+            1 stk xyzzyplugg
+            Fremgangsmåte
+            1. Bak.
+            """);
+        var importId = import.GetProperty("id").GetGuid();
+        var lines = import.GetProperty("lines").EnumerateArray().ToList();
+
+        // A matched line has no suggestion; an unmatched one has the best guess, Unknown when it cannot tell.
+        Assert.Equal("Matched", lines[0].GetProperty("status").GetString());
+        Assert.Equal(JsonValueKind.Null, lines[0].GetProperty("suggestedProteinClass").ValueKind);
+        Assert.Equal("Meat", lines[1].GetProperty("suggestedProteinClass").GetString());
+        Assert.Equal("None", lines[2].GetProperty("suggestedProteinClass").GetString());
+        Assert.Equal("Unknown", lines[3].GetProperty("suggestedProteinClass").GetString());
+
+        // The person keeps the suggestion: the new own ingredient is created with it and the line is mapped to it.
+        using var created = await owner.Client.PostAsync($"/api/households/{household}/ingredients",
+            new { name = "Pepperoni", isStaple = false, dimension = "Mass", proteinClass = "Meat" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var pepperoni = await created.JsonAsync();
+        Assert.Equal("Meat", pepperoni.GetProperty("proteinClass").GetString());
+        using var dragon = await owner.Client.PostAsync($"/api/households/{household}/ingredients",
+            new { name = "Dragefrukt", isStaple = false, dimension = "Count", proteinClass = "None" });
+        var dragonFruit = (await dragon.JsonAsync()).GetProperty("id").GetGuid();
+        using var plugg = await owner.Client.PostAsync($"/api/households/{household}/ingredients",
+            new { name = "Xyzzyplugg", isStaple = false, dimension = "Count", proteinClass = "None" });
+        var pluggId = (await plugg.JsonAsync()).GetProperty("id").GetGuid();
+
+        using var fixedUp = await owner.Client.PutAsync(Url(household, "/" + importId), FullDraft(import, [
+            new { position = 1, ingredientId = pepperoni.GetProperty("id").GetGuid(), quantity = 100m, unitId = UnitSeed.All.Single(u => u.Code == "g").Id },
+            new { position = 2, ingredientId = dragonFruit, quantity = 2m, unitId = Stk },
+            new { position = 3, ingredientId = pluggId, quantity = 1m, unitId = Stk },
+        ]));
+        Assert.Equal(HttpStatusCode.OK, fixedUp.StatusCode);
+        Assert.True((await fixedUp.JsonAsync()).GetProperty("canSave").GetBoolean());
+
+        using var saved = await owner.Client.PostAsync(Url(household, $"/{importId}/save"));
+        Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
+        var recipeId = (await saved.JsonAsync()).GetProperty("recipeId").GetGuid();
+        using var recipe = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
+        Assert.Equal("MixedMeat", (await recipe.JsonAsync()).GetProperty("foodType").GetString());
+    }
+
+    [Fact]
+    public async Task The_suggestion_uses_the_own_ingredients_of_this_household_only()
+    {
+        await using var host = Host();
+        var a = await host.SignInAsync();
+        var householdA = await a.Client.CreateHouseholdAsync();
+        var b = await host.SignInAsync();
+        var householdB = await b.Client.CreateHouseholdAsync();
+
+        // Household A classified its own "Xyzzyfrukt" as Meat; the keywords alone say a "frukt" is None.
+        using var own = await a.Client.PostAsync($"/api/households/{householdA}/ingredients",
+            new { name = "Xyzzyfrukt", isStaple = false, dimension = "Count", proteinClass = "Meat" });
+        Assert.Equal(HttpStatusCode.Created, own.StatusCode);
+        const string text = "Frukt\nIngredienser\n2 stk xyzzyfrukt\nFremgangsmåte\nBland.";
+
+        var lineA = (await CreateTextAsync(a.Client, householdA, text)).GetProperty("lines").EnumerateArray().Single();
+        var lineB = (await CreateTextAsync(b.Client, householdB, text)).GetProperty("lines").EnumerateArray().Single();
+
+        // B never sees A's ingredient: not matched, and the suggestion comes from the keywords only.
+        Assert.NotEqual("Matched", lineB.GetProperty("status").GetString());
+        Assert.Equal("None", lineB.GetProperty("suggestedProteinClass").GetString());
+
+        // A sees its own: either matched (no suggestion) or suggested from its own class.
+        if (lineA.GetProperty("status").GetString() == "Matched")
+        {
+            Assert.Equal(JsonValueKind.Null, lineA.GetProperty("suggestedProteinClass").ValueKind);
+        }
+        else
+        {
+            Assert.Equal("Meat", lineA.GetProperty("suggestedProteinClass").GetString());
+        }
+    }
 }
