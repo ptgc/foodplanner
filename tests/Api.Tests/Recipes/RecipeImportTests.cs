@@ -931,4 +931,37 @@ public sealed class RecipeImportTests(AuthDatabase db) : IClassFixture<AuthDatab
         using var recipe = await owner.Client.GetAsync($"/api/households/{household}/recipes/{recipeId}");
         Assert.Equal("MixedMeat", (await recipe.JsonAsync()).GetProperty("foodType").GetString());
     }
+
+    [Fact]
+    public async Task The_suggestion_uses_the_own_ingredients_of_this_household_only()
+    {
+        await using var host = Host();
+        var a = await host.SignInAsync();
+        var householdA = await a.Client.CreateHouseholdAsync();
+        var b = await host.SignInAsync();
+        var householdB = await b.Client.CreateHouseholdAsync();
+
+        // Household A classified its own "Xyzzyfrukt" as Meat; the keywords alone say a "frukt" is None.
+        using var own = await a.Client.PostAsync($"/api/households/{householdA}/ingredients",
+            new { name = "Xyzzyfrukt", isStaple = false, dimension = "Count", proteinClass = "Meat" });
+        Assert.Equal(HttpStatusCode.Created, own.StatusCode);
+        const string text = "Frukt\nIngredienser\n2 stk xyzzyfrukt\nFremgangsmåte\nBland.";
+
+        var lineA = (await CreateTextAsync(a.Client, householdA, text)).GetProperty("lines").EnumerateArray().Single();
+        var lineB = (await CreateTextAsync(b.Client, householdB, text)).GetProperty("lines").EnumerateArray().Single();
+
+        // B never sees A's ingredient: not matched, and the suggestion comes from the keywords only.
+        Assert.NotEqual("Matched", lineB.GetProperty("status").GetString());
+        Assert.Equal("None", lineB.GetProperty("suggestedProteinClass").GetString());
+
+        // A sees its own: either matched (no suggestion) or suggested from its own class.
+        if (lineA.GetProperty("status").GetString() == "Matched")
+        {
+            Assert.Equal(JsonValueKind.Null, lineA.GetProperty("suggestedProteinClass").ValueKind);
+        }
+        else
+        {
+            Assert.Equal("Meat", lineA.GetProperty("suggestedProteinClass").GetString());
+        }
+    }
 }
