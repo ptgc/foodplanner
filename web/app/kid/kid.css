@@ -698,3 +698,72 @@
   height: 1.5rem;
   color: #b8860b;
 }
+
+/* ---- Shopping list, look only (T-105) ---- */
+.kid-shop-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kid-shop-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 7.5rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 1.25rem;
+  background: var(--kid-card);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.1);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.kid-shop-picture {
+  font-size: 2.75rem;
+  line-height: 1;
+}
+
+.kid-shop-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.kid-shop-done .kid-shop-picture,
+.kid-shop-done .kid-shop-name {
+  opacity: 0.4;
+}
+
+.kid-shop-check {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.4rem;
+  border-radius: 50%;
+  background: #2e9d57;
+  color: #fff;
+}
+
+.kid-shop-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.kid-shop-empty-icon {
+  width: 5rem;
+  height: 5rem;
+  opacity: 0.6;
+}

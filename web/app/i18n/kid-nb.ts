@@ -79,4 +79,9 @@ export const kidNb: Partial<Record<keyof typeof kidEn, string>> = {
   "kid.pinCard.body": "PIN-koden tar enheten tilbake fra barnemodus. Hver voksen har sin egen.",
   "kid.pinCard.set": "Velg eller bytt PIN",
   "kid.pinCard.saved": "PIN lagret.",
+  "kid.shopping.title": "Handleliste",
+  "kid.shopping.loading": "Laster...",
+  "kid.shopping.empty": "Ingenting på lista ennå.",
+  "kid.shopping.error": "Lista kunne ikke vises.",
+  "kid.shopping.done": "ferdig",
 };

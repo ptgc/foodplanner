@@ -50,7 +50,7 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
             .SelectMany(e =>
             {
                 var policies = e.Metadata.GetOrderedMetadata<IAuthorizeData>().Select(a => a.Policy)
-                    .Where(p => p is Policies.HouseholdAdult or Policies.HouseholdOwner or Policies.FullSession).Cast<string>().ToList();
+                    .Where(p => p is Policies.HouseholdAdult or Policies.HouseholdOwner or Policies.FullSession).Cast<string>().OrderBy(p => p == Policies.FullSession ? 0 : 1).ToList();
                 var methods = e.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [];
                 return policies.Count == 0 ? [] : methods.Select(m => (e, m, policies[0]));
             }),
@@ -168,11 +168,8 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
         Assert.Equal(HttpStatusCode.Created, pick.StatusCode);
         using var list = await client.GetAsync($"{h}/shopping-lists/{week}");
         Assert.Equal(HttpStatusCode.OK, list.StatusCode);
-        using var added = await client.PostAsync($"{h}/shopping-lists/{week}/items", new { label = "Milk" });
-        Assert.Equal(HttpStatusCode.Created, added.StatusCode);
-        var item = (await added.JsonAsync()).GetProperty("id").GetGuid();
-        using var check = await client.PutAsync($"{h}/shopping-lists/{week}/items/{item}/check", new { @checked = true });
-        Assert.Equal(HttpStatusCode.OK, check.StatusCode);
+        using var added = await client.PostAsync($"{h}/shopping-lists/{week}/items", new { label = "Milk" }); // read only since T-105
+        await added.AssertProblemAsync(HttpStatusCode.Forbidden, "kid-mode");
         using var pantry = await client.GetAsync($"{h}/pantry");
         Assert.Equal(HttpStatusCode.OK, pantry.StatusCode);
         using var profiles = await client.GetAsync($"{h}/profiles");

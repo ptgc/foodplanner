@@ -1,4 +1,5 @@
 using System.Globalization;
+using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
@@ -92,6 +93,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/generate", Generate)
             .WithName("GenerateShoppingList")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -99,6 +101,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/weekly", AddWeeklyGroceries)
             .WithName("AddWeeklyGroceriesToShoppingList")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -106,6 +109,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/items", AddManualItem)
             .WithName("AddManualShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListItemResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -113,6 +117,7 @@ public static class ShoppingListEndpoints
 
         lists.MapDelete("/items/{itemId:guid}", DeleteManualItem)
             .WithName("DeleteManualShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -121,6 +126,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPut("/items/{itemId:guid}/check", CheckItem)
             .WithName("CheckShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListItemResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)

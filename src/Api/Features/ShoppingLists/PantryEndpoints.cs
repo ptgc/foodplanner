@@ -52,6 +52,7 @@ public static class PantryEndpoints
 
         pantry.MapPut("/{ingredientId:guid}", ConfirmPantryItem)
             .WithName("ConfirmPantryItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<PantryItemResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -59,12 +60,14 @@ public static class PantryEndpoints
 
         pantry.MapDelete("/{ingredientId:guid}", RemovePantryItem)
             .WithName("RemovePantryItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         pantry.MapDelete("", ClearPantry)
             .WithName("ClearPantry")
             .RequireAuthorization(Policies.HouseholdAdult)
+            .RequireAuthorization(Policies.FullSession)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 

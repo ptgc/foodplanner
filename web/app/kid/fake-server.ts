@@ -51,6 +51,8 @@ export type Fake = {
   postError: Response | null;
   /** Forces the next like write to answer with this. */
   likeError: Response | null;
+  /** The shopping list the GET answers with (null = nothing generated yet). */
+  shopping: components["schemas"]["ShoppingListResponse"] | null;
   calls: string[];
 };
 
@@ -70,6 +72,7 @@ export function newFake(): Fake {
     allowed: {},
     postError: null,
     likeError: null,
+    shopping: null,
     calls: [],
   };
 }
@@ -118,6 +121,8 @@ export function install(fake: Fake) {
         const all = fake.recipes.map((r) => ({ ...r, liked: fake.kidMode ? fake.liked.has(r.id) : false }));
         return json({ items: all.slice(offset, offset + limit), total: all.length, limit, offset });
       }
+      const shop = path.match(/^\/api\/households\/h1\/shopping-lists\/([^/]+)$/);
+      if (shop && method === "GET") return json(fake.shopping ?? { id: null, weekStart: shop[1], main: [], checkYouHave: [] });
       const like = path.match(/^\/api\/households\/h1\/recipes\/([^/]+)\/like$/);
       if (like) {
         if (fake.likeError) {

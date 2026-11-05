@@ -78,4 +78,9 @@ export const kidEn = {
   "kid.pinCard.body": "The PIN takes this device back from kid mode. Each grown-up has their own.",
   "kid.pinCard.set": "Set or change my PIN",
   "kid.pinCard.saved": "PIN saved.",
+  "kid.shopping.title": "Shopping list",
+  "kid.shopping.loading": "Loading...",
+  "kid.shopping.empty": "Nothing on the list yet.",
+  "kid.shopping.error": "The list could not be shown.",
+  "kid.shopping.done": "done",
 } as const satisfies Record<string, string>;
