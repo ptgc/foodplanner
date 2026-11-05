@@ -6613,7 +6613,8 @@
           "amountKind",
           "purpose",
           "isOptional",
-          "alternatives"
+          "alternatives",
+          "suggestedProteinClass"
         ],
         "type": "object",
         "properties": {
@@ -6727,6 +6728,16 @@
             "items": {
               "$ref": "#/components/schemas/RecipeAlternativeResponse"
             }
+          },
+          "suggestedProteinClass": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProteinClass"
+              }
+            ]
           }
         }
       },

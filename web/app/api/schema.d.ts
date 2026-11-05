@@ -1087,6 +1087,7 @@ export interface components {
             purpose: components["schemas"]["IngredientPurpose"];
             isOptional: boolean;
             alternatives: components["schemas"]["RecipeAlternativeResponse"][];
+            suggestedProteinClass: null | components["schemas"]["ProteinClass"];
         };
         /** @enum {unknown} */
         ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";

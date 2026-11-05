@@ -50,6 +50,7 @@ const line = (patch: Partial<Line>): Line => ({
   purpose: "Main",
   isOptional: false,
   alternatives: [],
+  suggestedProteinClass: null,
   ...patch,
 });
 
