@@ -35,7 +35,7 @@ public static class AuthEndpoints
             .Produces<RegisterResponse>(StatusCodes.Status202Accepted)
             .ProducesValidationProblem()
             .AllowAnonymous()
-            .RequireRateLimiting(RateLimitPolicies.Auth);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireRateLimiting(RateLimitPolicies.Auth);
 
         auth.MapPost("/confirm-email", ConfirmEmail)
             .WithName("ConfirmEmail")
@@ -43,7 +43,7 @@ public static class AuthEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .AllowAnonymous()
-            .RequireRateLimiting(RateLimitPolicies.Auth);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireRateLimiting(RateLimitPolicies.Auth);
 
         auth.MapPost("/login", Login)
             .WithName("Login")
@@ -51,7 +51,7 @@ public static class AuthEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .AllowAnonymous()
-            .RequireRateLimiting(RateLimitPolicies.Auth);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireRateLimiting(RateLimitPolicies.Auth);
 
         auth.MapPost("/logout", Logout)
             .WithName("Logout")

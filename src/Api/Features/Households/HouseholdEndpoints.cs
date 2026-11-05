@@ -63,7 +63,7 @@ public static class HouseholdEndpoints
             .Produces<AcceptInviteResponse>()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status410Gone)
-            .RequireRateLimiting(RateLimitPolicies.InviteAccept);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireRateLimiting(RateLimitPolicies.InviteAccept);
 
         return api;
     }

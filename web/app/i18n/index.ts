@@ -198,6 +198,17 @@ export function useMessagesReady(): boolean {
   );
 }
 
+export type MessagesStatus = "loading" | "ready" | "failed";
+
+/** "failed": neither the active language nor English could be loaded (offline without a cached copy). */
+export function useMessagesStatus(): MessagesStatus {
+  return useSyncExternalStore(
+    subscribe,
+    () => (isMessagesLoaded(current) ? "ready" : loadFailed ? "failed" : "loading"),
+    () => "loading" as MessagesStatus,
+  );
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => void listeners.delete(listener);
@@ -243,12 +254,27 @@ export function useLocale(): Locale {
 applyDocumentLanguage();
 
 // Start fetching the active locale's messages as soon as this module runs, in parallel with the rest of the app. If the
-// device's language cannot be loaded (a stale cache, a network blip), English is the safe default.
-if (typeof window !== "undefined") {
-  void loadMessages("core").catch(() => {
-    if (current !== "en") void setLocale("en", false).catch(() => undefined);
-  });
+// device's language cannot be loaded (a stale cache, a network blip), English is tried; if that fails too the status is
+// "failed" and the root offers a retry (retryLoadingMessages).
+let loadFailed = false;
+
+function startLoading(): void {
+  loadFailed = false;
+  listeners.forEach((listener) => listener());
+  loadMessages("core")
+    .catch(() => (current !== "en" ? setLocale("en", false) : Promise.reject(new Error("messages unavailable"))))
+    .catch(() => {
+      loadFailed = true;
+      listeners.forEach((listener) => listener());
+    });
 }
+
+/** Try again after the status became "failed". */
+export function retryLoadingMessages(): void {
+  startLoading();
+}
+
+if (typeof window !== "undefined") startLoading();
 
 /** Proper nouns are not translated. */
 export const APP_NAME = "Foodplanner";

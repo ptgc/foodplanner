@@ -98,6 +98,40 @@ describe("message loading (T-106)", () => {
     expect(i18n.getLocale()).toBe("en");
   });
 
+  it("reports a failed start when neither the language nor English can be loaded, and a retry recovers", async () => {
+    vi.resetModules();
+    window.localStorage.setItem(localeStorageKey, "nb");
+    vi.doMock("./nb", () => {
+      throw new Error("offline");
+    });
+    vi.doMock("./en", () => {
+      throw new Error("offline");
+    });
+    const i18n = await import("./index");
+    const { result } = renderHook(() => i18n.useMessagesStatus());
+    expect(result.current).toBe("loading");
+    await waitFor(() => expect(result.current).toBe("failed"));
+
+    vi.doUnmock("./nb");
+    vi.doUnmock("./en");
+    act(() => i18n.retryLoadingMessages());
+    await waitFor(() => expect(result.current).toBe("ready"));
+    expect(i18n.getLocale()).toBe("nb");
+    vi.doUnmock("./en");
+  });
+
+  it("falls back to English when only the stored language cannot be loaded", async () => {
+    vi.resetModules();
+    window.localStorage.setItem(localeStorageKey, "nb");
+    vi.doMock("./nb", () => {
+      throw new Error("offline");
+    });
+    const i18n = await import("./index");
+    const { result } = renderHook(() => i18n.useMessagesStatus());
+    await waitFor(() => expect(result.current).toBe("ready"));
+    expect(i18n.getLocale()).toBe("en");
+  });
+
   it("stays in the old language, and rejects, when the new messages cannot be loaded; a later try can succeed", async () => {
     vi.resetModules();
     window.localStorage.setItem(localeStorageKey, "en");

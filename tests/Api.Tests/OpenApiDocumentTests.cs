@@ -127,6 +127,24 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
     }
 
     [Fact]
+    public async Task Every_rate_limited_endpoint_declares_429_with_Retry_After()
+    {
+        var paths = System.Text.Json.JsonDocument.Parse(await GenerateAsync("Development")).RootElement.GetProperty("paths");
+        var limited = new (string Path, string Method)[]
+        {
+            ("/api/auth/register", "post"), ("/api/auth/confirm-email", "post"), ("/api/auth/login", "post"),
+            ("/api/auth/pin", "put"), ("/api/auth/pin/unlock", "post"), ("/api/invites/{token}/accept", "post"),
+            ("/api/households/{householdId}/export", "get"),
+        };
+        foreach (var (path, method) in limited)
+        {
+            var response = paths.GetProperty(path).GetProperty(method).GetProperty("responses");
+            Assert.True(response.TryGetProperty("429", out var tooMany), $"{method} {path} has no 429");
+            Assert.True(tooMany.GetProperty("headers").TryGetProperty("Retry-After", out _), $"{method} {path} 429 has no Retry-After");
+        }
+    }
+
+    [Fact]
     public async Task Generated_document_is_valid_and_matches_committed_file()
     {
         var generated = await GenerateAsync("Development");
