@@ -56,8 +56,8 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
         foreach (var (name, call) in Writes(s.Household, item, store))
         {
             using var response = await call(s.Owner.Client);
-            await response.AssertProblemAsync(HttpStatusCode.Forbidden, "kid-mode");
             Assert.True(response.StatusCode == HttpStatusCode.Forbidden, name);
+            await response.AssertProblemAsync(HttpStatusCode.Forbidden, "kid-mode");
         }
 
         // Nothing moved: the item is still there and unchecked, the pantry still has salt, no store is chosen.
@@ -140,8 +140,8 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
         foreach (var (name, call) in Writes(b, Guid.NewGuid(), Guid.NewGuid()))
         {
             using var response = await call(s.Owner.Client);
-            await response.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
             Assert.True(response.StatusCode == HttpStatusCode.Forbidden, name);
+            await response.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         }
     }
 }

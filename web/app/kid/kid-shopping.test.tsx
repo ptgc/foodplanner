@@ -101,10 +101,8 @@ describe("kid shopping list (T-105)", () => {
   });
 
   it("only reads: no write, no pantry and no weekly-groceries call, even with a check-off queued from a grown-up session", async () => {
-    localStorage.setItem(
-      "foodplanner.shopping.queue",
-      JSON.stringify([{ householdId: "h1", weekStart: monday, itemId: "a", checked: true }]),
-    );
+    const queued = JSON.stringify([{ householdId: "h1", weekStart: monday, itemId: "a", checked: true }]);
+    localStorage.setItem("foodplanner.shopping.queue", queued);
     fake.shopping = listOf([item("a", "Melk")]);
     hub.state = fake.shopping;
     render(<KidShopping householdId="h1" hubFactory={() => hub} />);
@@ -112,6 +110,7 @@ describe("kid shopping list (T-105)", () => {
     expect(tile).not.toHaveAttribute("data-checked");
     expect(within(tile).queryByTestId("kid-shop-check")).not.toBeInTheDocument(); // the queue is not applied
     expect(writes()).toEqual([]);
+    expect(localStorage.getItem("foodplanner.shopping.queue")).toBe(queued); // the adult's queue is left for the adult
     expect(fake.calls.some((c) => c.includes("pantry") || c.includes("weekly") || c.includes("generate"))).toBe(false);
   });
 

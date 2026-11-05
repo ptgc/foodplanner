@@ -381,9 +381,9 @@ test("kid mode: a locked week shows a padlock and refuses picks, the adult can u
 });
 
 // T-105: in kid mode the shopping list is look only: big tiles, checked items done, no controls, and the API refuses writes.
-test("kid mode: the shopping list is read only", async ({ page, baseURL }) => {
+test("kid mode: the shopping list is read only", async ({ page, baseURL }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 0) <= 390;
-  const stamp = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
+  const stamp = uniqueStamp(testInfo);
   const admin = await playwrightRequest.newContext({ baseURL, storageState: adminState });
   let h: string | undefined;
   // The kid view shows the current week, worked out in the browser's local time like the app does.

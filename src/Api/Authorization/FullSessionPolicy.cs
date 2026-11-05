@@ -10,7 +10,8 @@ namespace Foodplanner.Api.Authorization;
 /// <summary>
 /// Satisfied only when the session is not in kid mode (T-026). It guards the account-level actions that are not under a
 /// household role policy (create a household, accept an invite, leave a household, set the PIN), so a device locked to a
-/// kid profile cannot do them.
+/// kid profile cannot do them. T-105 also puts it on the shopping list writes (generate, weekly groceries, manual items, check
+/// and uncheck), the chosen-store write and the pantry writes: kid mode may look at the list, never change it.
 /// </summary>
 public sealed class FullSessionRequirement : IAuthorizationRequirement
 {
