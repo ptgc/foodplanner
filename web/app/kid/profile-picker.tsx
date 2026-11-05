@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from "react";
+import "./kid.css";
 import { Link } from "react-router";
 import { useI18n, type MessageKey } from "../i18n";
 import { useSession } from "../session";

@@ -4,7 +4,8 @@
 // Three numbers (T-041). React Router already splits every route into its own chunk and loads it on navigation, so a
 // visit downloads far less than the sum of all chunks:
 //   initial     what index.html loads before any route: the router manifest, the entry chunk, the root route and
-//               their shared chunks (React, the i18n module, the session).
+//               their shared chunks (React, the i18n module, the session), plus the messages of ONE language.
+//               Kid mode (screens, messages, kid.css) and the other language load only when used (T-106).
 //   first load  the initial JS plus the chunks of one route (and its parent layouts); reported per route, the budget
 //               applies to the heaviest route. This is what a cold visit to that URL downloads.
 //   total       every chunk. The service worker precaches all of them in the background (T-041), so this is the
@@ -14,7 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const budgetKb = { initial: 145, firstLoad: 170, total: 235 };
+const budgetKb = { initial: 135, firstLoad: 159, total: 234 };
 const assets = resolve(dirname(fileURLToPath(import.meta.url)), "..", "build", "client", "assets");
 
 const sizes = new Map(); // "/assets/x.js" -> gzipped bytes
@@ -30,6 +31,19 @@ const manifest = JSON.parse(source.slice(source.indexOf("{"), source.lastIndexOf
 
 const chunksOf = (route) => [route.module, ...(route.imports ?? [])];
 const initial = new Set([manifestFile, ...chunksOf(manifest.entry), ...chunksOf(manifest.routes.root)]);
+
+// The active language's messages (T-106) are fetched by the i18n module right at start, not listed in the manifest,
+// so they would escape the count. One language is loaded, never both: count the larger of the two (`en-*.js`, `nb-*.js`).
+const localeChunks = [...sizes.keys()].filter((url) => /\/assets\/(en|nb)-[\w-]+\.js$/.test(url));
+if (localeChunks.length !== 2) throw new Error(`expected the en and nb message chunks, found ${localeChunks.length}`);
+initial.add(localeChunks.sort((a, b) => sizes.get(b) - sizes.get(a))[0]);
+
+// Kid mode must stay out of the initial load: its screens, messages and kid.css are lazy chunks (T-106).
+const kidInInitial = [...initial].filter((url) => /\/assets\/(kid|pin|profile)-[\w-]+\.js$/.test(url));
+if (kidInInitial.length > 0) {
+  console.error(`bundle-size FAILED: kid mode is in the initial load: ${kidInInitial.join(", ")}`);
+  process.exit(1);
+}
 
 const firstLoads = [];
 for (const [id, route] of Object.entries(manifest.routes)) {

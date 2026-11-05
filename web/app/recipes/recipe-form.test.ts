@@ -285,7 +285,7 @@ describe("fromRecipe", () => {
       cookMinutes: null,
       totalMinutes: 10,
       image: null,
-      tags: [{ id: "t1", name: "Rask", kind: "Tag", isGlobal: true }],
+      tags: [{ id: "t1", name: "Rask", kind: "Tag", isGlobal: true, key: null }],
       steps: [
         { position: 2, text: "To" },
         { position: 1, text: "Ett" },

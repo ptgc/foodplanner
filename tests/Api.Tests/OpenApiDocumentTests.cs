@@ -102,6 +102,31 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
     }
 
     [Fact]
+    public async Task Pin_problems_and_tag_key_are_part_of_the_contract()
+    {
+        var json = System.Text.Json.JsonDocument.Parse(await GenerateAsync("Development")).RootElement;
+        var schemas = json.GetProperty("components").GetProperty("schemas");
+        var paths = json.GetProperty("paths");
+
+        // TagResponse.key: required, a string or null.
+        var tag = schemas.GetProperty("TagResponse");
+        Assert.Contains(tag.GetProperty("required").EnumerateArray(), r => r.GetString() == "key");
+        Assert.Contains(tag.GetProperty("properties").GetProperty("key").GetProperty("type").EnumerateArray(), t => t.GetString() == "null");
+
+        // 403 pin-incorrect carries attemptsRemaining (a number), on the unlock and on the PIN change.
+        Assert.Equal("integer", schemas.GetProperty("PinIncorrectProblem").GetProperty("properties").GetProperty("attemptsRemaining").GetProperty("type").GetString());
+        foreach (var operation in new[] { paths.GetProperty("/api/auth/pin/unlock").GetProperty("post"), paths.GetProperty("/api/auth/pin").GetProperty("put") })
+        {
+            var forbidden = operation.GetProperty("responses").GetProperty("403").GetProperty("content").GetProperty("application/problem+json");
+            Assert.EndsWith("/PinIncorrectProblem", forbidden.GetProperty("schema").GetProperty("$ref").GetString());
+
+            // 429 (pin-locked and the rate limiter) declares the Retry-After header in seconds.
+            var retry = operation.GetProperty("responses").GetProperty("429").GetProperty("headers").GetProperty("Retry-After");
+            Assert.Equal("integer", retry.GetProperty("schema").GetProperty("type").GetString());
+        }
+    }
+
+    [Fact]
     public async Task Generated_document_is_valid_and_matches_committed_file()
     {
         var generated = await GenerateAsync("Development");

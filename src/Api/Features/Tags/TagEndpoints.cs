@@ -13,8 +13,11 @@ namespace Foodplanner.Api.Features.Tags;
 
 public sealed record CreateTagRequest(string? Name, string? Kind);
 
-/// <summary><c>IsGlobal</c>: a shared category or tag (read-only); otherwise the household's own.</summary>
-public sealed record TagResponse(Guid Id, string Name, TagKind Kind, bool IsGlobal);
+/// <summary>
+/// <c>IsGlobal</c>: a shared category or tag (read-only); otherwise the household's own. <c>Key</c> is the stable ASCII key of a
+/// global tag (e.g. <c>barnevennlig</c>, see <see cref="TagSeed"/>), never localized; null for a household's own tag.
+/// </summary>
+public sealed record TagResponse(Guid Id, string Name, TagKind Kind, bool IsGlobal, string? Key);
 
 /// <summary>Categories and tags (T-023): the global set plus the household's own. Any member reads; an Adult or Owner creates. No edit or delete route exists for any tag.</summary>
 public static class TagEndpoints
@@ -39,7 +42,10 @@ public static class TagEndpoints
         return api;
     }
 
-    public static TagResponse ToResponse(Tag t, string name) => new(t.Id, name, t.Kind, t.HouseholdId is null);
+    private static readonly Dictionary<Guid, string> GlobalKeys = TagSeed.All.ToDictionary(t => t.Id, t => t.Key);
+
+    public static TagResponse ToResponse(Tag t, string name) =>
+        new(t.Id, name, t.Kind, t.HouseholdId is null, t.HouseholdId is null ? GlobalKeys.GetValueOrDefault(t.Id) : null);
 
     public static TagResponse ToResponse(Named<Tag> t) => ToResponse(t.Row, t.Name);
 

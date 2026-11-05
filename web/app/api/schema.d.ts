@@ -1271,6 +1271,16 @@ export interface components {
             allowedFoodTypes: components["schemas"]["FoodType"][];
             recipes: components["schemas"]["PickOptionResponse"][];
         };
+        PinIncorrectProblem: {
+            type?: null | string;
+            title?: null | string;
+            /** Format: int32 */
+            status?: null | number | string;
+            detail?: null | string;
+            instance?: null | string;
+            /** Format: int32 */
+            attemptsRemaining?: number;
+        };
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -1540,6 +1550,7 @@ export interface components {
             name: string;
             kind: components["schemas"]["TagKind"];
             isGlobal: boolean;
+            key: null | string;
         };
         /** @enum {unknown} */
         UnitDimension: "Mass" | "Volume" | "Count";
@@ -1994,12 +2005,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["PinIncorrectProblem"];
                 };
             };
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2052,7 +2065,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                    "application/problem+json": components["schemas"]["PinIncorrectProblem"];
                 };
             };
             /** @description Conflict */
@@ -2067,6 +2080,8 @@ export interface operations {
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2460,6 +2475,8 @@ export interface operations {
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3457,6 +3474,8 @@ export interface operations {
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {

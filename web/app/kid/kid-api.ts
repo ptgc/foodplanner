@@ -103,7 +103,7 @@ export async function setPin(pin: string, currentPin?: string): Promise<SetPinRe
     if (type === problem("pin-incorrect")) return { kind: "wrong-current", attemptsRemaining: attemptsRemainingOf(error) };
     if (type === problem("pin-locked") || response.status === 429) return { kind: "locked" };
     if (response.status === 400) {
-      const errors = (error as { errors?: Record<string, string[]> } | undefined)?.errors ?? {};
+      const errors = (error && "errors" in error ? error.errors : undefined) ?? {};
       if ("currentPin" in errors) return { kind: "needs-current" };
       if ("pin" in errors) return { kind: "invalid" };
       return { kind: "failed", key: "problem.generic" };

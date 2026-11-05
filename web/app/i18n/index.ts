@@ -1,10 +1,14 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { en } from "./en";
-import { nb } from "./nb";
+import type { en } from "./en";
+import type { kidEn } from "./kid-en";
 
 /**
  * Tiny in-house i18n (see web/README.md "Internationalisation" for why and how to add text).
- * Locales: nb and en. English is the fallback; a key missing everywhere shows a readable English placeholder.
+ * Locales: nb and en. English is the fallback when it is loaded; a key missing everywhere shows a readable English placeholder.
+ *
+ * Messages are loaded per locale and per group (T-106): only the active locale's messages are fetched ("core" always,
+ * "kid" with the kid screens). The other locale is fetched when the user switches to it. The app renders nothing but a
+ * loader until the active locale's core messages are in (useMessagesReady), so no key is ever shown untranslated.
  */
 
 export type Locale = "nb" | "en";
@@ -12,12 +16,61 @@ export const locales: readonly Locale[] = ["nb", "en"];
 
 type Base<K extends string> = K extends `${infer B}.${"one" | "other"}` ? B : K;
 /** Every translatable message, by key (plural messages appear once, without `.one`/`.other`). */
-export type MessageKey = Base<keyof typeof en>;
+export type MessageKey = Base<keyof typeof en | keyof typeof kidEn>;
 
 export type Params = Record<string, string | number>;
 export type Dictionary = Readonly<Record<string, string | undefined>>;
 
-const dictionaries: Record<Locale, Dictionary> = { en, nb };
+/** "core": the whole grown-up app. "kid": kid mode and kid profiles, loaded with those screens only. */
+export type MessageGroup = "core" | "kid";
+
+const loaders: Record<Locale, Record<MessageGroup, () => Promise<Dictionary>>> = {
+  en: {
+    core: () => import("./en").then((m) => m.en),
+    kid: () => import("./kid-en").then((m) => m.kidEn),
+  },
+  nb: {
+    core: () => import("./nb").then((m) => m.nb),
+    kid: () => import("./kid-nb").then((m) => m.kidNb),
+  },
+};
+
+const groupDictionaries: Record<Locale, Partial<Record<MessageGroup, Dictionary>>> = { en: {}, nb: {} };
+const merged: Partial<Record<Locale, Dictionary>> = {};
+const pending = new Map<string, Promise<void>>();
+/** Groups some screen has asked for; a language switch loads these for the new locale too. */
+const wantedGroups = new Set<MessageGroup>(["core"]);
+
+/** Make a loaded dictionary known. Loading does this; tests call it for every locale up front (vitest.setup.ts). */
+export function registerMessages(locale: Locale, group: MessageGroup, dictionary: Dictionary): void {
+  groupDictionaries[locale][group] = dictionary;
+  merged[locale] = { ...groupDictionaries[locale].core, ...groupDictionaries[locale].kid };
+  listeners.forEach((listener) => listener());
+}
+
+export function isMessagesLoaded(locale: Locale, group: MessageGroup = "core"): boolean {
+  return groupDictionaries[locale][group] !== undefined;
+}
+
+/**
+ * Load one group for a locale (default: the active one); resolves at once if it is already in. A failed load is not
+ * remembered, so the next call retries.
+ */
+export function loadMessages(group: MessageGroup, locale: Locale = current): Promise<void> {
+  wantedGroups.add(group);
+  if (isMessagesLoaded(locale, group)) return Promise.resolve();
+  const id = `${locale}/${group}`;
+  let promise = pending.get(id);
+  if (!promise) {
+    promise = loaders[locale][group]()
+      .then((dictionary) => registerMessages(locale, group, dictionary))
+      .finally(() => pending.delete(id));
+    pending.set(id, promise);
+  }
+  return promise;
+}
+
+const loadAllWanted = (locale: Locale) => Promise.all([...wantedGroups].map((group) => loadMessages(group, locale))).then(() => undefined);
 
 /** "shopping.generateFromPlan" -> "Generate from plan": what a user sees if a key exists in no locale. */
 export function placeholderFor(key: string): string {
@@ -36,7 +89,7 @@ export function translate(
   locale: Locale,
   key: string,
   params?: Params,
-  dicts: Record<Locale, Dictionary> = dictionaries,
+  dicts: Partial<Record<Locale, Dictionary>> = merged,
 ): string {
   let suffix = "";
   if (params && typeof params.count === "number") {
@@ -47,7 +100,7 @@ export function translate(
   const candidates = [key + suffix, key];
   for (const dict of [dicts[locale], dicts.en]) {
     for (const k of candidates) {
-      const found = dict[k];
+      const found = dict?.[k];
       if (found !== undefined) return interpolate(found, params);
     }
   }
@@ -96,18 +149,34 @@ export function getLocale(): Locale {
   return current;
 }
 
-/** Switch language. `remember` stores it on this device (a user choice); detection never stores. */
-export function setLocale(locale: Locale, remember = true): void {
-  current = locale;
-  if (remember) {
-    try {
-      window.localStorage.setItem(localeStorageKey, locale);
-    } catch {
-      // Private mode: the choice then lasts for this page only.
+let switchRequest = 0;
+
+/**
+ * Switch language. `remember` stores it on this device (a user choice); detection never stores. If the locale's messages
+ * are not loaded yet they are fetched first and the screen keeps the old language until they are in (no flash of
+ * untranslated text); the promise resolves when the switch has happened, and rejects (staying on the old language)
+ * if the messages could not be loaded. The latest request wins when the user switches quickly.
+ */
+export function setLocale(locale: Locale, remember = true): Promise<void> {
+  const request = ++switchRequest;
+  const apply = () => {
+    if (request !== switchRequest) return;
+    current = locale;
+    if (remember) {
+      try {
+        window.localStorage.setItem(localeStorageKey, locale);
+      } catch {
+        // Private mode: the choice then lasts for this page only.
+      }
     }
+    applyDocumentLanguage();
+    listeners.forEach((listener) => listener());
+  };
+  if ([...wantedGroups].every((group) => isMessagesLoaded(locale, group))) {
+    apply(); // everything is in: the switch is synchronous
+    return Promise.resolve();
   }
-  applyDocumentLanguage();
-  listeners.forEach((listener) => listener());
+  return loadAllWanted(locale).then(apply);
 }
 
 /** Forget the stored choice and detect again. Used by tests. */
@@ -117,7 +186,16 @@ export function resetLocale(): void {
   } catch {
     // Nothing to clear.
   }
-  setLocale(initialLocale(), false);
+  void setLocale(initialLocale(), false);
+}
+
+/** True once the active locale's core messages are loaded. The root of the app shows only a loader before that. */
+export function useMessagesReady(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => isMessagesLoaded(current),
+    () => false,
+  );
 }
 
 function subscribe(listener: () => void) {
@@ -163,6 +241,14 @@ export function useLocale(): Locale {
 }
 
 applyDocumentLanguage();
+
+// Start fetching the active locale's messages as soon as this module runs, in parallel with the rest of the app. If the
+// device's language cannot be loaded (a stale cache, a network blip), English is the safe default.
+if (typeof window !== "undefined") {
+  void loadMessages("core").catch(() => {
+    if (current !== "en") void setLocale("en", false).catch(() => undefined);
+  });
+}
 
 /** Proper nouns are not translated. */
 export const APP_NAME = "Foodplanner";

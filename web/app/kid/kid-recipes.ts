@@ -4,11 +4,11 @@ import { useLocale } from "../i18n";
 import { problemTypeOf } from "../i18n/problems";
 import type { RecipeSummary } from "../recipes/use-recipes";
 
-/** Names of the global tag "Barnevennlig" in the two catalog languages (the tag response has no key, only the localized name). */
-const kidFriendlyNames = new Set(["barnevennlig", "kid friendly"]);
+/** The stable key of the global tag "Barnevennlig" (TagResponse.key, the same in every language). */
+export const KID_FRIENDLY_TAG_KEY = "barnevennlig";
 
 export function isKidFriendly(recipe: Pick<RecipeSummary, "tags">): boolean {
-  return recipe.tags.some((tag) => tag.isGlobal && kidFriendlyNames.has(tag.name.trim().toLowerCase()));
+  return recipe.tags.some((tag) => tag.isGlobal && tag.key === KID_FRIENDLY_TAG_KEY);
 }
 
 /** Barnevennlig dishes first (Q-020), everything else after; the server's order is kept within each group. */

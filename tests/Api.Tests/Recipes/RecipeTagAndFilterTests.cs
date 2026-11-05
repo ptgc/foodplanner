@@ -107,6 +107,50 @@ public sealed class RecipeTagAndFilterTests(AuthDatabase db) : IClassFixture<Aut
     }
 
     [Fact]
+    public async Task Tag_key_is_the_stable_seed_key_in_every_language_and_null_for_an_own_tag()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var own = await CreateTagAsync(owner.Client, household, "Barnevennlig " + Guid.NewGuid().ToString("N")[..8]);
+
+        async Task<List<System.Text.Json.JsonElement>> ListAsync(string language)
+        {
+            owner.Client.Language = language;
+            using var response = await owner.Client.GetAsync(TagUrl(household));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return (await response.JsonAsync()).EnumerateArray().ToList();
+        }
+
+        foreach (var language in new[] { "nb", "en" })
+        {
+            var tags = await ListAsync(language);
+            var global = tags.Where(t => t.GetProperty("isGlobal").GetBoolean()).ToList();
+            // Every global tag has its seed key, whatever the name's language; the key never changes with the language.
+            Assert.Equal(TagSeed.All.Select(t => t.Key).Order(), global.Select(t => t.GetProperty("key").GetString()!).Order());
+            var kidFriendly = Assert.Single(global, t => t.GetProperty("key").GetString() == "barnevennlig");
+            Assert.Equal(language == "nb" ? "Barnevennlig" : "Kid friendly", kidFriendly.GetProperty("name").GetString());
+            Assert.Equal(TagSeed.All.Single(t => t.Key == "barnevennlig").Id, kidFriendly.GetProperty("id").GetGuid());
+            // A household's own tag has no key, even if its name looks like a global one.
+            var ownTag = Assert.Single(tags, t => t.GetProperty("id").GetGuid() == own);
+            Assert.Equal(JsonValueKind.Null, ownTag.GetProperty("key").ValueKind);
+        }
+
+        // Recipe tags carry the key too (the kid feed reads it from the recipe list).
+        var kid = TagSeed.All.Single(t => t.Key == "barnevennlig").Id;
+        var recipe = await CreateRecipeAsync(owner.Client, household, Name("Pannekaker"), [kid, own]);
+        using var list = await owner.Client.GetAsync(Url(household));
+        var item = Assert.Single((await list.JsonAsync()).GetProperty("items").EnumerateArray());
+        var keys = item.GetProperty("tags").EnumerateArray().ToDictionary(t => t.GetProperty("id").GetGuid(), t => t.GetProperty("key"));
+        Assert.Equal("barnevennlig", keys[kid].GetString());
+        Assert.Equal(JsonValueKind.Null, keys[own].ValueKind);
+        using var detail = await owner.Client.GetAsync(Url(household, "/" + recipe));
+        Assert.Contains(
+            (await detail.JsonAsync()).GetProperty("tags").EnumerateArray(),
+            t => t.GetProperty("key").ValueKind == JsonValueKind.String && t.GetProperty("key").GetString() == "barnevennlig");
+    }
+
+    [Fact]
     public async Task Adult_creates_own_tag_child_reads_only_and_global_tags_cannot_be_changed()
     {
         await using var host = Host();

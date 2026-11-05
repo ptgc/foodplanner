@@ -1,7 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
-import { setLocale, type Locale } from "./app/i18n";
+import { registerMessages, setLocale, type Locale } from "./app/i18n";
+import { en } from "./app/i18n/en";
+import { kidEn } from "./app/i18n/kid-en";
+import { kidNb } from "./app/i18n/kid-nb";
+import { nb } from "./app/i18n/nb";
 
 // No test talks to a real hub. Screens that listen for plan changes (usePlan) get a hub that connects and stays quiet;
 // a test that needs hub events mocks "@microsoft/signalr" itself, which takes precedence over this.
@@ -32,6 +36,12 @@ vi.mock("@microsoft/signalr", () => {
   }
   return { HubConnectionBuilder: Builder, LogLevel: { None: 6 } };
 });
+
+// Tests have every message loaded up front, so setLocale switches synchronously (the real app loads them on demand, T-106).
+registerMessages("en", "core", en);
+registerMessages("en", "kid", kidEn);
+registerMessages("nb", "core", nb);
+registerMessages("nb", "kid", kidNb);
 
 // The project (en or nb) decides the language of the whole test run; nothing is stored on the "device".
 const testLocale = (process.env.TEST_LOCALE ?? "en") as Locale;

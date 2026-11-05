@@ -17,8 +17,8 @@ const me = { userId: "11111111-1111-1111-1111-111111111111", email: "anne.berit@
 const other = { userId: "22222222-2222-2222-2222-222222222222", email: "per@example.test" };
 const week = "2031-03-03"; // a Monday
 
-const dinner: Tag = { id: "dinner", name: "Middag", kind: "Category", isGlobal: true };
-const dessert: Tag = { id: "dessert", name: "Dessert", kind: "Category", isGlobal: true };
+const dinner: Tag = { id: "dinner", name: "Middag", kind: "Category", isGlobal: true, key: null };
+const dessert: Tag = { id: "dessert", name: "Dessert", kind: "Category", isGlobal: true, key: null };
 
 const recipe = (id: string, title: string, tags: Tag[] = [], servings = 4): Summary => ({
   id,

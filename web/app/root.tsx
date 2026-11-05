@@ -1,6 +1,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import type { ReactNode } from "react";
-import { APP_NAME, useI18n } from "./i18n";
+import { APP_NAME, useI18n, useMessagesReady } from "./i18n";
 import { UpdateBanner } from "./pwa/update-banner";
 import { SessionProvider } from "./session";
 import "./app.css";
@@ -10,7 +10,7 @@ import "./recipes/recipe-edit.css";
 import "./recipes/cook.css";
 import "./imports/import.css";
 import "./household/household.css";
-import "./kid/kid.css";
+import "./kid/avatar.css";
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
@@ -43,6 +43,8 @@ export function HydrateFallback() {
 }
 
 export default function App() {
+  // Nothing but the loader until the active language's messages are in: no flash of untranslated keys (T-106).
+  if (!useMessagesReady()) return <HydrateFallback />;
   return (
     <SessionProvider>
       <Outlet />

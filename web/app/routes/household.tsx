@@ -1,4 +1,4 @@
-import { useCallback, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
@@ -6,13 +6,16 @@ import { call } from "../household/call";
 import { ConfirmDialog } from "../household/confirm-dialog";
 import { useLoaded } from "../household/use-loaded";
 import { Stores } from "../household/stores";
-import { KidProfiles } from "../household/kid-profiles";
+import { lazyWithMessages } from "../i18n/lazy";
 import { MealMixRules } from "../household/meal-mix-rules";
 import { WeeklyGroceries } from "../household/weekly-groceries";
 import { allRoles, inviteLink, invitableRoles, powers, roleKeys, type Role } from "../household/roles";
 import { useI18n, type MessageKey, type Params } from "../i18n";
 import { copyText, shareText } from "../shopping/export";
 import { useSession } from "../session";
+
+// Kid profiles are a rarely opened section: their code, styles and messages load with it (T-106).
+const KidProfiles = lazyWithMessages("kid", () => import("../household/kid-profiles").then((m) => ({ default: m.KidProfiles })));
 
 type Household = components["schemas"]["HouseholdResponse"];
 type Member = components["schemas"]["MemberResponse"];
@@ -84,7 +87,7 @@ function HouseholdSettings({ household, onNotice }: { household: Household; onNo
           </Link>
         </div>
       )}
-      {can.kidProfiles && <KidProfiles householdId={household.id} />}
+      {can.kidProfiles && <Suspense fallback={<p role="status">{t("common.loading")}</p>}><KidProfiles householdId={household.id} /></Suspense>}
       <MealMixRules householdId={household.id} canEdit={can.weekly} />
       <WeeklyGroceries householdId={household.id} canEdit={can.weekly} />
       <Stores householdId={household.id} canEdit={can.weekly} />
