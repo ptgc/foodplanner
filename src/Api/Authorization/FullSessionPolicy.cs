@@ -1,4 +1,6 @@
 using Foodplanner.Api.Problems;
+using Foodplanner.Api.Tenancy;
+using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
@@ -39,7 +41,8 @@ internal sealed class KidModeAuthorizationResultHandler : IAuthorizationMiddlewa
     public Task HandleAsync(RequestDelegate next, HttpContext context, AuthorizationPolicy policy, PolicyAuthorizationResult authorizeResult)
     {
         if (authorizeResult.Forbidden
-            && authorizeResult.AuthorizationFailure?.FailedRequirements.OfType<FullSessionRequirement>().Any() == true)
+            && authorizeResult.AuthorizationFailure?.FailedRequirements.OfType<FullSessionRequirement>().Any() == true
+            && !IsUnreachableHousehold(context))
         {
             return AppProblems.WriteAsync(
                 context,
@@ -51,4 +54,12 @@ internal sealed class KidModeAuthorizationResultHandler : IAuthorizationMiddlewa
 
         return _default.HandleAsync(next, context, policy, authorizeResult);
     }
+
+    /// <summary>
+    /// A household-scoped call where no membership was resolved (not a member, or kid mode on another household, T-103)
+    /// keeps the plain non-member answer, so "kid-mode" never tells which households exist.
+    /// </summary>
+    private static bool IsUnreachableHousehold(HttpContext context) =>
+        context.GetEndpoint()?.Metadata.GetMetadata<HouseholdScopedMetadata>() is not null
+        && context.RequestServices.GetRequiredService<ICurrentHousehold>().HouseholdId is null;
 }

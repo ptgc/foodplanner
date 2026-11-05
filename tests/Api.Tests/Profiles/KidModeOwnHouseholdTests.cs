@@ -57,10 +57,8 @@ public sealed partial class KidModeTests
             using var asStranger = await CallAsync(stranger.Client, endpoint, method, url);
             Assert.True(asStranger.StatusCode == HttpStatusCode.Forbidden, $"{method} {endpoint.RoutePattern.RawText} non-member -> {(int)asStranger.StatusCode}");
             Assert.True(asKid.StatusCode == asStranger.StatusCode, $"{method} {endpoint.RoutePattern.RawText} kid -> {(int)asKid.StatusCode}");
-            // FullSession endpoints answer "kid-mode" to every kid-mode caller whatever the household, so that reveals nothing.
-            var fullSession = endpoint.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Authorization.IAuthorizeData>()
-                .Any(a => a.Policy == Foodplanner.Api.Authorization.Policies.FullSession);
-            await asKid.AssertProblemAsync(HttpStatusCode.Forbidden, fullSession ? "kid-mode" : "forbidden");
+            // Even on a FullSession endpoint the answer for another household is the non-member one, not "kid-mode" (T-105).
+            await asKid.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
         }
 
         // A still works, at Child level.

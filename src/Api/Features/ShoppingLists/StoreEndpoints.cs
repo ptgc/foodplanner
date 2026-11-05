@@ -72,6 +72,7 @@ public static class StoreEndpoints
 
         chosen.MapPut("", ChooseStore)
             .WithName("ChooseStore")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ChosenStoreResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
