@@ -155,6 +155,7 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
             <IngredientPicker
               householdId={householdId}
               value={draft.ingredient}
+              suggestedProteinClass={line.suggestedProteinClass}
               onChange={(ingredient) => set({ ingredient })}
               id={fieldId(`${at}.ingredientId`)}
               invalid={`${at}.ingredientId` in errors}

@@ -17,6 +17,8 @@ type Props = {
   id: string;
   describedBy?: string;
   invalid?: boolean;
+  /** Import review (T-104): the class the importer guessed for a new own ingredient; preselected in the create form. */
+  suggestedProteinClass?: ProteinClass | null;
 };
 
 const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name, dimension: i.dimension });
@@ -25,7 +27,7 @@ const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name,
  * Picks an ingredient from the catalog (global and the household's own) by searching `?search=`, or creates the
  * household's own ingredient inline. Rule 5: a recipe line always points at an ingredient id, never at free text.
  */
-export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid }: Props) {
+export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid, suggestedProteinClass }: Props) {
   const { t, locale } = useI18n();
   const [term, setTerm] = useState("");
   const [found, setFound] = useState<{ term: string; items: Ingredient[] } | null>(null);
@@ -115,6 +117,7 @@ export function IngredientPicker({ householdId, value, onChange, id, describedBy
         <CreateIngredient
           householdId={householdId}
           initialName={trimmed}
+          suggestedProteinClass={suggestedProteinClass ?? null}
           onCancel={() => setCreating(false)}
           onCreated={(ingredient) => {
             setCreating(false);
@@ -129,11 +132,13 @@ export function IngredientPicker({ householdId, value, onChange, id, describedBy
 function CreateIngredient({
   householdId,
   initialName,
+  suggestedProteinClass,
   onCancel,
   onCreated,
 }: {
   householdId: string;
   initialName: string;
+  suggestedProteinClass: ProteinClass | null;
   onCancel: () => void;
   onCreated: (ingredient: Ingredient) => void;
 }) {
@@ -144,7 +149,7 @@ function CreateIngredient({
   const [name, setName] = useState(initialName);
   const [dimension, setDimension] = useState<Ingredient["dimension"]>("Mass");
   const [staple, setStaple] = useState(false);
-  const [proteinClass, setProteinClass] = useState<ProteinClass>("Unknown");
+  const [proteinClass, setProteinClass] = useState<ProteinClass>(suggestedProteinClass ?? "Unknown");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
