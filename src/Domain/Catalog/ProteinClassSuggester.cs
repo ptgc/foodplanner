@@ -12,16 +12,26 @@ namespace Foodplanner.Domain.Catalog;
 /// (kjøtt, pølse, kjøttdeig, karbonadedeig, pepperoni, salami) give <c>Meat</c>; fish beats seafood beats dairy/egg; poultry
 /// (kylling, kalkun) is <c>Chicken</c>. Plant versions win over the dairy word they contain ("peanøttsmør", "kokosmelk",
 /// "havremelk", "soyafløte", "coconut milk": <c>None</c>), and so does a "vegetar/vegansk" marker next to an animal word
-/// ("vegetarpølse": <c>None</c>). "Fiskesaus" is <c>Fish</c> and "eggnudler" <c>AnimalProduct</c> (they contain the animal
-/// product); "eggplante" is a vegetable. Stocks and broths ("kyllingbuljong") are <c>Unknown</c> (the seed treats stock
-/// cubes as plant, a named one may be meat), and so is a bare "deig" (pizzadeig is plant, kjøttdeig is meat).
+/// ("vegetarpølse": <c>None</c>). Flavourings and minor animal ingredients are <c>None</c> (T-108): the class is the main protein
+/// of the dish, not traces. A word is a flavouring when it is a stock, broth or bouillon (buljong, kraft, fond, stock, broth),
+/// a seasoning (any "-krydder", seasoning), a fish or seafood sauce or paste (fiskesaus, østerssaus, rekepasta, ansjospasta,
+/// fish sauce, shrimp paste), egg noodles (eggnudler, egg noodles) or a soy product (soyabiff); "rognebær" is a berry. The
+/// guard is per word, so "kyllingfilet i buljong" is still <c>Chicken</c>. A sauce named after real meat is NOT a flavouring
+/// ("kjøttsaus" is <c>Meat</c>, "kyllingsaus" <c>Chicken</c>), nor is a dairy sauce; "egg" and "eggeplomme" stay
+/// <c>AnimalProduct</c>, "eggplante" is a vegetable. A bare "deig" is <c>Unknown</c> (pizzadeig is plant, kjøttdeig is meat).
 /// </remarks>
 public static class ProteinClassSuggester
 {
     private static readonly string[] Markers = ["vegetar", "vegansk", "vegan", "veggie", "plantebasert", "plantbased"];
 
-    private static readonly string[] StockWords = ["buljong", "bouillon", "stock", "broth"];
+    private static readonly string[] StockPrefixes = ["buljong", "bouillon"];
+    private static readonly string[] StockExact = ["stock", "broth", "stocks", "broths", "kraft", "fond"];
     private static readonly string[] StockSuffixes = ["kraft", "fond", "buljong"];
+    private static readonly string[] SeasoningWords = ["seasoning", "seasonings"];
+
+    // Fish and seafood heads of a condiment: "fiskesaus", "østerssaus", "rekepasta", "ansjospasta", "fish sauce", "shrimp paste".
+    private static readonly string[] CondimentHeads = ["fisk", "østers", "reke", "ansjos", "anchov", "fish", "oyster", "shrimp", "prawn", "anchovy"];
+    private static readonly string[] PasteHeads = ["reke", "ansjos", "anchov", "shrimp", "prawn", "anchovy", "fish", "østers", "oyster"];
 
     private static readonly string[] PlantDairyPrefixes =
         ["kokos", "havre", "soya", "mandel", "nøtte", "peanøtt", "cashew", "sesam", "solsikke", "hasselnøtt", "erte", "plante", "vegetabilsk"];
@@ -78,6 +88,9 @@ public static class ProteinClassSuggester
     // "Eggplante" starts with "egg" but is an aubergine.
     private static readonly HashSet<string> NotAnimal = new(StringComparer.Ordinal) { "eggplante", "eggeplante", "eggplant", "butternut" };
 
+    // "Rognebær" (rowanberry) starts with "rogn" (roe).
+    private static readonly string[] NotAnimalPrefixes = ["rognebær"];
+
     private static readonly Rule Plant = new(
         ProteinClass.None,
         Exact: ["ris", "mel", "salt", "sukker", "pepper", "olje", "løk", "eddik", "vann", "tofu", "pasta", "brød", "nudler", "rice", "flour", "sugar", "oil", "onion", "garlic", "tomato", "tomatoes", "water", "vinegar", "carrot", "carrots", "potato", "potatoes", "bread", "noodles", "lime", "lemon", "rismelk", "risdrikk"],
@@ -106,7 +119,6 @@ public static class ProteinClassSuggester
         }
 
         var marker = words.Any(w => Markers.Any(m => w.StartsWith(m, StringComparison.Ordinal)));
-        var stock = words.Any(w => StockWords.Any(s => w.StartsWith(s, StringComparison.Ordinal)) || StockSuffixes.Any(s => w == s || IsCompound(w, s, 2)));
 
         var specifics = new HashSet<ProteinClass>();
         var generic = false;
@@ -114,11 +126,29 @@ public static class ProteinClassSuggester
         var seafood = false;
         var dairy = false;
         var plant = false;
+        var skipped = new HashSet<int>();
 
         for (var i = 0; i < words.Count; i++)
         {
             var word = words[i];
-            if (NotAnimal.Contains(word) || IsBread(word) || IsPlantDairy(word) || (i > 0 && PlantQualifiers.Contains(words[i - 1]) && DairyEnglish.Contains(word)))
+            if (skipped.Contains(i))
+            {
+                plant = true;
+                continue;
+            }
+
+            if (IsFlavouring(words, i, out var skipNext))
+            {
+                plant = true;
+                if (skipNext)
+                {
+                    skipped.Add(i + 1);
+                }
+
+                continue;
+            }
+
+            if (NotAnimal.Contains(word) || NotAnimalPrefixes.Any(p => word.StartsWith(p, StringComparison.Ordinal)) || IsBread(word) || IsPlantDairy(word) || (i > 0 && PlantQualifiers.Contains(words[i - 1]) && DairyEnglish.Contains(word)))
             {
                 plant = true;
                 continue;
@@ -143,11 +173,6 @@ public static class ProteinClassSuggester
         if (animal && marker)
         {
             return ProteinClass.None;
-        }
-
-        if (stock)
-        {
-            return ProteinClass.Unknown;
         }
 
         if (specifics.Count == 1)
@@ -182,6 +207,67 @@ public static class ProteinClassSuggester
         }
 
         return plant ? ProteinClass.None : ProteinClass.Unknown;
+    }
+
+    /// <summary>
+    /// A flavouring or minor animal ingredient (T-108): stock, seasoning, fish or seafood sauce or paste, egg noodles, soy products.
+    /// <paramref name="skipNext"/> is set when the following word belongs to it ("fish" before "sauce", "egg" before "noodles").
+    /// </summary>
+    private static bool IsFlavouring(List<string> words, int i, out bool skipNext)
+    {
+        skipNext = false;
+        var w = words[i];
+        var next = i + 1 < words.Count ? words[i + 1] : null;
+
+        if (StockPrefixes.Any(p => w.StartsWith(p, StringComparison.Ordinal)) || StockExact.Contains(w) || StockSuffixes.Any(s => IsCompound(w, s, 2)))
+        {
+            return true;
+        }
+
+        if (SeasoningWords.Contains(w) || IsCompound(w, "krydder", 0))
+        {
+            return true;
+        }
+
+        // A sauce made from real meat is not a flavouring ("kjøttsaus"); only fish and seafood condiments are.
+        if (IsCompound(w, "saus", 3) && CondimentHeads.Any(h => w.StartsWith(h, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        if (IsCompound(w, "pasta", 3) && PasteHeads.Any(h => w.StartsWith(h, StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        if (w.StartsWith("soya", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (w.StartsWith("egg", StringComparison.Ordinal) && (w.EndsWith("nudler", StringComparison.Ordinal) || w.EndsWith("nudel", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        // "chicken stock", "beef broth", "fish bouillon", "chicken seasoning": the animal word only names the flavour.
+        if (next is "stock" or "broth" or "bouillon" or "seasoning" or "seasonings")
+        {
+            return true;
+        }
+
+        // English two-word forms: the head is the NEXT word, so the animal word in front is skipped with it.
+        if (next is "sauce" or "paste" or "noodles" or "noodle")
+        {
+            string[] heads = next == "sauce" ? CondimentHeads : next == "paste" ? PasteHeads : ["egg"];
+            if (heads.Contains(w))
+            {
+                skipNext = true;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Bread, buns, bases and biscuits are plant even when named after a filling ("pølsebrød", "hamburgerbrød", "pizzabunn", "lomper").</summary>
