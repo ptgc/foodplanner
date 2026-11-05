@@ -16,7 +16,7 @@ export const problem = (status: number, code: string, extra: Record<string, unkn
   json({ status, title: "x", type: `urn:foodplanner:problem:${code}`, ...extra }, status);
 
 export const adultUser = { userId: "11111111-1111-1111-1111-111111111111", email: "anne.berit@example.test" };
-export const barnevennlig: Tag = { id: "tag-kid", name: "Barnevennlig", kind: "Tag", isGlobal: true };
+export const barnevennlig: Tag = { id: "tag-kid", name: "Barnevennlig", kind: "Tag", isGlobal: true, key: "barnevennlig" };
 
 export const recipe = (id: string, title: string, tags: Tag[] = [], liked = false): Summary => ({
   id,

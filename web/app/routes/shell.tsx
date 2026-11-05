@@ -1,13 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { loginPathFor } from "../auth-paths";
 import { APP_NAME, useI18n } from "../i18n";
 import { LanguageSwitch } from "../i18n/language-switch";
+import { lazyWithMessages } from "../i18n/lazy";
 import { useSession } from "../session";
 
 // Kid mode and the profile picker are rarely used on a grown-up session: their own chunks keep the first load small.
-const KidApp = lazy(() => import("../kid/kid-app"));
-const ProfilePicker = lazy(() => import("../kid/profile-picker").then((m) => ({ default: m.ProfilePicker })));
+const KidApp = lazyWithMessages("kid", () => import("../kid/kid-app"));
+const ProfilePicker = lazyWithMessages("kid", () => import("../kid/profile-picker").then((m) => ({ default: m.ProfilePicker })));
 
 export default function Shell() {
   const { t } = useI18n();

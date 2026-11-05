@@ -45,18 +45,19 @@ describe("lockout helpers", () => {
 });
 
 describe("kid feed order (Q-020)", () => {
-  const tag = (name: string, isGlobal = true) => ({ id: name, name, kind: "Tag" as const, isGlobal });
+  const tag = (name: string, isGlobal = true, key: string | null = null) => ({ id: name, name, kind: "Tag" as const, isGlobal, key });
   const r = (id: string, ...tags: ReturnType<typeof tag>[]) => ({ id, tags });
 
-  it("recognises the global Barnevennlig tag in both catalog languages, not a household tag of that name", () => {
-    expect(isKidFriendly(r("a", tag("Barnevennlig")))).toBe(true);
-    expect(isKidFriendly(r("a", tag("Kid friendly")))).toBe(true);
-    expect(isKidFriendly(r("a", tag("Barnevennlig", false)))).toBe(false);
-    expect(isKidFriendly(r("a", tag("Rask")))).toBe(false);
+  it("recognises the global Barnevennlig tag by its key, whatever language its name is in, not a household tag of that name", () => {
+    expect(isKidFriendly(r("a", tag("Barnevennlig", true, "barnevennlig")))).toBe(true);
+    expect(isKidFriendly(r("a", tag("Kid friendly", true, "barnevennlig")))).toBe(true);
+    expect(isKidFriendly(r("a", tag("Kid friendly")))).toBe(false); // no key: the name alone proves nothing
+    expect(isKidFriendly(r("a", tag("Barnevennlig", false)))).toBe(false); // a household's own tag has no key
+    expect(isKidFriendly(r("a", tag("Rask", true, "rask")))).toBe(false);
   });
 
   it("puts Barnevennlig dishes first and keeps the server's order inside each group", () => {
-    const items = [r("1"), r("2", tag("Barnevennlig")), r("3"), r("4", tag("Kid friendly"))];
+    const items = [r("1"), r("2", tag("Barnevennlig", true, "barnevennlig")), r("3"), r("4", tag("Kid friendly", true, "barnevennlig"))];
     expect(kidFriendlyFirst(items).map((x) => x.id)).toEqual(["2", "4", "1", "3"]);
   });
 });

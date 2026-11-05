@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "./kid.css";
 import { NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { useI18n } from "../i18n";
 import { useSession } from "../session";

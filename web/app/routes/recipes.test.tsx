@@ -17,7 +17,7 @@ type Recipe = components["schemas"]["RecipeResponse"];
 const user = { userId: "11111111-1111-1111-1111-111111111111", email: "admin@example.test" };
 const home = { id: "h1", name: "Home", role: "Owner" };
 
-const tag = (id: string, name: string, kind: Tag["kind"] = "Tag"): Tag => ({ id, name, kind, isGlobal: true });
+const tag = (id: string, name: string, kind: Tag["kind"] = "Tag"): Tag => ({ id, name, kind, isGlobal: true, key: null });
 const dinner = tag("dinner", "Middag", "Category");
 const dessert = tag("dessert", "Dessert", "Category");
 const veg = tag("veg", "Pasta");

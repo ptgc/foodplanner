@@ -32,7 +32,7 @@ public static class PinEndpoints
             .RequireRateLimiting(RateLimitPolicies.PinUnlock)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .Produces<PinIncorrectProblem>(StatusCodes.Status403Forbidden, "application/problem+json")
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         auth.MapPost("/pin/unlock", Unlock)
@@ -40,7 +40,7 @@ public static class PinEndpoints
             .RequireRateLimiting(RateLimitPolicies.PinUnlock)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .Produces<PinIncorrectProblem>(StatusCodes.Status403Forbidden, "application/problem+json")
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 

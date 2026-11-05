@@ -78,6 +78,18 @@ public static partial class OpenApiSetup
                         ["application/problem+json"] = new() { Schema = new OpenApiSchemaReference(ProblemDetailsName) },
                     },
                 });
+                // Every 429 (rate limiter, pin-locked) carries Retry-After in delta seconds (T-106).
+                if (operation.Responses.TryGetValue("429", out var tooMany) && tooMany is OpenApiResponse tooManyResponse)
+                {
+                    tooManyResponse.Headers ??= new Dictionary<string, IOpenApiHeader>();
+                    tooManyResponse.Headers.TryAdd("Retry-After", new OpenApiHeader
+                    {
+                        Description = "Seconds to wait before trying again.",
+                        Required = true,
+                        Schema = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                    });
+                }
+
                 return Task.CompletedTask;
             });
         });

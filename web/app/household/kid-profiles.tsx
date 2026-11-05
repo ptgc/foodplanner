@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from "react";
+import "../kid/kid.css";
 import { api } from "../api/client";
 import { useI18n, type MessageKey } from "../i18n";
 import { ProfileAvatar } from "../kid/avatar";

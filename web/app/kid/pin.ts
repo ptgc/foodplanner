@@ -30,9 +30,12 @@ export function clock(totalSeconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** The server's extension member `attemptsRemaining` (not part of the generated ProblemDetails type). */
-export function attemptsRemainingOf(body: unknown): number | null {
-  if (typeof body !== "object" || body === null) return null;
-  const value = (body as Record<string, unknown>).attemptsRemaining;
+/**
+ * The tries left, from the `attemptsRemaining` member of a `403 pin-incorrect` problem (typed in the generated client
+ * as PinIncorrectProblem). Takes any error body of the operation and narrows it, no cast; null if the server did not say.
+ */
+export function attemptsRemainingOf(error: object | undefined): number | null {
+  if (!error || !("attemptsRemaining" in error)) return null;
+  const value = error.attemptsRemaining;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
