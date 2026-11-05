@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-104 done; T-106 in progress; next T-095, T-107 (stretch, needs T-001 Phase B + Q-024), T-105, T-077, T-100; T-001 blocked on manual Phase B (see T-001.md); on hold: T-096; stretch: T-086, T-094
+## Current focus: T-104 done; T-106 in progress; next T-108 (architect correction to T-104), T-095, T-107 (stretch, needs T-001 Phase B + Q-024), T-105, T-077, T-100; T-001 blocked on manual Phase B (see T-001.md); on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -133,3 +133,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-105 | Kid-styled shopping list in kid mode (read only) | M1 | T-091 | implementer-backend, implementer-frontend | no |
 | T-106 | Smaller web bundle and cleaner API types after kid mode | L3 | T-091 | implementer-frontend | no |
 | T-107 | Oda prices and offers: suggest meals and things to buy (stretch) | M4 | T-001, T-053, T-089, T-090, T-093 | implementer-backend | yes |
+| T-108 | Flavourings and minor animal ingredients do not count as protein (fish sauce, egg noodles, stocks) | M1 | T-104 | implementer-backend | no |
