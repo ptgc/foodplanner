@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-001 (Oda via MCP spike) blocked on manual Phase B (see T-001.md); T-087, T-026 and T-089 done; T-102, T-090, T-103 and T-091 done; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-100, T-104, T-105, T-106 (planned), T-086, T-094 and T-107 (stretch)
+## Current focus: T-104 in progress; next T-106, T-095, T-107 (stretch, needs T-001 Phase B + Q-024), T-105, T-077, T-100; T-001 blocked on manual Phase B (see T-001.md); on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
