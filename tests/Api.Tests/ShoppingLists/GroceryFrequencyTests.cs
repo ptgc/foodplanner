@@ -332,6 +332,34 @@ public sealed class GroceryFrequencyTests(AuthDatabase db) : IClassFixture<AuthD
     }
 
     [Fact]
+    public async Task A_not_due_item_added_anyway_can_be_removed_and_an_amount_edited_since_is_not_pushed_onto_the_list()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var gram = UnitSeed.All.Single(u => u.Code == "g").Id;
+        using var created = await owner.Client.PostAsync(
+            Url(household), new { ingredientId = Cheese, quantity = 200m, unitId = gram, frequency = "Monthly" });
+        var cheese = await created.JsonAsync();
+
+        var added = await AddAnywayAsync(owner.Client, household, NextWeek, cheese);
+        Assert.Equal(["Ost"], Names(added));
+
+        // The amount changes on the household page afterwards; the not-due part on the list is left alone, never doubled.
+        await PutAsync(owner.Client, household, cheese, new { quantity = 500m, unitId = gram });
+        var pressed = await PressAsync(owner.Client, household, NextWeek);
+        Assert.Equal(added.GetRawText(), pressed.GetRawText());
+
+        // Removing it removes the weekly part for good: regeneration does not bring it back while it is not due.
+        var itemId = pressed.GetProperty("main")[0].GetProperty("id").GetGuid();
+        using var remove = await owner.Client.DeleteAsync(ListUrl(household, NextWeek, $"/items/{itemId}"));
+        Assert.Equal(HttpStatusCode.NoContent, remove.StatusCode);
+        Assert.Empty(Names(await PressAsync(owner.Client, household, NextWeek)));
+        using var regenerate = await owner.Client.PostAsync(ListUrl(household, NextWeek, "/generate"));
+        Assert.Empty(Names(await regenerate.JsonAsync()));
+    }
+
+    [Fact]
     public async Task A_404_on_add_anyway_creates_no_list()
     {
         await using var host = Host();
