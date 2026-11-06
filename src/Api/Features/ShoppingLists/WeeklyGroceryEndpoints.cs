@@ -10,15 +10,40 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.ShoppingLists;
 
-/// <summary>Add or change a weekly grocery. <c>Quantity</c> and <c>UnitId</c> go together, or neither (no amount).</summary>
-public sealed record WeeklyGroceryRequest(Guid? IngredientId, decimal? Quantity, Guid? UnitId);
+/// <summary>
+/// Add a weekly (regular) grocery. <c>Quantity</c> and <c>UnitId</c> go together, or neither (no amount). T-109: <c>Frequency</c>
+/// is <c>Weekly</c> (default), <c>EveryTwoWeeks</c> or <c>Monthly</c>; <c>NextDue</c> (<c>ThisWeek</c> default, or <c>NextWeek</c>)
+/// says which week an <c>EveryTwoWeeks</c> grocery starts in, and is rejected for the other frequencies.
+/// </summary>
+public sealed record WeeklyGroceryRequest(
+    Guid? IngredientId, decimal? Quantity, Guid? UnitId, string? Frequency = null, string? NextDue = null);
 
-/// <summary>Change the amount of a weekly grocery (the ingredient stays).</summary>
-public sealed record UpdateWeeklyGroceryRequest(decimal? Quantity, Guid? UnitId);
+/// <summary>
+/// Change a weekly grocery (the ingredient stays). T-109: <c>Frequency</c> null keeps it; a DIFFERENT frequency resets the anchor
+/// (every second week then starts in <c>NextDue</c>, <c>ThisWeek</c> by default); the same frequency keeps the anchor unless
+/// <c>NextDue</c> moves an every-second-week grocery to this week or next week.
+/// </summary>
+public sealed record UpdateWeeklyGroceryRequest(decimal? Quantity, Guid? UnitId, string? Frequency = null, string? NextDue = null);
 
-/// <summary><c>Name</c> is the ingredient's name in the request language; <c>Section</c> its store section (T-085).</summary>
+/// <summary>
+/// <c>Name</c> is the ingredient's name in the request language; <c>Section</c> its store section (T-085). T-109: <c>Frequency</c>;
+/// <c>StartWeek</c> is the anchor Monday of an every-second-week grocery (null otherwise); <c>NextDueWeek</c> is the first due
+/// Monday from the current week (Europe/Oslo) on; <c>DueInWeek</c> is whether it is due in the <c>week</c> asked for (the current
+/// week when the query is absent).
+/// </summary>
 public sealed record WeeklyGroceryResponse(
-    Guid Id, Guid IngredientId, string Name, StoreSection Section, decimal? Quantity, Guid? UnitId, string? UnitCode, string? UnitName);
+    Guid Id,
+    Guid IngredientId,
+    string Name,
+    StoreSection Section,
+    decimal? Quantity,
+    Guid? UnitId,
+    string? UnitCode,
+    string? UnitName,
+    GroceryFrequency Frequency,
+    DateOnly? StartWeek,
+    DateOnly NextDueWeek,
+    bool DueInWeek);
 
 /// <summary>
 /// The household's weekly groceries (T-092). Any member reads (the shopping page needs to know whether the set is empty);
@@ -34,6 +59,7 @@ public static class WeeklyGroceryEndpoints
         weekly.MapGet("", ListWeeklyGroceries)
             .WithName("ListWeeklyGroceries")
             .Produces<WeeklyGroceryResponse[]>()
+            .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         weekly.MapPost("", AddWeeklyGrocery)
@@ -62,16 +88,32 @@ public static class WeeklyGroceryEndpoints
         return api;
     }
 
-    private static async Task<IResult> ListWeeklyGroceries(RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> ListWeeklyGroceries(
+        string? week, RequestLocale locale, TimeProvider time, AppDbContext db, CancellationToken cancellationToken)
     {
+        var current = GroceryCalendar.CurrentWeek(time);
+        var reference = current;
+        if (week is not null)
+        {
+            if (!ShoppingListEndpoints.IsWeekStart(week, out reference))
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["week"] = ["The week must be the Monday of an ISO week, as yyyy-MM-dd."],
+                });
+            }
+        }
+
         var rows = await db.WeeklyGroceries.AsNoTracking().ToListAsync(cancellationToken);
-        return Results.Ok(await ToResponsesAsync(db, rows, locale.Code, cancellationToken));
+        return Results.Ok(await ToResponsesAsync(db, rows, locale.Code, current, reference, cancellationToken));
     }
 
     private static async Task<IResult> AddWeeklyGrocery(
-        WeeklyGroceryRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        WeeklyGroceryRequest? request, RequestLocale locale, TimeProvider time, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        GroceryFrequency? frequency = null;
+        NextDueChoice? nextDue = null;
         if (request is null)
         {
             errors["body"] = ["A request body is required."];
@@ -84,6 +126,11 @@ public static class WeeklyGroceryEndpoints
             }
 
             ValidateQuantity(request.Quantity, request.UnitId, errors);
+            ParseSchedule(request.Frequency, request.NextDue, errors, out frequency, out nextDue);
+            if (nextDue is not null && (frequency ?? GroceryFrequency.Weekly) != GroceryFrequency.EveryTwoWeeks)
+            {
+                errors["nextDue"] = ["The next due week can only be set for every second week."];
+            }
         }
 
         if (errors.Count > 0)
@@ -118,7 +165,11 @@ public static class WeeklyGroceryEndpoints
                 $"A household can have at most {WeeklyGrocery.MaxPerHousehold} weekly groceries.");
         }
 
-        var grocery = new WeeklyGrocery(ingredientId, request.Quantity, request.UnitId);
+        var currentWeek = GroceryCalendar.CurrentWeek(time);
+        var chosen = frequency ?? GroceryFrequency.Weekly;
+        var grocery = new WeeklyGrocery(
+            ingredientId, request.Quantity, request.UnitId, chosen,
+            chosen == GroceryFrequency.EveryTwoWeeks ? AnchorFor(nextDue, currentWeek) : null);
         db.WeeklyGroceries.Add(grocery);
         try
         {
@@ -131,14 +182,17 @@ public static class WeeklyGroceryEndpoints
             return Exists();
         }
 
-        var response = (await ToResponsesAsync(db, [grocery], locale.Code, cancellationToken)).Single();
+        var response = (await ToResponsesAsync(db, [grocery], locale.Code, currentWeek, currentWeek, cancellationToken)).Single();
         return Results.Created($"/api/households/{grocery.HouseholdId}/weekly-groceries", response);
     }
 
     private static async Task<IResult> UpdateWeeklyGrocery(
-        Guid id, UpdateWeeklyGroceryRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        Guid id, UpdateWeeklyGroceryRequest? request, RequestLocale locale, TimeProvider time, AppDbContext db,
+        CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
+        GroceryFrequency? frequency = null;
+        NextDueChoice? nextDue = null;
         if (request is null)
         {
             errors["body"] = ["A request body is required."];
@@ -146,6 +200,7 @@ public static class WeeklyGroceryEndpoints
         else
         {
             ValidateQuantity(request.Quantity, request.UnitId, errors);
+            ParseSchedule(request.Frequency, request.NextDue, errors, out frequency, out nextDue);
         }
 
         if (errors.Count > 0)
@@ -164,7 +219,27 @@ public static class WeeklyGroceryEndpoints
             return NotFound();
         }
 
+        var currentWeek = GroceryCalendar.CurrentWeek(time);
+        var target = frequency ?? grocery.Frequency;
+        if (nextDue is not null && target != GroceryFrequency.EveryTwoWeeks)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["nextDue"] = ["The next due week can only be set for every second week."],
+            });
+        }
+
         grocery.SetQuantity(request.Quantity, request.UnitId);
+        if (target != grocery.Frequency)
+        {
+            // A new frequency resets the anchor (Q-030): every second week starts this week unless told otherwise.
+            grocery.SetSchedule(target, target == GroceryFrequency.EveryTwoWeeks ? AnchorFor(nextDue, currentWeek) : null);
+        }
+        else if (nextDue is not null)
+        {
+            grocery.SetSchedule(target, AnchorFor(nextDue, currentWeek)); // moved to this week or next week
+        }
+
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -179,7 +254,7 @@ public static class WeeklyGroceryEndpoints
                 "The unit or ingredient of this weekly grocery was removed while saving. Reload and try again.");
         }
 
-        return Results.Ok((await ToResponsesAsync(db, [grocery], locale.Code, cancellationToken)).Single());
+        return Results.Ok((await ToResponsesAsync(db, [grocery], locale.Code, currentWeek, currentWeek, cancellationToken)).Single());
     }
 
     /// <summary>Idempotent: a grocery that is gone is already removed. Lists that already hold it keep their items.</summary>
@@ -215,12 +290,56 @@ public static class WeeklyGroceryEndpoints
         }
     }
 
+    /// <summary>Which week an every-second-week grocery starts in.</summary>
+    private enum NextDueChoice
+    {
+        ThisWeek,
+        NextWeek,
+    }
+
+    private static DateOnly AnchorFor(NextDueChoice? choice, DateOnly currentWeek) =>
+        choice == NextDueChoice.NextWeek ? currentWeek.AddDays(7) : currentWeek;
+
+    /// <summary>Names only (case-insensitive); numbers and unknown names are a 400 on the field.</summary>
+    private static void ParseSchedule(
+        string? frequency, string? nextDue, Dictionary<string, string[]> errors, out GroceryFrequency? parsedFrequency, out NextDueChoice? parsedNextDue)
+    {
+        parsedFrequency = null;
+        parsedNextDue = null;
+        if (frequency is not null)
+        {
+            if (Enum.GetValues<GroceryFrequency>().Select(v => (GroceryFrequency?)v)
+                    .FirstOrDefault(v => string.Equals(v.ToString(), frequency, StringComparison.OrdinalIgnoreCase)) is { } f)
+            {
+                parsedFrequency = f;
+            }
+            else
+            {
+                errors["frequency"] = [$"The frequency must be one of {string.Join(", ", Enum.GetNames<GroceryFrequency>())}."];
+            }
+        }
+
+        if (nextDue is not null)
+        {
+            if (Enum.GetValues<NextDueChoice>().Select(v => (NextDueChoice?)v)
+                    .FirstOrDefault(v => string.Equals(v.ToString(), nextDue, StringComparison.OrdinalIgnoreCase)) is { } n)
+            {
+                parsedNextDue = n;
+            }
+            else
+            {
+                errors["nextDue"] = ["The next due week must be ThisWeek or NextWeek."];
+            }
+        }
+    }
+
     private static async Task<bool> UnitMissingAsync(AppDbContext db, Guid? unitId, CancellationToken cancellationToken) =>
         unitId is { } id && !await db.Units.AnyAsync(u => u.Id == id, cancellationToken);
 
     /// <summary>By store section (walking order), then name in the request language, then id.</summary>
     private static async Task<WeeklyGroceryResponse[]> ToResponsesAsync(
-        AppDbContext db, IReadOnlyList<WeeklyGrocery> rows, string locale, CancellationToken cancellationToken)
+        AppDbContext db, IReadOnlyList<WeeklyGrocery> rows, string locale, DateOnly currentWeek, DateOnly referenceWeek,
+        CancellationToken cancellationToken)
     {
         var ingredientIds = rows.Select(r => r.IngredientId).Distinct().ToList();
         var names = await db.Ingredients.AsNoTracking().Where(i => ingredientIds.Contains(i.Id))
@@ -238,7 +357,11 @@ public static class WeeklyGroceryEndpoints
             r.Amount,
             r.UnitId,
             r.UnitId is { } u ? units.GetValueOrDefault(u).Code : null,
-            r.UnitId is { } n ? units.GetValueOrDefault(n).Name : null)).ToList();
+            r.UnitId is { } n ? units.GetValueOrDefault(n).Name : null,
+            r.Frequency,
+            r.StartWeek,
+            r.NextDueFrom(currentWeek),
+            r.IsDueIn(referenceWeek))).ToList();
         return [.. StoreSectionOrder.Sort(responses, r => r.Section, r => r.Name, ListComparer(locale), r => r.Id)];
     }
 

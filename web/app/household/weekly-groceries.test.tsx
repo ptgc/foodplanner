@@ -14,8 +14,8 @@ const json = (body: unknown, status = 200) =>
     headers: { "content-type": status >= 400 ? "application/problem+json" : "application/json" },
   });
 
-const milk: Weekly = { id: "w1", ingredientId: "i-milk", name: "Melk", section: "Dairy", quantity: 1.5, unitId: "u-l", unitCode: "l", unitName: "liter" };
-const bread: Weekly = { id: "w2", ingredientId: "i-bread", name: "Brød", section: "DryGoods", quantity: null, unitId: null, unitCode: null, unitName: null };
+const milk: Weekly = { id: "w1", ingredientId: "i-milk", name: "Melk", section: "Dairy", quantity: 1.5, unitId: "u-l", unitCode: "l", unitName: "liter", frequency: "Weekly", startWeek: null, nextDueWeek: "2026-11-02", dueInWeek: true };
+const bread: Weekly = { id: "w2", ingredientId: "i-bread", name: "Brød", section: "DryGoods", quantity: null, unitId: null, unitCode: null, unitName: null, frequency: "Weekly", startWeek: null, nextDueWeek: "2026-11-02", dueInWeek: true };
 const units = [
   { id: "u-l", code: "l", name: "Liter", dimension: "Volume", factorToBase: 1000 },
   { id: "u-g", code: "g", name: "Gram", dimension: "Mass", factorToBase: 1 },
@@ -53,8 +53,8 @@ beforeEach(() => {
           return json(created, 201);
         }
         if (method === "PUT") {
-          const b = body as { quantity: number | null; unitId: string | null };
-          items = items.map((i) => (i.id === id ? { ...i, quantity: b.quantity, unitId: b.unitId, unitCode: b.unitId ? "g" : null } : i));
+          const b = body as { quantity: number | null; unitId: string | null; frequency?: Weekly["frequency"]; nextDue?: string };
+          items = items.map((i) => (i.id === id ? { ...i, quantity: b.quantity, unitId: b.unitId, unitCode: b.unitId ? "g" : null, frequency: b.frequency ?? i.frequency, nextDueWeek: b.nextDue === "NextWeek" ? "2026-11-16" : i.nextDueWeek } : i));
           return json(items.find((i) => i.id === id));
         }
         items = items.filter((i) => i.id !== id);
@@ -146,8 +146,65 @@ describe("weekly groceries on the household page", () => {
 
     await waitFor(() => expect(screen.getAllByTestId("weekly-row")).toHaveLength(3));
     expect(calls).toEqual([
-      { method: "POST", path: "/api/households/h1/weekly-groceries", body: { ingredientId: "i-ost", quantity: null, unitId: null } },
+      { method: "POST", path: "/api/households/h1/weekly-groceries", body: { ingredientId: "i-ost", quantity: null, unitId: null, frequency: "Weekly" } },
     ]);
+  });
+
+  it("adds with the chosen frequency", async () => {
+    render(<WeeklyGroceries householdId="h1" canEdit />);
+    await screen.findAllByTestId("weekly-row");
+
+    await userEvent.type(screen.getByLabelText(t("recipe.ingredientSearch")), "ost");
+    await userEvent.click(await screen.findByRole("button", { name: /Ost/ }));
+    await userEvent.selectOptions(screen.getByLabelText(t("household.weekly.frequency")), "EveryTwoWeeks");
+    await userEvent.click(screen.getByRole("button", { name: t("household.weekly.add") }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]!.body).toEqual({ ingredientId: "i-ost", quantity: null, unitId: null, frequency: "EveryTwoWeeks" });
+  });
+
+  it("changes the frequency of an item and keeps its amount", async () => {
+    render(<WeeklyGroceries householdId="h1" canEdit />);
+    await screen.findAllByTestId("weekly-row");
+
+    await userEvent.selectOptions(screen.getByLabelText(t("household.weekly.frequencyFor", { name: "Melk" })), "Monthly");
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]).toEqual({
+      method: "PUT",
+      path: "/api/households/h1/weekly-groceries/w1",
+      body: { quantity: 1.5, unitId: "u-l", frequency: "Monthly" },
+    });
+    await waitFor(() => expect(rows()[0]).toHaveTextContent(t("household.weekly.freq.Monthly")));
+  });
+
+  it("shows the next due week for every second week, and moves it to this week or next week", async () => {
+    items = [{ ...milk, frequency: "EveryTwoWeeks", startWeek: "2026-11-09", nextDueWeek: "2026-11-09" }, bread];
+    render(<WeeklyGroceries householdId="h1" canEdit />);
+    await screen.findAllByTestId("weekly-row");
+
+    expect(within(rows()[0]!).getByTestId("weekly-schedule")).toHaveTextContent(t("household.weekly.next", { week: "46" }));
+    expect(within(rows()[1]!).queryByRole("button", { name: /Move|Flytt/ })).not.toBeInTheDocument(); // weekly: nothing to move
+
+    await userEvent.click(screen.getByRole("button", { name: t("household.weekly.moveNextFor", { name: "Melk" }) }));
+
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0]!.body).toEqual({ quantity: 1.5, unitId: "u-l", frequency: "EveryTwoWeeks", nextDue: "NextWeek" });
+    await waitFor(() => expect(rows()[0]).toHaveTextContent(t("household.weekly.next", { week: "47" })));
+
+    await userEvent.click(screen.getByRole("button", { name: t("household.weekly.moveThisFor", { name: "Melk" }) }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1]!.body).toMatchObject({ frequency: "EveryTwoWeeks", nextDue: "ThisWeek" });
+  });
+
+  it("a child reads the schedule but cannot change it", async () => {
+    items = [{ ...milk, frequency: "EveryTwoWeeks", startWeek: "2026-11-09", nextDueWeek: "2026-11-09" }, bread];
+    render(<WeeklyGroceries householdId="h1" canEdit={false} />);
+    await screen.findAllByTestId("weekly-row");
+
+    expect(within(rows()[0]!).getByTestId("weekly-schedule")).toHaveTextContent(t("household.weekly.next", { week: "46" }));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: t("household.weekly.moveNextFor", { name: "Melk" }) })).not.toBeInTheDocument();
   });
 
   it("shows the translated message when the ingredient is already a weekly grocery", async () => {

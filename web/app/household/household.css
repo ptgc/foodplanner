@@ -121,6 +121,13 @@
   background: #fff;
 }
 
+/* Regular groceries (T-109): the frequency select sits with the row's buttons and is as tall as they are. */
+.household-freq {
+  min-height: var(--touch);
+  font: inherit;
+  padding: 0 0.5rem;
+}
+
 .household-inline {
   display: flex;
   flex-wrap: wrap;

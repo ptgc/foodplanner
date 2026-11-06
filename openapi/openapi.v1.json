@@ -4558,6 +4558,104 @@
         }
       }
     },
+    "/api/households/{householdId}/shopping-lists/{weekStart}/weekly/{groceryId}": {
+      "post": {
+        "tags": [
+          "ShoppingListEndpoints"
+        ],
+        "operationId": "AddWeeklyGroceryToShoppingList",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groceryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/shopping-lists/{weekStart}/items": {
       "post": {
         "tags": [
@@ -5193,6 +5291,13 @@
         "operationId": "ListWeeklyGroceries",
         "parameters": [
           {
+            "name": "week",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "householdId",
             "in": "path",
             "required": true,
@@ -5212,6 +5317,16 @@
                   "items": {
                     "$ref": "#/components/schemas/WeeklyGroceryResponse"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -6576,6 +6691,13 @@
           "MixedMeat",
           "Vegetarian",
           "Vegan"
+        ]
+      },
+      "GroceryFrequency": {
+        "enum": [
+          "Weekly",
+          "EveryTwoWeeks",
+          "Monthly"
         ]
       },
       "HealthResponse": {
@@ -9145,6 +9267,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "frequency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextDue": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9178,6 +9312,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "frequency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextDue": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9190,7 +9336,11 @@
           "quantity",
           "unitId",
           "unitCode",
-          "unitName"
+          "unitName",
+          "frequency",
+          "startWeek",
+          "nextDueWeek",
+          "dueInWeek"
         ],
         "type": "object",
         "properties": {
@@ -9235,6 +9385,23 @@
               "null",
               "string"
             ]
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/GroceryFrequency"
+          },
+          "startWeek": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextDueWeek": {
+            "type": "string",
+            "format": "date"
+          },
+          "dueInWeek": {
+            "type": "boolean"
           }
         }
       }

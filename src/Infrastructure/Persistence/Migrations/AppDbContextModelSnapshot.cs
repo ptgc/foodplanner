@@ -4155,12 +4155,22 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Weekly");
+
                     b.Property<Guid>("HouseholdId")
                         .IsConcurrencyToken()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("IngredientId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("StartWeek")
+                        .HasColumnType("date");
 
                     b.Property<Guid?>("UnitId")
                         .HasColumnType("uniqueidentifier");

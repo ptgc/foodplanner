@@ -19,10 +19,11 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
     private static string ListUrl(Guid household, string rest = "") => $"{H(household)}/shopping-lists/{Monday:yyyy-MM-dd}{rest}";
 
     /// <summary>Every shopping-list, chosen-store and pantry write, as (name, call). Item and ingredient ids are the ones given.</summary>
-    private static (string Name, Func<ApiClient, Task<HttpResponseMessage>> Call)[] Writes(Guid h, Guid item, Guid store) =>
+    private static (string Name, Func<ApiClient, Task<HttpResponseMessage>> Call)[] Writes(Guid h, Guid item, Guid store, Guid grocery) =>
     [
         ("generate", c => c.PostAsync(ListUrl(h, "/generate"))),
         ("weekly", c => c.PostAsync(ListUrl(h, "/weekly"))),
+        ("weekly add anyway", c => c.PostAsync(ListUrl(h, $"/weekly/{grocery}"))),
         ("add item", c => c.PostAsync(ListUrl(h, "/items"), new { label = "Extra", quantity = (decimal?)null, unitId = (Guid?)null })),
         ("check", c => c.PutAsync(ListUrl(h, $"/items/{item}/check"), new { @checked = true })),
         ("uncheck", c => c.PutAsync(ListUrl(h, $"/items/{item}/check"), new { @checked = false })),
@@ -33,7 +34,7 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
         ("pantry clear", c => c.DeleteAsync($"{H(h)}/pantry")),
     ];
 
-    private async Task<(KidScenario S, SignedInUser Child, Guid Item, Guid Store)> ArrangeAsync(AuthHost host)
+    private async Task<(KidScenario S, SignedInUser Child, Guid Item, Guid Store, Guid Grocery)> ArrangeAsync(AuthHost host)
     {
         var s = await host.NewScenarioAsync();
         var child = await host.JoinAsync(s.Owner, s.Household, "Child");
@@ -43,17 +44,20 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
         Assert.Equal(HttpStatusCode.Created, store.StatusCode);
         using var pantry = await s.Owner.Client.PutAsync($"{H(s.Household)}/pantry/{KidHost.Salt}", new { });
         Assert.Equal(HttpStatusCode.OK, pantry.StatusCode);
-        return (s, child, (await item.JsonAsync()).GetProperty("id").GetGuid(), (await store.JsonAsync()).GetProperty("id").GetGuid());
+        using var grocery = await s.Owner.Client.PostAsync($"{H(s.Household)}/weekly-groceries", new { ingredientId = KidHost.Salt });
+        Assert.Equal(HttpStatusCode.Created, grocery.StatusCode);
+        return (s, child, (await item.JsonAsync()).GetProperty("id").GetGuid(), (await store.JsonAsync()).GetProperty("id").GetGuid(),
+            (await grocery.JsonAsync()).GetProperty("id").GetGuid());
     }
 
     [Fact]
     public async Task Every_shopping_list_and_pantry_write_is_refused_in_kid_mode_and_changes_nothing()
     {
         await using var host = Host();
-        var (s, _, item, store) = await ArrangeAsync(host);
+        var (s, _, item, store, grocery) = await ArrangeAsync(host);
         await s.Owner.Client.EnterKidModeAsync(s.Household, s.Profile1);
 
-        foreach (var (name, call) in Writes(s.Household, item, store))
+        foreach (var (name, call) in Writes(s.Household, item, store, grocery))
         {
             using var response = await call(s.Owner.Client);
             Assert.True(response.StatusCode == HttpStatusCode.Forbidden, name);
@@ -75,7 +79,7 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
     public async Task Reads_stay_open_in_kid_mode()
     {
         await using var host = Host();
-        var (s, _, _, _) = await ArrangeAsync(host);
+        var (s, _, _, _, _) = await ArrangeAsync(host);
         await s.Owner.Client.EnterKidModeAsync(s.Household, s.Profile1);
 
         foreach (var url in new[] { ListUrl(s.Household), $"{H(s.Household)}/chosen-store", $"{H(s.Household)}/pantry", $"{H(s.Household)}/stores", $"{H(s.Household)}/weekly-groceries" })
@@ -89,12 +93,12 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
     public async Task A_child_member_outside_kid_mode_keeps_todays_rights()
     {
         await using var host = Host();
-        var (s, child, item, store) = await ArrangeAsync(host);
+        var (s, child, item, store, grocery) = await ArrangeAsync(host);
         var c = child.Client;
         var h = s.Household;
 
         // The same calls kid mode refuses. Clearing the pantry is Adult-only, so a Child gets the plain 403 (unchanged).
-        foreach (var (name, call) in Writes(h, item, store))
+        foreach (var (name, call) in Writes(h, item, store, grocery))
         {
             using var response = await call(c);
             if (name == "pantry clear")
@@ -137,7 +141,7 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
         Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
         await s.Owner.Client.EnterKidModeAsync(s.Household, s.Profile1);
 
-        foreach (var (name, call) in Writes(b, Guid.NewGuid(), Guid.NewGuid()))
+        foreach (var (name, call) in Writes(b, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid()))
         {
             using var response = await call(s.Owner.Client);
             Assert.True(response.StatusCode == HttpStatusCode.Forbidden, name);

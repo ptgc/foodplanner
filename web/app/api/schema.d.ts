@@ -724,6 +724,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/shopping-lists/{weekStart}/weekly/{groceryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AddWeeklyGroceryToShoppingList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/shopping-lists/{weekStart}/items": {
         parameters: {
             query?: never;
@@ -1025,6 +1041,8 @@ export interface components {
         };
         /** @enum {unknown} */
         FoodType: "Unknown" | "Fish" | "Seafood" | "Chicken" | "Beef" | "Pork" | "Lamb" | "MixedMeat" | "Vegetarian" | "Vegan";
+        /** @enum {unknown} */
+        GroceryFrequency: "Weekly" | "EveryTwoWeeks" | "Monthly";
         HealthResponse: {
             status: string;
         };
@@ -1606,6 +1624,8 @@ export interface components {
             quantity: null | number | string;
             /** Format: uuid */
             unitId: null | string;
+            frequency?: null | string;
+            nextDue?: null | string;
         };
         WeeklyGroceryRequest: {
             /** Format: uuid */
@@ -1614,6 +1634,8 @@ export interface components {
             quantity: null | number | string;
             /** Format: uuid */
             unitId: null | string;
+            frequency?: null | string;
+            nextDue?: null | string;
         };
         WeeklyGroceryResponse: {
             /** Format: uuid */
@@ -1628,6 +1650,12 @@ export interface components {
             unitId: null | string;
             unitCode: null | string;
             unitName: null | string;
+            frequency: components["schemas"]["GroceryFrequency"];
+            /** Format: date */
+            startWeek: null | string;
+            /** Format: date */
+            nextDueWeek: string;
+            dueInWeek: boolean;
         };
     };
     responses: never;
@@ -4988,6 +5016,75 @@ export interface operations {
             };
         };
     };
+    AddWeeklyGroceryToShoppingList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                weekStart: string;
+                groceryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AddManualShoppingItem: {
         parameters: {
             query?: never;
@@ -5427,7 +5524,9 @@ export interface operations {
     };
     ListWeeklyGroceries: {
         parameters: {
-            query?: never;
+            query?: {
+                week?: string;
+            };
             header?: never;
             path: {
                 householdId: string;
@@ -5443,6 +5542,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeeklyGroceryResponse"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Forbidden */
