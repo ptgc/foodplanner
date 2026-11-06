@@ -239,7 +239,8 @@ test("hand-added items in past weeks are suggested as regular groceries; Add acc
     await row.getByRole("button", { name: `Add ${accepted} as a regular grocery` }).click();
     await expect(row.getByLabel("Ingredient", { exact: true })).toHaveValue(accepted);
     await expect(row.getByLabel("How often")).toHaveValue("EveryTwoWeeks");
-    await row.getByRole("button", { name: accepted, exact: true }).click();
+    // The match button's name also holds the "Your own" badge, so not exact.
+    await row.getByRole("button", { name: accepted }).click();
     await expect(row.getByText(`Chosen: ${accepted}`)).toBeVisible();
     await row.getByRole("button", { name: "Add", exact: true }).click();
 
