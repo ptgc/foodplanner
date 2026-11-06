@@ -290,4 +290,31 @@ public sealed class GrocerySuggestionTests(AuthDatabase db) : IClassFixture<Auth
 
         Assert.Empty(await SuggestionsAsync(owner.Client, household));
     }
+
+    [Fact]
+    public async Task The_limit_of_500_dismissals_answers_409_and_expired_ones_are_cleaned_when_someone_dismisses()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        await using (var context = TestDbContext.Create(db.ConnectionString, household))
+        {
+            for (var i = 0; i < 500; i++)
+            {
+                context.DismissedGrocerySuggestions.Add(new Foodplanner.Domain.ShoppingLists.DismissedGrocerySuggestion($"label {i}", host.Time.Now));
+            }
+
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var over = await owner.Client.PostAsync(Url(household, "/suggestions/dismiss"), new { label = "en til" });
+        await over.AssertProblemAsync(HttpStatusCode.Conflict, "dismissed-suggestion-limit");
+        await DismissAsync(owner.Client, household, "label 7"); // an existing one is renewed, not refused
+
+        // Expire them all; the next new dismissal removes the expired rows in the same call and is accepted.
+        await BackdateDismissalsAsync(household, host.Time.Now.AddDays(-(7 * 12 + 1)));
+        await DismissAsync(owner.Client, household, "en til");
+        await using var after = TestDbContext.Create(db.ConnectionString, household);
+        Assert.Equal(1, after.DismissedGrocerySuggestions.Count());
+    }
 }
