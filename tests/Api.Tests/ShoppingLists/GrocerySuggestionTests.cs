@@ -219,6 +219,32 @@ public sealed class GrocerySuggestionTests(AuthDatabase db) : IClassFixture<Auth
     }
 
     [Fact]
+    public async Task Renewing_an_expired_dismissal_while_other_dismissals_clean_up_expired_rows_still_stores_it()
+    {
+        // The race itself (another request's cleanup deleting the expired row this one is renewing) cannot be forced from outside the
+        // endpoint, so this hammers it: an expired row for the key, and parallel dismissals whose cleanup would delete it.
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        for (var round = 0; round < 4; round++)
+        {
+            await DismissAsync(owner.Client, household, "Pålegg");
+            await BackdateDismissalsAsync(household, host.Time.Now.AddDays(-(7 * 13)));
+
+            var statuses = await Task.WhenAll(Enumerable.Range(0, 8).Select(async i =>
+            {
+                using var response = await owner.Client.PostAsync(Url(household, "/suggestions/dismiss"), new { label = i % 2 == 0 ? "Pålegg" : "Annet " + round + i });
+                return response.StatusCode;
+            }));
+
+            Assert.All(statuses, s => Assert.Equal(HttpStatusCode.NoContent, s));
+            await using var context = TestDbContext.Create(db.ConnectionString, household);
+            var stored = context.DismissedGrocerySuggestions.Single(d => d.Label == Foodplanner.Domain.ShoppingLists.GroceryLabel.Normalize("Pålegg"));
+            Assert.True(stored.DismissedAt > host.Time.Now.AddDays(-1), "the renewed dismissal must be stored with the new time");
+        }
+    }
+
+    [Fact]
     public async Task Only_owner_and_adult_may_read_and_dismiss_a_child_and_a_stranger_are_refused()
     {
         await using var host = Host();

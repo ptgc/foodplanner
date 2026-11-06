@@ -113,53 +113,60 @@ public static class GrocerySuggestionEndpoints
         var now = time.GetUtcNow();
         var cutoff = now.AddDays(-7 * SuggestionRules.Default.HiddenWeeks);
 
-        // Expired dismissals are of no use any more; removing them here keeps the table small without a background job.
-        var expired = await db.DismissedGrocerySuggestions.Where(d => d.DismissedAt <= cutoff && d.Label != key).ToListAsync(cancellationToken);
-        db.DismissedGrocerySuggestions.RemoveRange(expired);
-
-        var existing = await db.DismissedGrocerySuggestions.FirstOrDefaultAsync(d => d.Label == key, cancellationToken);
-        if (existing is not null)
+        // Up to 5 attempts, each from a fresh read. Only the two expected races are retried: another request stored the same label
+        // first (unique index; the next attempt finds and renews its row) and another request's cleanup deleted the expired row
+        // this one was renewing (the next attempt finds nothing and inserts). Any other failure (foreign key, transient SQL error)
+        // is not swallowed: it propagates as everywhere else in the API.
+        for (var attempt = 1; ; attempt++)
         {
-            existing.Renew(now);
-        }
-        else
-        {
-            if (await db.DismissedGrocerySuggestions.CountAsync(cancellationToken) - expired.Count >= DismissedGrocerySuggestion.MaxPerHousehold)
-            {
-                return AppProblems.Problem(
-                    StatusCodes.Status409Conflict,
-                    AppProblems.DismissedSuggestionLimit,
-                    "Too many dismissed suggestions",
-                    $"A household can keep at most {DismissedGrocerySuggestion.MaxPerHousehold} dismissed suggestions.");
-            }
-
-            db.DismissedGrocerySuggestions.Add(new DismissedGrocerySuggestion(key, now));
-        }
-
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // Two members dismissed the same label at once (unique index), or an expired row was removed by the other request:
-            // the label is hidden either way. Renew the winner's row when it is there; otherwise leave it.
             db.ChangeTracker.Clear();
-            var winner = await db.DismissedGrocerySuggestions.FirstOrDefaultAsync(d => d.Label == key, cancellationToken);
-            if (winner is not null)
+
+            // Expired dismissals are of no use any more; removing them (first attempt only) keeps the table small without a job.
+            var expired = attempt == 1
+                ? await db.DismissedGrocerySuggestions.Where(d => d.DismissedAt <= cutoff && d.Label != key).ToListAsync(cancellationToken)
+                : [];
+            db.DismissedGrocerySuggestions.RemoveRange(expired);
+
+            var existing = await db.DismissedGrocerySuggestions.FirstOrDefaultAsync(d => d.Label == key, cancellationToken);
+            if (existing is not null)
             {
-                winner.Renew(now);
-                try
+                existing.Renew(now);
+            }
+            else
+            {
+                if (await db.DismissedGrocerySuggestions.CountAsync(cancellationToken) - expired.Count >= DismissedGrocerySuggestion.MaxPerHousehold)
                 {
-                    await db.SaveChangesAsync(cancellationToken);
+                    return AppProblems.Problem(
+                        StatusCodes.Status409Conflict,
+                        AppProblems.DismissedSuggestionLimit,
+                        "Too many dismissed suggestions",
+                        $"A household can keep at most {DismissedGrocerySuggestion.MaxPerHousehold} dismissed suggestions.");
                 }
-                catch (DbUpdateException)
+
+                db.DismissedGrocerySuggestions.Add(new DismissedGrocerySuggestion(key, now));
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Results.NoContent();
+            }
+            catch (DbUpdateException ex)
+            {
+                if (attempt >= 5 || !await IsRaceAsync(db, ex, key, cancellationToken))
                 {
-                    db.ChangeTracker.Clear();
+                    throw;
                 }
+
+                // a known race: retry from a fresh read
             }
         }
+    }
 
-        return Results.NoContent();
+    /// <summary>A lost update (the row was changed or deleted under us) or a unique-index clash with a row that now exists.</summary>
+    private static async Task<bool> IsRaceAsync(AppDbContext db, DbUpdateException ex, string key, CancellationToken cancellationToken)
+    {
+        db.ChangeTracker.Clear();
+        return ex is DbUpdateConcurrencyException || await db.DismissedGrocerySuggestions.AnyAsync(d => d.Label == key, cancellationToken);
     }
 }
