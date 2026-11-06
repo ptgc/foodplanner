@@ -41,6 +41,7 @@ beforeEach(() => {
       if (path.endsWith("/ingredients") && method === "GET") {
         return json([{ id: "i-ost", name: "Ost", isStaple: false, dimension: "Mass", isGlobal: true, section: "Other" }]);
       }
+      if (path.endsWith("/weekly-groceries/suggestions")) return json([]); // T-110 has its own suite
       const body = method === "GET" || method === "DELETE" ? null : await request.json().catch(() => null);
       if (path.includes("/weekly-groceries")) {
         if (method !== "GET") calls.push({ method, path, body });

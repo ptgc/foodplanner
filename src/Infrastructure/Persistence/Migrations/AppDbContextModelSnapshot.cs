@@ -3870,6 +3870,38 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.DismissedGrocerySuggestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("DismissedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "Label")
+                        .IsUnique();
+
+                    b.ToTable("DismissedGrocerySuggestions", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PantryItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4680,6 +4712,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.DismissedGrocerySuggestion", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PantryItem", b =>

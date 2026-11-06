@@ -11,6 +11,7 @@ import { useLoaded } from "./use-loaded";
 type Weekly = components["schemas"]["WeeklyGroceryResponse"];
 type Unit = components["schemas"]["UnitResponse"];
 type Frequency = components["schemas"]["GroceryFrequency"];
+type Suggestion = components["schemas"]["GrocerySuggestionResponse"];
 
 const frequencies: Frequency[] = ["Weekly", "EveryTwoWeeks", "Monthly"];
 
@@ -69,6 +70,13 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
     };
   }, []);
 
+  const suggestions = useLoaded<Suggestion[]>(canEdit ? householdId : `${householdId}:read-only`, () =>
+    // Child members never call the endpoint (it answers 403); a failed read just hides the section.
+    canEdit
+      ? call(() => api.GET("/api/households/{householdId}/weekly-groceries/suggestions", { params: { path: { householdId } } }))
+      : Promise.resolve({ ok: true as const, data: [] as Suggestion[], status: 200 }),
+  );
+
   const remove = async (item: Weekly) => {
     setError(null);
     const result = await call(() =>
@@ -116,6 +124,18 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
         <p role="alert" className="form-error">
           {t(error)}
         </p>
+      )}
+      {canEdit && suggestions.data && suggestions.data.length > 0 && (
+        <Suggestions
+          householdId={householdId}
+          units={units}
+          list={suggestions.data}
+          setList={suggestions.setData}
+          onAdded={() => {
+            reload();
+            suggestions.reload();
+          }}
+        />
       )}
       {!items && !loadError && <p role="status">{t("household.weekly.loading")}</p>}
       {items && items.length === 0 && <p data-testid="weekly-empty">{t("household.weekly.empty")}</p>}
@@ -216,7 +236,20 @@ function UnitSelect({ id, units, value, onChange }: { id: string; units: Unit[];
   );
 }
 
-function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; units: Unit[]; onAdded: () => void }) {
+function AddWeeklyForm({
+  householdId,
+  units,
+  onAdded,
+  suggestion,
+  onCancel,
+}: {
+  householdId: string;
+  units: Unit[];
+  onAdded: () => void;
+  /** T-110: accepting a suggestion; the picker starts at its label and the frequency at its rhythm. */
+  suggestion?: Suggestion;
+  onCancel?: () => void;
+}) {
   const { t } = useI18n();
   const pickerId = useId();
   const quantityId = useId();
@@ -225,7 +258,7 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
   const [ingredient, setIngredient] = useState<IngredientChoice | null>(null);
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
-  const [frequency, setFrequency] = useState<Frequency>("Weekly");
+  const [frequency, setFrequency] = useState<Frequency>(suggestion?.frequency ?? "Weekly");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
 
@@ -244,6 +277,15 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
         body: { ingredientId: ingredient.id, ...amountBody(quantity, unit), frequency },
       }),
     );
+    if (result.ok && suggestion) {
+      // The picked ingredient may be named differently from the label; dismiss the label so it is not suggested again.
+      await call(() =>
+        api.POST("/api/households/{householdId}/weekly-groceries/suggestions/dismiss", {
+          params: { path: { householdId } },
+          body: { label: suggestion.label },
+        }),
+      );
+    }
     setBusy(false);
     if (result.ok) {
       setIngredient(null);
@@ -256,8 +298,8 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
 
   return (
     <form className="household-weekly-add" onSubmit={(e) => void submit(e)}>
-      <h3>{t("household.weekly.addTitle")}</h3>
-      <IngredientPicker householdId={householdId} value={ingredient} onChange={setIngredient} id={pickerId} />
+      <h3>{suggestion ? t("household.suggest.addTitle", { label: suggestion.label }) : t("household.weekly.addTitle")}</h3>
+      <IngredientPicker householdId={householdId} value={ingredient} onChange={setIngredient} id={pickerId} initialTerm={suggestion?.label} />
       <div className="household-inline">
         <div className="field">
           <label htmlFor={quantityId}>{t("household.weekly.quantity")}</label>
@@ -277,10 +319,111 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
           {t(error)}
         </p>
       )}
-      <button type="submit" className="button" disabled={invalid || busy}>
-        {t("household.weekly.add")}
-      </button>
+      <div className="household-actions">
+        <button type="submit" className="button" disabled={invalid || busy}>
+          {t("household.weekly.add")}
+        </button>
+        {onCancel && (
+          <button type="button" className="button button-outline" onClick={onCancel}>
+            {t("household.weekly.cancel")}
+          </button>
+        )}
+      </div>
     </form>
+  );
+}
+
+function Suggestions({
+  householdId,
+  units,
+  list,
+  setList,
+  onAdded,
+}: {
+  householdId: string;
+  units: Unit[];
+  list: Suggestion[];
+  setList: (next: Suggestion[]) => void;
+  onAdded: () => void;
+}) {
+  const { t } = useI18n();
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | null>(null);
+
+  const dismiss = async (s: Suggestion) => {
+    setError(null);
+    const before = list;
+    setList(list.filter((x) => x.label !== s.label)); // optimistic
+    const result = await call(() =>
+      api.POST("/api/households/{householdId}/weekly-groceries/suggestions/dismiss", {
+        params: { path: { householdId } },
+        body: { label: s.label },
+      }),
+    );
+    if (!result.ok) {
+      setList(before);
+      setError(result.key);
+    }
+  };
+
+  return (
+    <section className="household-suggestions" aria-labelledby="household-suggestions-title" data-testid="weekly-suggestions">
+      <h3 id="household-suggestions-title">{t("household.suggest.title")}</h3>
+      <p className="household-note">{t("household.suggest.body")}</p>
+      {error && (
+        <p role="alert" className="form-error">
+          {t(error)}
+        </p>
+      )}
+      <ul className="household-list">
+        {list.map((s) => (
+          <li key={s.label} className="household-row" data-testid="suggestion-row">
+            {accepting === s.label ? (
+              <AddWeeklyForm
+                householdId={householdId}
+                units={units}
+                suggestion={s}
+                onCancel={() => setAccepting(null)}
+                onAdded={() => {
+                  setAccepting(null);
+                  onAdded();
+                }}
+              />
+            ) : (
+              <>
+                <div className="household-row-main">
+                  <span className="household-row-title">{s.label}</span>
+                  <span className="household-row-sub">
+                    {t("household.suggest.reason", { seen: s.weeksSeen, looked: s.weeksLooked, frequency: t(`household.weekly.freq.${s.frequency}`) })}
+                  </span>
+                </div>
+                <div className="household-row-actions">
+                  <button
+                    type="button"
+                    className="button"
+                    aria-label={t("household.suggest.addFor", { label: s.label })}
+                    onClick={() => {
+                      setError(null);
+                      setAccepting(s.label);
+                    }}
+                  >
+                    {t("household.weekly.add")}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-outline"
+                    aria-label={t("household.suggest.dismissFor", { label: s.label })}
+                    onClick={() => void dismiss(s)}
+                  >
+                    {t("household.suggest.dismiss")}
+                  </button>
+                </div>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

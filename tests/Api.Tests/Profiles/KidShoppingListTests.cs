@@ -90,6 +90,20 @@ public sealed class KidShoppingListTests(AuthDatabase db) : IClassFixture<AuthDa
     }
 
     [Fact]
+    public async Task Grocery_suggestions_are_refused_in_kid_mode_for_read_and_dismiss()
+    {
+        await using var host = Host();
+        var (s, _, _, _, _) = await ArrangeAsync(host);
+        await s.Owner.Client.EnterKidModeAsync(s.Household, s.Profile1);
+
+        // HouseholdAdult (not FullSession): kid mode never passes it, so the plain forbidden problem, as for the other Adult-only calls.
+        using var read = await s.Owner.Client.GetAsync($"{H(s.Household)}/weekly-groceries/suggestions");
+        using var dismiss = await s.Owner.Client.PostAsync($"{H(s.Household)}/weekly-groceries/suggestions/dismiss", new { label = "Melk" });
+        await read.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
+        await dismiss.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
+    }
+
+    [Fact]
     public async Task A_child_member_outside_kid_mode_keeps_todays_rights()
     {
         await using var host = Host();
