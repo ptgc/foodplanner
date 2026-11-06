@@ -19,6 +19,8 @@ type Props = {
   invalid?: boolean;
   /** Import review (T-104): the class the importer guessed for a new own ingredient; preselected in the create form. */
   suggestedProteinClass?: ProteinClass | null;
+  /** Prefills the search (a regular-grocery suggestion's label, T-110). */
+  initialTerm?: string;
 };
 
 const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name, dimension: i.dimension });
@@ -27,9 +29,9 @@ const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name,
  * Picks an ingredient from the catalog (global and the household's own) by searching `?search=`, or creates the
  * household's own ingredient inline. Rule 5: a recipe line always points at an ingredient id, never at free text.
  */
-export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid, suggestedProteinClass }: Props) {
+export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid, suggestedProteinClass, initialTerm }: Props) {
   const { t, locale } = useI18n();
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(initialTerm ?? "");
   const [found, setFound] = useState<{ term: string; items: Ingredient[] } | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [creating, setCreating] = useState(false);
