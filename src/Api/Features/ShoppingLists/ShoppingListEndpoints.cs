@@ -107,6 +107,16 @@ public static class ShoppingListEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // T-109: "add anyway" - one regular grocery that is not due this week. Same permissions as the button.
+        lists.MapPost("/weekly/{groceryId:guid}", AddOneWeeklyGrocery)
+            .WithName("AddWeeklyGroceryToShoppingList")
+            .RequireAuthorization(Policies.FullSession)
+            .Produces<ShoppingListResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         lists.MapPost("/items", AddManualItem)
             .WithName("AddManualShoppingItem")
             .RequireAuthorization(Policies.FullSession)
@@ -576,7 +586,10 @@ public static class ShoppingListEndpoints
     /// The "Add weekly groceries" button. Every weekly grocery is made sure to be on the week's list (see
     /// <see cref="WeeklyGroceries.Plan"/>): missing ones are added, changed amounts replaced, the rest untouched, so pressing
     /// twice changes nothing and an item the user removed comes back. The list is then regenerated from the plan with the weekly
-    /// parts laid over it (same code as the generate button), in one transaction. An empty set changes nothing.
+    /// parts laid over it (same code as the generate button), in one transaction. T-109: only the groceries DUE in the week
+    /// are put on the list (<see cref="WeeklyGrocery.IsDueIn"/>). A weekly part that is already on the list for a grocery that
+    /// is not due (added anyway, or before its frequency changed) is never touched: <see cref="WeeklyGroceries.Plan"/> only adds
+    /// and updates, and regeneration keeps weekly parts. A set with nothing due changes nothing and creates no list.
     /// </summary>
     private static async Task<IResult> AddWeeklyGroceries(
         Guid householdId, string weekStart, RequestLocale locale, ICurrentUser user, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
@@ -588,8 +601,40 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var groceries = await db.WeeklyGroceries.AsNoTracking().Select(w => new WeeklyGrocerySpec(w.IngredientId, w.Amount, w.UnitId))
-            .ToListAsync(cancellationToken);
+        var rows = await db.WeeklyGroceries.AsNoTracking().ToListAsync(cancellationToken);
+        var due = rows.Where(w => w.IsDueIn(monday)).Select(w => new WeeklyGrocerySpec(w.IngredientId, w.Amount, w.UnitId)).ToList();
+        return await PutWeeklyOnListAsync(householdId, monday, due, locale, user, time, db, notifier, log, cancellationToken);
+    }
+
+    /// <summary>
+    /// "Add anyway" (T-109): one regular grocery goes on the week's list even though it is not due. Same rules as the button
+    /// (idempotent, list lock, <c>Generated</c> signal). Another household's id is a 404, same as an unknown one.
+    /// </summary>
+    private static async Task<IResult> AddOneWeeklyGrocery(
+        Guid householdId, string weekStart, Guid groceryId, RequestLocale locale, ICurrentUser user, TimeProvider time, AppDbContext db,
+        IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var grocery = await db.WeeklyGroceries.AsNoTracking().FirstOrDefaultAsync(w => w.Id == groceryId, cancellationToken);
+        if (grocery is null)
+        {
+            return AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.WeeklyGroceryNotFound, "Weekly grocery not found");
+        }
+
+        return await PutWeeklyOnListAsync(
+            householdId, monday, [new WeeklyGrocerySpec(grocery.IngredientId, grocery.Amount, grocery.UnitId)], locale, user, time, db, notifier, log,
+            cancellationToken);
+    }
+
+    private static async Task<IResult> PutWeeklyOnListAsync(
+        Guid householdId, DateOnly monday, IReadOnlyList<WeeklyGrocerySpec> groceries, RequestLocale locale, ICurrentUser user, TimeProvider time,
+        AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
+    {
         var changed = false;
         if (groceries.Count > 0)
         {

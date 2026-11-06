@@ -14,8 +14,8 @@ const json = (body: unknown, status = 200) =>
     headers: { "content-type": status >= 400 ? "application/problem+json" : "application/json" },
   });
 
-const milk: Weekly = { id: "w1", ingredientId: "i-milk", name: "Melk", section: "Dairy", quantity: 1.5, unitId: "u-l", unitCode: "l", unitName: "liter" };
-const bread: Weekly = { id: "w2", ingredientId: "i-bread", name: "Brød", section: "DryGoods", quantity: null, unitId: null, unitCode: null, unitName: null };
+const milk: Weekly = { id: "w1", ingredientId: "i-milk", name: "Melk", section: "Dairy", quantity: 1.5, unitId: "u-l", unitCode: "l", unitName: "liter", frequency: "Weekly", startWeek: null, nextDueWeek: "2026-11-02", dueInWeek: true };
+const bread: Weekly = { id: "w2", ingredientId: "i-bread", name: "Brød", section: "DryGoods", quantity: null, unitId: null, unitCode: null, unitName: null, frequency: "Weekly", startWeek: null, nextDueWeek: "2026-11-02", dueInWeek: true };
 const units = [
   { id: "u-l", code: "l", name: "Liter", dimension: "Volume", factorToBase: 1000 },
   { id: "u-g", code: "g", name: "Gram", dimension: "Mass", factorToBase: 1 },

@@ -111,6 +111,8 @@ internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<Week
     {
         weekly.ToTable("WeeklyGroceries");
         weekly.Property(w => w.Amount).HasPrecision(18, 4);
+        // T-109: stored by name; existing rows are Weekly. StartWeek (date) is only set for EveryTwoWeeks, null otherwise.
+        weekly.Property(w => w.Frequency).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(GroceryFrequency.Weekly);
         weekly.HasIndex(w => new { w.HouseholdId, w.IngredientId }).IsUnique();
         weekly.HasIndex(w => w.IngredientId);
         weekly.HasIndex(w => w.UnitId);
