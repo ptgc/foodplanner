@@ -122,7 +122,19 @@ internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<Week
     }
 }
 
-internal sealed class ShoppingListItemSourceConfiguration : IEntityTypeConfiguration<ShoppingListItemSource>
+// Dismissed regular-grocery suggestions (T-110): the normalised label, unique per household. Only cascade: Household.
+internal sealed class DismissedGrocerySuggestionConfiguration : IEntityTypeConfiguration<DismissedGrocerySuggestion>
+{
+    public void Configure(EntityTypeBuilder<DismissedGrocerySuggestion> dismissed)
+    {
+        dismissed.ToTable("DismissedGrocerySuggestions");
+        dismissed.Property(d => d.Label).HasMaxLength(GroceryLabel.MaxKeyLength).IsRequired();
+        dismissed.HasIndex(d => new { d.HouseholdId, d.Label }).IsUnique();
+        dismissed.HasOne<Household>().WithMany().HasForeignKey(d => d.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class ShoppingListItemSourceConfiguration: IEntityTypeConfiguration<ShoppingListItemSource>
 {
     public void Configure(EntityTypeBuilder<ShoppingListItemSource> source)
     {

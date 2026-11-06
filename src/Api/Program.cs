@@ -105,6 +105,7 @@ api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
 api.MapPantryEndpoints();
 api.MapWeeklyGroceryEndpoints();
+api.MapGrocerySuggestionEndpoints();
 api.MapStoreEndpoints();
 api.MapRecipeImageEndpoints();
 app.MapShoppingListHub();

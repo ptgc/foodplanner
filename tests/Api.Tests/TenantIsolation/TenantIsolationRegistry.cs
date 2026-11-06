@@ -175,6 +175,11 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(w => w.Amount).CurrentValue = 2m),
 
+        // Dismissed regular-grocery suggestions (T-110): the label is unique per household, so the factory makes a fresh one each time.
+        TenantIsolationCase.For<DismissedGrocerySuggestion>(
+            (_, _) => Task.FromResult(new DismissedGrocerySuggestion("isolation " + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)),
+            entry => entry.Property(d => d.DismissedAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(1)),
+
         // Kid profiles (T-026): name unique per household, so the factory makes a fresh name each time.
         TenantIsolationCase.For<MemberProfile>(
             (_, _) => Task.FromResult(new MemberProfile("Isolation " + Guid.NewGuid().ToString("N")[..12], "fox")),

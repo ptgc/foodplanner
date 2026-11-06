@@ -100,6 +100,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>The household's regular weekly groceries (T-092).</summary>
     public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
 
+    /// <summary>Regular-grocery suggestions the household dismissed (T-110).</summary>
+    public DbSet<DismissedGrocerySuggestion> DismissedGrocerySuggestions => Set<DismissedGrocerySuggestion>();
+
     /// <summary>Kid profiles of a household (T-026).</summary>
     public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();
 
