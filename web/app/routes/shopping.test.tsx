@@ -136,6 +136,10 @@ type Server = {
   /** How many weekly groceries the household has (T-092) and how many times the button posted. */
   weekly: number;
   weeklyPosts: number;
+  /** Regular groceries not due in the week (T-109), the weeks asked for, and the ids posted to "add anyway". */
+  notDue: { id: string; name: string; ingredientId: string }[];
+  weeklyWeeks: (string | null)[];
+  anyway: string[];
   /** The household's stores, the caller's chosen one, and the bodies of the choice PUTs (T-087). */
   stores: { id: string; name: string; sectionOrder: string[] }[];
   chosenStore: string | null;
@@ -160,7 +164,20 @@ function installFetch() {
           ? json({ format: "text", title: "Shopping list, week 44", text: "- Melk 1.5 l\n- Kaffe", url: null })
           : json({ title: "x", status: server.exportStatus }, server.exportStatus);
       }
-      if (path.endsWith("/weekly-groceries")) return json(Array.from({ length: server.weekly }, (_, i) => ({ id: `w${i}`, name: `Vare ${i}` })));
+      if (path.endsWith("/weekly-groceries")) {
+        server.weeklyWeeks.push(url.searchParams.get("week"));
+        return json([
+          ...Array.from({ length: server.weekly }, (_, i) => ({ id: `w${i}`, name: `Vare ${i}`, ingredientId: `ing-w${i}`, dueInWeek: true })),
+          ...server.notDue.map((w) => ({ ...w, dueInWeek: false })),
+        ]);
+      }
+      if (path.includes(`/shopping-lists/${week}/weekly/`) && request.method === "POST") {
+        const id = path.split("/weekly/")[1]!;
+        server.anyway.push(id);
+        const w = server.notDue.find((x) => x.id === id)!;
+        server.list = { ...server.list, main: [...server.list.main, item(`l-${id}`, w.name, { isWeekly: true, ingredientId: w.ingredientId })] };
+        return json(server.list);
+      }
       if (path.endsWith(`/shopping-lists/${week}/weekly`) && request.method === "POST") {
         server.weeklyPosts += 1;
         server.list = {
@@ -240,7 +257,7 @@ beforeEach(() => {
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, stores: [], chosenStore: null, chosenPuts: [] };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, notDue: [], weeklyWeeks: [], anyway: [], stores: [], chosenStore: null, chosenPuts: [] };
   installFetch();
 });
 afterEach(() => {
@@ -785,5 +802,51 @@ describe("weekly groceries (T-092)", () => {
     await screen.findByTestId("offline-banner");
 
     expect(screen.getByRole("button", { name: t("shopping.addWeekly") })).toBeDisabled();
+  });
+
+  it("asks for the week on screen, and says plainly (not as an error) that nothing is due", async () => {
+    server.weekly = 0;
+    server.notDue = [{ id: "n1", name: "Ost", ingredientId: "ing-ost" }];
+    renderPage();
+    await ready();
+
+    expect(await screen.findByTestId("weekly-none-due")).toHaveTextContent(t("shopping.noneDue"));
+    expect(screen.queryByTestId("weekly-empty-hint")).not.toBeInTheDocument(); // the set is not empty
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t("shopping.addWeekly") })).toBeDisabled();
+    expect(server.weeklyWeeks).toContain(week);
+  });
+
+  it("keeps the regular groceries that are not due in a collapsed section and adds one anyway", async () => {
+    server.notDue = [
+      { id: "n1", name: "Ost", ingredientId: "ing-ost" },
+      { id: "n2", name: "Melk", ingredientId: "ing-melk" }, // already on the list: not offered
+    ];
+    renderPage();
+    await ready();
+
+    const section = await screen.findByTestId("weekly-not-due");
+    expect(section).not.toHaveAttribute("open");
+    expect(within(section).getByText(t("shopping.notDue", { count: 1 }))).toBeInTheDocument();
+    expect(within(section).getAllByTestId("weekly-not-due-row")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: t("shopping.addWeekly") })).toBeEnabled();
+
+    await userEvent.click(within(section).getByRole("button", { name: t("shopping.addAnywayFor", { name: "Ost" }) }));
+
+    await within(screen.getByRole("region", { name: t("shopping.sectionMain") })).findByText("Ost");
+    expect(server.anyway).toEqual(["n1"]);
+    await waitFor(() => expect(screen.queryByTestId("weekly-not-due")).not.toBeInTheDocument());
+  });
+
+  it("disables add anyway while offline", async () => {
+    server.notDue = [{ id: "n1", name: "Ost", ingredientId: "ing-ost" }];
+    renderPage();
+    await ready();
+    const section = await screen.findByTestId("weekly-not-due");
+    server.down = true;
+    await userEvent.click(screen.getByRole("checkbox", { name: "Melk" }));
+    await screen.findByTestId("offline-banner");
+
+    expect(within(section).getByRole("button", { name: t("shopping.addAnywayFor", { name: "Ost" }) })).toBeDisabled();
   });
 });

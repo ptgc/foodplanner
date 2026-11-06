@@ -98,6 +98,15 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
     }
   };
 
+  const addAnyway = async (id: string) => {
+    setBusy(true);
+    try {
+      report(await model.addWeeklyAnyway(id));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (model.forbidden) {
     return (
       <section className="shop">
@@ -113,6 +122,9 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
 
   const list = model.list;
   const empty = !!list && list.main.length === 0 && list.checkYouHave.length === 0;
+  const dueCount = model.weekly?.filter((w) => w.dueInWeek).length ?? 0;
+  const onList = new Set([...(list?.main ?? []), ...(list?.checkYouHave ?? [])].map((i) => i.ingredientId));
+  const notDue = list ? (model.weekly ?? []).filter((w) => !w.dueInWeek && !onList.has(w.ingredientId)) : [];
 
   return (
     <section className="shop" aria-labelledby="shop-title">
@@ -161,16 +173,22 @@ function ShoppingScreen({ householdId }: { householdId: string }) {
         type="button"
         className="button shop-weekly"
         data-testid="add-weekly"
-        disabled={busy || !model.online || !model.weeklyCount}
+        disabled={busy || !model.online || !dueCount}
         onClick={() => void addWeekly()}
       >
         {t("shopping.addWeekly")}
       </button>
-      {model.weeklyCount === 0 && (
+      {model.weekly?.length === 0 && (
         <p className="shop-hint" data-testid="weekly-empty-hint">
           {t("shopping.weeklyEmpty")} <Link to="/household">{t("shopping.weeklyEmptyLink")}</Link>
         </p>
       )}
+      {model.weekly && model.weekly.length > 0 && dueCount === 0 && (
+        <p className="shop-hint" data-testid="weekly-none-due">
+          {t("shopping.noneDue")}
+        </p>
+      )}
+      <RegularNotDue items={notDue} disabled={busy || !model.online} onAdd={addAnyway} />
       <StorePicker householdId={householdId} online={model.online} onChoose={model.chooseStore} />
       <ExportBar householdId={householdId} weekStart={weekStart} online={model.online} />
       {message && (
@@ -523,6 +541,43 @@ function HaveForm({
 }
 
 /** "N staples you have at home", expandable, so a confirmed staple never silently disappears and can be undone. */
+/** The regular groceries that are not due in this week and not on the list yet (T-109); collapsed, with "Add anyway" for each. */
+function RegularNotDue({
+  items,
+  disabled,
+  onAdd,
+}: {
+  items: components["schemas"]["WeeklyGroceryResponse"][];
+  disabled: boolean;
+  onAdd: (id: string) => Promise<void>;
+}) {
+  const { t } = useI18n();
+  if (items.length === 0) return null;
+  return (
+    <details className="shop-pantry" data-testid="weekly-not-due">
+      <summary>{t("shopping.notDue", { count: items.length })}</summary>
+      <ul className="shop-items">
+        {items.map((w) => (
+          <li key={w.id} className="shop-row" data-testid="weekly-not-due-row">
+            <span className="shop-text shop-pantry-name">
+              <span className="shop-name">{w.name}</span>
+            </span>
+            <button
+              type="button"
+              className="button shop-have"
+              disabled={disabled}
+              aria-label={t("shopping.addAnywayFor", { name: w.name })}
+              onClick={() => void onAdd(w.id)}
+            >
+              {t("shopping.addAnyway")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function PantrySummary({
   items,
   canChange,

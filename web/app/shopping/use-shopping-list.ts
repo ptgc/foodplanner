@@ -21,6 +21,7 @@ import {
 const RETRY_MS = 5000;
 
 export type PantryItem = components["schemas"]["PantryItemResponse"];
+type WeeklyGrocery = components["schemas"]["WeeklyGroceryResponse"];
 
 /** `locale` is the language the list was asked in: names are catalog data and differ per language (T-078). */
 type Server = { week: string; list: ShoppingList; version: string | null; locale: string };
@@ -51,10 +52,12 @@ export type ShoppingListModel = {
   haveThis: (ingredientId: string, quantity: number | null, unitId: string | null) => Promise<ActionResult>;
   /** Un-confirm a staple and regenerate so it is prompted again. */
   unconfirmStaple: (ingredientId: string) => Promise<ActionResult>;
-  /** How many weekly groceries the household has; null until known (offline, or not read yet). */
-  weeklyCount: number | null;
-  /** "Add weekly groceries" (T-092): puts the household's weekly set on this week's list. Safe to press again. */
+  /** The regular groceries seen from the week on screen (T-109: `dueInWeek` is for this week); null until known (offline, or not read yet). */
+  weekly: WeeklyGrocery[] | null;
+  /** "Add regular groceries" (T-092, T-109): puts the ones due this week on the list. Safe to press again. */
   addWeekly: () => Promise<ActionResult>;
+  /** "Add anyway" (T-109): puts one regular grocery that is not due this week on the list. */
+  addWeeklyAnyway: (groceryId: string) => Promise<ActionResult>;
   /** Pick the store being shopped at (null = none, the usual order). The server remembers it per user; the list is re-read in that order (T-087). */
   chooseStore: (storeId: string | null) => Promise<ActionResult>;
 };
@@ -315,14 +318,16 @@ export function useShoppingList(householdId: string, weekStart: string, options:
 
   // The size of the weekly set decides whether the "add weekly groceries" button works (T-092). Re-read with every accepted
   // state, so a change on the household page shows when the user comes back.
-  const [weeklyCount, setWeeklyCount] = useState<number | null>(null);
+  const [weeklyRead, setWeeklyRead] = useState<{ week: string; items: WeeklyGrocery[] } | null>(null);
   useEffect(() => {
     if (readOnly) return;
     let cancelled = false;
     void (async () => {
       try {
-        const { data } = await api.GET("/api/households/{householdId}/weekly-groceries", { params: { path: { householdId } } });
-        if (!cancelled && data) setWeeklyCount(data.length);
+        const { data } = await api.GET("/api/households/{householdId}/weekly-groceries", {
+          params: { path: { householdId }, query: { week: weekStart } },
+        });
+        if (!cancelled && data) setWeeklyRead({ week: weekStart, items: data });
       } catch {
         // offline: keep what we have
       }
@@ -330,7 +335,8 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     return () => {
       cancelled = true;
     };
-  }, [householdId, readOnly, server]);
+  }, [householdId, readOnly, server, weekStart]);
+  const weekly = weeklyRead && weeklyRead.week === weekStart ? weeklyRead.items : null;
 
   // A list asked in the other language is not shown (T-078): after a switch the page waits for the list in the new one.
   const current = server && server.week === weekStart && server.locale === locale ? server : null;
@@ -384,6 +390,17 @@ export function useShoppingList(householdId: string, weekStart: string, options:
       mutate(async () => {
         const { response } = await api.POST("/api/households/{householdId}/shopping-lists/{weekStart}/weekly", {
           params: { path: { householdId, weekStart } },
+        });
+        return response;
+      }),
+    [householdId, mutate, weekStart],
+  );
+
+  const addWeeklyAnyway = useCallback(
+    (groceryId: string) =>
+      mutate(async () => {
+        const { response } = await api.POST("/api/households/{householdId}/shopping-lists/{weekStart}/weekly/{groceryId}", {
+          params: { path: { householdId, weekStart, groceryId } },
         });
         return response;
       }),
@@ -480,7 +497,8 @@ export function useShoppingList(householdId: string, weekStart: string, options:
     confirmStaple,
     haveThis,
     unconfirmStaple,
-    weeklyCount,
+    weekly,
     addWeekly,
+    addWeeklyAnyway,
   };
 }
