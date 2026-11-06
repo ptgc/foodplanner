@@ -134,7 +134,7 @@ internal sealed class DismissedGrocerySuggestionConfiguration : IEntityTypeConfi
     }
 }
 
-internal sealed class ShoppingListItemSourceConfiguration: IEntityTypeConfiguration<ShoppingListItemSource>
+internal sealed class ShoppingListItemSourceConfiguration : IEntityTypeConfiguration<ShoppingListItemSource>
 {
     public void Configure(EntityTypeBuilder<ShoppingListItemSource> source)
     {
