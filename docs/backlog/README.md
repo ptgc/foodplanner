@@ -8,7 +8,7 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-104, T-106, T-108 and T-105 done; waiting on the architect: T-109 and T-110 (Q-030), T-095 (Q-027), T-077 (Q-028), T-100 (Q-029), T-107 (T-001 Phase B + Q-024), T-001 (manual Phase B, see T-001.md); on hold: T-096; stretch: T-086, T-094
+## Current focus: T-109 in progress, then T-110; T-104, T-106, T-108 and T-105 done; waiting on the architect: T-095 (Q-027), T-077 (Q-028), T-100 (Q-029), T-107 (T-001 Phase B + Q-024), T-001 (manual Phase B, see T-001.md); on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -135,4 +135,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-107 | Oda prices and offers: suggest meals and things to buy (stretch) | M4 | T-001, T-053, T-089, T-090, T-093 | implementer-backend | yes |
 | T-108 | Flavourings and minor animal ingredients do not count as protein (fish sauce, egg noodles, stocks) | M1 | T-104 | implementer-backend | no |
 | T-109 | Regular groceries every week, every second week or monthly | L3 | T-092 | implementer-backend, implementer-frontend | yes |
-| T-110 | Suggest regular groceries from what the household adds by hand | L3 | T-109 | implementer-backend, implementer-frontend | no (probably) |
+| T-110 | Suggest regular groceries from what the household adds by hand | L3 | T-109 | implementer-backend, implementer-frontend | yes |
