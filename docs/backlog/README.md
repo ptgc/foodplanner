@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus: T-111 done; T-095 backend in progress (UI next; budget decided, Q-031), then T-100, T-077 (Q-027, Q-029, Q-028 answered 2026-11-08); waiting on the architect: T-107 (T-001 Phase B + Q-024), T-001 (manual Phase B, see T-001.md); on hold: T-096; stretch: T-086, T-094
+## Current focus: T-095 UI (verified and reviewed; re-run verify.sh after T-112, done 2026-11-08), then T-100, T-077 (Q-027, Q-029, Q-028 answered 2026-11-08); waiting on the architect: T-107 (T-001 Phase B + Q-024), T-001 (manual Phase B, see T-001.md); on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -139,3 +139,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-109 | Regular groceries every week, every second week or monthly | L3 | T-092 | implementer-backend, implementer-frontend | yes |
 | T-110 | Suggest regular groceries from what the household adds by hand | L3 | T-109 | implementer-backend, implementer-frontend | yes |
 | T-111 | Suggest monthly regular groceries at 3 of 12 weeks; rekesaus is Seafood | L3 | T-110, T-108 | implementer-backend | no |
+| T-112 | Grocery suggestion dismissal race test fails intermittently | L3 | T-110 | implementer-backend | no |
