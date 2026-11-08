@@ -102,6 +102,7 @@ api.MapMealPlanEndpoints();
 api.MapMealMixRuleEndpoints();
 api.MapProfileEndpoints();
 api.MapRecipeLikeEndpoints();
+api.MapRecipeSuggestionEndpoints();
 api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
 api.MapPantryEndpoints();

@@ -122,13 +122,19 @@ public static class ShoppingListGenerator
     public static bool NeedsBuying(PlannedIngredient ingredient, Quantity scaled)
     {
         ArgumentNullException.ThrowIfNull(ingredient);
+        return NeedsBuying(ingredient.Kind, ingredient.Purpose, ingredient.IsOptional, scaled);
+    }
+
+    /// <summary>The same rule for callers that have no <see cref="PlannedIngredient"/> (the pantry matcher, T-100).</summary>
+    public static bool NeedsBuying(AmountKind kind, IngredientPurpose purpose, bool isOptional, Quantity scaled)
+    {
         ArgumentNullException.ThrowIfNull(scaled);
-        if (ingredient.Kind != AmountKind.Measured || scaled.Amount is null || ingredient.IsOptional)
+        if (kind != AmountKind.Measured || scaled.Amount is null || isOptional)
         {
             return false;
         }
 
-        var smallFryingFat = ingredient.Purpose == IngredientPurpose.Frying
+        var smallFryingFat = purpose == IngredientPurpose.Frying
             && scaled.Unit.Dimension == UnitDimension.Volume
             && scaled.BaseAmount <= SmallFryingFatMilliliters;
         return !smallFryingFat;

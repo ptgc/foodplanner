@@ -38,6 +38,7 @@ public static class AppProblems
     public const string ShoppingListItemGenerated = "shopping-list-item-generated";
     public const string ShoppingListConflict = "shopping-list-conflict";
     public const string PantryConflict = "pantry-conflict";
+    public const string RecipeNotPlanned = "recipe-not-planned";
     public const string WeeklyGroceryExists = "weekly-grocery-exists";
     public const string WeeklyGroceryNotFound = "weekly-grocery-not-found";
     public const string WeeklyGroceryLimit = "weekly-grocery-limit";

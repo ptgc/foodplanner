@@ -173,11 +173,24 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var now = time.GetUtcNow();
+        if (!await RegenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken))
+        {
+            return Conflict();
+        }
 
-        // Two members may regenerate at once, or someone may check an item while we flag it. ApplyAsync serialises regenerations on
-        // the list row; what still surfaces (a stale row version, a unique index, a deadlock victim) is retried, and the next pass
-        // reads the winner's rows and finds little or nothing left to change, so the result is the same list.
+        await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
+        var list = await db.ShoppingLists.AsNoTracking().FirstAsync(l => l.WeekStart == monday, cancellationToken);
+        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, user.UserId, cancellationToken));
+    }
+
+    /// <summary>
+    /// Regenerates the week's list from its plan (generate). Two members may regenerate at once, or someone may check an item while we
+    /// flag it. ApplyAsync serialises regenerations on the list row; what still surfaces (a stale row version, a unique index, a
+    /// deadlock victim) is retried, and the next pass reads the winner's rows and finds little or nothing left to change, so the result
+    /// is the same list. False when it kept failing (the caller answers 409). Also used by "what can I make" (T-100).
+    /// </summary>
+    internal static async Task<bool> RegenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
+    {
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -188,7 +201,7 @@ public static class ShoppingListEndpoints
                 await LockListRowAsync(db, row, cancellationToken);
                 await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, cancellationToken), now, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                break;
+                return true;
             }
             catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
             {
@@ -197,13 +210,9 @@ public static class ShoppingListEndpoints
             catch (Exception ex) when (IsRetryable(ex))
             {
                 db.ChangeTracker.Clear();
-                return Conflict();
+                return false;
             }
         }
-
-        await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
-        var list = await db.ShoppingLists.AsNoTracking().FirstAsync(l => l.WeekStart == monday, cancellationToken);
-        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, user.UserId, cancellationToken));
     }
 
     /// <summary>
@@ -968,7 +977,7 @@ public static class ShoppingListEndpoints
     private static IResult ItemNotFound() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.ShoppingListItemNotFound, "Shopping list item not found");
 
-    private static IResult Conflict() =>
+    internal static IResult Conflict() =>
         AppProblems.Problem(
             StatusCodes.Status409Conflict,
             AppProblems.ShoppingListConflict,
