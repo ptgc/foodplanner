@@ -532,7 +532,7 @@ public static class MealPlanEndpoints
     /// The plan of the week, created on the first entry. Two members adding at once can both try to create it; the unique
     /// (household, week) index lets one win and the other reads the winner's plan.
     /// </summary>
-    private static async Task<MealPlan> FindOrCreatePlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    internal static async Task<MealPlan> FindOrCreatePlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
     {
         var plan = await db.MealPlans.FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
         if (plan is not null)
@@ -560,7 +560,7 @@ public static class MealPlanEndpoints
     /// the household row in T-048) and re-reads it, so <see cref="MealPlan.LockedAt"/> is what is committed NOW. Only the audit
     /// column is written, never a possibly stale lock state.
     /// </summary>
-    private static async Task LockPlanRowAsync(AppDbContext db, MealPlan plan, CancellationToken cancellationToken)
+    internal static async Task LockPlanRowAsync(AppDbContext db, MealPlan plan, CancellationToken cancellationToken)
     {
         db.Entry(plan).Property("UpdatedAt").IsModified = true;
         await db.SaveChangesAsync(cancellationToken);
@@ -583,7 +583,7 @@ public static class MealPlanEndpoints
     }
 
     /// <summary>Entries by date, then in the order they were made. Pass <paramref name="entryId"/> for one entry.</summary>
-    private static async Task<MealPlanEntryResponse[]> LoadEntriesAsync(
+    internal static async Task<MealPlanEntryResponse[]> LoadEntriesAsync(
         AppDbContext db, Guid planId, Guid? entryId, CancellationToken cancellationToken)
     {
         var rows = await (from entry in db.MealPlanEntries.AsNoTracking()
@@ -613,7 +613,7 @@ public static class MealPlanEndpoints
     }
 
     /// <summary>A <see cref="DbUpdateConcurrencyException"/> (a concurrent delete, or a forged entity) is a 409, not a 500. Null when saved.</summary>
-    private static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
+    internal static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
     {
         try
         {
@@ -631,7 +631,7 @@ public static class MealPlanEndpoints
     }
 
     /// <summary>After the commit: a failing notifier is logged and never undoes the change.</summary>
-    private static async Task NotifyAsync(
+    internal static async Task NotifyAsync(
         IMealPlanNotifier notifier, ILogger<MealPlan> logger, MealPlanChange change, CancellationToken cancellationToken)
     {
         try
@@ -650,7 +650,7 @@ public static class MealPlanEndpoints
     private static IResult Forbidden() =>
         AppProblems.Problem(StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
 
-    private static IResult WeekLocked() =>
+    internal static IResult WeekLocked() =>
         AppProblems.Problem(
             StatusCodes.Status409Conflict,
             AppProblems.WeekLocked,

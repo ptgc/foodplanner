@@ -11,11 +11,11 @@ internal static class GroceryCalendar
 {
     private static readonly TimeZoneInfo Zone = FindZone();
 
-    public static DateOnly CurrentWeek(TimeProvider time)
-    {
-        var local = TimeZoneInfo.ConvertTime(time.GetUtcNow(), Zone);
-        return GrocerySchedule.WeekStartOf(DateOnly.FromDateTime(local.DateTime));
-    }
+    public static DateOnly CurrentWeek(TimeProvider time) => GrocerySchedule.WeekStartOf(Today(time));
+
+    /// <summary>Today's date in the same zone (T-100: "cook today" and the 14-day window of "what can I make").</summary>
+    public static DateOnly Today(TimeProvider time) =>
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), Zone).DateTime);
 
     private static TimeZoneInfo FindZone()
     {

@@ -708,6 +708,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/what-can-i-make": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRecipeSuggestionsFromPantry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/cook-today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CookRecipeToday"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/add-missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AddMissingIngredientsToShoppingList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/shopping-lists/{weekStart}": {
         parameters: {
             query?: never;
@@ -1050,6 +1098,11 @@ export interface components {
             /** Format: int32 */
             servings: null | number | string;
         };
+        AddMissingResponse: {
+            /** Format: date */
+            weekStart: string;
+            missing: components["schemas"]["MissingIngredientResponse"][];
+        };
         /** @enum {unknown} */
         AmountKind: "Measured" | "ToTaste" | "AsNeeded";
         AntiforgeryResponse: {
@@ -1081,6 +1134,16 @@ export interface components {
             quantity?: null | number | string;
             /** Format: uuid */
             unitId?: null | string;
+        };
+        CookTodayRequest: {
+            /** Format: int32 */
+            servings: null | number | string;
+        };
+        CookTodayResponse: {
+            entry: components["schemas"]["MealPlanEntryResponse"];
+            /** Format: date */
+            weekStart: string;
+            alreadyPlanned: boolean;
         };
         CreateHouseholdRequest: {
             name: null | string;
@@ -1325,6 +1388,16 @@ export interface components {
             moved: components["schemas"]["IngredientUsageResponse"];
             warnings: string[];
         };
+        MissingIngredientResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            name: string;
+            quantities: components["schemas"]["ShoppingQuantityResponse"][];
+            reason: components["schemas"]["MissingReason"];
+            alternatives: components["schemas"]["RecipeAlternativeResponse"][];
+        };
+        /** @enum {unknown} */
+        MissingReason: "NotAtHome" | "NotEnough" | "UnitMismatch";
         OpenInviteResponse: {
             /** Format: uuid */
             id: string;
@@ -1545,6 +1618,30 @@ export interface components {
             /** Format: int32 */
             position: number | string;
             text: string;
+        };
+        RecipeSuggestionResponse: {
+            /** Format: uuid */
+            recipeId: string;
+            title: string;
+            /** Format: int32 */
+            servings: number | string;
+            /** Format: int32 */
+            totalMinutes: null | number | string;
+            foodType: components["schemas"]["FoodType"];
+            thumbUrl: null | string;
+            cardUrl: null | string;
+            /** Format: int32 */
+            kidLikes: number | string;
+            cookedRecently: boolean;
+            plannedToday: boolean;
+            missing: components["schemas"]["MissingIngredientResponse"][];
+        };
+        RecipeSuggestionsResponse: {
+            /** Format: date */
+            today: string;
+            /** Format: date */
+            weekStart: string;
+            items: components["schemas"]["RecipeSuggestionResponse"][];
         };
         RecipeSummaryResponse: {
             /** Format: uuid */
@@ -5028,6 +5125,197 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRecipeSuggestionsFromPantry: {
+        parameters: {
+            query?: {
+                servings?: number | string;
+            };
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeSuggestionsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CookRecipeToday: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["CookTodayRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CookTodayResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CookTodayResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddMissingIngredientsToShoppingList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddMissingResponse"];
+                };
             };
             /** @description Forbidden */
             403: {
