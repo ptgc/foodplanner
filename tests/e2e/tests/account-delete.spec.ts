@@ -119,7 +119,10 @@ test("delete account screen: preview, confirmation, mocked errors and the mocked
     expect(deleteBodies.length).toBe(4);
     const last = deleteBodies[3]!;
     expect(last.confirmation).toBe(`  ${email.toUpperCase()} `);
-    expect(last.householdIds).toHaveLength(1);
+    // Exactly the households the preview listed for deletion (the admin may own other solo households locally).
+    const shown = (await (await page.request.get("/api/account/deletion-preview")).json()) as { householdsToDelete: { id: string; name: string }[] };
+    expect(shown.householdsToDelete.map((h) => h.name)).toContain(name);
+    expect([...(last.householdIds as string[])].sort()).toEqual(shown.householdsToDelete.map((h) => h.id).sort());
     expect(await page.evaluate(() => Object.keys(window.localStorage).filter((k) => k.startsWith("foodplanner.activeHousehold.")))).toEqual([]);
   } finally {
     await deleteHouseholdIfPresent(page.request, name);
