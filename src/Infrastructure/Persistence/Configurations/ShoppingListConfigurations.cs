@@ -129,6 +129,8 @@ internal sealed class DismissedGrocerySuggestionConfiguration : IEntityTypeConfi
     {
         dismissed.ToTable("DismissedGrocerySuggestions");
         dismissed.Property(d => d.Label).HasMaxLength(GroceryLabel.MaxKeyLength).IsRequired();
+        // Optimistic token (no schema change): a renewal and the cleanup of expired rows must not silently overwrite each other (T-112).
+        dismissed.Property(d => d.DismissedAt).IsConcurrencyToken();
         dismissed.HasIndex(d => new { d.HouseholdId, d.Label }).IsUnique();
         dismissed.HasOne<Household>().WithMany().HasForeignKey(d => d.HouseholdId).OnDelete(DeleteBehavior.Cascade);
     }
