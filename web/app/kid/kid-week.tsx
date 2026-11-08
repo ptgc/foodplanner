@@ -2,7 +2,7 @@ import { useId, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
-import { avatarColor, initialsOf } from "../planner/avatar";
+import { avatarColor, isDeletedUser, pickerInitials, pickerName } from "../planner/avatar";
 import { usePickOptions } from "../planner/use-pick-options";
 import { usePlan, type Failure, type Images, type PlanEntry } from "../planner/use-plan";
 import { RecipeImage } from "../recipes/recipe-image";
@@ -183,15 +183,16 @@ function PickerBadge({ entry }: { entry: PlanEntry }) {
   if (entry.pickedByProfile) {
     return <ProfileAvatar profile={entry.pickedByProfile} size="sm" label={entry.pickedByProfile.displayName} />;
   }
-  const who = entry.pickedBy.email ?? t("planner.unknownPicker");
+  const who = pickerName(entry.pickedBy, t);
+  const deleted = isDeletedUser(entry.pickedBy);
   return (
     <span
-      className="kid-avatar kid-avatar-sm kid-avatar-adult"
+      className={deleted ? "kid-avatar kid-avatar-sm kid-avatar-adult avatar-deleted" : "kid-avatar kid-avatar-sm kid-avatar-adult"}
       role="img"
       aria-label={who}
-      style={{ backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
+      style={deleted ? undefined : { backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
     >
-      {initialsOf(entry.pickedBy.email, entry.pickedBy.userId ?? "")}
+      {pickerInitials(entry.pickedBy)}
     </span>
   );
 }

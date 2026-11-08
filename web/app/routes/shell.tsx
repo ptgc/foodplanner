@@ -24,7 +24,11 @@ export default function Shell() {
   }, [location.pathname, signedIn]);
 
   if (session.status === "loading") return <p role="status">{t("common.loading")}</p>;
-  if (session.status === "signedOut") return <Navigate to={loginPathFor(location)} replace />;
+  if (session.status === "signedOut") {
+    // Just deleted the account (T-095): the sign-in page says so, and there is nothing to come back to.
+    const target = session.accountDeleted ? "/login?accountDeleted=1" : loginPathFor(location);
+    return <Navigate to={target} replace />;
+  }
 
   // The server says this device is a child profile (T-026): show the kid shell, nothing of the grown-up app.
   if (session.user.kidMode) {

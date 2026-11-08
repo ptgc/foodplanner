@@ -46,6 +46,12 @@
   font-weight: 700;
 }
 
+/* The person behind a pick whose account was deleted (T-095): a neutral grey, no personal colour. */
+.avatar-deleted {
+  background-color: #d9dde0;
+  color: #2b2b36;
+}
+
 .chip-profile {
   display: inline-flex;
   align-items: center;

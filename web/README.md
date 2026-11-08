@@ -43,9 +43,9 @@ React Router already emits one chunk per route and loads it on navigation. Until
 
 | Number | What it is | Now | Budget |
 |---|---|---|---|
-| Initial | what `index.html` loads before any route: router manifest, entry, root route, React, i18n, session, plus the messages of ONE language | 130.1 KB (T-106; was 140.3 KB in T-091 with both languages and the kid texts) | 135 KB (lowered from 145 in T-106: only the active language is loaded, no kid texts or kid.css) |
-| First load | the initial JS plus one route (and its layout); the budget applies to the heaviest route (`/shopping`, it carries SignalR) | 153.8 KB (T-106; was 164.5 KB; others 125-153 KB) | 159 KB (lowered from 170 in T-106) |
-| Total | every chunk; the service worker precaches all of them in the background | 230.4 KB (T-106; was 227.8 KB in T-091: the two languages are now separate chunks and share less) | 234 KB (was 235; the total cannot fall, it only moved between chunks) |
+| Initial | what `index.html` loads before any route: router manifest, entry, root route, React, i18n, session, plus the messages of ONE language | 131.2 KB (T-095 UI; 130.7 KB before it, 130.1 KB in T-106; was 140.3 KB in T-091 with both languages and the kid texts) | 135 KB (lowered from 145 in T-106: only the active language is loaded, no kid texts or kid.css) |
+| First load | the initial JS plus one route (and its layout); the budget applies to the heaviest route (`/shopping`, it carries SignalR) | 155.8 KB (T-095 UI; 155.1 KB before it, 153.8 KB in T-106; was 164.5 KB; others 125-153 KB) | 159 KB (lowered from 170 in T-106) |
+| Total | every chunk; the service worker precaches all of them in the background | 239.1 KB (T-095 UI, the delete-account screen and its messages as lazy chunks; 233.5 KB before it, 230.4 KB in T-106) | 250 KB (raised from 234 in T-095, Q-031: new screens are lazy chunks; the orchestrator may raise total and first load a little later without asking, recording it here) |
 
 Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The check counts the larger of the two language chunks (`en-*.js`, `nb-*.js`) in the initial load and fails if a kid chunk (`kid-*`, `pin-*`, `profile-*`) is in it. Raising a budget is a deliberate change to this table and the script.
 
@@ -101,6 +101,13 @@ Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The
 - Screen Wake Lock: requested on enter, re-requested on `visibilitychange` to visible (the browser drops it when the tab is hidden), released on the done screen, exit and unmount. Unsupported or refused shows a translated hint; nothing else changes.
 - Out of scope: timers (T-055) and voice (T-056).
 
+## Delete my account (T-095, `/account/delete`)
+- Entry: the "Your account" card at the bottom of `/household` (hidden in kid mode, where the shell shows the kid app anyway). Code: `routes/account-delete.tsx` (lazy wrapper, loads the `account` messages), `account/delete-account.tsx` (screen), `GET /api/account/deletion-preview` and `POST /api/account/delete` on the generated client.
+- Shows the households deleted with the account, the ones that block (only the list, a "Open members of ..." link and no form: the link makes that household active and opens `/household`), the ones that stay (history there shows as "Deleted user"), and an export link per household where the role may export (Owner/Adult; the link makes it active and opens `/household`, where the export button is). The form (password, typed email) appears only when `canDelete`. The button needs both fields and the email to match (case and surrounding spaces ignored, as in the API). It sends `householdIds` of the households shown.
+- Errors: 403 `password-incorrect` (field emptied), 409 `account-owns-households` and `account-deletion-changed` (both re-read the preview), 429 (seconds from `Retry-After`), 400, 401, network failure. On 204 `session.accountDeleted()` clears the saved session, the stored household choice, runtime caches, shopping storage and the antiforgery token (no logout call), then the shell sends the person to `/login?accountDeleted=1`, which says the account was deleted.
+- "Deleted user": a plan pick with `pickedBy.userId === null` shows a neutral grey avatar (`.avatar-deleted`) named `common.deletedUser` on the planner and the kid week (`planner/avatar.ts`: `pickerName`, `pickerInitials`). The plan lock, shopping checked-by, pantry confirmed-by and open invites carry a nullable user too, but no screen shows who, so they have no label to change.
+- Tests: Vitest `account/delete-account.test.tsx`, `routes/plan-lock.test.tsx`, `kid/kid-screens.test.tsx`; Playwright `tests/e2e/tests/account-delete.spec.ts` (mocks the POST, never deletes a real account).
+
 ## Household settings (T-045, `/household`, `/invite/:token`)
 Nav entry "Household" (nb "Husstand") in the shell. The screen works on the active household (the switcher in the header changes it) and takes its role from `GET /api/households`. Controls follow the API policies; the API still decides, and a 403 is shown as the translated "You do not have access to this."
 
@@ -146,6 +153,7 @@ Only the active language is fetched, not both. `i18n/index.ts` starts loading th
 - `setLocale(locale)` returns a promise: if the language is not loaded yet it is fetched first and the screen keeps the old language until it is in (a failed load rejects and nothing changes). The last of several quick switches wins. When everything is loaded the switch is synchronous.
 - The **kid** group (`kid-en.ts`, `kid-nb.ts`: every `kid.*` key except `kid.problem.*` and `kid.switchProfile`, which the grown-up app needs) loads only with the kid screens. `lazyWithMessages("kid", () => import(...))` (used for the kid shell, the profile picker and the household's kid profiles) fetches the component and the messages together, so those screens never render untranslated. A later language switch loads the kid group of the new language too. `kid.css` is imported by those same lazy modules (the avatar styles every screen needs are in `kid/avatar.css`).
 - Offline: the service worker precaches every chunk, so the other language and the kid group are available offline after the first visit.
+- The **account** group (`account-en.ts`, `account-nb.ts`, T-095: the `account.delete.*` keys) loads only with the delete-account screen (`routes/account-delete.tsx` wraps `account/delete-account.tsx` in `lazyWithMessages("account", ...)`). `common.deletedUser` ("Deleted user" / "Slettet bruker") and the other texts the rest of the app needs stay in core.
 - A new message group: add the files, a loader line in `index.ts`, and register the dictionaries in `vitest.setup.ts` (tests have everything loaded, so `setLocale` stays synchronous there). Tests of loading itself are in `app/i18n/loader.test.tsx`.
 
 ### Language switch and catalog names (T-078)

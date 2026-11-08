@@ -5,6 +5,7 @@ type Dictionary = Partial<Record<keyof typeof en, string>>;
 /** Norwegian bokmål. A missing key falls back to English (en.ts); i18n.test.ts checks that none is missing today. */
 export const nb: Dictionary = {
   "common.loading": "Laster...",
+  "common.deletedUser": "Slettet bruker",
   "common.skipToContent": "Hopp til innholdet",
   "common.language": "Språk",
   "common.signIn": "Logg inn",
@@ -33,6 +34,7 @@ export const nb: Dictionary = {
 
   "login.createAccount": "Opprett konto",
   "login.passwordSet": "Passordet er satt. Logg inn med det.",
+  "login.accountDeleted": "Kontoen din er slettet.",
 
   "register.title": "Opprett konto",
   "register.intro": "Skriv inn e-postadressen din. Vi sender en lenke der du velger passord.",
@@ -563,6 +565,9 @@ export const nb: Dictionary = {
   "household.export.button": "Last ned eksport",
   "household.export.done": "Eksporten er lastet ned.",
   "household.create.title": "Opprett en ny husstand",
+  "household.account.title": "Kontoen din",
+  "household.account.body": "Slett kontoen din og innloggingen din. Dette kan ikke angres.",
+  "household.account.deleteLink": "Slett kontoen min",
   "household.create.name": "Navn på den nye husstanden",
   "household.create.button": "Opprett husstand",
   "household.create.done": "{name} er opprettet og er nå aktiv.",

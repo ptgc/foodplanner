@@ -6,6 +6,7 @@
  */
 export const en = {
   "common.loading": "Loading...",
+  "common.deletedUser": "Deleted user",
   "common.skipToContent": "Skip to content",
   "common.language": "Language",
   "common.signIn": "Sign in",
@@ -34,6 +35,7 @@ export const en = {
 
   "login.createAccount": "Create account",
   "login.passwordSet": "Your password is set. Sign in with it.",
+  "login.accountDeleted": "Your account was deleted.",
 
   "register.title": "Create account",
   "register.intro": "Enter your email address. We send a link where you choose your password.",
@@ -564,6 +566,9 @@ export const en = {
   "household.export.button": "Download export",
   "household.export.done": "The export was downloaded.",
   "household.create.title": "Create another household",
+  "household.account.title": "Your account",
+  "household.account.body": "Delete your account and your sign-in. This cannot be undone.",
+  "household.account.deleteLink": "Delete my account",
   "household.create.name": "Name of the new household",
   "household.create.button": "Create household",
   "household.create.done": "{name} was created and is now active.",

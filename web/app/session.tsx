@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api, resetAntiforgeryToken } from "./api/client";
 import type { components } from "./api/schema";
 import { problemTypeOf } from "./i18n/problems";
@@ -13,7 +13,8 @@ type Household = components["schemas"]["HouseholdResponse"];
 
 export type Session =
   | { status: "loading" }
-  | { status: "signedOut" }
+  // accountDeleted: the person just deleted their account (T-095); the sign-in page says so.
+  | { status: "signedOut"; accountDeleted?: true }
   | { status: "signedIn"; user: Me; households: Household[]; activeHouseholdId: string | null };
 
 export type SignInResult =
@@ -26,6 +27,8 @@ type SessionApi = {
   session: Session;
   signIn: (email: string, password: string) => Promise<SignInResult>;
   signOut: () => Promise<void>;
+  /** The account was deleted on the server (T-095): forget what this device kept for it and end the session without calling logout. */
+  accountDeleted: () => Promise<void>;
   setActiveHousehold: (id: string) => void;
   /**
    * Reads the household list again (after creating, joining, leaving or deleting one, or a role change). Makes
@@ -46,6 +49,14 @@ function readStored(userId: string): string | null {
     return window.localStorage.getItem(storageKey(userId));
   } catch {
     return null;
+  }
+}
+
+function removeStored(userId: string) {
+  try {
+    window.localStorage.removeItem(storageKey(userId));
+  } catch {
+    // Nothing to clear.
   }
 }
 
@@ -133,6 +144,10 @@ const SessionContext = createContext<SessionApi | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session>({ status: "loading" });
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +190,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       clearShoppingStorage();
       resetAntiforgeryToken();
       setSession({ status: "signedOut" });
+    }
+  }, []);
+
+  const accountDeleted = useCallback(async () => {
+    const before = sessionRef.current;
+    clearSavedSession();
+    if (before.status === "signedIn") removeStored(before.user.userId);
+    try {
+      await clearRuntimeCaches();
+    } finally {
+      clearShoppingStorage();
+      resetAntiforgeryToken();
+      setSession({ status: "signedOut", accountDeleted: true });
     }
   }, []);
 
@@ -232,8 +260,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession }),
-    [session, signIn, signOut, setActiveHousehold, refreshHouseholds, reloadSession],
+    () => ({ session, signIn, signOut, accountDeleted, setActiveHousehold, refreshHouseholds, reloadSession }),
+    [session, signIn, signOut, accountDeleted, setActiveHousehold, refreshHouseholds, reloadSession],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
