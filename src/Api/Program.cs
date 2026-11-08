@@ -1,5 +1,4 @@
 using Foodplanner.Api.Authorization;
-using Foodplanner.Api.Features.Account;
 using Foodplanner.Api.Features.Auth;
 using Foodplanner.Api.Features.Catalog;
 using Foodplanner.Api.Features.Health;

@@ -1,5 +1,4 @@
 using Foodplanner.Api.Authorization;
-using Foodplanner.Api.Features.Auth;
 using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Problems;
@@ -14,7 +13,7 @@ using Foodplanner.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
-namespace Foodplanner.Api.Features.Account;
+namespace Foodplanner.Api.Features.Auth;
 
 /// <summary>A household named in the deletion preview or in a refusal.</summary>
 public sealed record AccountHouseholdResponse(Guid Id, string Name, int MemberCount);

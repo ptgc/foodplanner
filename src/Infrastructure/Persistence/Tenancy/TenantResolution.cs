@@ -127,19 +127,18 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
 
     public async Task<AccountErasureResult> EraseUserReferences(Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        const string updated = TenancyModelConventions.UpdatedAt;
         var filter = TenantFilterOnly;
 
         // Open invites first (they are still "open" until the link below is cleared), then the links on all invites.
         var revoked = await db.Invites.IgnoreQueryFilters(filter)
             .Where(i => i.CreatedByUserId == userId && i.AcceptedAt == null && i.ExpiresAt > now)
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.ExpiresAt, now).SetProperty(i => EF.Property<DateTimeOffset>(i, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.ExpiresAt, now).SetProperty(i => EF.Property<DateTimeOffset>(i, TenancyModelConventions.UpdatedAt), now), cancellationToken);
         var inviteLinks = await db.Invites.IgnoreQueryFilters(filter)
             .Where(i => i.CreatedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CreatedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CreatedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, TenancyModelConventions.UpdatedAt), now), cancellationToken);
         inviteLinks += await db.Invites.IgnoreQueryFilters(filter)
             .Where(i => i.AcceptedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.AcceptedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.AcceptedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, TenancyModelConventions.UpdatedAt), now), cancellationToken);
 
         // Drafts are the user's unfinished work and hold the pasted text; finished imports keep no text (only SourceUrl and SavedRecipeId).
         var drafts = await db.RecipeImports.IgnoreQueryFilters(filter)
@@ -147,20 +146,20 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
             .ExecuteDeleteAsync(cancellationToken);
         var importLinks = await db.RecipeImports.IgnoreQueryFilters(filter)
             .Where(i => i.CreatedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CreatedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CreatedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, TenancyModelConventions.UpdatedAt), now), cancellationToken);
 
         var locks = await db.MealPlans.IgnoreQueryFilters(filter)
             .Where(p => p.LockedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(p => p.LockedByUserId, (Guid?)null).SetProperty(p => EF.Property<DateTimeOffset>(p, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.LockedByUserId, (Guid?)null).SetProperty(p => EF.Property<DateTimeOffset>(p, TenancyModelConventions.UpdatedAt), now), cancellationToken);
         var picks = await db.MealPlanEntries.IgnoreQueryFilters(filter)
             .Where(e => e.PickedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(e => e.PickedByUserId, (Guid?)null).SetProperty(e => EF.Property<DateTimeOffset>(e, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(e => e.PickedByUserId, (Guid?)null).SetProperty(e => EF.Property<DateTimeOffset>(e, TenancyModelConventions.UpdatedAt), now), cancellationToken);
         var pantry = await db.PantryItems.IgnoreQueryFilters(filter)
             .Where(p => p.ConfirmedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(p => p.ConfirmedByUserId, (Guid?)null).SetProperty(p => EF.Property<DateTimeOffset>(p, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(p => p.ConfirmedByUserId, (Guid?)null).SetProperty(p => EF.Property<DateTimeOffset>(p, TenancyModelConventions.UpdatedAt), now), cancellationToken);
         var checkedItems = await db.ShoppingListItems.IgnoreQueryFilters(filter)
             .Where(i => i.CheckedByUserId == userId)
-            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CheckedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, updated), now), cancellationToken);
+            .ExecuteUpdateAsync(set => set.SetProperty(i => i.CheckedByUserId, (Guid?)null).SetProperty(i => EF.Property<DateTimeOffset>(i, TenancyModelConventions.UpdatedAt), now), cancellationToken);
 
         return new AccountErasureResult(revoked, inviteLinks, drafts, importLinks, locks, picks, pantry, checkedItems);
     }

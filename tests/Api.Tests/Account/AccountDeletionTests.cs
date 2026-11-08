@@ -451,9 +451,9 @@ public sealed class AccountDeletionTests(AuthDatabase db) : IClassFixture<AuthDa
 
         using var wrong = await user.Client.PostAsync("/api/account/delete", DeleteBody([solo], "not the password", user.User.Email));
         await wrong.AssertProblemAsync(HttpStatusCode.Forbidden, "password-incorrect");
-        using var noPassword = await user.Client.PostAsync("/api/account/delete", DeleteBody([solo], null, user.User.Email));
-        Assert.Equal(HttpStatusCode.BadRequest, noPassword.StatusCode);
-        Assert.True((await noPassword.JsonAsync()).GetProperty("errors").TryGetProperty("password", out _));
+        using var missingSecret = await user.Client.PostAsync("/api/account/delete", DeleteBody([solo], null, user.User.Email));
+        Assert.Equal(HttpStatusCode.BadRequest, missingSecret.StatusCode);
+        Assert.True((await missingSecret.JsonAsync()).GetProperty("errors").TryGetProperty("password", out _));
         using var noConfirmation = await user.Client.PostAsync("/api/account/delete", DeleteBody([solo], AuthHost.Password, "delete"));
         Assert.Equal(HttpStatusCode.BadRequest, noConfirmation.StatusCode);
         Assert.True((await noConfirmation.JsonAsync()).GetProperty("errors").TryGetProperty("confirmation", out _));
