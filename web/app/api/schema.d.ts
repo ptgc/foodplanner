@@ -196,6 +196,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/account/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAccountDeletionPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DeleteAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households": {
         parameters: {
             query?: never;
@@ -989,6 +1021,20 @@ export interface components {
             householdId: string;
             role: components["schemas"]["HouseholdRole"];
         };
+        AccountDeletionPreviewResponse: {
+            canDelete: boolean;
+            confirmationText: string;
+            householdsToDelete: components["schemas"]["AccountHouseholdResponse"][];
+            blockingHouseholds: components["schemas"]["AccountHouseholdResponse"][];
+            householdsKept: components["schemas"]["AccountHouseholdResponse"][];
+        };
+        AccountHouseholdResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            memberCount: number | string;
+        };
         AddManualShoppingItemRequest: {
             label: null | string;
             /** Format: double */
@@ -1056,6 +1102,11 @@ export interface components {
         CreateTagRequest: {
             name: null | string;
             kind: null | string;
+        };
+        DeleteAccountRequest: {
+            password: null | string;
+            confirmation: null | string;
+            householdIds: null | string[];
         };
         DismissGrocerySuggestionRequest: {
             label: null | string;
@@ -1283,7 +1334,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
-            createdByUserId: string;
+            createdByUserId: null | string;
         };
         OwnIngredientResponse: {
             /** Format: uuid */
@@ -1302,7 +1353,7 @@ export interface components {
             /** Format: date-time */
             confirmedAt: string;
             /** Format: uuid */
-            confirmedByUserId: string;
+            confirmedByUserId: null | string;
             /** Format: date-time */
             expiresAt: null | string;
             /** Format: double */
@@ -1315,7 +1366,7 @@ export interface components {
         };
         PickedByResponse: {
             /** Format: uuid */
-            userId: string;
+            userId: null | string;
             email: null | string;
         };
         PickOptionResponse: {
@@ -2235,6 +2286,131 @@ export interface operations {
             /** @description Unauthorized */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAccountDeletionPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionPreviewResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["DeleteAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {

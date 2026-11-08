@@ -1,9 +1,11 @@
 import { request } from "@playwright/test";
+import { deleteTestAccount } from "./accounts.ts";
 import { formatLeftovers, legacyMatcher, runMatcher, sweep } from "./sweep.ts";
 
 // T-083: one-off cleanup of e2e leftovers in the local database. Run it through scripts/e2e-cleanup.sh (or .ps1).
 //   --dry-run        list what would be removed, delete nothing (exit 1 when anything is found)
 //   --tag <tag>      only data carrying that run tag (default: the legacy E2E naming patterns of runs before the tag)
+//   --delete-account <e2e-...@example.test>   delete one e2e test account through the API (T-095; password in E2E_ACCOUNT_PASSWORD)
 // Credentials come from E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD; the sweep only touches the admin's households and only
 // data whose name matches.
 const args = process.argv.slice(2);
@@ -16,6 +18,21 @@ const password = process.env.E2E_ADMIN_PASSWORD;
 if (!email || !password) {
   console.error("Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD (use scripts/e2e-cleanup.sh).");
   process.exit(2);
+}
+
+// T-095: delete one e2e test ACCOUNT (e2e-...@example.test, never the admin) through the API. The password comes from
+// E2E_ACCOUNT_PASSWORD, never the command line.
+const accountIndex = args.indexOf("--delete-account");
+if (accountIndex >= 0) {
+  const accountEmail = args[accountIndex + 1];
+  const accountSecret = process.env.E2E_ACCOUNT_PASSWORD;
+  if (!accountEmail || !accountSecret) {
+    console.error("Usage: E2E_ACCOUNT_PASSWORD=... node cleanup/cli.ts --delete-account <e2e-...@example.test>");
+    process.exit(2);
+  }
+  const households = await deleteTestAccount(baseURL, accountEmail, accountSecret, email);
+  console.log(`Deleted ${accountEmail}${households.length ? ` and households: ${households.join(", ")}` : ""}`);
+  process.exit(0);
 }
 
 const api = await request.newContext({ baseURL });

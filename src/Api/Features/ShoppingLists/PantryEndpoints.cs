@@ -26,7 +26,7 @@ public sealed record PantryItemResponse(
     Guid IngredientId,
     string Name,
     DateTimeOffset ConfirmedAt,
-    Guid ConfirmedByUserId,
+    Guid? ConfirmedByUserId,
     DateTimeOffset? ExpiresAt,
     decimal? Quantity,
     Guid? UnitId,

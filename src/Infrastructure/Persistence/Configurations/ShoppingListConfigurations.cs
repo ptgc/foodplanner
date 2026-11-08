@@ -84,7 +84,7 @@ internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryI
         pantry.HasOne<Unit>().WithMany().HasForeignKey(p => p.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         pantry.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         pantry.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
-        pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).OnDelete(DeleteBehavior.Restrict);
+        pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

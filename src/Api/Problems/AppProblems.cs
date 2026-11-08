@@ -61,6 +61,10 @@ public static class AppProblems
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";
 
+    public const string PasswordIncorrect = "password-incorrect";
+    public const string AccountOwnsHouseholds = "account-owns-households";
+    public const string AccountDeletionChanged = "account-deletion-changed";
+
     public const string IngredientNotFound = "ingredient-not-found";
     public const string IngredientInUse = "ingredient-in-use";
     public const string IngredientConflict = "ingredient-conflict";

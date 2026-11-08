@@ -38,6 +38,7 @@ public static class AuthSetup
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddScoped<EmailConfirmationTokens>();
         services.AddScoped<PinService>();
+        services.AddScoped<PasswordProof>();
         services.AddScoped<IKidModeSession, KidModeSession>();
         services.AddHostedService<UnconfirmedAccountCleanup>();
 
@@ -83,6 +84,15 @@ public static class AuthSetup
                 cookie.Events.OnRedirectToAccessDenied = context => AppProblems.WriteAsync(
                     context.HttpContext, StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
             });
+        // Identity's security stamp validator signs out the two-factor "remember me" scheme too when a stamp no longer matches
+        // or the user is gone. AddIdentityCore registers no such scheme, so without this handler that sign-out threw (a 500 for
+        // every session of a deleted account, T-095). Nothing ever signs in to it; it only has to exist to be signed out.
+        services.AddAuthentication().AddCookie(IdentityConstants.TwoFactorRememberMeScheme, cookie =>
+        {
+            cookie.Cookie.Name = "__Host-foodplanner-unused-2fa";
+            cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            cookie.Cookie.Path = "/";
+        });
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme).Configure<IOptions<AuthOptions>>(
             (cookie, auth) => cookie.ExpireTimeSpan = TimeSpan.FromDays(auth.Value.CookieLifetimeDays));
 

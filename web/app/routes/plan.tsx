@@ -391,10 +391,10 @@ function EntryCard({
               className="avatar"
               role="img"
               aria-label={t("planner.pickedBy", { who })}
-              style={{ backgroundColor: avatarColor(entry.pickedBy.userId) }}
+              style={{ backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
               data-testid="avatar"
             >
-              {initialsOf(entry.pickedBy.email, entry.pickedBy.userId)}
+              {initialsOf(entry.pickedBy.email, entry.pickedBy.userId ?? "")}
             </span>
           )}
           {canChange && (

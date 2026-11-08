@@ -45,4 +45,30 @@ public interface ITenantResolution
     /// membership in one transaction. Two parallel calls for one token produce one <see cref="InviteRedemptionOutcome.Joined"/>.
     /// </summary>
     Task<InviteRedemptionResult> AddMembershipFromInvite(byte[] tokenHash, Guid userId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every household of the user with its member and other-Owner counts, for <see cref="AccountDeletionPlan"/> (T-095).
+    /// Counts come from all memberships of those households, not just the caller's. Never anyone else's households.
+    /// </summary>
+    Task<IReadOnlyList<AccountHouseholdFacts>> GetHouseholdFactsForUser(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes every reference to the user from household data that LIVES ON, across all households (T-095, Q-027): open
+    /// invites the user created are revoked; user links on invites, picks, week locks, pantry confirmations, checked items and
+    /// finished imports are set to null (the rows stay as history); the user's import drafts are deleted. Bulk statements,
+    /// each with an explicit user-id predicate. The caller runs it inside a transaction, after the households that go with
+    /// the account are deleted, and before the user row is deleted (the user foreign keys are NO ACTION).
+    /// </summary>
+    Task<AccountErasureResult> EraseUserReferences(Guid userId, DateTimeOffset now, CancellationToken cancellationToken);
 }
+
+/// <summary>How many rows <see cref="ITenantResolution.EraseUserReferences"/> touched, per kind.</summary>
+public sealed record AccountErasureResult(
+    int InvitesRevoked,
+    int InviteLinksCleared,
+    int ImportDraftsDeleted,
+    int ImportLinksCleared,
+    int WeekLocksCleared,
+    int PicksCleared,
+    int PantryConfirmationsCleared,
+    int CheckedItemsCleared);

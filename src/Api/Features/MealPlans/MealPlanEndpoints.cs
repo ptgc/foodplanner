@@ -17,7 +17,8 @@ public sealed record AddMealPlanEntryRequest(DateOnly? Date, Guid? RecipeId, int
 /// <summary>Change an entry: the day (within the same week) and the servings. Both are required.</summary>
 public sealed record UpdateMealPlanEntryRequest(DateOnly? Date, int? Servings);
 
-public sealed record PickedByResponse(Guid UserId, string? Email);
+/// <summary>The account behind a pick or a lock. Both null: that account was deleted (T-095), shown as "Deleted user".</summary>
+public sealed record PickedByResponse(Guid? UserId, string? Email);
 
 /// <summary><c>PickedByProfile</c> is the kid profile that picked the entry (T-026), null when an account holder did or the profile was deleted.</summary>
 public sealed record MealPlanEntryResponse(
@@ -371,7 +372,7 @@ public static class MealPlanEndpoints
         }
 
         var locker = await LockerAsync(db, plan, cancellationToken);
-        return Results.Ok(new MealPlanLockResponse(true, plan.LockedAt!.Value, locker!));
+        return Results.Ok(new MealPlanLockResponse(true, plan.LockedAt!.Value, locker ?? new PickedByResponse(null, null)));
     }
 
     /// <summary>Unlocks the week (Adult or Owner). Idempotent: an unlocked or missing plan is just 204.</summary>
@@ -587,7 +588,8 @@ public static class MealPlanEndpoints
     {
         var rows = await (from entry in db.MealPlanEntries.AsNoTracking()
                           join recipe in db.Recipes.AsNoTracking() on entry.RecipeId equals recipe.Id
-                          join picker in db.Users.AsNoTracking() on entry.PickedByUserId equals picker.Id
+                          join picker in db.Users.AsNoTracking() on entry.PickedByUserId equals picker.Id into pickers
+                          from picker in pickers.DefaultIfEmpty()
                           join profile in db.MemberProfiles.AsNoTracking() on entry.PickedByProfileId equals profile.Id into profiles
                           from profile in profiles.DefaultIfEmpty()
                           where entry.MealPlanId == planId && (entryId == null || entry.Id == entryId)
@@ -600,7 +602,7 @@ public static class MealPlanEndpoints
                               RecipeTitle = recipe.Title,
                               entry.Servings,
                               entry.PickedByUserId,
-                              picker.Email,
+                              Email = picker.Email,
                               ProfileId = (Guid?)profile.Id,
                               ProfileName = profile.DisplayName,
                               ProfileAvatar = profile.Avatar,

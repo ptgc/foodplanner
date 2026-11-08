@@ -189,9 +189,9 @@ function PickerBadge({ entry }: { entry: PlanEntry }) {
       className="kid-avatar kid-avatar-sm kid-avatar-adult"
       role="img"
       aria-label={who}
-      style={{ backgroundColor: avatarColor(entry.pickedBy.userId) }}
+      style={{ backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
     >
-      {initialsOf(entry.pickedBy.email, entry.pickedBy.userId)}
+      {initialsOf(entry.pickedBy.email, entry.pickedBy.userId ?? "")}
     </span>
   );
 }
