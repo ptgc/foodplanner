@@ -106,6 +106,13 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
         return new InviteRedemptionResult(InviteRedemptionOutcome.Joined, invite.HouseholdId, invite.Role);
     }
 
+    public Task<bool> UserExists(Guid userId, CancellationToken cancellationToken) =>
+        db.Users.AsNoTracking().AnyAsync(u => u.Id == userId, cancellationToken);
+
+    public async Task<bool> LockUser(Guid userId, CancellationToken cancellationToken) =>
+        await db.Users.Where(u => u.Id == userId)
+            .ExecuteUpdateAsync(set => set.SetProperty(u => u.AccessFailedCount, u => u.AccessFailedCount), cancellationToken) == 1;
+
     public async Task<IReadOnlyList<AccountHouseholdFacts>> GetHouseholdFactsForUser(Guid userId, CancellationToken cancellationToken)
     {
         var mine = db.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking()

@@ -55,7 +55,7 @@ public static class PinEndpoints
         TimeProvider time,
         CancellationToken cancellationToken)
     {
-        if (current.UserId is not { } userId)
+        if (current.UserId is not { } userId || await users.FindByIdAsync(userId.ToString()) is null)
         {
             return Unauthenticated();
         }

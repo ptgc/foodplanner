@@ -447,9 +447,36 @@ public sealed class AccountDeletionTests(AuthDatabase db) : IClassFixture<AuthDa
         Assert.Equal(2, (await ListMembersAsync(stays.Client, household)).Length);
     }
 
-    // DEFECT (T-095 verify): the second request is sometimes chosen as deadlock victim in TenantResolution.GetHouseholdFactsForUser,
-    // the first read inside the delete transaction (before the household locks), and answers 500. Remove Skip once fixed.
-    [Fact(Skip = "Defect: concurrent double delete can answer 500 (SQL deadlock); see verifier report")]
+    [Fact]
+    public async Task With_the_default_interval_a_stale_device_gets_401_not_500_on_routes_that_write_the_user_id()
+    {
+        // No ValidationInterval override: the other device's cookie still passes the stamp check right after the delete.
+        await using var host = Host();
+        var first = await host.SignInAsync();
+        var inviter = await host.SignInAsync();
+        var household = await inviter.Client.CreateHouseholdAsync("Shared");
+        var token = await inviter.Client.CreateInviteAsync(household, "Adult");
+        using var phone = host.CreateClient();
+        using (var login = await phone.LoginAsync(first.User.Email, AuthHost.Password))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+        }
+
+        using (var deleted = await DeleteAsync(first))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        }
+
+        using var create = await phone.PostAsync("/api/households", new { name = "Ghost" });
+        await create.AssertProblemAsync(HttpStatusCode.Unauthorized, "unauthenticated");
+        using var accept = await phone.AcceptAsync(token);
+        await accept.AssertProblemAsync(HttpStatusCode.Unauthorized, "unauthenticated");
+        using var pin = await phone.PutAsync("/api/auth/pin", new { pin = "1234" });
+        await pin.AssertProblemAsync(HttpStatusCode.Unauthorized, "unauthenticated");
+        Assert.Single(await ListMembersAsync(inviter.Client, household));
+    }
+
+    [Fact]
     public async Task Deleting_twice_at_the_same_time_deletes_once_and_never_fails_with_a_server_error()
     {
         await using var host = Host();

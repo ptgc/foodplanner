@@ -93,6 +93,8 @@ public static class AuthSetup
             cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             cookie.Cookie.Path = "/";
         });
+        services.AddOptions<SecurityStampValidatorOptions>().Configure<IOptions<AuthOptions>>(
+            (stamp, auth) => stamp.ValidationInterval = TimeSpan.FromMinutes(auth.Value.SecurityStampValidationMinutes));
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme).Configure<IOptions<AuthOptions>>(
             (cookie, auth) => cookie.ExpireTimeSpan = TimeSpan.FromDays(auth.Value.CookieLifetimeDays));
 

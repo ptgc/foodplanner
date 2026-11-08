@@ -137,12 +137,22 @@ public static class AccountEndpoints
 
         var now = time.GetUtcNow();
         var deletedHouseholds = new List<Guid>();
-        await using (var transaction = await db.Database.BeginTransactionAsync(cancellationToken))
+        try
         {
-            // Lock every household of the user (in id order, so two deletions cannot deadlock) and read the plan only then:
-            // a leave, a role change or a removal in one of them (they take the same lock) cannot slip in between.
-            var before = await tenants.GetHouseholdFactsForUser(userId, cancellationToken);
-            foreach (var id in before.Select(h => h.HouseholdId).Order())
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            // First statement: serialise every delete of this account on the user's own row (a no-op update takes the row
+            // lock until the end of the transaction). A double submit queues here and then finds the user gone: 401.
+            if (!await tenants.LockUser(userId, cancellationToken))
+            {
+                return Unauthenticated();
+            }
+
+            // One plain read gives the lock order (id order, so two deletions cannot deadlock). The households are locked and
+            // the plan is read only then: a leave, a role change or a removal in one of them (they take the same lock) cannot
+            // slip in between.
+            var order = await tenants.GetHouseholdFactsForUser(userId, cancellationToken);
+            foreach (var id in order.Select(h => h.HouseholdId).Order())
             {
                 await HouseholdManagementEndpoints.LockHouseholdAsync(db, id, cancellationToken);
             }
@@ -195,6 +205,13 @@ public static class AccountEndpoints
 
             await transaction.CommitAsync(cancellationToken);
         }
+        catch (Exception exception) when (IsDeadlock(exception))
+        {
+            // Backstop: the locks above serialise two deletes, but a lock taken by another feature in a different order can
+            // still make SQL Server pick this request as victim. Everything rolled back (the transaction was disposed).
+            return AppProblems.Problem(
+                StatusCodes.Status409Conflict, AppProblems.AccountDeletionChanged, "The account changed while it was being deleted", "Try again.");
+        }
 
         // After the commit, best effort: files of the deleted households (invisible orphans if this fails), live connections,
         // and this browser's cookie. Other devices' cookies stop working once the security stamp is next validated (the user
@@ -212,6 +229,21 @@ public static class AccountEndpoints
 
     private static AccountHouseholdResponse[] ToResponses(IEnumerable<AccountHouseholdFacts> households) =>
         [.. households.Select(h => new AccountHouseholdResponse(h.HouseholdId, h.Name, h.MemberCount))];
+
+    private const int SqlDeadlockVictim = 1205;
+
+    private static bool IsDeadlock(Exception exception)
+    {
+        for (var inner = exception; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is Microsoft.Data.SqlClient.SqlException { Number: SqlDeadlockVictim })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static IResult RateLimited(TimeSpan retryAfter) => new RateLimitedResult(retryAfter);
 

@@ -5,6 +5,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Foodplanner.Infrastructure.Persistence.Migrations
 {
+    /// <remarks>
+    /// Forward-only once an account has been deleted (T-095): rows whose user link is then NULL cannot satisfy the NOT NULL
+    /// that Down restores, so Down fails on such a database.
+    /// </remarks>
     /// <inheritdoc />
     public partial class MakeUserLinksNullable : Migration
     {

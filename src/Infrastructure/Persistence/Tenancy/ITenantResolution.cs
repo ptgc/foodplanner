@@ -47,6 +47,18 @@ public interface ITenantResolution
     Task<InviteRedemptionResult> AddMembershipFromInvite(byte[] tokenHash, Guid userId, DateTimeOffset now, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Whether the user row still exists. A device of a deleted account may keep a valid cookie until the next security stamp
+    /// check (T-095); routes that write the user id without a membership check ask first and answer 401, never an FK error.
+    /// </summary>
+    Task<bool> UserExists(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// First statement of an account deletion: a no-op update of the user's own row, which holds its row lock until the end
+    /// of the transaction, so a second delete of the same account queues. False when the user no longer exists.
+    /// </summary>
+    Task<bool> LockUser(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Every household of the user with its member and other-Owner counts, for <see cref="AccountDeletionPlan"/> (T-095).
     /// Counts come from all memberships of those households, not just the caller's. Never anyone else's households.
     /// </summary>
