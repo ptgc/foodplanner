@@ -167,6 +167,18 @@ public class ProteinClassSuggesterTests
         Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
 
     [Theory]
+    // Compound names: the shrimp sauce is Seafood, the other condiments stay None.
+    [InlineData("rekesausmix", ProteinClass.Seafood)]
+    [InlineData("hjemmelaget rekesaus", ProteinClass.Seafood)]
+    [InlineData("Rekesaus", ProteinClass.Seafood)]
+    [InlineData("rekepasta", ProteinClass.None)]
+    [InlineData("fiskesaus", ProteinClass.None)]
+    [InlineData("østerssaus", ProteinClass.None)]
+    [InlineData("kokte reker", ProteinClass.Seafood)]
+    public void Shrimp_sauce_in_compound_names(string name, ProteinClass expected) =>
+        Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
+
+    [Theory]
     // The other side: real animal protein next to or inside similar words stays.
     [InlineData("kjøttsaus", ProteinClass.Meat)]
     [InlineData("kyllingsaus", ProteinClass.Chicken)]

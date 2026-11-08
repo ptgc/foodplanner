@@ -75,6 +75,30 @@ public class RegularGrocerySuggesterTests
     public void Three_purchases_without_a_monthly_rhythm_give_no_suggestion(int[] offsets) =>
         Assert.Empty(Suggest(Bought("Kaffefilter", offsets)));
 
+    [Theory]
+    [InlineData(new[] { -12, -8, -4 })] // the oldest is just outside the window: two are left
+    [InlineData(new[] { -12, -7, -2 })]
+    [InlineData(new[] { -4, 0, 4 })] // a future week is ignored
+    public void A_monthly_item_with_a_sighting_outside_the_window_is_not_suggested(int[] offsets) =>
+        Assert.Empty(Suggest(Bought("Kaffefilter", offsets)));
+
+    [Fact]
+    public void A_monthly_item_with_sightings_at_the_window_edges_is_suggested()
+    {
+        var suggestion = Assert.Single(Suggest(Bought("Kaffefilter", -11, -6, -1)));
+
+        Assert.Equal(GroceryFrequency.Monthly, suggestion.Frequency);
+        Assert.Equal(3, suggestion.WeeksSeen);
+        Assert.Single(Suggest(Bought("Kaffefilter", -11, -7, -3)));
+    }
+
+    [Fact]
+    public void Two_sightings_in_one_week_count_once_so_they_are_not_a_third_week()
+    {
+        var purchases = Bought("Kaffefilter", -8, -4).Append(new ManualPurchase(Week(-4), "kaffefilter"));
+        Assert.Empty(Suggest(purchases));
+    }
+
     [Fact]
     public void Monthly_with_four_weeks_seen_still_uses_the_median_rule()
     {
