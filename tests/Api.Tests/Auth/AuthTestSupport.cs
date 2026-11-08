@@ -127,6 +127,7 @@ public sealed class AuthHost : IAsyncDisposable
             ["RateLimiting:LoginByEmail:PermitLimit"] = "1000",
             ["RateLimiting:Export:PermitLimit"] = "1000",
             ["RateLimiting:PinUnlock:PermitLimit"] = "1000",
+            ["RateLimiting:AccountDelete:PermitLimit"] = "1000",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {

@@ -38,7 +38,7 @@ internal sealed class MealPlanEntryConfiguration : IEntityTypeConfiguration<Meal
 
         // A planned recipe cannot be deleted (the recipe endpoint answers 409 first); the user is global identity data.
         entry.HasOne<Recipe>().WithMany().HasForeignKey(e => e.RecipeId).OnDelete(DeleteBehavior.Restrict);
-        entry.HasOne<AppUser>().WithMany().HasForeignKey(e => e.PickedByUserId).OnDelete(DeleteBehavior.Restrict);
+        entry.HasOne<AppUser>().WithMany().HasForeignKey(e => e.PickedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
 
         // The kid profile that picked it (T-026). NO ACTION: Household -> MealPlan -> Entry already cascades, and a second path
         // from Household via MemberProfile is rejected. The profile delete endpoint clears this column first.

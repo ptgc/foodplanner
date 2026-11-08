@@ -35,7 +35,8 @@ public sealed class PantryItem : Entity, ITenantEntity
 
     public DateTimeOffset ConfirmedAt { get; private set; }
 
-    public Guid ConfirmedByUserId { get; private set; }
+    /// <summary>Null once the confirming account was deleted (T-095); the row stays as the household's record.</summary>
+    public Guid? ConfirmedByUserId { get; private set; }
 
     /// <summary>Null = no expiry.</summary>
     public DateTimeOffset? ExpiresAt { get; private set; }
@@ -53,6 +54,11 @@ public sealed class PantryItem : Entity, ITenantEntity
             throw new ArgumentException("A confirmation needs a user.", nameof(confirmedByUserId));
         }
 
+        Set(confirmedByUserId, confirmedAt, expiresAt, amount, unitId);
+    }
+
+    private void Set(Guid? confirmedByUserId, DateTimeOffset confirmedAt, DateTimeOffset? expiresAt, decimal? amount, Guid? unitId)
+    {
         if (expiresAt is { } expiry && expiry <= confirmedAt)
         {
             throw new ArgumentException("The expiry must be after the confirmation.", nameof(expiresAt));
@@ -115,7 +121,7 @@ public sealed class PantryItem : Entity, ITenantEntity
             (amount, unitId) = (older.Amount, older.UnitId);
         }
 
-        Confirm(newer.ConfirmedByUserId, newer.ConfirmedAt, expiry, amount, unitId);
+        Set(newer.ConfirmedByUserId, newer.ConfirmedAt, expiry, amount, unitId);
     }
 
     public bool IsActive(DateTimeOffset now) => ExpiresAt is null || ExpiresAt > now;

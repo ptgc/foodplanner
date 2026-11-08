@@ -655,6 +655,155 @@
         }
       }
     },
+    "/api/account/deletion-preview": {
+      "get": {
+        "tags": [
+          "AccountEndpoints"
+        ],
+        "operationId": "GetAccountDeletionPreview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/delete": {
+      "post": {
+        "tags": [
+          "AccountEndpoints"
+        ],
+        "operationId": "DeleteAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteAccountRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households": {
       "post": {
         "tags": [
@@ -6458,6 +6607,67 @@
           }
         }
       },
+      "AccountDeletionPreviewResponse": {
+        "required": [
+          "canDelete",
+          "confirmationText",
+          "householdsToDelete",
+          "blockingHouseholds",
+          "householdsKept"
+        ],
+        "type": "object",
+        "properties": {
+          "canDelete": {
+            "type": "boolean"
+          },
+          "confirmationText": {
+            "type": "string"
+          },
+          "householdsToDelete": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          },
+          "blockingHouseholds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          },
+          "householdsKept": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          }
+        }
+      },
+      "AccountHouseholdResponse": {
+        "required": [
+          "id",
+          "name",
+          "memberCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "memberCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "AddManualShoppingItemRequest": {
         "required": [
           "label",
@@ -6765,6 +6975,38 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "DeleteAccountRequest": {
+        "required": [
+          "password",
+          "confirmation",
+          "householdIds"
+        ],
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "confirmation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "householdIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -7693,7 +7935,10 @@
             "format": "date-time"
           },
           "createdByUserId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           }
         }
@@ -7761,7 +8006,10 @@
             "format": "date-time"
           },
           "confirmedByUserId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "expiresAt": {
@@ -7812,7 +8060,10 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "email": {
@@ -9603,6 +9854,9 @@
     },
     {
       "name": "PinEndpoints"
+    },
+    {
+      "name": "AccountEndpoints"
     },
     {
       "name": "HouseholdMemberEndpoints"

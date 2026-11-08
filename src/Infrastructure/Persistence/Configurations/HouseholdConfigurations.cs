@@ -48,7 +48,7 @@ internal sealed class InviteConfiguration : IEntityTypeConfiguration<Invite>
 
         invite.HasOne<Household>().WithMany().HasForeignKey(i => i.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         // Restrict: two cascading paths from AspNetUsers to one table are not allowed in SQL Server.
-        invite.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        invite.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         invite.HasOne<AppUser>().WithMany().HasForeignKey(i => i.AcceptedByUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -3358,7 +3358,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("CreatedByUserId")
+                    b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DraftJson")
@@ -3495,7 +3495,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PickedByProfileId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("PickedByUserId")
+                    b.Property<Guid?>("PickedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("RecipeId")
@@ -3915,7 +3915,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("ConfirmedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("ConfirmedByUserId")
+                    b.Property<Guid?>("ConfirmedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -4259,7 +4259,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
-                    b.Property<Guid>("CreatedByUserId")
+                    b.Property<Guid?>("CreatedByUserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTimeOffset>("ExpiresAt")
@@ -4549,8 +4549,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
                         .WithMany()
@@ -4604,8 +4603,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("PickedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Foodplanner.Domain.Recipes.Recipe", null)
                         .WithMany()
@@ -4728,8 +4726,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("ConfirmedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
                         .WithMany()
@@ -4873,8 +4870,7 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.HasOne("Foodplanner.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
                         .WithMany()

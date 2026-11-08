@@ -89,6 +89,7 @@ if (app.Environment.IsDevelopment())
 var api = app.MapApiRoot();
 api.MapHealthEndpoints();
 api.MapAuthEndpoints();
+api.MapAccountEndpoints();
 api.MapHouseholdEndpoints();
 api.MapHouseholdManagementEndpoints();
 api.MapHouseholdMemberEndpoints();

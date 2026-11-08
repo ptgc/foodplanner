@@ -13,7 +13,7 @@ public sealed record MemberResponse(Guid UserId, string? Email, HouseholdRole Ro
 public sealed record ChangeMemberRoleRequest(string? Role);
 
 /// <summary>An open invite. Never carries the token or its hash: the plain token is shown once, at creation.</summary>
-public sealed record OpenInviteResponse(Guid Id, HouseholdRole Role, DateTimeOffset ExpiresAt, DateTimeOffset CreatedAt, Guid CreatedByUserId);
+public sealed record OpenInviteResponse(Guid Id, HouseholdRole Role, DateTimeOffset ExpiresAt, DateTimeOffset CreatedAt, Guid? CreatedByUserId);
 
 /// <summary>
 /// Member and invite management for the Owner (T-048). Routes are household-scoped; every query runs through the tenant

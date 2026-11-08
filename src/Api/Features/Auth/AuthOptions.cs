@@ -26,6 +26,12 @@ public sealed class AuthOptions
     public int CookieLifetimeDays { get; set; } = 14;
 
     /// <summary>
+    /// How often a signed-in device re-checks its account (security stamp). A deleted account, a changed password or a
+    /// signed-out-everywhere takes effect on other devices within this time (T-095). Identity's default is 30 minutes.
+    /// </summary>
+    public int SecurityStampValidationMinutes { get; set; } = 1;
+
+    /// <summary>
     /// How long a set-password link works, and also the age after which an account that never set its password is
     /// removed (T-072), so a link never outlives its account.
     /// </summary>

@@ -24,6 +24,6 @@ internal sealed class RecipeImportConfiguration : IEntityTypeConfiguration<Recip
         import.HasIndex(i => new { i.HouseholdId, i.Status });
         import.HasIndex(i => i.CreatedByUserId);
         import.HasOne<Household>().WithMany().HasForeignKey(i => i.HouseholdId).OnDelete(DeleteBehavior.Cascade);
-        import.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        import.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
     }
 }

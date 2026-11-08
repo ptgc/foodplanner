@@ -71,7 +71,8 @@ public static class HouseholdEndpoints
     private static async Task<IResult> CreateHousehold(
         CreateHouseholdRequest? request, ICurrentUser user, ITenantResolution resolution, CancellationToken cancellationToken)
     {
-        if (user.UserId is not { } userId)
+        // A device of a deleted account may keep its cookie for up to the stamp interval (T-095): 401, never an FK error.
+        if (user.UserId is not { } userId || !await resolution.UserExists(userId, cancellationToken))
         {
             return Unauthenticated();
         }
@@ -142,9 +143,9 @@ public static class HouseholdEndpoints
     }
 
     private static async Task<IResult> AcceptInvite(
-        string token, ICurrentUser user, IInviteRedemption redemption, CancellationToken cancellationToken)
+        string token, ICurrentUser user, IInviteRedemption redemption, ITenantResolution resolution, CancellationToken cancellationToken)
     {
-        if (user.UserId is not { } userId)
+        if (user.UserId is not { } userId || !await resolution.UserExists(userId, cancellationToken))
         {
             return Unauthenticated();
         }

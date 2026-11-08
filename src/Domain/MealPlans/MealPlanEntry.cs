@@ -57,7 +57,8 @@ public sealed class MealPlanEntry : Entity, ITenantEntity
 
     public int Servings { get; private set; }
 
-    public Guid PickedByUserId { get; private set; }
+    /// <summary>The account that picked the entry; null once that account was deleted (T-095): the entry stays as history.</summary>
+    public Guid? PickedByUserId { get; private set; }
 
     /// <summary>
     /// The kid profile that picked this entry (T-026), or null: picked by the account holder, or the profile was deleted.
