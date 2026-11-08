@@ -14,7 +14,7 @@ namespace Foodplanner.Domain.Catalog;
 /// "havremelk", "soyafløte", "coconut milk": <c>None</c>), and so does a "vegetar/vegansk" marker next to an animal word
 /// ("vegetarpølse": <c>None</c>). Flavourings and minor animal ingredients are <c>None</c> (T-108): the class is the main protein
 /// of the dish, not traces. A word is a flavouring when it is a stock, broth or bouillon (buljong, kraft, fond, stock, broth),
-/// a seasoning (any "-krydder", seasoning), a fish or seafood sauce or paste (fiskesaus, østerssaus, rekepasta, ansjospasta,
+/// a seasoning (any "-krydder", seasoning), a fish or seafood sauce or paste (fiskesaus, østerssaus, rekepasta, ansjospasta; "rekesaus" and "shrimp sauce" hold real shrimp and are <c>Seafood</c>, T-111,
 /// fish sauce, shrimp paste), egg noodles (eggnudler, egg noodles) or a soy product (soyabiff); "rognebær" is a berry. The
 /// guard is per word, so "kyllingfilet i buljong" is still <c>Chicken</c>. A sauce named after real meat is NOT a flavouring
 /// ("kjøttsaus" is <c>Meat</c>, "kyllingsaus" <c>Chicken</c>), nor is a dairy sauce; "egg" and "eggeplomme" stay
@@ -233,7 +233,8 @@ public static class ProteinClassSuggester
         }
 
         // A sauce made from real meat is not a flavouring ("kjøttsaus"); only fish and seafood condiments are.
-        if (IsCompound(w, "saus", 3) && CondimentHeads.Any(h => w.StartsWith(h, StringComparison.Ordinal)))
+        // T-111: "rekesaus" is made with real shrimp, so it is Seafood, not a flavouring.
+        if (IsCompound(w, "saus", 3) && !w.StartsWith("reke", StringComparison.Ordinal) && CondimentHeads.Any(h => w.StartsWith(h, StringComparison.Ordinal)))
         {
             return true;
         }
@@ -274,7 +275,7 @@ public static class ProteinClassSuggester
         // English two-word forms: the head is the NEXT word, so the animal word in front is skipped with it.
         if (next is "sauce" or "paste" or "noodles" or "noodle")
         {
-            string[] heads = next == "sauce" ? CondimentHeads : next == "paste" ? PasteHeads : ["egg"];
+            string[] heads = next == "sauce" ? [.. CondimentHeads.Where(h => h is not ("shrimp" or "prawn"))] : next == "paste" ? PasteHeads : ["egg"];
             if (heads.Contains(w))
             {
                 skipNext = true;
