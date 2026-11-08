@@ -16,6 +16,7 @@ export default [
     route("shopping", "routes/shopping.tsx"),
     route("pantry", "routes/pantry.tsx"),
     route("household", "routes/household.tsx"),
+    route("account/delete", "routes/account-delete.tsx"),
     route("ingredients", "routes/ingredients.tsx"),
     route("invite/:token", "routes/invite.tsx"),
   ]),

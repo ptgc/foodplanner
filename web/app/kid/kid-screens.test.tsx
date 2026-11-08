@@ -249,6 +249,15 @@ describe("kid week", () => {
     expect(fake.entries).toHaveLength(0);
   });
 
+  it("a pick by a deleted account shows a neutral avatar named \"Deleted user\" (T-095)", async () => {
+    const entry = pickedEntry("gone", date(2), meatballs);
+    fake.entries = [{ ...entry, pickedBy: { userId: null, email: null } }];
+    renderKid("/plan");
+    const badge = await screen.findByRole("img", { name: t("common.deletedUser") });
+    expect(badge).toHaveClass("avatar-deleted");
+    expect(badge.style.backgroundColor).toBe("");
+  });
+
   it("a locked week shows a large padlock, no add buttons, and a tap on an empty day only pulses", async () => {
     const u = userEvent.setup();
     fake.locked = true;

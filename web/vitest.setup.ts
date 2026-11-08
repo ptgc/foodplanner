@@ -2,6 +2,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
 import { registerMessages, setLocale, type Locale } from "./app/i18n";
+import { accountEn } from "./app/i18n/account-en";
+import { accountNb } from "./app/i18n/account-nb";
 import { en } from "./app/i18n/en";
 import { kidEn } from "./app/i18n/kid-en";
 import { kidNb } from "./app/i18n/kid-nb";
@@ -40,7 +42,9 @@ vi.mock("@microsoft/signalr", () => {
 // Tests have every message loaded up front, so setLocale switches synchronously (the real app loads them on demand, T-106).
 registerMessages("en", "core", en);
 registerMessages("en", "kid", kidEn);
+registerMessages("en", "account", accountEn);
 registerMessages("nb", "core", nb);
+registerMessages("nb", "account", accountNb);
 registerMessages("nb", "kid", kidNb);
 
 // The project (en or nb) decides the language of the whole test run; nothing is stored on the "device".

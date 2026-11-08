@@ -13,3 +13,22 @@ export function initialsOf(email: string | null | undefined, userId: string): st
 export function avatarColor(userId: string): string {
   return tileColor(userId);
 }
+
+/** Who a pick belongs to, as the API sends it (`PickedByResponse`). Both fields are null once the account was deleted (T-095). */
+export type PickedByUser = { userId: string | null; email: string | null };
+
+/** True for the person behind a pick whose account was deleted. */
+export function isDeletedUser(user: PickedByUser): boolean {
+  return user.userId === null;
+}
+
+/** The name shown for a pick: the email, "Deleted user" for a deleted account, "someone" when only the email is missing. */
+export function pickerName(user: PickedByUser, t: (key: "common.deletedUser" | "planner.unknownPicker") => string): string {
+  if (isDeletedUser(user)) return t("common.deletedUser");
+  return user.email ?? t("planner.unknownPicker");
+}
+
+/** The text in the avatar: initials of the email; a deleted user has no initials, a neutral dash. */
+export function pickerInitials(user: PickedByUser): string {
+  return isDeletedUser(user) ? "-" : initialsOf(user.email, user.userId ?? "");
+}

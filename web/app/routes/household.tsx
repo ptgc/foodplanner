@@ -48,6 +48,15 @@ export default function HouseholdPage() {
         </div>
       )}
       <CreateHousehold onNotice={setNotice} />
+      {!session.user.kidMode && (
+        <div className="household-card" data-testid="account-card">
+          <h2>{t("household.account.title")}</h2>
+          <p>{t("household.account.body")}</p>
+          <Link className="button button-danger" to="/account/delete" data-testid="delete-account-link">
+            {t("household.account.deleteLink")}
+          </Link>
+        </div>
+      )}
     </section>
   );
 }

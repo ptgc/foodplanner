@@ -5,7 +5,7 @@ import { useI18n, type I18n, type MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import { ProfileAvatar } from "../kid/avatar";
 import { PadlockIcon } from "../kid/icons";
-import { avatarColor, initialsOf } from "../planner/avatar";
+import { avatarColor, isDeletedUser, pickerInitials, pickerName } from "../planner/avatar";
 import { usePickOptions, type PickOption, type PickOptions } from "../planner/use-pick-options";
 import { foodTypeKey } from "../recipes/food-types";
 import {
@@ -337,7 +337,8 @@ function EntryCard({
   const { t, formatNumber } = useI18n();
   const servings = Number(entry.servings);
   const image = images[entry.recipeId];
-  const who = entry.pickedBy.email ?? t("planner.unknownPicker");
+  const who = pickerName(entry.pickedBy, t);
+  const deleted = isDeletedUser(entry.pickedBy);
   return (
     <article className="planner-entry" data-testid="planner-entry" aria-label={entry.recipeTitle}>
       <div className="planner-entry-image">
@@ -388,13 +389,13 @@ function EntryCard({
             />
           ) : (
             <span
-              className="avatar"
+              className={deleted ? "avatar avatar-deleted" : "avatar"}
               role="img"
               aria-label={t("planner.pickedBy", { who })}
-              style={{ backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
+              style={deleted ? undefined : { backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
               data-testid="avatar"
             >
-              {initialsOf(entry.pickedBy.email, entry.pickedBy.userId ?? "")}
+              {pickerInitials(entry.pickedBy)}
             </span>
           )}
           {canChange && (

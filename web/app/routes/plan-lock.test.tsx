@@ -76,4 +76,14 @@ describe("Week lock on the adult planner (T-091)", () => {
     const avatar = await screen.findByRole("img", { name: t("planner.pickedBy", { who: "Mia" }) });
     expect(avatar).toHaveAttribute("data-avatar", "fox");
   });
+
+  it("shows a pick whose account was deleted with a neutral avatar and the label \"Deleted user\" (T-095)", async () => {
+    const entry = pickedEntry("e1", week, fake.recipes[0]!);
+    fake.entries = [{ ...entry, pickedBy: { userId: null, email: null } }];
+    renderPlan();
+    const avatar = await screen.findByRole("img", { name: t("planner.pickedBy", { who: t("common.deletedUser") }) });
+    expect(avatar).toHaveClass("avatar-deleted");
+    expect(avatar.style.backgroundColor).toBe(""); // no personal colour
+    expect(avatar).toHaveTextContent("-");
+  });
 });
