@@ -44,24 +44,75 @@ public class RegularGrocerySuggesterTests
     }
 
     [Fact]
-    public void A_real_monthly_item_cannot_reach_four_weeks_in_twelve_so_the_current_rules_do_not_suggest_it()
+    public void The_defaults_are_three_for_monthly_and_four_for_weekly_and_every_second_week()
     {
-        // The architect's numbers (4 of 12) conflict with monthly: weeks -11, -7, -3 is the most a gap of 4 gives (and 0, -4, -8 too).
-        Assert.Empty(Suggest(Bought("Kaffefilter", -8, -4, 0)));
-        Assert.Empty(Suggest(Bought("Kaffefilter", -11, -7, -3)));
+        Assert.Equal(3, SuggestionRules.Default.MinWeeksMonthly);
+        Assert.Equal(4, SuggestionRules.Default.MinWeeksWeekly);
+        Assert.Equal(4, SuggestionRules.Default.MinWeeksEveryTwoWeeks);
     }
 
-    [Fact]
-    public void A_monthly_rule_of_three_weeks_is_a_one_line_change_and_suggests_it_with_the_weeks_seen()
+    [Theory]
+    [InlineData(new[] { -8, -4, 0 })] // gaps 4, 4
+    [InlineData(new[] { -11, -7, -3 })]
+    [InlineData(new[] { -10, -6, -1 })] // gaps 4, 5
+    [InlineData(new[] { -10, -5, 0 })] // gaps 5, 5
+    public void Three_purchases_in_a_steady_monthly_rhythm_are_suggested_as_monthly(int[] offsets)
     {
-        var rules = SuggestionRules.Default with { MinWeeksMonthly = 3 };
-
-        var suggestion = Assert.Single(Suggest(Bought("Kaffefilter", -8, -4, 0), rules: rules));
+        var suggestion = Assert.Single(Suggest(Bought("Kaffefilter", offsets)));
 
         Assert.Equal(GroceryFrequency.Monthly, suggestion.Frequency);
         Assert.Equal(3, suggestion.WeeksSeen);
-        Assert.Empty(Suggest(Bought("Kaffefilter", -4, 0), rules: rules)); // two is still too few
     }
+
+    [Theory]
+    [InlineData(new[] { -2, -1, 0 })] // consecutive weeks
+    [InlineData(new[] { -9, -8, -7 })]
+    [InlineData(new[] { -9, -6, -3 })] // gaps 3, 3: monthly by median but not a steady monthly rhythm
+    [InlineData(new[] { -11, -5, 0 })] // gaps 6, 5
+    [InlineData(new[] { -11, -10, -6 })] // gaps 1, 4
+    [InlineData(new[] { -10, -9, 0 })] // gaps 1, 9
+    [InlineData(new[] { -4, 0 })] // two is too few
+    public void Three_purchases_without_a_monthly_rhythm_give_no_suggestion(int[] offsets) =>
+        Assert.Empty(Suggest(Bought("Kaffefilter", offsets)));
+
+    [Theory]
+    [InlineData(new[] { -12, -8, -4 })] // the oldest is just outside the window: two are left
+    [InlineData(new[] { -12, -7, -2 })]
+    [InlineData(new[] { -4, 0, 4 })] // a future week is ignored
+    public void A_monthly_item_with_a_sighting_outside_the_window_is_not_suggested(int[] offsets) =>
+        Assert.Empty(Suggest(Bought("Kaffefilter", offsets)));
+
+    [Fact]
+    public void A_monthly_item_with_sightings_at_the_window_edges_is_suggested()
+    {
+        var suggestion = Assert.Single(Suggest(Bought("Kaffefilter", -11, -6, -1)));
+
+        Assert.Equal(GroceryFrequency.Monthly, suggestion.Frequency);
+        Assert.Equal(3, suggestion.WeeksSeen);
+        Assert.Single(Suggest(Bought("Kaffefilter", -11, -7, -3)));
+    }
+
+    [Fact]
+    public void Two_sightings_in_one_week_count_once_so_they_are_not_a_third_week()
+    {
+        var purchases = Bought("Kaffefilter", -8, -4).Append(new ManualPurchase(Week(-4), "kaffefilter"));
+        Assert.Empty(Suggest(purchases));
+    }
+
+    [Fact]
+    public void Monthly_with_four_weeks_seen_still_uses_the_median_rule()
+    {
+        var suggestion = Assert.Single(Suggest(Bought("Vaskemiddel", -9, -6, -3, 0)));
+
+        Assert.Equal(GroceryFrequency.Monthly, suggestion.Frequency);
+        Assert.Equal(4, suggestion.WeeksSeen);
+    }
+
+    [Theory]
+    [InlineData(new[] { -2, -1, 0 })]
+    [InlineData(new[] { -4, -2, 0 })] // every second week with three
+    public void Weekly_and_every_second_week_still_need_four_weeks(int[] offsets) =>
+        Assert.Empty(Suggest(Bought("Melk", offsets)));
 
     [Theory]
     [InlineData(new[] { -3, -2, -1, 0 }, true)]

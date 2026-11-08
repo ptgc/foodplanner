@@ -11,9 +11,8 @@ public sealed record GrocerySuggestion(string Key, string Label, GroceryFrequenc
 
 /// <summary>
 /// The tunable numbers of the learning (T-110, Q-030 point 4), all in one place so a rule can change without a migration.
-/// Decided: look at the last 12 weeks, suggest at 4 or more weeks, hide a dismissal for 12 weeks. Open question to the architect:
-/// within 12 weeks a once-a-month item appears 3 times at most (weeks 1, 5, 9), so with 4 for every frequency a monthly suggestion
-/// can only come from a gap of about 3 weeks. Lowering <see cref="MinWeeksMonthly"/> to 3 is a one-line change.
+/// Decided: look at the last 12 weeks, suggest weekly and every-second-week at 4 or more weeks, hide a dismissal for 12 weeks.
+/// Monthly (T-111): a once-a-month item appears 3 times at most in 12 weeks, so 3 weeks are enough when the gaps are 4 to 5 weeks.
 /// </summary>
 public sealed record SuggestionRules
 {
@@ -29,7 +28,19 @@ public sealed record SuggestionRules
 
     public int MinWeeksEveryTwoWeeks { get; init; } = 4;
 
-    public int MinWeeksMonthly { get; init; } = 4;
+    /// <summary>
+    /// Monthly needs only 3 weeks (architect, T-111): a true monthly item is seen 3 times at most in 12 weeks. With fewer than
+    /// <see cref="MinWeeksMonthlyLoose"/> weeks seen, every gap must be a steady monthly one (<see cref="MonthlyGapMin"/> to
+    /// <see cref="MonthlyGapMax"/> weeks), so three weeks in a row or three odd weeks are not a monthly item.
+    /// </summary>
+    public int MinWeeksMonthly { get; init; } = 3;
+
+    /// <summary>From this many weeks seen, the plain median rule decides Monthly (the gaps need not all be steady).</summary>
+    public int MinWeeksMonthlyLoose { get; init; } = 4;
+
+    public int MonthlyGapMin { get; init; } = 4;
+
+    public int MonthlyGapMax { get; init; } = 5;
 
     /// <summary>A median gap below this is Weekly (gaps are whole weeks; the median of an even count can be x.5).</summary>
     public decimal WeeklyBelow { get; init; } = 1.5m;
@@ -77,7 +88,8 @@ public static class RegularGrocerySuggester
         foreach (var group in byKey)
         {
             var weeks = group.Select(p => p.Purchase.WeekStart).Distinct().Order().ToList();
-            if (Classify(weeks, rules) is not { } frequency || weeks.Count < rules.MinWeeksFor(frequency))
+            if (Classify(weeks, rules) is not { } frequency || weeks.Count < rules.MinWeeksFor(frequency)
+                || (frequency == GroceryFrequency.Monthly && weeks.Count < rules.MinWeeksMonthlyLoose && !SteadyMonthly(weeks, rules)))
             {
                 continue;
             }
@@ -89,6 +101,20 @@ public static class RegularGrocerySuggester
         }
 
         return [.. result.OrderByDescending(s => s.WeeksSeen).ThenBy(s => s.Key, StringComparer.Ordinal)];
+    }
+
+    private static bool SteadyMonthly(IReadOnlyList<DateOnly> weeks, SuggestionRules rules)
+    {
+        for (var i = 1; i < weeks.Count; i++)
+        {
+            var gap = (weeks[i].DayNumber - weeks[i - 1].DayNumber) / 7;
+            if (gap < rules.MonthlyGapMin || gap > rules.MonthlyGapMax)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>The frequency of a rhythm from the median gap (in weeks) between the sorted distinct weeks; null = no rhythm.</summary>

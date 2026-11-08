@@ -148,8 +148,34 @@ public class ProteinClassSuggesterTests
     [InlineData("egg-nudler", ProteinClass.None)]
     [InlineData("østerssopp", ProteinClass.None)]
     [InlineData("oyster mushrooms", ProteinClass.None)]
-    [InlineData("rekesaus", ProteinClass.None)]
     public void Flavourings_are_none(string name, ProteinClass expected) =>
+        Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
+
+    [Theory]
+    // T-111: a sauce with real shrimp is Seafood; the other fish and seafood condiments stay None (above).
+    [InlineData("rekesaus", ProteinClass.Seafood)]
+    [InlineData("reke-saus", ProteinClass.Seafood)]
+    [InlineData("shrimp sauce", ProteinClass.Seafood)]
+    [InlineData("prawn sauce", ProteinClass.Seafood)]
+    [InlineData("fiskesaus", ProteinClass.None)]
+    [InlineData("østerssaus", ProteinClass.None)]
+    [InlineData("rekepasta", ProteinClass.None)]
+    [InlineData("ansjospasta", ProteinClass.None)]
+    [InlineData("fish sauce", ProteinClass.None)]
+    [InlineData("shrimp paste", ProteinClass.None)]
+    public void Shrimp_sauce_is_seafood_other_condiments_stay_none(string name, ProteinClass expected) =>
+        Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
+
+    [Theory]
+    // Compound names: the shrimp sauce is Seafood, the other condiments stay None.
+    [InlineData("rekesausmix", ProteinClass.Seafood)]
+    [InlineData("hjemmelaget rekesaus", ProteinClass.Seafood)]
+    [InlineData("Rekesaus", ProteinClass.Seafood)]
+    [InlineData("rekepasta", ProteinClass.None)]
+    [InlineData("fiskesaus", ProteinClass.None)]
+    [InlineData("østerssaus", ProteinClass.None)]
+    [InlineData("kokte reker", ProteinClass.Seafood)]
+    public void Shrimp_sauce_in_compound_names(string name, ProteinClass expected) =>
         Assert.Equal(expected, ProteinClassSuggester.Suggest(name));
 
     [Theory]

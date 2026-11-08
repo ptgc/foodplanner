@@ -53,12 +53,11 @@ public class RegularGrocerySuggesterRhythmTests
     }
 
     [Fact]
-    public void Monthly_becomes_suggestible_by_changing_one_constant_only()
+    public void Monthly_is_suggested_at_three_weeks_and_the_old_threshold_of_four_is_one_constant()
     {
         var monthlyOffsets = new[] { -9, -5, -1 }; // gap 4
         var purchases = monthlyOffsets.Select(o => new ManualPurchase(Week(o), "Toalettpapir")).ToList();
-        Assert.Empty(RegularGrocerySuggester.Suggest(purchases, Current, None));
-        var lowered = RegularGrocerySuggester.Suggest(purchases, Current, None, new SuggestionRules { MinWeeksMonthly = 3 });
-        Assert.Equal(GroceryFrequency.Monthly, Assert.Single(lowered).Frequency);
+        Assert.Equal(GroceryFrequency.Monthly, Assert.Single(RegularGrocerySuggester.Suggest(purchases, Current, None)).Frequency);
+        Assert.Empty(RegularGrocerySuggester.Suggest(purchases, Current, None, new SuggestionRules { MinWeeksMonthly = 4 }));
     }
 }
