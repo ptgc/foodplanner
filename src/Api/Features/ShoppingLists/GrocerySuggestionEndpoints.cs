@@ -113,9 +113,11 @@ public static class GrocerySuggestionEndpoints
         var now = time.GetUtcNow();
         var cutoff = now.AddDays(-7 * SuggestionRules.Default.HiddenWeeks);
 
-        // Up to 5 attempts, each from a fresh read. Only the two expected races are retried: another request stored the same label
-        // first (unique index; the next attempt finds and renews its row) and another request's cleanup deleted the expired row
-        // this one was renewing (the next attempt finds nothing and inserts). Any other failure (foreign key, transient SQL error)
+        // Up to 8 attempts, each from a fresh read. Only the expected races are retried: another request stored the same label
+        // first (unique index; the next attempt finds and renews its row), another request's cleanup deleted the expired row
+        // this one was renewing (the next attempt finds nothing and inserts), or the reverse: a renewal changed the row a cleanup
+        // was deleting. DismissedAt is the concurrency token, so the stale write fails instead of silently winning (without it the
+        // cleanup's DELETE removed a row that had just been renewed, and the 204 was a lost renewal). Any other failure (foreign key, transient SQL error)
         // is not swallowed: it propagates as everywhere else in the API.
         const int MaxAttempts = 8;
         for (var attempt = 1; ; attempt++)

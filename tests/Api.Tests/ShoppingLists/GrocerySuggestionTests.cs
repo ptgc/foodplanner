@@ -245,6 +245,31 @@ public sealed class GrocerySuggestionTests(AuthDatabase db) : IClassFixture<Auth
     }
 
     [Fact]
+    public async Task A_cleanup_delete_of_a_row_that_was_renewed_meanwhile_fails_instead_of_losing_the_renewal()
+    {
+        // T-112, the deterministic form of the race above: a cleanup read the expired row, a renewal then committed, and the
+        // cleanup deletes. Without DismissedAt as concurrency token that DELETE succeeded and the renewed (204) dismissal was gone.
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        await DismissAsync(owner.Client, household, "Pålegg");
+        await BackdateDismissalsAsync(household, host.Time.Now.AddDays(-(7 * 13)));
+
+        await using var cleanup = TestDbContext.Create(db.ConnectionString, household);
+        var stale = await cleanup.DismissedGrocerySuggestions.ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Single(stale);
+
+        await DismissAsync(owner.Client, household, "Pålegg"); // the renewal commits first
+
+        cleanup.DismissedGrocerySuggestions.RemoveRange(stale);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => cleanup.SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        await using var check = TestDbContext.Create(db.ConnectionString, household);
+        var stored = await check.DismissedGrocerySuggestions.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.True(stored.DismissedAt > host.Time.Now.AddDays(-1));
+    }
+
+    [Fact]
     public async Task Only_owner_and_adult_may_read_and_dismiss_a_child_and_a_stranger_are_refused()
     {
         await using var host = Host();
