@@ -389,6 +389,85 @@ public sealed class AccountDeletionTests(AuthDatabase db) : IClassFixture<AuthDa
         Assert.Equal([owner.User.Id], await ListMembersAsync(owner.Client, household));
     }
 
+    [Fact]
+    public async Task The_household_keeps_working_for_the_remaining_members_after_an_owner_deleted_the_account()
+    {
+        await using var host = Host();
+        var (stays, leaves, household) = await TwoOwnersAsync(host);
+        var recipe = await stays.Client.CreateRecipeAsync(household);
+        using (var pick = await leaves.Client.PostAsync(Url(household, $"/meal-plans/{Monday}/entries"), new { date = Monday, recipeId = recipe }))
+        {
+            Assert.Equal(HttpStatusCode.Created, pick.StatusCode);
+        }
+
+        using (var deleted = await DeleteAsync(leaves))
+        {
+            Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        }
+
+        // The deleted user's pick still renders, with no person behind it.
+        using var plan = await stays.Client.GetAsync(Url(household, $"/meal-plans/{Monday}"));
+        Assert.Equal(HttpStatusCode.OK, plan.StatusCode);
+        var entry = (await plan.JsonAsync()).GetProperty("entries").EnumerateArray().Single();
+        Assert.Equal(JsonValueKind.Null, entry.GetProperty("pickedBy").GetProperty("userId").ValueKind);
+
+        // The remaining Owner can still plan, shop, use the pantry, invite and see the members.
+        using (var again = await stays.Client.PostAsync(Url(household, $"/meal-plans/{Monday}/entries"), new { date = "2030-01-08", recipeId = recipe }))
+        {
+            Assert.Equal(HttpStatusCode.Created, again.StatusCode);
+        }
+
+        using (var list = await stays.Client.GetAsync(Url(household, $"/shopping-lists/{Monday}")))
+        {
+            Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        }
+
+        using (var item = await stays.Client.PostAsync(Url(household, $"/shopping-lists/{Monday}/items"), new { label = "Bread" }))
+        {
+            Assert.Equal(HttpStatusCode.Created, item.StatusCode);
+        }
+
+        using (var pantry = await stays.Client.PutAsync(Url(household, $"/pantry/{KidHost.Salt}"), new { }))
+        {
+            Assert.True(pantry.IsSuccessStatusCode, pantry.StatusCode.ToString());
+        }
+
+        using (var pantryList = await stays.Client.GetAsync(Url(household, "/pantry")))
+        {
+            Assert.Equal(HttpStatusCode.OK, pantryList.StatusCode);
+        }
+
+        var token = await stays.Client.CreateInviteAsync(household, "Adult");
+        var newcomer = await host.SignInAsync();
+        using (var accepted = await newcomer.Client.AcceptAsync(token))
+        {
+            Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        }
+
+        Assert.Equal(2, (await ListMembersAsync(stays.Client, household)).Length);
+    }
+
+    // DEFECT (T-095 verify): the second request is sometimes chosen as deadlock victim in TenantResolution.GetHouseholdFactsForUser,
+    // the first read inside the delete transaction (before the household locks), and answers 500. Remove Skip once fixed.
+    [Fact(Skip = "Defect: concurrent double delete can answer 500 (SQL deadlock); see verifier report")]
+    public async Task Deleting_twice_at_the_same_time_deletes_once_and_never_fails_with_a_server_error()
+    {
+        await using var host = Host();
+        var user = await host.SignInAsync();
+        var solo = await user.Client.CreateHouseholdAsync("Solo");
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 2).Select(async _ =>
+        {
+            using var response = await DeleteAsync(user, solo);
+            return response.StatusCode;
+        }));
+
+        Assert.Equal(1, results.Count(s => s == HttpStatusCode.NoContent));
+        Assert.All(results.Where(s => s != HttpStatusCode.NoContent), s => Assert.True((int)s is >= 400 and < 500, s.ToString()));
+        Assert.Equal(0, await UsersAsync(user.User.Id));
+        Assert.Equal(0, await HouseholdsAsync(solo));
+    }
+
     // ---------------------------------------------------------------- sessions
 
     [Fact]
