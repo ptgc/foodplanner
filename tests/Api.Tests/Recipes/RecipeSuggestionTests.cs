@@ -408,4 +408,98 @@ public sealed class RecipeSuggestionTests(AuthDatabase db) : IClassFixture<AuthD
         await using var context = TenancyDatabase.CreateProductionContext(db.ConnectionString);
         await CrossHouseholdLinks.AssertNoneAsync(context.Model, db.ConnectionString);
     }
+
+    [Fact]
+    public async Task A_pantry_entry_that_expires_exactly_now_does_not_count()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        await RecipeAsync(owner.Client, household, "Ostetoast", 2, Line(Cheese, 100, Gram));
+        await PantryAsync(owner.Client, household, Cheese, 300, Gram, expires: Wednesday.AddMinutes(1));
+
+        // T-093: active means ExpiresAt > now, so an entry that expires at this very instant is gone.
+        host.Time.Now = Wednesday.AddMinutes(1).AddTicks(-1);
+        Assert.Empty(Item(await GetAsync(owner.Client, Suggest(household)), "Ostetoast").GetProperty("missing").EnumerateArray());
+
+        host.Time.Now = Wednesday.AddMinutes(1);
+        Assert.Equal(["Ost"], MissingNames(Item(await GetAsync(owner.Client, Suggest(household)), "Ostetoast")));
+    }
+
+    [Theory]
+    [InlineData("2026-11-04T23:30:00+00:00", "2026-11-05", "2026-11-02")] // Oslo is UTC+1: already Thursday
+    [InlineData("2026-11-08T23:30:00+00:00", "2026-11-09", "2026-11-09")] // Sunday night UTC is Monday in Oslo: next week
+    [InlineData("2026-11-08T22:30:00+00:00", "2026-11-08", "2026-11-02")] // still Sunday in Oslo
+    [InlineData("2027-06-30T22:30:00+00:00", "2027-07-01", "2027-06-28")] // summer time, UTC+2
+    public async Task Today_is_the_Oslo_date_near_midnight_UTC(string utc, string today, string monday)
+    {
+        await using var host = Host();
+        host.Time.Now = DateTimeOffset.Parse(utc);
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var toast = await RecipeAsync(owner.Client, household, "Ostetoast", 2, Line(Cheese, 100, Gram));
+
+        var body = await GetAsync(owner.Client, Suggest(household));
+        Assert.Equal(today, body.GetProperty("today").GetString());
+        Assert.Equal(monday, body.GetProperty("weekStart").GetString());
+
+        using var cook = await owner.Client.PostAsync(Suggest(household, $"/{toast}/cook-today"));
+        Assert.Equal(HttpStatusCode.Created, cook.StatusCode);
+        var created = await cook.JsonAsync();
+        Assert.Equal(today, created.GetProperty("entry").GetProperty("date").GetString());
+        Assert.Equal(monday, created.GetProperty("weekStart").GetString());
+    }
+
+    [Fact]
+    public async Task Add_missing_keeps_manual_lines_and_checked_items_like_generate_does()
+    {
+        await using var host = Host();
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        var tacos = await RecipeAsync(owner.Client, household, "Tacos", 4, Line(Cheese, 200, Gram), Line(Tortillas, 8, Piece));
+        var soup = await RecipeAsync(owner.Client, household, "Suppe", 4, Line(Milk, 5, Decilitre));
+        var listUrl = $"{H(household)}/shopping-lists/{Monday:yyyy-MM-dd}";
+        using (var plan = await owner.Client.PostAsync(
+            $"{H(household)}/meal-plans/{Monday:yyyy-MM-dd}/entries", new { date = "2026-11-06", recipeId = soup, servings = 4 }))
+        {
+            Assert.Equal(HttpStatusCode.Created, plan.StatusCode);
+        }
+
+        using (var generate = await owner.Client.PostAsync($"{listUrl}/generate"))
+        {
+            Assert.Equal(HttpStatusCode.OK, generate.StatusCode);
+        }
+
+        using (var manual = await owner.Client.PostAsync($"{listUrl}/items", new { label = "Batterier", quantity = (decimal?)null, unitId = (Guid?)null }))
+        {
+            Assert.Equal(HttpStatusCode.Created, manual.StatusCode);
+        }
+
+        var before = await GetAsync(owner.Client, listUrl);
+        var milkItem = before.GetProperty("main").EnumerateArray().Single(i => i.GetProperty("name").GetString() == "Melk").GetProperty("id").GetGuid();
+        using (var check = await owner.Client.PutAsync($"{listUrl}/items/{milkItem}/check", new { @checked = true }))
+        {
+            Assert.Equal(HttpStatusCode.OK, check.StatusCode);
+        }
+
+        using (var cook = await owner.Client.PostAsync(Suggest(household, $"/{tacos}/cook-today")))
+        {
+            Assert.Equal(HttpStatusCode.Created, cook.StatusCode);
+        }
+
+        using (var add = await owner.Client.PostAsync(Suggest(household, $"/{tacos}/add-missing")))
+        {
+            Assert.Equal(HttpStatusCode.OK, add.StatusCode);
+        }
+
+        var after = await GetAsync(owner.Client, listUrl);
+        var main = after.GetProperty("main").EnumerateArray().ToArray();
+        var names = main.Select(i => i.GetProperty("name").GetString()!).ToArray();
+        Assert.Contains("Ost", names);
+        Assert.Contains("Tortillalefser", names);
+        Assert.Contains("Batterier", names); // the hand-typed line survives
+        var milk = main.Single(i => i.GetProperty("name").GetString() == "Melk");
+        Assert.Equal(milkItem, milk.GetProperty("id").GetGuid()); // same row
+        Assert.True(milk.GetProperty("checked").GetBoolean()); // still checked
+    }
 }
