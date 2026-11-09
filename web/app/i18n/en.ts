@@ -224,6 +224,8 @@ export const en = {
   "pantry.clearConfirm": "Clear it",
   "pantry.adultsOnlyClear": "Only adults and owners can clear the whole pantry.",
   "pantry.back": "Back to the shopping list",
+  "pantry.suggestLink": "What can I make with this?",
+  "planner.suggestLink": "What can I make today?",
   "pantry.problem.conflict": "Someone else changed the pantry at the same time. Try again.",
   "household.pantry.title": "Pantry",
   "household.pantry.body": "What you have at home, with amounts. The shopping list subtracts it.",

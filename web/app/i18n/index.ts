@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from "react";
 import type { en } from "./en";
 import type { accountEn } from "./account-en";
+import type { suggestEn } from "./suggest-en";
 import type { kidEn } from "./kid-en";
 
 /**
@@ -17,24 +18,26 @@ export const locales: readonly Locale[] = ["nb", "en"];
 
 type Base<K extends string> = K extends `${infer B}.${"one" | "other"}` ? B : K;
 /** Every translatable message, by key (plural messages appear once, without `.one`/`.other`). */
-export type MessageKey = Base<keyof typeof en | keyof typeof kidEn | keyof typeof accountEn>;
+export type MessageKey = Base<keyof typeof en | keyof typeof kidEn | keyof typeof accountEn | keyof typeof suggestEn>;
 
 export type Params = Record<string, string | number>;
 export type Dictionary = Readonly<Record<string, string | undefined>>;
 
-/** "core": the whole grown-up app. "kid": kid mode and kid profiles, loaded with those screens only. "account": the delete-account screen (T-095). */
-export type MessageGroup = "core" | "kid" | "account";
+/** "core": the whole grown-up app. "kid": kid mode and kid profiles, loaded with those screens only. "account": the delete-account screen (T-095). "suggest": the what-can-I-make screen (T-100). */
+export type MessageGroup = "core" | "kid" | "account" | "suggest";
 
 const loaders: Record<Locale, Record<MessageGroup, () => Promise<Dictionary>>> = {
   en: {
     core: () => import("./en").then((m) => m.en),
     kid: () => import("./kid-en").then((m) => m.kidEn),
     account: () => import("./account-en").then((m) => m.accountEn),
+    suggest: () => import("./suggest-en").then((m) => m.suggestEn),
   },
   nb: {
     core: () => import("./nb").then((m) => m.nb),
     kid: () => import("./kid-nb").then((m) => m.kidNb),
     account: () => import("./account-nb").then((m) => m.accountNb),
+    suggest: () => import("./suggest-nb").then((m) => m.suggestNb),
   },
 };
 
@@ -47,7 +50,7 @@ const wantedGroups = new Set<MessageGroup>(["core"]);
 /** Make a loaded dictionary known. Loading does this; tests call it for every locale up front (vitest.setup.ts). */
 export function registerMessages(locale: Locale, group: MessageGroup, dictionary: Dictionary): void {
   groupDictionaries[locale][group] = dictionary;
-  merged[locale] = { ...groupDictionaries[locale].core, ...groupDictionaries[locale].kid, ...groupDictionaries[locale].account };
+  merged[locale] = { ...groupDictionaries[locale].core, ...groupDictionaries[locale].kid, ...groupDictionaries[locale].account, ...groupDictionaries[locale].suggest };
   listeners.forEach((listener) => listener());
 }
 

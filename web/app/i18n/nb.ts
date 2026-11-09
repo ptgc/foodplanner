@@ -223,6 +223,8 @@ export const nb: Dictionary = {
   "pantry.clearConfirm": "Tøm det",
   "pantry.adultsOnlyClear": "Bare voksne og eiere kan tømme hele skapet.",
   "pantry.back": "Tilbake til handlelisten",
+  "pantry.suggestLink": "Hva kan jeg lage av dette?",
+  "planner.suggestLink": "Hva kan jeg lage i dag?",
   "pantry.problem.conflict": "Noen andre endret skapet samtidig. Prøv igjen.",
   "household.pantry.title": "Skapet",
   "household.pantry.body": "Det dere har hjemme, med mengder. Handlelisten trekker det fra.",

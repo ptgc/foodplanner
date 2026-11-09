@@ -100,6 +100,11 @@ function PantryScreen({ householdId, canClear }: { householdId: string; canClear
       <h1 id="pantry-title">{t("pantry.title")}</h1>
       <p>{t("pantry.body")}</p>
       <p>
+        <Link className="button household-link" to="/what-can-i-make" data-testid="suggest-link">
+          {t("pantry.suggestLink")}
+        </Link>
+      </p>
+      <p>
         <Link to="/shopping">{t("pantry.back")}</Link>
       </p>
       {loadError && (
