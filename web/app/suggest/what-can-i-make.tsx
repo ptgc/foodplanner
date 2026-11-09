@@ -61,6 +61,26 @@ function Screen({ householdId, canCook }: { householdId: string; canCook: boolea
     return result.ok ? { ok: true, data: result.data?.length ?? 0, status: result.status } : result;
   });
 
+  // The amounts on a card are for the servings asked for, but add-missing uses the servings planned for today. So a card
+  // planned today shows the planned servings, read from today's plan (one call for the week, not one per card).
+  const plannedIds = (data?.items ?? [])
+    .filter((i) => i.plannedToday)
+    .map((i) => i.recipeId)
+    .sort()
+    .join(",");
+  const { data: plannedServings } = useLoaded<Record<string, number>>(`${householdId}:plan:${data?.weekStart}:${plannedIds}`, async () => {
+    if (!data || plannedIds === "") return { ok: true, data: {}, status: 200 };
+    const result = await call(() =>
+      api.GET("/api/households/{householdId}/meal-plans/{weekStart}", { params: { path: { householdId, weekStart: data.weekStart } } }),
+    );
+    if (!result.ok) return result;
+    const byRecipe: Record<string, number> = {};
+    for (const entry of result.data?.entries ?? []) {
+      if (entry.date === data.today && !(entry.recipeId in byRecipe)) byRecipe[entry.recipeId] = Number(entry.servings);
+    }
+    return { ok: true, data: byRecipe, status: result.status };
+  });
+
   if (error === "problem.unauthenticated") return <Navigate to={loginPathFor(location)} replace />;
 
   const patch = (recipeId: string, state: CardState) => setCards((prev) => ({ ...prev, [recipeId]: { ...prev[recipeId], ...state } }));
@@ -163,14 +183,30 @@ function Screen({ householdId, canCook }: { householdId: string; canCook: boolea
       {ready.length > 0 && (
         <Group title={t("suggest.ready.title")} testId="suggest-ready">
           {ready.map((item) => (
-            <Card key={item.recipeId} item={item} canCook={canCook} state={cards[item.recipeId]} onCook={cookToday} onAdd={addMissing} />
+            <Card
+              key={item.recipeId}
+              item={item}
+              canCook={canCook}
+              state={cards[item.recipeId]}
+              onCook={cookToday}
+              onAdd={addMissing}
+              plannedServings={plannedServings?.[item.recipeId]}
+            />
           ))}
         </Group>
       )}
       {almost.length > 0 && (
         <Group title={t("suggest.missing.title")} testId="suggest-almost">
           {almost.map((item) => (
-            <Card key={item.recipeId} item={item} canCook={canCook} state={cards[item.recipeId]} onCook={cookToday} onAdd={addMissing} />
+            <Card
+              key={item.recipeId}
+              item={item}
+              canCook={canCook}
+              state={cards[item.recipeId]}
+              onCook={cookToday}
+              onAdd={addMissing}
+              plannedServings={plannedServings?.[item.recipeId]}
+            />
           ))}
         </Group>
       )}
@@ -225,15 +261,22 @@ function Card({
   state,
   onCook,
   onAdd,
+  plannedServings,
 }: {
   item: Suggestion;
   canCook: boolean;
   state: CardState | undefined;
   onCook: (item: Suggestion) => Promise<void>;
   onAdd: (item: Suggestion) => Promise<void>;
+  plannedServings: number | undefined;
 }) {
   const { t } = useI18n();
   const missingText = useMissingText();
+  // On a card planned today the amounts would be for the card's servings, not the planned ones: names only.
+  const nameText = (m: Missing) =>
+    m.alternatives.length > 0
+      ? t("suggest.line.alternatives", { item: m.name, alternatives: m.alternatives.map((a) => a.ingredientName).join(", ") })
+      : m.name;
   const minutes = item.totalMinutes === null || item.totalMinutes === undefined ? null : Number(item.totalMinutes);
   const likes = Number(item.kidLikes);
   const busy = state?.busy;
@@ -267,19 +310,29 @@ function Card({
               {t("suggest.likes", { count: likes })}
             </span>
           )}
-          {item.cookedRecently && (
+          {item.cookedRecently && !item.plannedToday && (
             <span className="suggest-hint" data-testid="suggest-cooked-recently">
               {t("suggest.cookedRecently")}
             </span>
           )}
         </span>
       </Link>
+      {item.plannedToday && plannedServings !== undefined && (
+        <p className="suggest-hint" data-testid="suggest-planned-servings">
+          {t("suggest.plannedFor", { count: plannedServings })}
+        </p>
+      )}
       {item.missing.length > 0 && (
         <ul className="suggest-missing" data-testid="suggest-missing">
           {item.missing.map((m) => (
-            <li key={m.ingredientId}>{t("suggest.missingLine", { item: missingText(m) })}</li>
+            <li key={m.ingredientId}>{t("suggest.missingLine", { item: item.plannedToday ? nameText(m) : missingText(m) })}</li>
           ))}
         </ul>
+      )}
+      {item.plannedToday && item.missing.length > 0 && (
+        <p className="suggest-hint" data-testid="suggest-planned-amounts-note">
+          {t("suggest.plannedAmountsNote")}
+        </p>
       )}
       {canCook && (
         <div className="suggest-actions">

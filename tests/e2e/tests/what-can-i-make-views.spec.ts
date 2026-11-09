@@ -35,7 +35,11 @@ for (const locale of ["en-US", "nb-NO"] as const) {
       const request = page.request;
       const mobile = (page.viewportSize()?.width ?? 0) <= 390;
       const stamp = uniqueStamp(testInfo);
-      const shots = process.env.SHOT_DIR ?? ".";
+      // Screenshots only when SHOT_DIR is set, so a normal run leaves no files behind.
+      const shots = process.env.SHOT_DIR;
+      const shoot = async (name: string) => {
+        if (shots) await page.screenshot({ path: `${shots}/suggest-${locale}-${testInfo.project.name}-${name}.png`, fullPage: true });
+      };
       let h: string | undefined;
       try {
         const created = await request.post("/api/households", { headers: await csrf(request), data: { name: `E2E suggest views ${stamp}` } });
@@ -80,7 +84,7 @@ for (const locale of ["en-US", "nb-NO"] as const) {
         const card = page.getByTestId("suggest-card").filter({ hasText: title });
         await expect(card).toHaveCount(1);
         await checkLayout(page, mobile);
-        await page.screenshot({ path: `${shots}/suggest-${locale}-${testInfo.project.name}-own.png`, fullPage: true });
+        await shoot("own");
 
         // 8 servings: rice 600 g vs 500 g at home -> 100 g more; cheese 200 g. Compare with the API.
         const api = await (await request.get(`/api/households/${h}/what-can-i-make?servings=8`)).json();
@@ -92,7 +96,7 @@ for (const locale of ["en-US", "nb-NO"] as const) {
         await expect(lines).toContainText("100 g");
         await expect(lines).toContainText(locale === "en-US" ? "more" : "mer");
         await checkLayout(page, mobile);
-        await page.screenshot({ path: `${shots}/suggest-${locale}-${testInfo.project.name}-8.png`, fullPage: true });
+        await shoot("8");
 
         // Cook today at 8: the plan holds 8 servings; after a reload the badge shows and add-missing is offered.
         await card.getByRole("button", { name: /Cook today|Lag i dag/ }).click();
@@ -106,7 +110,23 @@ for (const locale of ["en-US", "nb-NO"] as const) {
         await expect(again.getByRole("button", { name: /Add missing|Legg det som mangler/ })).toBeVisible();
         await expect(again.getByRole("button", { name: /Cook today|Lag i dag/ })).toHaveCount(0);
         await checkLayout(page, mobile);
-        await page.screenshot({ path: `${shots}/suggest-${locale}-${testInfo.project.name}-planned.png`, fullPage: true });
+        await shoot("planned");
+
+        // The card is honest about the servings: it says 8 (from the plan, after the reload) and shows no amounts.
+        await expect(again.getByTestId("suggest-planned-servings")).toContainText(
+          locale === "en-US" ? "Planned today for 8 servings" : "Planlagt i dag for 8 porsjoner",
+        );
+        await expect(again.getByTestId("suggest-missing")).not.toContainText(/\d+ g\b/);
+        // Add missing uses the planned 8 servings: cheese 200 g, and rice 100 g (600 g needed, 500 g at home).
+        await again.getByRole("button", { name: /Add missing|Legg det som mangler/ }).click();
+        await expect(again.getByTestId("suggest-added-note")).toContainText("200 g");
+        await expect(again.getByTestId("suggest-added-note")).toContainText("100 g");
+        const list = (await (await request.get(`/api/households/${h}/shopping-lists/${weekStart}`)).json()) as {
+          main: { name: string; quantities: { amount: number; unitCode: string }[] }[];
+        };
+        const amounts = Object.fromEntries(list.main.map((i) => [i.name, `${i.quantities[0]!.amount} ${i.quantities[0]!.unitCode}`]));
+        expect(amounts[inventedName(stamp, "cheese")]).toBe("200 g");
+        expect(amounts[inventedName(stamp, "rice")]).toBe("100 g");
       } finally {
         if (h) await request.delete(`/api/households/${h}`, { headers: await csrf(request) });
       }

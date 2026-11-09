@@ -53,6 +53,8 @@ let cookStatus: Response | null;
 let addStatus: Response | null;
 let listStatus: number;
 let kidMode: unknown = null;
+/** Servings of today's plan entries by recipe id; a planned-today item not listed here is planned for 4. */
+let planned: Record<string, number> = {};
 
 beforeEach(() => {
   resetAntiforgeryToken();
@@ -62,6 +64,7 @@ beforeEach(() => {
   addStatus = null;
   listStatus = 200;
   kidMode = null;
+  planned = {};
   pantryCount = 3;
   items = [
     item({ recipeId: "r-pasta", title: "Pasta", kidLikes: 2, cookedRecently: true }),
@@ -90,6 +93,12 @@ beforeEach(() => {
       calls.push({ method, path, query: url.search, body });
       if (path === "/api/households/h1/what-can-i-make") return listStatus === 200 ? json({ today: "2026-11-09", weekStart: "2026-11-09", items }) : problem("kid-mode", listStatus);
       if (path === "/api/households/h1/pantry") return json(Array.from({ length: pantryCount }, (_, i) => ({ ingredientId: `p${i}` })));
+      if (path === "/api/households/h1/meal-plans/2026-11-09") {
+        const entries = items
+          .filter((i) => i.plannedToday || planned[i.recipeId] !== undefined)
+          .map((i) => ({ id: `e-${i.recipeId}`, date: "2026-11-09", recipeId: i.recipeId, recipeTitle: i.title, servings: planned[i.recipeId] ?? 4 }));
+        return json({ id: "p1", weekStart: "2026-11-09", entries, locked: false, lockedAt: null, lockedBy: null });
+      }
       const cook = path.match(/what-can-i-make\/([^/]+)\/cook-today$/);
       if (cook) {
         if (cookStatus) return cookStatus;
@@ -182,6 +191,28 @@ describe("what can I make", () => {
     await screen.findByTestId("suggest-ready");
     expect(within(card("Pasta")).getByTestId("suggest-planned-today")).toHaveTextContent(t("suggest.plannedToday"));
     expect(within(card("Pasta")).queryByRole("button")).toBeNull();
+  });
+
+  it("a card planned today (after a reload) says the planned servings and shows the missing names, not amounts", async () => {
+    planned = { "r-taco": 8 };
+    items = items.map((i) => (i.recipeId === "r-taco" ? { ...i, plannedToday: true } : i));
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    const tacos = card("Tacos");
+    expect(await within(tacos).findByTestId("suggest-planned-servings")).toHaveTextContent(t("suggest.plannedFor", { count: 8 }));
+    expect(within(tacos).getByTestId("suggest-missing")).toHaveTextContent(t("suggest.missingLine", { item: "Cheese" }));
+    expect(within(tacos).getByTestId("suggest-missing")).not.toHaveTextContent("200");
+    expect(within(tacos).getByTestId("suggest-planned-amounts-note")).toHaveTextContent(t("suggest.plannedAmountsNote"));
+    // other cards keep their amounts
+    expect(within(card("Curry")).getByTestId("suggest-missing")).toHaveTextContent("100 g");
+  });
+
+  it("does not show the cooked recently hint on a card planned today", async () => {
+    items[0] = { ...items[0]!, plannedToday: true, cookedRecently: true };
+    renderPage();
+    await screen.findByTestId("suggest-ready");
+    expect(within(card("Pasta")).getByTestId("suggest-planned-today")).toBeInTheDocument();
+    expect(within(card("Pasta")).queryByTestId("suggest-cooked-recently")).toBeNull();
   });
 
   it("asks for the chosen servings and sends them with cook today", async () => {
@@ -353,11 +384,15 @@ describe("verifier additions (T-100 UI)", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByTestId("suggest-almost");
+    planned = { "r-taco": 4 };
     await user.click(cook("Tacos"));
     await within(card("Tacos")).findByTestId("suggest-planned-note");
     items = items.map((i) => (i.recipeId === "r-taco" ? { ...i, plannedToday: true } : i));
     await user.selectOptions(screen.getByLabelText(t("suggest.servingsLabel")), "8");
     await waitFor(() => expect(calls.some((c) => c.query === "?servings=8")).toBe(true));
+    // the card says the planned servings (4), not the selector's 8, and shows no amounts that add-missing would not use
+    expect(await within(card("Tacos")).findByTestId("suggest-planned-servings")).toHaveTextContent(t("suggest.plannedFor", { count: 4 }));
+    expect(within(card("Tacos")).getByTestId("suggest-missing")).not.toHaveTextContent("200");
     await user.click(await within(card("Tacos")).findByRole("button", { name: t("suggest.addMissingFor", { title: "Tacos" }) }));
     await within(card("Tacos")).findByTestId("suggest-added-note");
     expect(calls.find((c) => c.path.endsWith("r-taco/add-missing"))!.body).toBeNull();
