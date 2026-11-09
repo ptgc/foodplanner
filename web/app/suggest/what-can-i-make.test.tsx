@@ -55,6 +55,8 @@ let listStatus: number;
 let kidMode: unknown = null;
 /** Servings of today's plan entries by recipe id; a planned-today item not listed here is planned for 4. */
 let planned: Record<string, number> = {};
+/** When not 200, the plan read answers this status. */
+let planStatus = 200;
 
 beforeEach(() => {
   resetAntiforgeryToken();
@@ -65,6 +67,7 @@ beforeEach(() => {
   listStatus = 200;
   kidMode = null;
   planned = {};
+  planStatus = 200;
   pantryCount = 3;
   items = [
     item({ recipeId: "r-pasta", title: "Pasta", kidLikes: 2, cookedRecently: true }),
@@ -94,6 +97,7 @@ beforeEach(() => {
       if (path === "/api/households/h1/what-can-i-make") return listStatus === 200 ? json({ today: "2026-11-09", weekStart: "2026-11-09", items }) : problem("kid-mode", listStatus);
       if (path === "/api/households/h1/pantry") return json(Array.from({ length: pantryCount }, (_, i) => ({ ingredientId: `p${i}` })));
       if (path === "/api/households/h1/meal-plans/2026-11-09") {
+        if (planStatus !== 200) return problem("internal", planStatus);
         const entries = items
           .filter((i) => i.plannedToday || planned[i.recipeId] !== undefined)
           .map((i) => ({ id: `e-${i.recipeId}`, date: "2026-11-09", recipeId: i.recipeId, recipeTitle: i.title, servings: planned[i.recipeId] ?? 4 }));
@@ -204,6 +208,33 @@ describe("what can I make", () => {
     expect(within(tacos).getByTestId("suggest-missing")).not.toHaveTextContent("200");
     expect(within(tacos).getByTestId("suggest-planned-amounts-note")).toHaveTextContent(t("suggest.plannedAmountsNote"));
     // other cards keep their amounts
+    expect(within(card("Curry")).getByTestId("suggest-missing")).toHaveTextContent("100 g");
+  });
+
+  it("reads the plan once for all cards planned today, and only then", async () => {
+    items = items.map((i) => (i.recipeId === "r-taco" || i.recipeId === "r-pasta" ? { ...i, plannedToday: true } : i));
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    await within(card("Tacos")).findByTestId("suggest-planned-servings");
+    expect(calls.filter((c) => c.path.includes("/meal-plans/"))).toHaveLength(1);
+  });
+
+  it("makes no plan read when nothing is planned today", async () => {
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    expect(calls.filter((c) => c.path.includes("/meal-plans/"))).toHaveLength(0);
+  });
+
+  it("still shows a planned-today card (names, no amounts, no servings line) when the plan read fails", async () => {
+    planStatus = 500;
+    items = items.map((i) => (i.recipeId === "r-taco" ? { ...i, plannedToday: true } : i));
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    await waitFor(() => expect(calls.some((c) => c.path.includes("/meal-plans/"))).toBe(true));
+    const tacos = card("Tacos");
+    expect(within(tacos).getByTestId("suggest-planned-today")).toBeInTheDocument();
+    expect(within(tacos).queryByTestId("suggest-planned-servings")).toBeNull();
+    expect(within(tacos).getByTestId("suggest-missing")).not.toHaveTextContent("200");
     expect(within(card("Curry")).getByTestId("suggest-missing")).toHaveTextContent("100 g");
   });
 
