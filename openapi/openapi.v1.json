@@ -7021,6 +7021,14 @@
           }
         }
       },
+      "AiAssistStatus": {
+        "enum": [
+          "NotUsed",
+          "Applied",
+          "LimitReached",
+          "Unavailable"
+        ]
+      },
       "AmountKind": {
         "enum": [
           "Measured",
@@ -7604,7 +7612,8 @@
           "purpose",
           "isOptional",
           "alternatives",
-          "suggestedProteinClass"
+          "suggestedProteinClass",
+          "aiSuggested"
         ],
         "type": "object",
         "properties": {
@@ -7728,6 +7737,9 @@
                 "$ref": "#/components/schemas/ProteinClass"
               }
             ]
+          },
+          "aiSuggested": {
+            "type": "boolean"
           }
         }
       },
@@ -8700,7 +8712,8 @@
           "warnings",
           "canSave",
           "savedRecipeId",
-          "createdAt"
+          "createdAt",
+          "aiAssist"
         ],
         "type": "object",
         "properties": {
@@ -8793,6 +8806,9 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "aiAssist": {
+            "$ref": "#/components/schemas/AiAssistStatus"
           }
         }
       },

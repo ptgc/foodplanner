@@ -1,5 +1,6 @@
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Households;
+using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
@@ -26,6 +27,7 @@ public static class TenantCoverage
         [typeof(CatalogTranslation)] = "Global names of seeded units, ingredients and tags per locale (T-039): written only by the seed, no HouseholdId, never written at request time. A household's own rows have no translations.",
         [typeof(AppUser)] = "Global login identity (ADR 0004, T-009), not household data.",
         [typeof(UserPin)] = "Per-account secret, like the identity tables (T-026): the PIN hash and attempt counter of one account, keyed by the account, no HouseholdId.",
+        [typeof(AiGlobalUsage)] = "One number per month: how many AI import calls all households made together, for the global cap (T-077). No household data, no HouseholdId; touched only by the usage limiter's atomic update.",
         [typeof(IdentityUserClaim<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserLogin<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserToken<Guid>)] = "Global login identity (T-009).",

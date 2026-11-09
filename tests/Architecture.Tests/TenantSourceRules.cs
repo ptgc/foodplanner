@@ -225,6 +225,9 @@ public static partial class TenantSourceRules
     public static readonly IReadOnlyDictionary<string, string> BulkWriteAllowed = new Dictionary<string, string>
     {
         [TenantResolutionFile] = "Marks an invite used with a conditional UPDATE (T-011); touches the Invite tenant entity only.",
+        ["src/Infrastructure/Import/Ai/AiUsageLimiter.cs"] =
+            "T-077: the AI call counters need check-and-increment as ONE conditional UPDATE (concurrency-safe at the last call). "
+            + "It touches only AiHouseholdUsage (a tenant entity: the update goes through the tenant filter, sets no HouseholdId) and AiGlobalUsage (one number per month, not tenant data, not a catalog entity).",
     };
 
     /// <summary>

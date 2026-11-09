@@ -3349,6 +3349,68 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeLikes", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.Imports.AiGlobalUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Calls")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("MonthStart")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MonthStart")
+                        .IsUnique();
+
+                    b.ToTable("AiGlobalUsages", (string)null);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Imports.AiHouseholdUsage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<int>("DayCalls")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MonthCalls")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("MonthStart")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId")
+                        .IsUnique();
+
+                    b.ToTable("AiHouseholdUsages", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.Imports.RecipeImport", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4542,6 +4604,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Imports.AiHouseholdUsage", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

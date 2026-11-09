@@ -118,6 +118,12 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>Recipe import artifacts and drafts (T-042).</summary>
     public DbSet<RecipeImport> RecipeImports => Set<RecipeImport>();
 
+    /// <summary>The household's AI call counters for the day and month (T-077).</summary>
+    public DbSet<AiHouseholdUsage> AiHouseholdUsages => Set<AiHouseholdUsage>();
+
+    /// <summary>All households' AI calls per month, for the global cap (T-077). Not tenant data.</summary>
+    public DbSet<AiGlobalUsage> AiGlobalUsages => Set<AiGlobalUsage>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 
