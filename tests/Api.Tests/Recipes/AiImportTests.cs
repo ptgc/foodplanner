@@ -282,6 +282,33 @@ public sealed class AiImportTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         Assert.Equal("Matched", import.GetProperty("lines")[0].GetProperty("status").GetString()); // The rules' work is intact.
     }
 
+    /// <summary>An answer whose enumeration blows up while the merger reads it.</summary>
+    private sealed class ExplodingAnswer : IReadOnlyList<AiLineSuggestion?>
+    {
+        public int Count => 1;
+
+        public AiLineSuggestion? this[int index] => throw new InvalidOperationException("boom");
+
+        public IEnumerator<AiLineSuggestion?> GetEnumerator() => throw new InvalidOperationException("boom");
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public async Task A_failure_while_merging_the_answer_is_unavailable_and_the_rule_based_draft_stands()
+    {
+        var ai = new FakeRecipeLineAi((_, _) => Task.FromResult<IReadOnlyList<AiLineSuggestion?>>(new ExplodingAnswer()));
+        await using var host = Host(ai);
+        var (user, household) = await NewHouseholdAsync(host);
+
+        var import = await ImportAsync(user.Client, household);
+
+        Assert.Equal(1, ai.Calls);
+        Assert.Equal("Unavailable", Assist(import));
+        Assert.DoesNotContain('T', Marks(import));
+        Assert.Equal("Matched", import.GetProperty("lines")[0].GetProperty("status").GetString());
+    }
+
     // ---- Limits ------------------------------------------------------------------------------------------------------------
 
     [Fact]

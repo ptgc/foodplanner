@@ -74,7 +74,18 @@ public sealed class AiImportAssistant(
         }
 
         Guid? UnitId(string code) => unitIdsByCode.TryGetValue(code, out var id) ? id : null;
-        var merged = AiSuggestionMerger.Merge(draft, sent, suggestions, matcher, UnitId);
+        AiMergeResult merged;
+        try
+        {
+            merged = AiSuggestionMerger.Merge(draft, sent, suggestions, matcher, UnitId);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The answer is untrusted: whatever it holds, the import must not fail because of it.
+            logger.LogWarning("AI import assist could not merge the answer ({Error}); the rule-based import stands.", ex.GetType().Name);
+            return draft with { AiAssist = AiAssistStatus.Unavailable };
+        }
+
         logger.LogInformation("AI import assist applied {Applied} of {Sent} lines ({Dropped} dropped).", merged.Applied, sent.Count, merged.Dropped);
         return merged.Draft with { AiAssist = AiAssistStatus.Applied };
     }

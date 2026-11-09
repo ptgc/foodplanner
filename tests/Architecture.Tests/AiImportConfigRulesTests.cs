@@ -72,4 +72,27 @@ public class AiImportConfigRulesTests
             Assert.DoesNotMatch(@"AiImport__Enabled\s*[:=]\s*[""']?true", text);
         }
     }
+
+    [Fact]
+    public void Api_test_hosts_come_from_TestApiFactory_which_forces_the_ai_fallback_off()
+    {
+        var files = SourceScanner.Load("tests");
+        var factory = Assert.Single(files, f => f.Path == "tests/Api.Tests/TestApiFactory.cs");
+        Assert.Contains("AiImport:Enabled", factory.CodeWithStrings, StringComparison.Ordinal); // not vacuous
+        Assert.Contains("NoRealAiClient", factory.Code, StringComparison.Ordinal);
+
+        Assert.Empty(BareHostFactories(files.Where(f => f.Path != factory.Path)));
+
+        // The rule catches the shapes a test would use.
+        Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X { void M() { var f = new WebApplicationFactory<Program>(); } }")]));
+        Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X : IClassFixture<WebApplicationFactory<Program>> { }")]));
+        Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class F : WebApplicationFactory<Program> { }")]));
+        Assert.Empty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X { void M() { var f = new TestApiFactory(); } }")]));
+    }
+
+    private static List<string> BareHostFactories(IEnumerable<SourceFile> files) =>
+        [.. files
+            .Where(f => System.Text.RegularExpressions.Regex.IsMatch(
+                f.Code, @"new\s+WebApplicationFactory\s*<|IClassFixture\s*<\s*WebApplicationFactory\s*<|:\s*WebApplicationFactory\s*<"))
+            .Select(f => f.Path)];
 }

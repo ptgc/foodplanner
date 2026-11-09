@@ -70,6 +70,8 @@ public sealed class AiUsageLimiter(AppDbContext db, TimeProvider time, IOptions<
         var monthLimit = settings.MonthlyCallsPerHousehold;
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
+            // UpdatedAt is intentionally not set by these ExecuteUpdate calls: a counter row's UpdatedAt is not read anywhere, and
+            // no architecture rule requires a bulk write to touch it (the bulk path skips the save interceptor by design).
             var updated = await db.AiHouseholdUsages
                 .Where(u => (u.MonthStart != month || u.MonthCalls < monthLimit) && (u.Day != day || u.DayCalls < dayLimit))
                 .ExecuteUpdateAsync(
@@ -99,6 +101,11 @@ public sealed class AiUsageLimiter(AppDbContext db, TimeProvider time, IOptions<
             catch (DbUpdateException)
             {
                 db.Entry(row).State = EntityState.Detached; // Another request inserted the row first: update it on the next pass.
+            }
+            catch
+            {
+                db.Entry(row).State = EntityState.Detached; // Any other failure (timeout, cancel): never leave the Added row for a later SaveChanges.
+                throw;
             }
         }
 
@@ -132,6 +139,11 @@ public sealed class AiUsageLimiter(AppDbContext db, TimeProvider time, IOptions<
             catch (DbUpdateException)
             {
                 db.Entry(row).State = EntityState.Detached;
+            }
+            catch
+            {
+                db.Entry(row).State = EntityState.Detached;
+                throw;
             }
         }
 

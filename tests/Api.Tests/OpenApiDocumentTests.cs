@@ -12,7 +12,7 @@ namespace Foodplanner.Api.Tests;
 /// describe the health endpoint and ProblemDetails, and equal what the Api generates.
 /// To regenerate after an API change: scripts/openapi.sh (or scripts/openapi.ps1).
 /// </summary>
-public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class OpenApiDocumentTests(TestApiFactory factory) : IClassFixture<TestApiFactory>
 {
     private const string DocumentUrl = "/openapi/v1.json";
 

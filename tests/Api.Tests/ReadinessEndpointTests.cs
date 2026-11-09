@@ -8,7 +8,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Foodplanner.Api.Tests;
 
-public class ReadinessEndpointTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class ReadinessEndpointTests(TestApiFactory factory) : IClassFixture<TestApiFactory>
 {
     // Port 1 on loopback refuses immediately; Connect Timeout=1 bounds anything slower.
     private const string UnreachableConnectionString =

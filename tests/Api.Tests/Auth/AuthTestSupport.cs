@@ -138,7 +138,7 @@ public sealed class AuthHost : IAsyncDisposable
             settings[key] = value;
         }
 
-        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        var factory = new TestApiFactory().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));

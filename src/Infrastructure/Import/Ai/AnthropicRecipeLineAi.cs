@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Foodplanner.Domain.Imports;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Infrastructure.Import.Ai;
@@ -12,7 +13,7 @@ namespace Foodplanner.Infrastructure.Import.Ai;
 /// fixed <see cref="AiImportOptions.BaseUrl"/>, never taken from a user (see OutboundHttpRulesTests). The request holds only the
 /// lines and the unit codes; the API key goes in a header and is never logged.
 /// </summary>
-public sealed class AnthropicRecipeLineAi(HttpClient http, IOptions<AiImportOptions> options) : IRecipeLineAi
+public sealed class AnthropicRecipeLineAi(HttpClient http, IOptions<AiImportOptions> options, ILogger<AnthropicRecipeLineAi>? logger = null) : IRecipeLineAi
 {
     public const string ToolName = "submit_ingredient_lines";
     public const string ApiVersion = "2023-06-01";
@@ -121,7 +122,32 @@ public sealed class AnthropicRecipeLineAi(HttpClient http, IOptions<AiImportOpti
             throw new AiUnavailableException("The AI service could not be reached.", ex);
         }
 
+        // Logged before parsing: an answer cut off at the token limit usually fails to parse. The reason only, never line text.
+        if (StopReason(body) == "max_tokens")
+        {
+            logger?.LogWarning(
+                "The AI answer stopped at the output token limit ({MaxOutputTokens}); lines may be missing or the answer unreadable.",
+                settings.MaxOutputTokens);
+        }
+
         return Parse(body);
+    }
+
+    /// <summary>The <c>stop_reason</c> of a Messages API answer, or null when absent or the body is not JSON.</summary>
+    public static string? StopReason(string body)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("stop_reason", out var reason) && reason.ValueKind == JsonValueKind.String
+                ? reason.GetString()
+                : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public static IReadOnlyList<AiLineSuggestion?> Parse(string body)
