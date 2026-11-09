@@ -52,6 +52,7 @@ let calls: Call[];
 let cookStatus: Response | null;
 let addStatus: Response | null;
 let listStatus: number;
+let kidMode: unknown = null;
 
 beforeEach(() => {
   resetAntiforgeryToken();
@@ -60,6 +61,7 @@ beforeEach(() => {
   cookStatus = null;
   addStatus = null;
   listStatus = 200;
+  kidMode = null;
   pantryCount = 3;
   items = [
     item({ recipeId: "r-pasta", title: "Pasta", kidLikes: 2, cookedRecently: true }),
@@ -81,7 +83,7 @@ beforeEach(() => {
       const url = new URL(request.url);
       const path = url.pathname;
       const method = request.method;
-      if (path === "/api/auth/me") return json(me);
+      if (path === "/api/auth/me") return json({ ...me, kidMode });
       if (path === "/api/auth/antiforgery") return json({ token: "t" });
       if (path === "/api/households") return json([{ id: "h1", name: "Home", role }]);
       const body = method === "GET" ? null : await request.json().catch(() => null);
@@ -296,6 +298,69 @@ describe("what can I make", () => {
     listStatus = 401;
     renderPage();
     expect(await screen.findByText("login page")).toBeInTheDocument();
+  });
+});
+
+describe("verifier additions (T-100 UI)", () => {
+  const cook = (title: string) => within(card(title)).getByRole("button", { name: t("suggest.cookTodayFor", { title }) });
+
+  it("redirects to home in kid mode and never asks for suggestions", async () => {
+    kidMode = { householdId: "h1" };
+    renderPage();
+    expect(await screen.findByText("home page")).toBeInTheDocument();
+    expect(calls.some((c) => c.path.endsWith("what-can-i-make"))).toBe(false);
+  });
+
+  it("shows the API's scaled amounts for the chosen servings and sends servings=8", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    items = [
+      item({ recipeId: "r-taco", title: "Tacos", servings: 8, missing: [missing({ name: "Cheese", quantities: [{ amount: 400, unitCode: "g", unitName: "Gram" }] })] }),
+    ];
+    await user.selectOptions(screen.getByLabelText(t("suggest.servingsLabel")), "8");
+    await waitFor(() => expect(calls.some((c) => c.query === "?servings=8")).toBe(true));
+    await waitFor(() => expect(within(card("Tacos")).getByTestId("suggest-missing")).toHaveTextContent(t("suggest.missingLine", { item: "400 g Cheese" })));
+  });
+
+  it("each failure on cook today shows its own message: 400, 403 kid-mode, plain 403, 404 (and refreshes)", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByTestId("suggest-ready");
+    const errorText = () => within(card("Soup")).getByTestId("suggest-card-error");
+
+    cookStatus = json({ type: "about:blank", title: "x", status: 400, errors: { servings: ["x"] } }, 400);
+    await user.click(cook("Soup"));
+    await waitFor(() => expect(errorText()).toHaveTextContent(t("suggest.problem.servings")));
+
+    cookStatus = problem("kid-mode", 403);
+    await user.click(cook("Soup"));
+    await waitFor(() => expect(errorText()).toHaveTextContent(t("suggest.problem.kidMode")));
+
+    cookStatus = json({ title: "x", status: 403 }, 403);
+    await user.click(cook("Soup"));
+    await waitFor(() => expect(errorText()).toHaveTextContent(t("problem.forbidden")));
+
+    const gets = () => calls.filter((c) => c.path.endsWith("what-can-i-make") && c.method === "GET").length;
+    const before = gets();
+    cookStatus = problem("recipe-not-found", 404);
+    await user.click(cook("Soup"));
+    await waitFor(() => expect(errorText()).toHaveTextContent(t("suggest.problem.recipeGone")));
+    await waitFor(() => expect(gets()).toBeGreaterThan(before));
+  });
+
+  it("add missing sends no servings (the API uses the planned ones), also after the servings changed", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByTestId("suggest-almost");
+    await user.click(cook("Tacos"));
+    await within(card("Tacos")).findByTestId("suggest-planned-note");
+    items = items.map((i) => (i.recipeId === "r-taco" ? { ...i, plannedToday: true } : i));
+    await user.selectOptions(screen.getByLabelText(t("suggest.servingsLabel")), "8");
+    await waitFor(() => expect(calls.some((c) => c.query === "?servings=8")).toBe(true));
+    await user.click(await within(card("Tacos")).findByRole("button", { name: t("suggest.addMissingFor", { title: "Tacos" }) }));
+    await within(card("Tacos")).findByTestId("suggest-added-note");
+    expect(calls.find((c) => c.path.endsWith("r-taco/add-missing"))!.body).toBeNull();
   });
 });
 
