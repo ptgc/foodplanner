@@ -104,7 +104,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-074 | Registration time as a column | L2 | T-072 | implementer-backend | yes |
 | T-075 | Recipe source link | L3 | T-042, T-043 | implementer-backend | yes |
 | T-076 | Ingredient amount kind, purpose and alternatives | L3 | T-075 | implementer-backend | yes |
-| T-077 | AI-assisted fallback for recipe import | M4 | T-076 | implementer-backend | no |
+| T-077 | AI-assisted fallback for recipe import | M4 | T-076 | implementer-backend | maybe |
 | T-078 | Bug: not all text changes when switching language | L3 | T-038, T-039, T-041 | implementer-frontend | no |
 | T-079 | Manage own ingredients: delete, merge, rename | L3 | T-020, T-037, T-042 | implementer-backend | no |
 | T-080 | Bug: photo uploads over 1 MB fail with 413 through the web container | L3 | T-022, T-041 | implementer-infra | no |
