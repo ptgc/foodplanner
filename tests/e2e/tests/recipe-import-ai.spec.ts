@@ -73,6 +73,9 @@ for (const locale of ["en-US", "nb-NO"] as const) {
         await page.goto("/recipes/import");
         await page.getByRole("tab", { name: x.tab }).click();
         await page.getByLabel(x.textLabel).fill([title, "Ingredients", "2 dl melk", "3 egg", "Method", "Stir."].join("\n"));
+        // The privacy line is visible before anything is submitted.
+        await expect(page.getByTestId("ai-privacy-start")).toContainText(x.privacy);
+        if (mobile) await noHorizontalScroll(page);
         await page.getByRole("button", { name: x.read }).click();
         await expect(page.getByRole("heading", { name: x.heading, level: 1 })).toBeVisible();
         draftId = new URL(page.url()).searchParams.get("draft") ?? undefined;

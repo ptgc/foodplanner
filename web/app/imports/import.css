@@ -174,8 +174,15 @@
   margin: 0;
 }
 
-.import-ai-note .import-ai-privacy {
-  margin-top: 0.5rem;
+.import-ai-privacy {
   color: #4b4b57;
   font-size: 0.875rem;
+}
+
+.import-ai-note .import-ai-privacy {
+  margin-top: 0.5rem;
+}
+
+.import-start-privacy {
+  margin: 0 0 0.75rem;
 }

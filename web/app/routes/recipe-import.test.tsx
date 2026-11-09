@@ -616,6 +616,12 @@ describe("AI-assisted import in the review (T-077)", () => {
     expect(note).toHaveTextContent(t("import.aiPrivacy"));
   });
 
+  it("the start screen shows the privacy text before any import", async () => {
+    renderAt("/recipes/import");
+    expect(await screen.findByTestId("ai-privacy-start")).toHaveTextContent(t("import.aiPrivacy"));
+    expect(screen.queryByTestId("ai-note")).toBeNull();
+  });
+
   it("NotUsed shows no note and no privacy text", async () => {
     await review();
     expect(screen.queryByTestId("ai-note")).toBeNull();
