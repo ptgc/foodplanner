@@ -8,6 +8,8 @@ import { en } from "./app/i18n/en";
 import { kidEn } from "./app/i18n/kid-en";
 import { kidNb } from "./app/i18n/kid-nb";
 import { nb } from "./app/i18n/nb";
+import { suggestEn } from "./app/i18n/suggest-en";
+import { suggestNb } from "./app/i18n/suggest-nb";
 
 // No test talks to a real hub. Screens that listen for plan changes (usePlan) get a hub that connects and stays quiet;
 // a test that needs hub events mocks "@microsoft/signalr" itself, which takes precedence over this.
@@ -43,8 +45,10 @@ vi.mock("@microsoft/signalr", () => {
 registerMessages("en", "core", en);
 registerMessages("en", "kid", kidEn);
 registerMessages("en", "account", accountEn);
+registerMessages("en", "suggest", suggestEn);
 registerMessages("nb", "core", nb);
 registerMessages("nb", "account", accountNb);
+registerMessages("nb", "suggest", suggestNb);
 registerMessages("nb", "kid", kidNb);
 
 // The project (en or nb) decides the language of the whole test run; nothing is stored on the "device".

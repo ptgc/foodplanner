@@ -286,6 +286,9 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
             </ol>
 
             <div className="planner-actions">
+              <Link className="button button-outline" to="/what-can-i-make" data-testid="planner-suggest-link">
+                {t("planner.suggestLink")}
+              </Link>
               <Link className="button button-outline" to={`/shopping?week=${weekStart}`}>
                 {t("planner.shoppingList")}
               </Link>
