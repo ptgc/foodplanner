@@ -128,13 +128,17 @@ public sealed class AuthHost : IAsyncDisposable
             ["RateLimiting:Export:PermitLimit"] = "1000",
             ["RateLimiting:PinUnlock:PermitLimit"] = "1000",
             ["RateLimiting:AccountDelete:PermitLimit"] = "1000",
+            // T-077: the AI fallback is off in every test host, even when the developer's user secrets turn it on. A test that
+            // wants it enables it explicitly and brings a fake client; no test host can reach the real API.
+            ["AiImport:Enabled"] = "false",
+            ["AiImport:ApiKey"] = "",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {
             settings[key] = value;
         }
 
-        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        var factory = new TestApiFactory().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));
@@ -145,6 +149,8 @@ public sealed class AuthHost : IAsyncDisposable
                 services.RemoveAll<IPasswordHasher<AppUser>>();
                 services.AddSingleton<IPasswordHasher<AppUser>>(hasher);
                 services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>();
+                services.RemoveAll<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi>();
+                services.AddSingleton<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi, Import.NoRealAiClient>();
                 configureServices?.Invoke(services);
             });
         });

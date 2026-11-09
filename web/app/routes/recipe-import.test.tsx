@@ -51,6 +51,7 @@ const line = (patch: Partial<Line>): Line => ({
   isOptional: false,
   alternatives: [],
   suggestedProteinClass: null,
+  aiSuggested: false,
   ...patch,
 });
 
@@ -76,6 +77,7 @@ const freshDraft = (): Draft => ({
   canSave: false,
   savedRecipeId: null,
   createdAt: "2026-10-26T10:00:00Z",
+  aiAssist: "NotUsed",
 });
 
 type Server = {

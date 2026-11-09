@@ -8,7 +8,7 @@ public sealed class EmailProviderStartupTests
 {
     private static void Start(string environment, string? provider)
     {
-        using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        using var factory = new TestApiFactory().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
             builder.ConfigureAppConfiguration((_, config) =>

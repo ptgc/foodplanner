@@ -207,6 +207,11 @@ public static class TenantIsolationRegistry
         TenantIsolationCase.For<RecipeImport>(
             async (env, _) => new RecipeImport(ImportSource.Text, null, "2 dl melk", "{}", await env.NewUserAsync()),
             entry => entry.Property(i => i.DraftJson).CurrentValue = "{\"title\":\"Changed\"}"),
+
+        // AI call counters (T-077): one row per household; the global monthly counter is not tenant data (see TenantCoverage.Exempt).
+        TenantIsolationCase.For<AiHouseholdUsage>(
+            (_, _) => Task.FromResult(new AiHouseholdUsage(DateTimeOffset.UtcNow)),
+            entry => entry.Property(u => u.DayCalls).CurrentValue = 7),
     ];
 
     private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)

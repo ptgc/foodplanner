@@ -687,7 +687,7 @@ public sealed class MigrationTests(SqlServerFixture server)
     public async Task Api_startup_does_not_migrate()
     {
         var connectionString = await server.CreateDatabaseAsync("startup", Ct);
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, config) =>
+        await using var factory = new TestApiFactory().WithWebHostBuilder(b => b.ConfigureAppConfiguration((_, config) =>
             config.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:Default"] = connectionString })));
         using var client = factory.CreateClient();
 

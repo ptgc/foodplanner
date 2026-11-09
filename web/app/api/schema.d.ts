@@ -1104,6 +1104,8 @@ export interface components {
             missing: components["schemas"]["MissingIngredientResponse"][];
         };
         /** @enum {unknown} */
+        AiAssistStatus: "NotUsed" | "Applied" | "LimitReached" | "Unavailable";
+        /** @enum {unknown} */
         AmountKind: "Measured" | "ToTaste" | "AsNeeded";
         AntiforgeryResponse: {
             token: string;
@@ -1263,6 +1265,7 @@ export interface components {
             isOptional: boolean;
             alternatives: components["schemas"]["RecipeAlternativeResponse"][];
             suggestedProteinClass: null | components["schemas"]["ProteinClass"];
+            aiSuggested: boolean;
         };
         /** @enum {unknown} */
         ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";
@@ -1523,6 +1526,7 @@ export interface components {
             savedRecipeId: null | string;
             /** Format: date-time */
             createdAt: string;
+            aiAssist: components["schemas"]["AiAssistStatus"];
         };
         RecipeImportSummaryResponse: {
             /** Format: uuid */

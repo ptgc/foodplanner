@@ -23,6 +23,7 @@ const base: ImportLine = {
   isOptional: false,
   alternatives: [],
   suggestedProteinClass: null,
+  aiSuggested: false,
 };
 
 const draftBase: Pick<LineDraft, "purpose" | "isOptional" | "alternatives"> = { purpose: "Main", isOptional: false, alternatives: [] };
