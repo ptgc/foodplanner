@@ -147,6 +147,34 @@ public sealed class AiImportHardeningTests
     }
 
     [Fact]
+    public void The_factory_override_wins_over_sources_added_before_it_such_as_user_secrets_and_environment_variables()
+    {
+        // Default order: appsettings, user secrets, environment variables, then the factory's in-memory source. An environment
+        // variable that turns the feature on stands in for the developer's secrets.
+        var oldEnabled = Environment.GetEnvironmentVariable("AiImport__Enabled");
+        var oldKey = Environment.GetEnvironmentVariable("AiImport__ApiKey");
+        Environment.SetEnvironmentVariable("AiImport__Enabled", "true");
+        Environment.SetEnvironmentVariable("AiImport__ApiKey", "test-key-not-real");
+        try
+        {
+            using var factory = new TestApiFactory().WithWebHostBuilder(builder =>
+            {
+                builder.UseEnvironment("Development");
+                builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?> { ["Email:Provider"] = "Recording" }));
+            });
+            var options = factory.Services.GetRequiredService<IOptions<AiImportOptions>>().Value;
+            Assert.False(options.IsActive);
+            Assert.False(options.Enabled);
+            Assert.IsType<NoRealAiClient>(factory.Services.GetRequiredService<IRecipeLineAi>());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("AiImport__Enabled", oldEnabled);
+            Environment.SetEnvironmentVariable("AiImport__ApiKey", oldKey);
+        }
+    }
+
+    [Fact]
     public void Startup_succeeds_in_production_with_https_and_in_development_with_http()
     {
         StartHost("Production", "https://api.anthropic.com");

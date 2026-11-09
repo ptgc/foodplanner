@@ -87,12 +87,13 @@ public class AiImportConfigRulesTests
         Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X { void M() { var f = new WebApplicationFactory<Program>(); } }")]));
         Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X : IClassFixture<WebApplicationFactory<Program>> { }")]));
         Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class F : WebApplicationFactory<Program> { }")]));
+        Assert.NotEmpty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X { void M() { var f = new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory<Program>(); } }")]));
         Assert.Empty(BareHostFactories([SourceFile.FromText("tests/Api.Tests/X.cs", "class X { void M() { var f = new TestApiFactory(); } }")]));
     }
 
     private static List<string> BareHostFactories(IEnumerable<SourceFile> files) =>
         [.. files
             .Where(f => System.Text.RegularExpressions.Regex.IsMatch(
-                f.Code, @"new\s+WebApplicationFactory\s*<|IClassFixture\s*<\s*WebApplicationFactory\s*<|:\s*WebApplicationFactory\s*<"))
+                f.Code, @"new\s+(?:[\w.]+\.)?WebApplicationFactory\s*<|IClassFixture\s*<\s*(?:[\w.]+\.)?WebApplicationFactory\s*<|:\s*(?:[\w.]+\.)?WebApplicationFactory\s*<"))
             .Select(f => f.Path)];
 }
