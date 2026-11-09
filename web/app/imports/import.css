@@ -144,3 +144,45 @@
 .import-notes {
   color: #4b4b57;
 }
+
+/* AI-assisted import (T-077): calm, bordered marks with a text label; never colour alone. */
+.import-ai-badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--accent);
+  background: #fff;
+}
+
+.import-ai-mark {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.import-ai-note {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 2px dashed var(--accent);
+  border-radius: 0.75rem;
+}
+
+.import-ai-note p {
+  margin: 0;
+}
+
+.import-ai-privacy {
+  color: #4b4b57;
+  font-size: 0.875rem;
+}
+
+.import-ai-note .import-ai-privacy {
+  margin-top: 0.5rem;
+}
+
+.import-start-privacy {
+  margin: 0 0 0.75rem;
+}
