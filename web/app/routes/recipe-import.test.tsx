@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "../api/schema";
 import { searchDelayMs } from "../recipes/ingredient-picker";
 import { SessionProvider } from "../session";
+import { en } from "../i18n/en";
+import { nb } from "../i18n/nb";
 import { t } from "../test-i18n";
 import RecipeImport from "./recipe-import";
 import Recipes from "./recipes";
@@ -162,6 +164,7 @@ beforeEach(() => {
               unitCode: unit?.code ?? null,
               unitText: null,
               confidence: 1,
+              aiSuggested: false, // the server clears the mark when a line is edited
               amountKind: edit.amountKind ?? (edit.quantity === null ? "ToTaste" : "Measured"),
               purpose: edit.purpose ?? server.draft.lines[edit.position]!.purpose,
               isOptional: edit.isOptional ?? server.draft.lines[edit.position]!.isOptional,
@@ -565,5 +568,65 @@ describe("protein class of a new own ingredient in the review (T-104)", () => {
     await user.click(await within(row).findByRole("button", { name: "Salt" }, { timeout: searchDelayMs + 2000 }));
     expect(within(row).queryByLabelText(t("recipe.ingredientProtein"))).toBeNull();
     expect(created).toHaveLength(0);
+  });
+});
+
+describe("AI-assisted import in the review (T-077)", () => {
+  const aiDraft = (aiAssist: Draft["aiAssist"]): Draft => {
+    const d = freshDraft();
+    d.aiAssist = aiAssist;
+    d.lines[1] = line({
+      original: "1 bunt snograss",
+      status: "Matched",
+      ingredientId: "i-snog",
+      ingredientName: "Snogras",
+      quantity: 1,
+      unitId: "u-stk",
+      unitCode: "stk",
+      confidence: 0.9,
+      aiSuggested: true,
+    });
+    return d;
+  };
+
+  it("marks only the AI-suggested line, with words and an accessible label", async () => {
+    server.draft = aiDraft("Applied");
+    await review();
+    expect(screen.getAllByTestId("ai-mark")).toHaveLength(1);
+    expect(within(cards()[1]!).getByTestId("ai-mark")).toHaveTextContent(t("import.aiMark"));
+    expect(within(cards()[1]!).getByRole("note", { name: t("import.aiMarkLabel", { n: 2 }) })).toBeInTheDocument();
+    expect(within(cards()[0]!).queryByTestId("ai-mark")).toBeNull();
+    expect(within(cards()[2]!).queryByTestId("ai-mark")).toBeNull();
+  });
+
+  it("the mark is gone after an edit, following the server answer", async () => {
+    server.draft = aiDraft("Applied");
+    const user = userEvent.setup();
+    await review();
+    await user.click(within(cards()[1]!).getByRole("button", { name: t("import.changeLabel", { n: 2 }) }));
+    await user.click(within(cards()[1]!).getByRole("button", { name: t("import.apply") }));
+    await waitFor(() => expect(screen.queryByTestId("ai-mark")).toBeNull());
+  });
+
+  it.each(["Applied", "LimitReached", "Unavailable"] as const)("%s shows its note and the privacy text", async (status) => {
+    server.draft = aiDraft(status);
+    await review();
+    const note = screen.getByTestId("ai-note");
+    expect(note).toHaveTextContent(t(`import.aiNote.${status}`));
+    expect(note).toHaveTextContent(t("import.aiPrivacy"));
+  });
+
+  it("NotUsed shows no note and no privacy text", async () => {
+    await review();
+    expect(screen.queryByTestId("ai-note")).toBeNull();
+    expect(screen.queryByText(t("import.aiPrivacy"))).toBeNull();
+  });
+
+  it("has Norwegian texts that differ from the English ones", () => {
+    for (const key of ["import.aiMark", "import.aiMarkLabel", "import.aiNote.Applied", "import.aiNote.LimitReached", "import.aiNote.Unavailable", "import.aiPrivacy"] as const) {
+      expect(nb[key], key).toBeTruthy();
+      expect(nb[key], key).not.toBe(en[key]);
+    }
+    expect(nb["import.aiPrivacy"]).toContain("Anthropic");
   });
 });
