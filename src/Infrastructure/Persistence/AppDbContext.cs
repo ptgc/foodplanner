@@ -1,9 +1,11 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
 using Foodplanner.Domain.Tenancy;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
 using Foodplanner.Infrastructure.Persistence.Configurations;
 using Foodplanner.Infrastructure.Persistence.Tenancy;
@@ -92,11 +94,35 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<PantryItem> PantryItems => Set<PantryItem>();
 
+    /// <summary>The stores the household shops at, each with a section order (T-087).</summary>
+    public DbSet<Store> Stores => Set<Store>();
+
     /// <summary>The household's regular weekly groceries (T-092).</summary>
     public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
 
+    /// <summary>Regular-grocery suggestions the household dismissed (T-110).</summary>
+    public DbSet<DismissedGrocerySuggestion> DismissedGrocerySuggestions => Set<DismissedGrocerySuggestion>();
+
+    /// <summary>Kid profiles of a household (T-026).</summary>
+    public DbSet<MemberProfile> MemberProfiles => Set<MemberProfile>();
+
+    /// <summary>Which kid profile likes which recipe (T-026).</summary>
+    public DbSet<RecipeLike> RecipeLikes => Set<RecipeLike>();
+
+    /// <summary>The household's weekly meal mix rules (T-090).</summary>
+    public DbSet<MealMixRule> MealMixRules => Set<MealMixRule>();
+
+    /// <summary>The account's PIN hash and attempt counter (T-026). Global, like the identity tables.</summary>
+    public DbSet<UserPin> UserPins => Set<UserPin>();
+
     /// <summary>Recipe import artifacts and drafts (T-042).</summary>
     public DbSet<RecipeImport> RecipeImports => Set<RecipeImport>();
+
+    /// <summary>The household's AI call counters for the day and month (T-077).</summary>
+    public DbSet<AiHouseholdUsage> AiHouseholdUsages => Set<AiHouseholdUsage>();
+
+    /// <summary>All households' AI calls per month, for the global cap (T-077). Not tenant data.</summary>
+    public DbSet<AiGlobalUsage> AiGlobalUsages => Set<AiGlobalUsage>();
 
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;

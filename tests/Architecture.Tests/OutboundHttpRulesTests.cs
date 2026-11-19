@@ -19,6 +19,8 @@ public class OutboundHttpRulesTests
     {
         ["src/Infrastructure/Import/SafeWebPageFetcher.cs"] = "The SSRF-safe fetcher itself: resolves, vets and connects (T-042).",
         ["src/Infrastructure/Import/WebPageFetching.cs"] = "The fetcher's DNS resolver seam (DnsHostResolver); its answers are vetted by the fetcher before any connection.",
+        ["src/Infrastructure/Import/Ai/AnthropicRecipeLineAi.cs"] = "Fixed-host provider client (AiImport:BaseUrl, Anthropic; T-077). Sends only unresolved ingredient line text; no user-supplied URL.",
+        ["src/Infrastructure/Import/Ai/AiImportRegistration.cs"] = "Creates the one HttpClient of the Anthropic client above (T-077).",
     };
 
     [Fact]

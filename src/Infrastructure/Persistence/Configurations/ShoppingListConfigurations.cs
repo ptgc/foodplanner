@@ -84,7 +84,23 @@ internal sealed class PantryItemConfiguration : IEntityTypeConfiguration<PantryI
         pantry.HasOne<Unit>().WithMany().HasForeignKey(p => p.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
         pantry.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         pantry.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
-        pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).OnDelete(DeleteBehavior.Restrict);
+        pantry.HasOne<AppUser>().WithMany().HasForeignKey(p => p.ConfirmedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+// Stores (T-087): the household's stores with a section order. Name unique per household (SQL Server's default collation compares
+// ignoring case). A membership's chosen store is NO ACTION (SQL Server rejects two cascade paths from the household); the delete
+// endpoint clears the choices first.
+internal sealed class StoreConfiguration : IEntityTypeConfiguration<Store>
+{
+    public void Configure(EntityTypeBuilder<Store> store)
+    {
+        store.ToTable("Stores");
+        store.Property(s => s.Name).HasMaxLength(Store.MaxNameLength).IsRequired();
+        store.Property(s => s.SectionOrderText).HasMaxLength(200).IsRequired();
+        store.Ignore(s => s.SectionOrder);
+        store.HasIndex(s => new { s.HouseholdId, s.Name }).IsUnique();
+        store.HasOne<Household>().WithMany().HasForeignKey(s => s.HouseholdId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 
@@ -95,12 +111,28 @@ internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<Week
     {
         weekly.ToTable("WeeklyGroceries");
         weekly.Property(w => w.Amount).HasPrecision(18, 4);
+        // T-109: stored by name; existing rows are Weekly. StartWeek (date) is only set for EveryTwoWeeks, null otherwise.
+        weekly.Property(w => w.Frequency).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(GroceryFrequency.Weekly);
         weekly.HasIndex(w => new { w.HouseholdId, w.IngredientId }).IsUnique();
         weekly.HasIndex(w => w.IngredientId);
         weekly.HasIndex(w => w.UnitId);
         weekly.HasOne<Household>().WithMany().HasForeignKey(w => w.HouseholdId).OnDelete(DeleteBehavior.Cascade);
         weekly.HasOne<Ingredient>().WithMany().HasForeignKey(w => w.IngredientId).OnDelete(DeleteBehavior.Restrict);
         weekly.HasOne<Unit>().WithMany().HasForeignKey(w => w.UnitId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+// Dismissed regular-grocery suggestions (T-110): the normalised label, unique per household. Only cascade: Household.
+internal sealed class DismissedGrocerySuggestionConfiguration : IEntityTypeConfiguration<DismissedGrocerySuggestion>
+{
+    public void Configure(EntityTypeBuilder<DismissedGrocerySuggestion> dismissed)
+    {
+        dismissed.ToTable("DismissedGrocerySuggestions");
+        dismissed.Property(d => d.Label).HasMaxLength(GroceryLabel.MaxKeyLength).IsRequired();
+        // Optimistic token (no schema change): a renewal and the cleanup of expired rows must not silently overwrite each other (T-112).
+        dismissed.Property(d => d.DismissedAt).IsConcurrencyToken();
+        dismissed.HasIndex(d => new { d.HouseholdId, d.Label }).IsUnique();
+        dismissed.HasOne<Household>().WithMany().HasForeignKey(d => d.HouseholdId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

@@ -3,7 +3,11 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { api } from "../api/client";
 import { useI18n, type I18n, type MessageKey } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
-import { avatarColor, initialsOf } from "../planner/avatar";
+import { ProfileAvatar } from "../kid/avatar";
+import { PadlockIcon } from "../kid/icons";
+import { avatarColor, isDeletedUser, pickerInitials, pickerName } from "../planner/avatar";
+import { usePickOptions, type PickOption, type PickOptions } from "../planner/use-pick-options";
+import { foodTypeKey } from "../recipes/food-types";
 import {
   maxServings,
   minServings,
@@ -21,6 +25,13 @@ import { addDays, addWeeks, dateOf, isMonday, isoWeek, mondayOf, toIsoDate, week
 
 /** How long typing must pause before the picker searches. */
 export const pickerSearchDebounceMs = 300;
+
+/** The short reason a recipe is greyed out for the day (T-090). An adult can still add it. */
+function reasonText(t: I18n["t"], option: PickOption, options: PickOptions | null): string {
+  if (option.reason === "not-dinner") return t("planner.reason.notDinner");
+  const types = (options?.allowedFoodTypes ?? []).map((type) => t(foodTypeKey(type))).join(", ");
+  return t("planner.reason.breaksMix", { types });
+}
 
 const failureText = (t: I18n["t"], failure: Failure) =>
   failure === "unreachable" ? t("problem.unreachable") : t(problemKey(failure.problemType));
@@ -49,7 +60,8 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
   const requested = params.get("week");
   const weekStart = isMonday(requested) ? requested : mondayOf(new Date());
   const { week, year } = isoWeek(weekStart);
-  const { plan, images, add, setServings, remove, reload } = usePlan(householdId, weekStart);
+  const { plan, images, add, setServings, remove, reload, setLocked } = usePlan(householdId, weekStart);
+  const locked = plan.status === "ok" && plan.locked;
 
   const [picking, setPicking] = useState<string | null>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -57,6 +69,7 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
   const [notice, setNotice] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
 
   const today = toIsoDate(new Date());
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -169,6 +182,36 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
           </p>
         )}
 
+        {plan.status === "ok" && (
+          <div className="planner-lock" data-testid="planner-lock" data-locked={locked}>
+            {locked && (
+              <span className="planner-lock-badge">
+                <span className="planner-lock-icon" aria-hidden="true">
+                  <PadlockIcon />
+                </span>
+                {t("planner.lockedNote")}
+              </span>
+            )}
+            {!isChild && (
+              <button
+                type="button"
+                className="button button-outline"
+                aria-pressed={locked}
+                data-testid="planner-lock-toggle"
+                disabled={lockBusy}
+                onClick={() => {
+                  setLockBusy(true);
+                  void setLocked(!locked)
+                    .then((r) => report(r, t(locked ? "planner.unlockedDone" : "planner.lockedDone")))
+                    .finally(() => setLockBusy(false));
+                }}
+              >
+                {locked ? t("planner.unlock") : t("planner.lock")}
+              </button>
+            )}
+          </div>
+        )}
+
         {plan.status === "loading" && <p role="status">{t("planner.loading")}</p>}
         {plan.status === "error" && (
           <div role="alert" className="planner-message">
@@ -243,6 +286,9 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
             </ol>
 
             <div className="planner-actions">
+              <Link className="button button-outline" to="/what-can-i-make" data-testid="planner-suggest-link">
+                {t("planner.suggestLink")}
+              </Link>
               <Link className="button button-outline" to={`/shopping?week=${weekStart}`}>
                 {t("planner.shoppingList")}
               </Link>
@@ -263,6 +309,8 @@ function PlanScreen({ householdId, userId, isChild }: { householdId: string; use
         <Picker
           key={picking}
           householdId={householdId}
+          weekStart={weekStart}
+          date={picking}
           title={t("planner.pickerTitle", { day: dayLabel(picking) })}
           onClose={closePicker}
           onPick={(recipe) => pick(picking, recipe)}
@@ -292,7 +340,8 @@ function EntryCard({
   const { t, formatNumber } = useI18n();
   const servings = Number(entry.servings);
   const image = images[entry.recipeId];
-  const who = entry.pickedBy.email ?? t("planner.unknownPicker");
+  const who = pickerName(entry.pickedBy, t);
+  const deleted = isDeletedUser(entry.pickedBy);
   return (
     <article className="planner-entry" data-testid="planner-entry" aria-label={entry.recipeTitle}>
       <div className="planner-entry-image">
@@ -335,15 +384,23 @@ function EntryCard({
               {t("planner.servings", { count: formatNumber(servings) })}
             </span>
           )}
-          <span
-            className="avatar"
-            role="img"
-            aria-label={t("planner.pickedBy", { who })}
-            style={{ backgroundColor: avatarColor(entry.pickedBy.userId) }}
-            data-testid="avatar"
-          >
-            {initialsOf(entry.pickedBy.email, entry.pickedBy.userId)}
-          </span>
+          {entry.pickedByProfile ? (
+            <ProfileAvatar
+              profile={entry.pickedByProfile}
+              size="sm"
+              label={t("planner.pickedBy", { who: entry.pickedByProfile.displayName })}
+            />
+          ) : (
+            <span
+              className={deleted ? "avatar avatar-deleted" : "avatar"}
+              role="img"
+              aria-label={t("planner.pickedBy", { who })}
+              style={deleted ? undefined : { backgroundColor: avatarColor(entry.pickedBy.userId ?? "") }}
+              data-testid="avatar"
+            >
+              {pickerInitials(entry.pickedBy)}
+            </span>
+          )}
           {canChange && (
             <button
               type="button"
@@ -367,11 +424,15 @@ function EntryCard({
  */
 function Picker({
   householdId,
+  weekStart,
+  date,
   title,
   onClose,
   onPick,
 }: {
   householdId: string;
+  weekStart: string;
+  date: string;
   title: string;
   onClose: () => void;
   onPick: (recipe: RecipeSummary) => Promise<WriteResult>;
@@ -385,6 +446,7 @@ function Picker({
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
   const tags = useTags(householdId);
+  const { options, byRecipe } = usePickOptions(householdId, weekStart, date);
   const { list, loadMore, retry } = useRecipeList(householdId, filters);
   const categories = tags.filter((tag) => tag.kind === "Category");
 
@@ -485,12 +547,16 @@ function Picker({
           {list.status === "ok" && list.items.length > 0 && (
             <>
               <ul className="recipe-grid">
-                {list.items.map((recipe) => (
+                {list.items.map((recipe) => {
+                  const option = byRecipe.get(recipe.id);
+                  const blocked = option?.allowed === false;
+                  return (
                   <li key={recipe.id}>
                     <button
                       type="button"
-                      className="recipe-card picker-card"
+                      className={blocked ? "recipe-card picker-card picker-card-greyed" : "recipe-card picker-card"}
                       data-testid="picker-card"
+                      data-allowed={blocked ? "false" : "true"}
                       aria-label={t("planner.pickRecipe", { title: recipe.title })}
                       disabled={adding}
                       onClick={() => void choose(recipe)}
@@ -498,10 +564,16 @@ function Picker({
                       <RecipeImage title={recipe.title} thumbUrl={recipe.thumbUrl} cardUrl={recipe.cardUrl} />
                       <span className="recipe-card-body">
                         <span className="recipe-card-title">{recipe.title}</span>
+                        {blocked && (
+                          <span className="picker-reason" data-testid="picker-reason" data-reason={option.reason ?? ""}>
+                            {reasonText(t, option, options)}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               {list.hasMore && (
                 <div className="recipes-more">

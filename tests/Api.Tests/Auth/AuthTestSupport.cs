@@ -126,13 +126,19 @@ public sealed class AuthHost : IAsyncDisposable
             ["RateLimiting:Auth:PermitLimit"] = "1000",
             ["RateLimiting:LoginByEmail:PermitLimit"] = "1000",
             ["RateLimiting:Export:PermitLimit"] = "1000",
+            ["RateLimiting:PinUnlock:PermitLimit"] = "1000",
+            ["RateLimiting:AccountDelete:PermitLimit"] = "1000",
+            // T-077: the AI fallback is off in every test host, even when the developer's user secrets turn it on. A test that
+            // wants it enables it explicitly and brings a fake client; no test host can reach the real API.
+            ["AiImport:Enabled"] = "false",
+            ["AiImport:ApiKey"] = "",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {
             settings[key] = value;
         }
 
-        var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        var factory = new TestApiFactory().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment(environment);
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(settings));
@@ -143,6 +149,8 @@ public sealed class AuthHost : IAsyncDisposable
                 services.RemoveAll<IPasswordHasher<AppUser>>();
                 services.AddSingleton<IPasswordHasher<AppUser>>(hasher);
                 services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>();
+                services.RemoveAll<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi>();
+                services.AddSingleton<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi, Import.NoRealAiClient>();
                 configureServices?.Invoke(services);
             });
         });
@@ -222,7 +230,7 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         }
 
         AddRemoteIp(request);
-        return await http.SendAsync(request, Ct);
+        return await Send(request);
     }
 
     public async Task<string> GetTokenAsync()
@@ -246,7 +254,7 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = JsonContent.Create(body ?? new { }) };
         request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
         AddRemoteIp(request);
-        return await http.SendAsync(request, Ct);
+        return await Send(request);
     }
 
     /// <summary>PUT of one file as multipart/form-data (part name "file"), with a freshly fetched antiforgery token.</summary>
@@ -265,7 +273,24 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         }
 
         AddRemoteIp(request);
-        return await http.SendAsync(request, Ct);
+        return await Send(request);
+    }
+
+    /// <summary>Any method with a freshly fetched antiforgery token (a JSON body on unsafe methods that take one).</summary>
+    public async Task<HttpResponseMessage> SendAsync(HttpMethod method, string url, object? body = null)
+    {
+        using var request = new HttpRequestMessage(method, url);
+        if (method != HttpMethod.Get)
+        {
+            request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
+            if (method != HttpMethod.Delete)
+            {
+                request.Content = JsonContent.Create(body ?? new { });
+            }
+        }
+
+        AddRemoteIp(request);
+        return await Send(request);
     }
 
     /// <summary>DELETE with a freshly fetched antiforgery token.</summary>
@@ -274,7 +299,7 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         using var request = new HttpRequestMessage(HttpMethod.Delete, url);
         request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
         AddRemoteIp(request);
-        return await http.SendAsync(request, Ct);
+        return await Send(request);
     }
 
     /// <summary>Posts with the given token; null sends no antiforgery header at all.</summary>
@@ -283,6 +308,19 @@ public sealed class ApiClient(HttpClient http) : IDisposable
 
     /// <summary>The auth cookie of the last successful login, as a Cookie header value (for hub connections, which do not share this client's jar).</summary>
     public string? AuthCookie { get; private set; }
+
+    private async Task<HttpResponseMessage> Send(HttpRequestMessage request)
+    {
+        var response = await http.SendAsync(request, Ct);
+        // Keep AuthCookie current when the server re-issues the cookie (kid mode, T-026).
+        var cookie = response.SetCookies().FirstOrDefault(c => c.StartsWith("__Host-foodplanner=", StringComparison.Ordinal));
+        if (cookie is not null && !cookie.StartsWith("__Host-foodplanner=;", StringComparison.Ordinal))
+        {
+            AuthCookie = cookie.Split(';')[0];
+        }
+
+        return response;
+    }
 
     public async Task<HttpResponseMessage> LoginAsync(string email, string password)
     {
@@ -310,7 +348,7 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         }
 
         AddRemoteIp(request);
-        return await http.SendAsync(request, Ct);
+        return await Send(request);
     }
 
     private void AddRemoteIp(HttpRequestMessage request)

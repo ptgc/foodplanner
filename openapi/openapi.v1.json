@@ -122,6 +122,26 @@
               }
             }
           },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error (RFC 9457 ProblemDetails)",
             "content": {
@@ -235,6 +255,26 @@
               }
             }
           },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error (RFC 9457 ProblemDetails)",
             "content": {
@@ -270,6 +310,26 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -331,6 +391,26 @@
               }
             }
           },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error (RFC 9457 ProblemDetails)",
             "content": {
@@ -367,6 +447,174 @@
         }
       }
     },
+    "/api/auth/pin": {
+      "put": {
+        "tags": [
+          "PinEndpoints"
+        ],
+        "operationId": "SetPin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SetPinRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinIncorrectProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/pin/unlock": {
+      "post": {
+        "tags": [
+          "PinEndpoints"
+        ],
+        "operationId": "UnlockWithPin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UnlockRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PinIncorrectProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/me": {
       "get": {
         "tags": [
@@ -386,6 +634,155 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/deletion-preview": {
+      "get": {
+        "tags": [
+          "AccountEndpoints"
+        ],
+        "operationId": "GetAccountDeletionPreview",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletionPreviewResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/delete": {
+      "post": {
+        "tags": [
+          "AccountEndpoints"
+        ],
+        "operationId": "DeleteAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DeleteAccountRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -824,6 +1221,16 @@
           },
           "429": {
             "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1658,6 +2065,27 @@
             }
           },
           {
+            "name": "likedByProfileId",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          {
+            "name": "foodType",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -2276,6 +2704,16 @@
           },
           "429": {
             "description": "Too Many Requests",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before trying again.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2870,6 +3308,82 @@
         }
       }
     },
+    "/api/households/{householdId}/meal-plans/{weekStart}/pick-options": {
+      "get": {
+        "tags": [
+          "MealPlanEndpoints"
+        ],
+        "operationId": "GetMealPlanPickOptions",
+        "parameters": [
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PickOptionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/meal-plans/{weekStart}/entries": {
       "post": {
         "tags": [
@@ -2942,6 +3456,16 @@
               }
             }
           },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Error (RFC 9457 ProblemDetails)",
             "content": {
@@ -2963,6 +3487,15 @@
         "operationId": "UpdateMealPlanEntry",
         "parameters": [
           {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "weekStart",
             "in": "path",
             "required": true,
@@ -2972,15 +3505,6 @@
           },
           {
             "name": "entryId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "householdId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3075,6 +3599,15 @@
         "operationId": "DeleteMealPlanEntry",
         "parameters": [
           {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "weekStart",
             "in": "path",
             "required": true,
@@ -3084,6 +3617,588 @@
           },
           {
             "name": "entryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/meal-plans/{weekStart}/lock": {
+      "put": {
+        "tags": [
+          "MealPlanEndpoints"
+        ],
+        "operationId": "LockMealPlanWeek",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealPlanLockResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "MealPlanEndpoints"
+        ],
+        "operationId": "UnlockMealPlanWeek",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/meal-mix-rules": {
+      "get": {
+        "tags": [
+          "MealMixRuleEndpoints"
+        ],
+        "operationId": "GetMealMixRules",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealMixRulesResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "MealMixRuleEndpoints"
+        ],
+        "operationId": "PutMealMixRules",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MealMixRulesRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealMixRulesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/profiles": {
+      "get": {
+        "tags": [
+          "ProfileEndpoints"
+        ],
+        "operationId": "ListProfiles",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ProfileEndpoints"
+        ],
+        "operationId": "CreateProfile",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProfileRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/profiles/{profileId}": {
+      "put": {
+        "tags": [
+          "ProfileEndpoints"
+        ],
+        "operationId": "UpdateProfile",
+        "parameters": [
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ProfileRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ProfileEndpoints"
+        ],
+        "operationId": "DeleteProfile",
+        "parameters": [
+          {
+            "name": "profileId",
             "in": "path",
             "required": true,
             "schema": {
@@ -3105,12 +4220,488 @@
           "204": {
             "description": "No Content"
           },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/profiles/{profileId}/activate": {
+      "post": {
+        "tags": [
+          "ProfileEndpoints"
+        ],
+        "operationId": "ActivateProfile",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "profileId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/recipes/{recipeId}/like": {
+      "put": {
+        "tags": [
+          "RecipeLikeEndpoints"
+        ],
+        "operationId": "LikeRecipe",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RecipeLikeEndpoints"
+        ],
+        "operationId": "UnlikeRecipe",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/what-can-i-make": {
+      "get": {
+        "tags": [
+          "RecipeSuggestionEndpoints"
+        ],
+        "operationId": "GetRecipeSuggestionsFromPantry",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "servings",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeSuggestionsResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "content": {
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/cook-today": {
+      "post": {
+        "tags": [
+          "RecipeSuggestionEndpoints"
+        ],
+        "operationId": "CookRecipeToday",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CookTodayRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CookTodayResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CookTodayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/add-missing": {
+      "post": {
+        "tags": [
+          "RecipeSuggestionEndpoints"
+        ],
+        "operationId": "AddMissingIngredientsToShoppingList",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "recipeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddMissingResponse"
                 }
               }
             }
@@ -3354,6 +4945,104 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/shopping-lists/{weekStart}/weekly/{groceryId}": {
+      "post": {
+        "tags": [
+          "ShoppingListEndpoints"
+        ],
+        "operationId": "AddWeeklyGroceryToShoppingList",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weekStart",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groceryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShoppingListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4020,6 +5709,13 @@
         "operationId": "ListWeeklyGroceries",
         "parameters": [
           {
+            "name": "week",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "householdId",
             "in": "path",
             "required": true,
@@ -4039,6 +5735,16 @@
                   "items": {
                     "$ref": "#/components/schemas/WeeklyGroceryResponse"
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
                 }
               }
             }
@@ -4287,6 +5993,572 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/weekly-groceries/suggestions": {
+      "get": {
+        "tags": [
+          "GrocerySuggestionEndpoints"
+        ],
+        "operationId": "ListGrocerySuggestions",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GrocerySuggestionResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/weekly-groceries/suggestions/dismiss": {
+      "post": {
+        "tags": [
+          "GrocerySuggestionEndpoints"
+        ],
+        "operationId": "DismissGrocerySuggestion",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/DismissGrocerySuggestionRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/stores": {
+      "get": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "ListStores",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StoreResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "CreateStore",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StoreRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/stores/{id}": {
+      "put": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "UpdateStore",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StoreRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "DeleteStore",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/chosen-store": {
+      "get": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "GetChosenStore",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChosenStoreResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "StoreEndpoints"
+        ],
+        "operationId": "ChooseStore",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ChooseStoreRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChosenStoreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4604,6 +6876,67 @@
           }
         }
       },
+      "AccountDeletionPreviewResponse": {
+        "required": [
+          "canDelete",
+          "confirmationText",
+          "householdsToDelete",
+          "blockingHouseholds",
+          "householdsKept"
+        ],
+        "type": "object",
+        "properties": {
+          "canDelete": {
+            "type": "boolean"
+          },
+          "confirmationText": {
+            "type": "string"
+          },
+          "householdsToDelete": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          },
+          "blockingHouseholds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          },
+          "householdsKept": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountHouseholdResponse"
+            }
+          }
+        }
+      },
+      "AccountHouseholdResponse": {
+        "required": [
+          "id",
+          "name",
+          "memberCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "memberCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "AddManualShoppingItemRequest": {
         "required": [
           "label",
@@ -4669,6 +7002,33 @@
           }
         }
       },
+      "AddMissingResponse": {
+        "required": [
+          "weekStart",
+          "missing"
+        ],
+        "type": "object",
+        "properties": {
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MissingIngredientResponse"
+            }
+          }
+        }
+      },
+      "AiAssistStatus": {
+        "enum": [
+          "NotUsed",
+          "Applied",
+          "LimitReached",
+          "Unavailable"
+        ]
+      },
       "AmountKind": {
         "enum": [
           "Measured",
@@ -4712,6 +7072,36 @@
               "null",
               "boolean"
             ]
+          }
+        }
+      },
+      "ChooseStoreRequest": {
+        "required": [
+          "storeId"
+        ],
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ChosenStoreResponse": {
+        "required": [
+          "storeId"
+        ],
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -4774,6 +7164,43 @@
           }
         }
       },
+      "CookTodayRequest": {
+        "required": [
+          "servings"
+        ],
+        "type": "object",
+        "properties": {
+          "servings": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CookTodayResponse": {
+        "required": [
+          "entry",
+          "weekStart",
+          "alreadyPlanned"
+        ],
+        "type": "object",
+        "properties": {
+          "entry": {
+            "$ref": "#/components/schemas/MealPlanEntryResponse"
+          },
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "alreadyPlanned": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateHouseholdRequest": {
         "required": [
           "name"
@@ -4815,6 +7242,12 @@
             ]
           },
           "section": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "proteinClass": {
             "type": [
               "null",
               "string"
@@ -4878,6 +7311,52 @@
           }
         }
       },
+      "DeleteAccountRequest": {
+        "required": [
+          "password",
+          "confirmation",
+          "householdIds"
+        ],
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "confirmation": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "householdIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "DismissGrocerySuggestionRequest": {
+        "required": [
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ExportedHousehold": {
         "required": [
           "id",
@@ -4920,6 +7399,60 @@
           },
           "fullUrl": {
             "type": "string"
+          }
+        }
+      },
+      "FoodType": {
+        "enum": [
+          "Unknown",
+          "Fish",
+          "Seafood",
+          "Chicken",
+          "Beef",
+          "Pork",
+          "Lamb",
+          "MixedMeat",
+          "Vegetarian",
+          "Vegan"
+        ]
+      },
+      "GroceryFrequency": {
+        "enum": [
+          "Weekly",
+          "EveryTwoWeeks",
+          "Monthly"
+        ]
+      },
+      "GrocerySuggestionResponse": {
+        "required": [
+          "label",
+          "frequency",
+          "weeksSeen",
+          "weeksLooked"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/GroceryFrequency"
+          },
+          "weeksSeen": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "weeksLooked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -5078,7 +7611,9 @@
           "amountKind",
           "purpose",
           "isOptional",
-          "alternatives"
+          "alternatives",
+          "suggestedProteinClass",
+          "aiSuggested"
         ],
         "type": "object",
         "properties": {
@@ -5192,6 +7727,19 @@
             "items": {
               "$ref": "#/components/schemas/RecipeAlternativeResponse"
             }
+          },
+          "suggestedProteinClass": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProteinClass"
+              }
+            ]
+          },
+          "aiSuggested": {
+            "type": "boolean"
           }
         }
       },
@@ -5257,7 +7805,8 @@
           "isStaple",
           "dimension",
           "isGlobal",
-          "section"
+          "section",
+          "proteinClass"
         ],
         "type": "object",
         "properties": {
@@ -5279,6 +7828,9 @@
           },
           "section": {
             "$ref": "#/components/schemas/StoreSection"
+          },
+          "proteinClass": {
+            "$ref": "#/components/schemas/ProteinClass"
           }
         }
       },
@@ -5354,6 +7906,29 @@
           }
         }
       },
+      "KidModeInfo": {
+        "required": [
+          "profileId",
+          "householdId"
+        ],
+        "type": "object",
+        "properties": {
+          "profileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "householdId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
       "LoginRequest": {
         "required": [
           "email",
@@ -5375,6 +7950,90 @@
           }
         }
       },
+      "MealMixRuleRequest": {
+        "required": [
+          "foodType",
+          "minPerWeek"
+        ],
+        "type": "object",
+        "properties": {
+          "foodType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minPerWeek": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MealMixRuleResponse": {
+        "required": [
+          "foodType",
+          "minPerWeek"
+        ],
+        "type": "object",
+        "properties": {
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
+          },
+          "minPerWeek": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MealMixRulesRequest": {
+        "required": [
+          "rules"
+        ],
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MealMixRuleRequest"
+            }
+          }
+        }
+      },
+      "MealMixRulesResponse": {
+        "required": [
+          "rules",
+          "dinnerDaysPerWeek"
+        ],
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealMixRuleResponse"
+            }
+          },
+          "dinnerDaysPerWeek": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "MealPlanEntryResponse": {
         "required": [
           "id",
@@ -5382,7 +8041,8 @@
           "recipeId",
           "recipeTitle",
           "servings",
-          "pickedBy"
+          "pickedBy",
+          "pickedByProfile"
         ],
         "type": "object",
         "properties": {
@@ -5411,6 +8071,36 @@
           },
           "pickedBy": {
             "$ref": "#/components/schemas/PickedByResponse"
+          },
+          "pickedByProfile": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ProfileResponse"
+              }
+            ]
+          }
+        }
+      },
+      "MealPlanLockResponse": {
+        "required": [
+          "locked",
+          "lockedAt",
+          "lockedBy"
+        ],
+        "type": "object",
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          },
+          "lockedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lockedBy": {
+            "$ref": "#/components/schemas/PickedByResponse"
           }
         }
       },
@@ -5418,7 +8108,10 @@
         "required": [
           "id",
           "weekStart",
-          "entries"
+          "entries",
+          "locked",
+          "lockedAt",
+          "lockedBy"
         ],
         "type": "object",
         "properties": {
@@ -5438,6 +8131,26 @@
             "items": {
               "$ref": "#/components/schemas/MealPlanEntryResponse"
             }
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "lockedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lockedBy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PickedByResponse"
+              }
+            ]
           }
         }
       },
@@ -5472,7 +8185,8 @@
       "MeResponse": {
         "required": [
           "userId",
-          "email"
+          "email",
+          "kidMode"
         ],
         "type": "object",
         "properties": {
@@ -5482,6 +8196,16 @@
           },
           "email": {
             "type": "string"
+          },
+          "kidMode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/KidModeInfo"
+              }
+            ]
           }
         }
       },
@@ -5522,6 +8246,47 @@
           }
         }
       },
+      "MissingIngredientResponse": {
+        "required": [
+          "ingredientId",
+          "name",
+          "quantities",
+          "reason",
+          "alternatives"
+        ],
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quantities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShoppingQuantityResponse"
+            }
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MissingReason"
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeAlternativeResponse"
+            }
+          }
+        }
+      },
+      "MissingReason": {
+        "enum": [
+          "NotAtHome",
+          "NotEnough",
+          "UnitMismatch"
+        ]
+      },
       "OpenInviteResponse": {
         "required": [
           "id",
@@ -5548,7 +8313,10 @@
             "format": "date-time"
           },
           "createdByUserId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           }
         }
@@ -5560,6 +8328,7 @@
           "isStaple",
           "dimension",
           "section",
+          "proteinClass",
           "usage"
         ],
         "type": "object",
@@ -5579,6 +8348,9 @@
           },
           "section": {
             "$ref": "#/components/schemas/StoreSection"
+          },
+          "proteinClass": {
+            "$ref": "#/components/schemas/ProteinClass"
           },
           "usage": {
             "$ref": "#/components/schemas/IngredientUsageResponse"
@@ -5612,7 +8384,10 @@
             "format": "date-time"
           },
           "confirmedByUserId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "expiresAt": {
@@ -5663,7 +8438,10 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "email": {
@@ -5671,6 +8449,106 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PickOptionResponse": {
+        "required": [
+          "recipeId",
+          "allowed",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "recipeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PickOptionsResponse": {
+        "required": [
+          "date",
+          "openDinnerDays",
+          "allowedFoodTypes",
+          "recipes"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "openDinnerDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "allowedFoodTypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FoodType"
+            }
+          },
+          "recipes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PickOptionResponse"
+            }
+          }
+        }
+      },
+      "PinIncorrectProblem": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "attemptsRemaining": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -5711,6 +8589,61 @@
             ]
           }
         }
+      },
+      "ProfileRequest": {
+        "required": [
+          "displayName",
+          "avatar"
+        ],
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "avatar": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ProfileResponse": {
+        "required": [
+          "id",
+          "displayName",
+          "avatar"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatar": {
+            "type": "string"
+          }
+        }
+      },
+      "ProteinClass": {
+        "enum": [
+          "Unknown",
+          "None",
+          "AnimalProduct",
+          "Fish",
+          "Seafood",
+          "Chicken",
+          "Beef",
+          "Pork",
+          "Lamb",
+          "Meat"
+        ]
       },
       "ReadyResponse": {
         "required": [
@@ -5779,7 +8712,8 @@
           "warnings",
           "canSave",
           "savedRecipeId",
-          "createdAt"
+          "createdAt",
+          "aiAssist"
         ],
         "type": "object",
         "properties": {
@@ -5872,6 +8806,9 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "aiAssist": {
+            "$ref": "#/components/schemas/AiAssistStatus"
           }
         }
       },
@@ -6181,6 +9118,12 @@
               "null",
               "string"
             ]
+          },
+          "foodType": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6198,7 +9141,11 @@
           "tags",
           "image",
           "sourceUrl",
-          "sourceName"
+          "sourceName",
+          "likedBy",
+          "liked",
+          "foodType",
+          "foodTypeIsManual"
         ],
         "type": "object",
         "properties": {
@@ -6289,6 +9236,21 @@
               "null",
               "string"
             ]
+          },
+          "likedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileResponse"
+            }
+          },
+          "liked": {
+            "type": "boolean"
+          },
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
+          },
+          "foodTypeIsManual": {
+            "type": "boolean"
           }
         }
       },
@@ -6326,6 +9288,107 @@
           }
         }
       },
+      "RecipeSuggestionResponse": {
+        "required": [
+          "recipeId",
+          "title",
+          "servings",
+          "totalMinutes",
+          "foodType",
+          "thumbUrl",
+          "cardUrl",
+          "kidLikes",
+          "cookedRecently",
+          "plannedToday",
+          "missing"
+        ],
+        "type": "object",
+        "properties": {
+          "recipeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "servings": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
+          },
+          "thumbUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kidLikes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cookedRecently": {
+            "type": "boolean"
+          },
+          "plannedToday": {
+            "type": "boolean"
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MissingIngredientResponse"
+            }
+          }
+        }
+      },
+      "RecipeSuggestionsResponse": {
+        "required": [
+          "today",
+          "weekStart",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "weekStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipeSuggestionResponse"
+            }
+          }
+        }
+      },
       "RecipeSummaryResponse": {
         "required": [
           "id",
@@ -6334,7 +9397,10 @@
           "totalMinutes",
           "tags",
           "thumbUrl",
-          "cardUrl"
+          "cardUrl",
+          "likedBy",
+          "liked",
+          "foodType"
         ],
         "type": "object",
         "properties": {
@@ -6379,6 +9445,18 @@
               "null",
               "string"
             ]
+          },
+          "likedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileResponse"
+            }
+          },
+          "liked": {
+            "type": "boolean"
+          },
+          "foodType": {
+            "$ref": "#/components/schemas/FoodType"
           }
         }
       },
@@ -6420,6 +9498,12 @@
             ]
           },
           "section": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "proteinClass": {
             "type": [
               "null",
               "string"
@@ -6473,6 +9557,34 @@
             "items": {
               "$ref": "#/components/schemas/RecipeIngredientResponse"
             }
+          }
+        }
+      },
+      "SetPinRequest": {
+        "required": [
+          "pin",
+          "currentPin",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currentPin": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6713,6 +9825,53 @@
           "CheckYouHave"
         ]
       },
+      "StoreRequest": {
+        "required": [
+          "name",
+          "sectionOrder"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sectionOrder": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StoreResponse": {
+        "required": [
+          "id",
+          "name",
+          "sectionOrder"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sectionOrder": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StoreSection"
+            }
+          }
+        }
+      },
       "StoreSection": {
         "enum": [
           "Other",
@@ -6734,7 +9893,8 @@
           "id",
           "name",
           "kind",
-          "isGlobal"
+          "isGlobal",
+          "key"
         ],
         "type": "object",
         "properties": {
@@ -6750,6 +9910,12 @@
           },
           "isGlobal": {
             "type": "boolean"
+          },
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6790,6 +9956,20 @@
               "string"
             ],
             "format": "double"
+          }
+        }
+      },
+      "UnlockRequest": {
+        "required": [
+          "pin"
+        ],
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7002,6 +10182,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "frequency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextDue": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7035,6 +10227,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "frequency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextDue": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7047,7 +10251,11 @@
           "quantity",
           "unitId",
           "unitCode",
-          "unitName"
+          "unitName",
+          "frequency",
+          "startWeek",
+          "nextDueWeek",
+          "dueInWeek"
         ],
         "type": "object",
         "properties": {
@@ -7092,6 +10300,23 @@
               "null",
               "string"
             ]
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/GroceryFrequency"
+          },
+          "startWeek": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "nextDueWeek": {
+            "type": "string",
+            "format": "date"
+          },
+          "dueInWeek": {
+            "type": "boolean"
           }
         }
       }
@@ -7109,6 +10334,12 @@
     },
     {
       "name": "AuthEndpoints"
+    },
+    {
+      "name": "PinEndpoints"
+    },
+    {
+      "name": "AccountEndpoints"
     },
     {
       "name": "HouseholdMemberEndpoints"
@@ -7132,6 +10363,18 @@
       "name": "MealPlanEndpoints"
     },
     {
+      "name": "MealMixRuleEndpoints"
+    },
+    {
+      "name": "ProfileEndpoints"
+    },
+    {
+      "name": "RecipeLikeEndpoints"
+    },
+    {
+      "name": "RecipeSuggestionEndpoints"
+    },
+    {
       "name": "ShoppingListEndpoints"
     },
     {
@@ -7142,6 +10385,12 @@
     },
     {
       "name": "WeeklyGroceryEndpoints"
+    },
+    {
+      "name": "GrocerySuggestionEndpoints"
+    },
+    {
+      "name": "StoreEndpoints"
     },
     {
       "name": "RecipeImageEndpoints"

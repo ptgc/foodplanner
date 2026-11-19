@@ -68,3 +68,33 @@ test("the login page is Norwegian and has the language switch", async ({ browser
     await context.close();
   }
 });
+
+// T-095 verification: the delete-account screen in Norwegian at 390px. Read-only: the delete call is aborted and never sent.
+test("the delete-account screen is Norwegian, fits 390px and has 44px targets (nothing is deleted)", async ({ page }) => {
+  let sent = 0;
+  await page.route("**/api/account/delete", async (route) => {
+    sent++;
+    await route.abort();
+  });
+  const real = (await (await page.request.get("/api/account/deletion-preview")).json()) as { canDelete: boolean };
+  if (!real.canDelete) {
+    await page.route("**/api/account/deletion-preview", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+      await route.fulfill({ response, json: { ...body, canDelete: true, blockingHouseholds: [] } });
+    });
+  }
+  await page.goto("/account/delete");
+  await expect(page.getByRole("heading", { name: "Slett kontoen min", level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Passordet ditt")).toBeVisible();
+  await expect(page.getByLabel(/Skriv e-postadressen din for å bekrefte/)).toBeVisible();
+  await expect(page.getByTestId("delete-submit")).toHaveText("Slett kontoen min for godt");
+  await expect(page.getByTestId("delete-submit")).toBeDisabled();
+
+  const controls = page.locator("main button:visible, main input:visible, main a:visible");
+  const heights = await controls.evaluateAll((els) => els.map((el) => ({ name: el.textContent?.trim() || el.tagName, height: el.getBoundingClientRect().height })));
+  for (const { name, height } of heights) expect(height, `height of "${name}"`).toBeGreaterThanOrEqual(43.5);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow, "no horizontal scroll at 390px").toBeLessThanOrEqual(0);
+  expect(sent).toBe(0);
+});

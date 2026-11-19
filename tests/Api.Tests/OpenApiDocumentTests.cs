@@ -12,7 +12,7 @@ namespace Foodplanner.Api.Tests;
 /// describe the health endpoint and ProblemDetails, and equal what the Api generates.
 /// To regenerate after an API change: scripts/openapi.sh (or scripts/openapi.ps1).
 /// </summary>
-public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class OpenApiDocumentTests(TestApiFactory factory) : IClassFixture<TestApiFactory>
 {
     private const string DocumentUrl = "/openapi/v1.json";
 
@@ -99,6 +99,49 @@ public class OpenApiDocumentTests(WebApplicationFactory<Program> factory) : ICla
         }
 
         return problems;
+    }
+
+    [Fact]
+    public async Task Pin_problems_and_tag_key_are_part_of_the_contract()
+    {
+        var json = System.Text.Json.JsonDocument.Parse(await GenerateAsync("Development")).RootElement;
+        var schemas = json.GetProperty("components").GetProperty("schemas");
+        var paths = json.GetProperty("paths");
+
+        // TagResponse.key: required, a string or null.
+        var tag = schemas.GetProperty("TagResponse");
+        Assert.Contains(tag.GetProperty("required").EnumerateArray(), r => r.GetString() == "key");
+        Assert.Contains(tag.GetProperty("properties").GetProperty("key").GetProperty("type").EnumerateArray(), t => t.GetString() == "null");
+
+        // 403 pin-incorrect carries attemptsRemaining (a number), on the unlock and on the PIN change.
+        Assert.Equal("integer", schemas.GetProperty("PinIncorrectProblem").GetProperty("properties").GetProperty("attemptsRemaining").GetProperty("type").GetString());
+        foreach (var operation in new[] { paths.GetProperty("/api/auth/pin/unlock").GetProperty("post"), paths.GetProperty("/api/auth/pin").GetProperty("put") })
+        {
+            var forbidden = operation.GetProperty("responses").GetProperty("403").GetProperty("content").GetProperty("application/problem+json");
+            Assert.EndsWith("/PinIncorrectProblem", forbidden.GetProperty("schema").GetProperty("$ref").GetString());
+
+            // 429 (pin-locked and the rate limiter) declares the Retry-After header in seconds.
+            var retry = operation.GetProperty("responses").GetProperty("429").GetProperty("headers").GetProperty("Retry-After");
+            Assert.Equal("integer", retry.GetProperty("schema").GetProperty("type").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task Every_rate_limited_endpoint_declares_429_with_Retry_After()
+    {
+        var paths = System.Text.Json.JsonDocument.Parse(await GenerateAsync("Development")).RootElement.GetProperty("paths");
+        var limited = new (string Path, string Method)[]
+        {
+            ("/api/auth/register", "post"), ("/api/auth/confirm-email", "post"), ("/api/auth/login", "post"),
+            ("/api/auth/pin", "put"), ("/api/auth/pin/unlock", "post"), ("/api/invites/{token}/accept", "post"),
+            ("/api/households/{householdId}/export", "get"),
+        };
+        foreach (var (path, method) in limited)
+        {
+            var response = paths.GetProperty(path).GetProperty(method).GetProperty("responses");
+            Assert.True(response.TryGetProperty("429", out var tooMany), $"{method} {path} has no 429");
+            Assert.True(tooMany.GetProperty("headers").TryGetProperty("Retry-After", out _), $"{method} {path} 429 has no Retry-After");
+        }
     }
 
     [Fact]

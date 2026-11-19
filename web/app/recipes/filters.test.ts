@@ -6,6 +6,8 @@ import {
   parseFilters,
   toListQuery,
   toSearchParams,
+  toggleFoodType,
+  toggleLikedBy,
   toggleMaxMinutes,
   toggleTag,
 } from "./filters";
@@ -19,9 +21,9 @@ describe("filters <-> URL", () => {
   });
 
   it("round-trips search, several tags and max minutes", () => {
-    const filters = { search: "fish & chips", tagIds: ["a", "b"], maxMinutes: 30 };
+    const filters = { search: "fish & chips", tagIds: ["a", "b"], maxMinutes: 30, foodTypes: ["Fish" as const, "Vegan" as const], likedBy: [] };
     const query = toSearchParams(filters).toString();
-    expect(query).toBe("q=fish+%26+chips&tag=a&tag=b&max=30");
+    expect(query).toBe("q=fish+%26+chips&tag=a&tag=b&max=30&type=Fish&type=Vegan");
     expect(parse(query)).toEqual(filters);
   });
 
@@ -31,6 +33,10 @@ describe("filters <-> URL", () => {
     expect(parse("max=0").maxMinutes).toBeNull();
     expect(parse("max=99999").maxMinutes).toBeNull();
     expect(parse("max=1.5").maxMinutes).toBeNull();
+  });
+
+  it("keeps only known food types, once each", () => {
+    expect(parse("type=Fish&type=Fish&type=Poultry&type=&type=Vegan").foodTypes).toEqual(["Fish", "Vegan"]);
   });
 
   it("drops repeated tags and caps them at what the API accepts", () => {
@@ -54,6 +60,13 @@ describe("filter changes", () => {
     expect(filters.tagIds).toHaveLength(maxTagFilters);
   });
 
+  it("toggles food types on and off (ANY of the chosen)", () => {
+    const fish = toggleFoodType(emptyFilters, "Fish");
+    const both = toggleFoodType(fish, "Beef");
+    expect(both.foodTypes).toEqual(["Fish", "Beef"]);
+    expect(toggleFoodType(both, "Fish").foodTypes).toEqual(["Beef"]);
+  });
+
   it("max time is one choice; choosing the same again clears it", () => {
     const thirty = toggleMaxMinutes(emptyFilters, 30);
     expect(thirty.maxMinutes).toBe(30);
@@ -67,16 +80,36 @@ describe("filter changes", () => {
     expect(hasFilters({ ...emptyFilters, search: "x" })).toBe(true);
     expect(hasFilters({ ...emptyFilters, tagIds: ["a"] })).toBe(true);
     expect(hasFilters({ ...emptyFilters, maxMinutes: 20 })).toBe(true);
+    expect(hasFilters({ ...emptyFilters, foodTypes: ["Vegan"] })).toBe(true);
+  });
+});
+
+describe("liked by (T-091)", () => {
+  it("round-trips the kid profiles through the URL and into the list query", () => {
+    const filters = { ...emptyFilters, likedBy: ["p1", "p2"] };
+    expect(toSearchParams(filters).toString()).toBe("liked=p1&liked=p2");
+    expect(parse("liked=p1&liked=p2&liked=p1&liked=")).toEqual(filters);
+    expect(toListQuery(filters, 12, 0)).toEqual({ likedByProfileId: ["p1", "p2"], limit: 12, offset: 0 });
+  });
+
+  it("toggles a kid, counts as a filter, and keeps to the API limit of 10", () => {
+    const one = toggleLikedBy(emptyFilters, "p1");
+    expect(one.likedBy).toEqual(["p1"]);
+    expect(hasFilters(one)).toBe(true);
+    expect(toggleLikedBy(one, "p1").likedBy).toEqual([]);
+    const full = { ...emptyFilters, likedBy: Array.from({ length: 10 }, (_, i) => "p" + i) };
+    expect(toggleLikedBy(full, "extra")).toBe(full);
   });
 });
 
 describe("list query", () => {
   it("leaves out empty filters and trims the search", () => {
     expect(toListQuery(emptyFilters, 12, 0)).toEqual({ limit: 12, offset: 0 });
-    expect(toListQuery({ search: " pasta ", tagIds: ["a", "b"], maxMinutes: 30 }, 12, 24)).toEqual({
+    expect(toListQuery({ search: " pasta ", tagIds: ["a", "b"], maxMinutes: 30, foodTypes: ["Fish", "Lamb"], likedBy: [] }, 12, 24)).toEqual({
       search: "pasta",
       tagIds: ["a", "b"],
       maxMinutes: 30,
+      foodType: ["Fish", "Lamb"],
       limit: 12,
       offset: 24,
     });

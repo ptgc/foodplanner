@@ -11,11 +11,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Foodplanner.Api.Features.Catalog;
 
-/// <summary><c>Section</c> (T-085) is a <see cref="StoreSection"/> name; omitted means Other.</summary>
-public sealed record CreateIngredientRequest(string? Name, bool? IsStaple, string? Dimension, string? Section = null);
+/// <summary><c>Section</c> (T-085) is a <see cref="StoreSection"/> name; omitted means Other. <c>ProteinClass</c> (T-089) is a <see cref="ProteinClass"/> name; omitted means Unknown.</summary>
+public sealed record CreateIngredientRequest(string? Name, bool? IsStaple, string? Dimension, string? Section = null, string? ProteinClass = null);
 
 /// <summary><c>IsGlobal</c>: a catalog ingredient shared by every household (read-only); otherwise the household's own.</summary>
-public sealed record IngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, bool IsGlobal, StoreSection Section);
+public sealed record IngredientResponse(Guid Id, string Name, bool IsStaple, UnitDimension Dimension, bool IsGlobal, StoreSection Section, ProteinClass ProteinClass);
 
 public sealed record UnitResponse(Guid Id, string Code, string Name, UnitDimension Dimension, decimal FactorToBase);
 
@@ -127,6 +127,12 @@ public static class CatalogEndpoints
             errors["section"] = ["The section must be FruitAndVegetables, MeatFishAndCheese, Frozen, Dairy, DryGoods or Other."];
         }
 
+        var proteinClass = ProteinClass.Unknown;
+        if (request?.ProteinClass is not null && !ProteinClasses.TryParse(request.ProteinClass, out proteinClass))
+        {
+            errors["proteinClass"] = [ProteinClassMessage];
+        }
+
         if (errors.Count > 0)
         {
             return Results.ValidationProblem(errors);
@@ -138,7 +144,7 @@ public static class CatalogEndpoints
             return Duplicate(name!);
         }
 
-        var ingredient = new Ingredient(householdId, name!, request?.IsStaple ?? false, dimension, section);
+        var ingredient = new Ingredient(householdId, name!, request?.IsStaple ?? false, dimension, section, proteinClass);
         db.Ingredients.Add(ingredient);
         try
         {
@@ -160,5 +166,7 @@ public static class CatalogEndpoints
             "Ingredient already exists",
             $"There is already an ingredient called '{name}' in this household or in the shared catalog.");
 
-    private static IngredientResponse ToResponse(Ingredient i, string name) => new(i.Id, name, i.IsStaple, i.Dimension, i.HouseholdId is null, i.Section);
+    private static IngredientResponse ToResponse(Ingredient i, string name) => new(i.Id, name, i.IsStaple, i.Dimension, i.HouseholdId is null, i.Section, i.ProteinClass);
+
+    internal const string ProteinClassMessage = "The protein class must be Unknown, None, AnimalProduct, Fish, Seafood, Chicken, Beef, Pork, Lamb or Meat.";
 }

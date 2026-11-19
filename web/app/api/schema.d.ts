@@ -148,6 +148,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["SetPin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/pin/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["UnlockWithPin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/me": {
         parameters: {
             query?: never;
@@ -158,6 +190,38 @@ export interface paths {
         get: operations["GetMe"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/deletion-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAccountDeletionPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DeleteAccount"];
         delete?: never;
         options?: never;
         head?: never;
@@ -500,6 +564,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/meal-plans/{weekStart}/pick-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMealPlanPickOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/meal-plans/{weekStart}/entries": {
         parameters: {
             query?: never;
@@ -527,6 +607,150 @@ export interface paths {
         put: operations["UpdateMealPlanEntry"];
         post?: never;
         delete: operations["DeleteMealPlanEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/meal-plans/{weekStart}/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["LockMealPlanWeek"];
+        post?: never;
+        delete: operations["UnlockMealPlanWeek"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/meal-mix-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetMealMixRules"];
+        put: operations["PutMealMixRules"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListProfiles"];
+        put?: never;
+        post: operations["CreateProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/profiles/{profileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UpdateProfile"];
+        post?: never;
+        delete: operations["DeleteProfile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/profiles/{profileId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ActivateProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/recipes/{recipeId}/like": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["LikeRecipe"];
+        post?: never;
+        delete: operations["UnlikeRecipe"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/what-can-i-make": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRecipeSuggestionsFromPantry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/cook-today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CookRecipeToday"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/what-can-i-make/{recipeId}/add-missing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AddMissingIngredientsToShoppingList"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -574,6 +798,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["AddWeeklyGroceriesToShoppingList"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/shopping-lists/{weekStart}/weekly/{groceryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AddWeeklyGroceryToShoppingList"];
         delete?: never;
         options?: never;
         head?: never;
@@ -708,6 +948,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/weekly-groceries/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListGrocerySuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/weekly-groceries/suggestions/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["DismissGrocerySuggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListStores"];
+        put?: never;
+        post: operations["CreateStore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/stores/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["UpdateStore"];
+        post?: never;
+        delete: operations["DeleteStore"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/chosen-store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetChosenStore"];
+        put: operations["ChooseStore"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/recipes/{recipeId}/image": {
         parameters: {
             query?: never;
@@ -749,6 +1069,20 @@ export interface components {
             householdId: string;
             role: components["schemas"]["HouseholdRole"];
         };
+        AccountDeletionPreviewResponse: {
+            canDelete: boolean;
+            confirmationText: string;
+            householdsToDelete: components["schemas"]["AccountHouseholdResponse"][];
+            blockingHouseholds: components["schemas"]["AccountHouseholdResponse"][];
+            householdsKept: components["schemas"]["AccountHouseholdResponse"][];
+        };
+        AccountHouseholdResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            memberCount: number | string;
+        };
         AddManualShoppingItemRequest: {
             label: null | string;
             /** Format: double */
@@ -764,6 +1098,13 @@ export interface components {
             /** Format: int32 */
             servings: null | number | string;
         };
+        AddMissingResponse: {
+            /** Format: date */
+            weekStart: string;
+            missing: components["schemas"]["MissingIngredientResponse"][];
+        };
+        /** @enum {unknown} */
+        AiAssistStatus: "NotUsed" | "Applied" | "LimitReached" | "Unavailable";
         /** @enum {unknown} */
         AmountKind: "Measured" | "ToTaste" | "AsNeeded";
         AntiforgeryResponse: {
@@ -774,6 +1115,14 @@ export interface components {
         };
         CheckShoppingItemRequest: {
             checked: null | boolean;
+        };
+        ChooseStoreRequest: {
+            /** Format: uuid */
+            storeId: null | string;
+        };
+        ChosenStoreResponse: {
+            /** Format: uuid */
+            storeId: null | string;
         };
         ConfirmEmailRequest: {
             userId: null | string;
@@ -788,6 +1137,16 @@ export interface components {
             /** Format: uuid */
             unitId?: null | string;
         };
+        CookTodayRequest: {
+            /** Format: int32 */
+            servings: null | number | string;
+        };
+        CookTodayResponse: {
+            entry: components["schemas"]["MealPlanEntryResponse"];
+            /** Format: date */
+            weekStart: string;
+            alreadyPlanned: boolean;
+        };
         CreateHouseholdRequest: {
             name: null | string;
         };
@@ -796,6 +1155,7 @@ export interface components {
             isStaple: null | boolean;
             dimension: null | string;
             section?: null | string;
+            proteinClass?: null | string;
         };
         CreateInviteRequest: {
             role: null | string;
@@ -807,6 +1167,14 @@ export interface components {
         CreateTagRequest: {
             name: null | string;
             kind: null | string;
+        };
+        DeleteAccountRequest: {
+            password: null | string;
+            confirmation: null | string;
+            householdIds: null | string[];
+        };
+        DismissGrocerySuggestionRequest: {
+            label: null | string;
         };
         ExportedHousehold: {
             /** Format: uuid */
@@ -821,6 +1189,18 @@ export interface components {
             thumbUrl: string;
             cardUrl: string;
             fullUrl: string;
+        };
+        /** @enum {unknown} */
+        FoodType: "Unknown" | "Fish" | "Seafood" | "Chicken" | "Beef" | "Pork" | "Lamb" | "MixedMeat" | "Vegetarian" | "Vegan";
+        /** @enum {unknown} */
+        GroceryFrequency: "Weekly" | "EveryTwoWeeks" | "Monthly";
+        GrocerySuggestionResponse: {
+            label: string;
+            frequency: components["schemas"]["GroceryFrequency"];
+            /** Format: int32 */
+            weeksSeen: number | string;
+            /** Format: int32 */
+            weeksLooked: number | string;
         };
         HealthResponse: {
             status: string;
@@ -884,6 +1264,8 @@ export interface components {
             purpose: components["schemas"]["IngredientPurpose"];
             isOptional: boolean;
             alternatives: components["schemas"]["RecipeAlternativeResponse"][];
+            suggestedProteinClass: null | components["schemas"]["ProteinClass"];
+            aiSuggested: boolean;
         };
         /** @enum {unknown} */
         ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";
@@ -908,6 +1290,7 @@ export interface components {
             dimension: components["schemas"]["UnitDimension"];
             isGlobal: boolean;
             section: components["schemas"]["StoreSection"];
+            proteinClass: components["schemas"]["ProteinClass"];
         };
         IngredientUsageResponse: {
             /** Format: int32 */
@@ -927,9 +1310,33 @@ export interface components {
             expiresAt: string;
             role: components["schemas"]["HouseholdRole"];
         };
+        KidModeInfo: {
+            /** Format: uuid */
+            profileId: null | string;
+            /** Format: uuid */
+            householdId: null | string;
+        };
         LoginRequest: {
             email: null | string;
             password: null | string;
+        };
+        MealMixRuleRequest: {
+            foodType: null | string;
+            /** Format: int32 */
+            minPerWeek: null | number | string;
+        };
+        MealMixRuleResponse: {
+            foodType: components["schemas"]["FoodType"];
+            /** Format: int32 */
+            minPerWeek: number | string;
+        };
+        MealMixRulesRequest: {
+            rules: null | components["schemas"]["MealMixRuleRequest"][];
+        };
+        MealMixRulesResponse: {
+            rules: components["schemas"]["MealMixRuleResponse"][];
+            /** Format: int32 */
+            dinnerDaysPerWeek: number | string;
         };
         MealPlanEntryResponse: {
             /** Format: uuid */
@@ -942,6 +1349,13 @@ export interface components {
             /** Format: int32 */
             servings: number | string;
             pickedBy: components["schemas"]["PickedByResponse"];
+            pickedByProfile: null | components["schemas"]["ProfileResponse"];
+        };
+        MealPlanLockResponse: {
+            locked: boolean;
+            /** Format: date-time */
+            lockedAt: string;
+            lockedBy: components["schemas"]["PickedByResponse"];
         };
         MealPlanResponse: {
             /** Format: uuid */
@@ -949,6 +1363,10 @@ export interface components {
             /** Format: date */
             weekStart: string;
             entries: components["schemas"]["MealPlanEntryResponse"][];
+            locked: boolean;
+            /** Format: date-time */
+            lockedAt: null | string;
+            lockedBy: null | components["schemas"]["PickedByResponse"];
         };
         MemberResponse: {
             /** Format: uuid */
@@ -962,6 +1380,7 @@ export interface components {
             /** Format: uuid */
             userId: string;
             email: string;
+            kidMode: null | components["schemas"]["KidModeInfo"];
         };
         MergeIngredientRequest: {
             /** Format: uuid */
@@ -972,6 +1391,16 @@ export interface components {
             moved: components["schemas"]["IngredientUsageResponse"];
             warnings: string[];
         };
+        MissingIngredientResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            name: string;
+            quantities: components["schemas"]["ShoppingQuantityResponse"][];
+            reason: components["schemas"]["MissingReason"];
+            alternatives: components["schemas"]["RecipeAlternativeResponse"][];
+        };
+        /** @enum {unknown} */
+        MissingReason: "NotAtHome" | "NotEnough" | "UnitMismatch";
         OpenInviteResponse: {
             /** Format: uuid */
             id: string;
@@ -981,7 +1410,7 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             /** Format: uuid */
-            createdByUserId: string;
+            createdByUserId: null | string;
         };
         OwnIngredientResponse: {
             /** Format: uuid */
@@ -990,6 +1419,7 @@ export interface components {
             isStaple: boolean;
             dimension: components["schemas"]["UnitDimension"];
             section: components["schemas"]["StoreSection"];
+            proteinClass: components["schemas"]["ProteinClass"];
             usage: components["schemas"]["IngredientUsageResponse"];
         };
         PantryItemResponse: {
@@ -999,7 +1429,7 @@ export interface components {
             /** Format: date-time */
             confirmedAt: string;
             /** Format: uuid */
-            confirmedByUserId: string;
+            confirmedByUserId: null | string;
             /** Format: date-time */
             expiresAt: null | string;
             /** Format: double */
@@ -1012,8 +1442,32 @@ export interface components {
         };
         PickedByResponse: {
             /** Format: uuid */
-            userId: string;
+            userId: null | string;
             email: null | string;
+        };
+        PickOptionResponse: {
+            /** Format: uuid */
+            recipeId: string;
+            allowed: boolean;
+            reason: null | string;
+        };
+        PickOptionsResponse: {
+            /** Format: date */
+            date: string;
+            /** Format: int32 */
+            openDinnerDays: number | string;
+            allowedFoodTypes: components["schemas"]["FoodType"][];
+            recipes: components["schemas"]["PickOptionResponse"][];
+        };
+        PinIncorrectProblem: {
+            type?: null | string;
+            title?: null | string;
+            /** Format: int32 */
+            status?: null | number | string;
+            detail?: null | string;
+            instance?: null | string;
+            /** Format: int32 */
+            attemptsRemaining?: number;
         };
         ProblemDetails: {
             type?: null | string;
@@ -1023,6 +1477,18 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        ProfileRequest: {
+            displayName: null | string;
+            avatar: null | string;
+        };
+        ProfileResponse: {
+            /** Format: uuid */
+            id: string;
+            displayName: string;
+            avatar: string;
+        };
+        /** @enum {unknown} */
+        ProteinClass: "Unknown" | "None" | "AnimalProduct" | "Fish" | "Seafood" | "Chicken" | "Beef" | "Pork" | "Lamb" | "Meat";
         ReadyResponse: {
             status: string;
             database: string;
@@ -1060,6 +1526,7 @@ export interface components {
             savedRecipeId: null | string;
             /** Format: date-time */
             createdAt: string;
+            aiAssist: components["schemas"]["AiAssistStatus"];
         };
         RecipeImportSummaryResponse: {
             /** Format: uuid */
@@ -1122,6 +1589,7 @@ export interface components {
             tagIds: null | string[];
             sourceUrl?: null | string;
             sourceName?: null | string;
+            foodType?: null | string;
         };
         RecipeResponse: {
             /** Format: uuid */
@@ -1142,6 +1610,10 @@ export interface components {
             image: null | components["schemas"]["RecipeImageUrlsResponse"];
             sourceUrl: null | string;
             sourceName: null | string;
+            likedBy: components["schemas"]["ProfileResponse"][];
+            liked: boolean;
+            foodType: components["schemas"]["FoodType"];
+            foodTypeIsManual: boolean;
         };
         RecipeStepRequest: {
             text: null | string;
@@ -1150,6 +1622,30 @@ export interface components {
             /** Format: int32 */
             position: number | string;
             text: string;
+        };
+        RecipeSuggestionResponse: {
+            /** Format: uuid */
+            recipeId: string;
+            title: string;
+            /** Format: int32 */
+            servings: number | string;
+            /** Format: int32 */
+            totalMinutes: null | number | string;
+            foodType: components["schemas"]["FoodType"];
+            thumbUrl: null | string;
+            cardUrl: null | string;
+            /** Format: int32 */
+            kidLikes: number | string;
+            cookedRecently: boolean;
+            plannedToday: boolean;
+            missing: components["schemas"]["MissingIngredientResponse"][];
+        };
+        RecipeSuggestionsResponse: {
+            /** Format: date */
+            today: string;
+            /** Format: date */
+            weekStart: string;
+            items: components["schemas"]["RecipeSuggestionResponse"][];
         };
         RecipeSummaryResponse: {
             /** Format: uuid */
@@ -1162,6 +1658,9 @@ export interface components {
             tags: components["schemas"]["TagResponse"][];
             thumbUrl: null | string;
             cardUrl: null | string;
+            likedBy: components["schemas"]["ProfileResponse"][];
+            liked: boolean;
+            foodType: components["schemas"]["FoodType"];
         };
         RegisterRequest: {
             email: null | string;
@@ -1172,6 +1671,7 @@ export interface components {
         RenameIngredientRequest: {
             name: null | string;
             section?: null | string;
+            proteinClass?: null | string;
         };
         SaveRecipeImportResponse: {
             /** Format: uuid */
@@ -1185,6 +1685,11 @@ export interface components {
             /** Format: int32 */
             servings: number | string;
             ingredients: components["schemas"]["RecipeIngredientResponse"][];
+        };
+        SetPinRequest: {
+            pin: null | string;
+            currentPin: null | string;
+            password: null | string;
         };
         ShoppingAtHomeResponse: {
             quantity: null | components["schemas"]["ShoppingQuantityResponse"];
@@ -1238,6 +1743,16 @@ export interface components {
         };
         /** @enum {unknown} */
         ShoppingSection: "Main" | "CheckYouHave";
+        StoreRequest: {
+            name: null | string;
+            sectionOrder: null | string[];
+        };
+        StoreResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sectionOrder: components["schemas"]["StoreSection"][];
+        };
         /** @enum {unknown} */
         StoreSection: "Other" | "FruitAndVegetables" | "MeatFishAndCheese" | "Frozen" | "Dairy" | "DryGoods";
         /** @enum {unknown} */
@@ -1248,6 +1763,7 @@ export interface components {
             name: string;
             kind: components["schemas"]["TagKind"];
             isGlobal: boolean;
+            key: null | string;
         };
         /** @enum {unknown} */
         UnitDimension: "Mass" | "Volume" | "Count";
@@ -1259,6 +1775,9 @@ export interface components {
             dimension: components["schemas"]["UnitDimension"];
             /** Format: double */
             factorToBase: number | string;
+        };
+        UnlockRequest: {
+            pin: null | string;
         };
         UpdateImportLineRequest: {
             /** Format: int32 */
@@ -1300,6 +1819,8 @@ export interface components {
             quantity: null | number | string;
             /** Format: uuid */
             unitId: null | string;
+            frequency?: null | string;
+            nextDue?: null | string;
         };
         WeeklyGroceryRequest: {
             /** Format: uuid */
@@ -1308,6 +1829,8 @@ export interface components {
             quantity: null | number | string;
             /** Format: uuid */
             unitId: null | string;
+            frequency?: null | string;
+            nextDue?: null | string;
         };
         WeeklyGroceryResponse: {
             /** Format: uuid */
@@ -1322,6 +1845,12 @@ export interface components {
             unitId: null | string;
             unitCode: null | string;
             unitName: null | string;
+            frequency: components["schemas"]["GroceryFrequency"];
+            /** Format: date */
+            startWeek: null | string;
+            /** Format: date */
+            nextDueWeek: string;
+            dueInWeek: boolean;
         };
     };
     responses: never;
@@ -1437,6 +1966,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Error (RFC 9457 ProblemDetails) */
             default: {
                 headers: {
@@ -1537,6 +2077,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Error (RFC 9457 ProblemDetails) */
             default: {
                 headers: {
@@ -1571,6 +2122,17 @@ export interface operations {
             /** @description Bad Request */
             400: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -1626,6 +2188,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Error (RFC 9457 ProblemDetails) */
             default: {
                 headers: {
@@ -1664,6 +2237,135 @@ export interface operations {
             };
         };
     };
+    SetPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["SetPinRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["PinIncorrectProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnlockWithPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["UnlockRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["PinIncorrectProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     GetMe: {
         parameters: {
             query?: never;
@@ -1685,6 +2387,131 @@ export interface operations {
             /** @description Unauthorized */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAccountDeletionPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionPreviewResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["DeleteAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2040,6 +2867,8 @@ export interface operations {
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -2590,6 +3419,8 @@ export interface operations {
                 tagIds?: string[];
                 maxMinutes?: number | string;
                 ingredientId?: string[];
+                likedByProfileId?: string[];
+                foodType?: string[];
                 limit?: number | string;
                 offset?: number | string;
             };
@@ -3035,6 +3866,8 @@ export interface operations {
             /** @description Too Many Requests */
             429: {
                 headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {
@@ -3478,6 +4311,58 @@ export interface operations {
             };
         };
     };
+    GetMealPlanPickOptions: {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path: {
+                weekStart: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PickOptionsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     AddMealPlanEntry: {
         parameters: {
             query?: never;
@@ -3521,6 +4406,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Error (RFC 9457 ProblemDetails) */
             default: {
                 headers: {
@@ -3537,9 +4431,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                householdId: string;
                 weekStart: string;
                 entryId: string;
-                householdId: string;
             };
             cookie?: never;
         };
@@ -3610,9 +4504,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                householdId: string;
                 weekStart: string;
                 entryId: string;
-                householdId: string;
             };
             cookie?: never;
         };
@@ -3632,6 +4526,799 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    LockMealPlanWeek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealPlanLockResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnlockMealPlanWeek: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                weekStart: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMealMixRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealMixRulesResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    PutMealMixRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["MealMixRulesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MealMixRulesResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ProfileRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profileId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ActivateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                profileId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    LikeRecipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UnlikeRecipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRecipeSuggestionsFromPantry: {
+        parameters: {
+            query?: {
+                servings?: number | string;
+            };
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeSuggestionsResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CookRecipeToday: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["CookTodayRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CookTodayResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CookTodayResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddMissingIngredientsToShoppingList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                recipeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddMissingResponse"];
                 };
             };
             /** @description Forbidden */
@@ -3813,6 +5500,75 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddWeeklyGroceryToShoppingList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                weekStart: string;
+                groceryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShoppingListResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4279,7 +6035,9 @@ export interface operations {
     };
     ListWeeklyGroceries: {
         parameters: {
-            query?: never;
+            query?: {
+                week?: string;
+            };
             header?: never;
             path: {
                 householdId: string;
@@ -4295,6 +6053,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeeklyGroceryResponse"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
             /** @description Forbidden */
@@ -4472,6 +6239,421 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListGrocerySuggestions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrocerySuggestionResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DismissGrocerySuggestion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["DismissGrocerySuggestionRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListStores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["StoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["StoreRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetChosenStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChosenStoreResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChooseStore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ChooseStoreRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChosenStoreResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

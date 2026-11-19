@@ -149,6 +149,9 @@ export function ImportStart({ householdId, onCreated }: { householdId: string; o
             )}
           </div>
         )}
+        <p className="import-ai-privacy import-start-privacy" data-testid="ai-privacy-start">
+          {t("import.aiPrivacy")}
+        </p>
         <div className="form-actions form-submit">
           <button type="submit" className="button" disabled={busy}>
             {busy ? t("import.reading") : t("import.submit")}

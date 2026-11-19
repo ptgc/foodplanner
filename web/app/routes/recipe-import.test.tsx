@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "../api/schema";
 import { searchDelayMs } from "../recipes/ingredient-picker";
 import { SessionProvider } from "../session";
+import { en } from "../i18n/en";
+import { nb } from "../i18n/nb";
 import { t } from "../test-i18n";
 import RecipeImport from "./recipe-import";
 import Recipes from "./recipes";
@@ -50,6 +52,8 @@ const line = (patch: Partial<Line>): Line => ({
   purpose: "Main",
   isOptional: false,
   alternatives: [],
+  suggestedProteinClass: null,
+  aiSuggested: false,
   ...patch,
 });
 
@@ -75,6 +79,7 @@ const freshDraft = (): Draft => ({
   canSave: false,
   savedRecipeId: null,
   createdAt: "2026-10-26T10:00:00Z",
+  aiAssist: "NotUsed",
 });
 
 type Server = {
@@ -97,7 +102,10 @@ function recompute(d: Draft) {
   d.canSave = d.lines.every((l) => l.status === "Matched");
 }
 
+let created: Record<string, unknown>[];
+
 beforeEach(() => {
+  created = [];
   server = { role: "Adult", draft: freshDraft(), drafts: [], createStatus: 201, createType: undefined, puts: [], saveAnswer: null, putAnswer: null, calls: [], discarded: false };
   vi.stubGlobal(
     "fetch",
@@ -111,6 +119,11 @@ beforeEach(() => {
       if (path === "/api/units") return json(units);
       if (path === "/api/households/h1/tags") return json([]);
       if (path === "/api/households/h1/recipes") return json({ items: [], total: 0, limit: 12, offset: 0 });
+      if (path === "/api/households/h1/ingredients" && request.method === "POST") {
+        const body = (await request.json()) as Record<string, unknown>;
+        created.push(body);
+        return json({ id: "i-new", name: body.name, isStaple: body.isStaple, dimension: body.dimension, isGlobal: false, proteinClass: body.proteinClass }, 201);
+      }
       if (path === "/api/households/h1/ingredients") {
         const term = (url.searchParams.get("search") ?? "").toLowerCase();
         return json(catalog.filter((i) => i.name.toLowerCase().includes(term)));
@@ -151,6 +164,7 @@ beforeEach(() => {
               unitCode: unit?.code ?? null,
               unitText: null,
               confidence: 1,
+              aiSuggested: false, // the server clears the mark when a line is edited
               amountKind: edit.amountKind ?? (edit.quantity === null ? "ToTaste" : "Measured"),
               purpose: edit.purpose ?? server.draft.lines[edit.position]!.purpose,
               isOptional: edit.isOptional ?? server.draft.lines[edit.position]!.isOptional,
@@ -505,5 +519,120 @@ describe("step 2: review and fix", () => {
     renderAt("/recipes/import?draft=d1");
     expect(await screen.findByText(t("import.reviewGone"))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: t("import.startOver") })).toHaveAttribute("href", "/recipes/import");
+  });
+});
+
+describe("protein class of a new own ingredient in the review (T-104)", () => {
+  async function openCreate(user: ReturnType<typeof userEvent.setup>, suggested: components["schemas"]["ProteinClass"] | null) {
+    server.draft.lines[1]!.suggestedProteinClass = suggested;
+    await review();
+    const row = cards()[1]!;
+    await user.type(within(row).getByLabelText(t("recipe.ingredientSearch")), "torsk");
+    await user.click(await within(row).findByRole("button", { name: t("recipe.ingredientCreate", { name: "torsk" }) }, { timeout: searchDelayMs + 2000 }));
+    return { row, select: within(row).getByLabelText(t("recipe.ingredientProtein")) as HTMLSelectElement };
+  }
+
+  it("preselects the suggested class and sends it when the ingredient is created", async () => {
+    const user = userEvent.setup();
+    const { row, select } = await openCreate(user, "Fish");
+    expect(select.value).toBe("Fish");
+    await user.click(within(row).getByRole("button", { name: t("recipe.ingredientCreateSubmit") }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({ name: "torsk", proteinClass: "Fish" });
+  });
+
+  it("lets the user change the suggestion, and the changed class is sent", async () => {
+    const user = userEvent.setup();
+    const { row, select } = await openCreate(user, "Meat");
+    await user.selectOptions(select, "Pork");
+    await user.click(within(row).getByRole("button", { name: t("recipe.ingredientCreateSubmit") }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({ proteinClass: "Pork" });
+  });
+
+  it("falls back to Unknown when the suggester had no answer (null)", async () => {
+    const user = userEvent.setup();
+    const { row, select } = await openCreate(user, null);
+    expect(select.value).toBe("Unknown");
+    await user.click(within(row).getByRole("button", { name: t("recipe.ingredientCreateSubmit") }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({ proteinClass: "Unknown" });
+  });
+
+  it("shows no class control when the user picks an existing ingredient", async () => {
+    const user = userEvent.setup();
+    server.draft.lines[1]!.suggestedProteinClass = "Fish";
+    await review();
+    const row = cards()[1]!;
+    await user.type(within(row).getByLabelText(t("recipe.ingredientSearch")), "sal");
+    await user.click(await within(row).findByRole("button", { name: "Salt" }, { timeout: searchDelayMs + 2000 }));
+    expect(within(row).queryByLabelText(t("recipe.ingredientProtein"))).toBeNull();
+    expect(created).toHaveLength(0);
+  });
+});
+
+describe("AI-assisted import in the review (T-077)", () => {
+  const aiDraft = (aiAssist: Draft["aiAssist"]): Draft => {
+    const d = freshDraft();
+    d.aiAssist = aiAssist;
+    d.lines[1] = line({
+      original: "1 bunt snograss",
+      status: "Matched",
+      ingredientId: "i-snog",
+      ingredientName: "Snogras",
+      quantity: 1,
+      unitId: "u-stk",
+      unitCode: "stk",
+      confidence: 0.9,
+      aiSuggested: true,
+    });
+    return d;
+  };
+
+  it("marks only the AI-suggested line, with words and an accessible label", async () => {
+    server.draft = aiDraft("Applied");
+    await review();
+    expect(screen.getAllByTestId("ai-mark")).toHaveLength(1);
+    expect(within(cards()[1]!).getByTestId("ai-mark")).toHaveTextContent(t("import.aiMark"));
+    expect(within(cards()[1]!).getByRole("note", { name: t("import.aiMarkLabel", { n: 2 }) })).toBeInTheDocument();
+    expect(within(cards()[0]!).queryByTestId("ai-mark")).toBeNull();
+    expect(within(cards()[2]!).queryByTestId("ai-mark")).toBeNull();
+  });
+
+  it("the mark is gone after an edit, following the server answer", async () => {
+    server.draft = aiDraft("Applied");
+    const user = userEvent.setup();
+    await review();
+    await user.click(within(cards()[1]!).getByRole("button", { name: t("import.changeLabel", { n: 2 }) }));
+    await user.click(within(cards()[1]!).getByRole("button", { name: t("import.apply") }));
+    await waitFor(() => expect(screen.queryByTestId("ai-mark")).toBeNull());
+  });
+
+  it.each(["Applied", "LimitReached", "Unavailable"] as const)("%s shows its note and the privacy text", async (status) => {
+    server.draft = aiDraft(status);
+    await review();
+    const note = screen.getByTestId("ai-note");
+    expect(note).toHaveTextContent(t(`import.aiNote.${status}`));
+    expect(note).toHaveTextContent(t("import.aiPrivacy"));
+  });
+
+  it("the start screen shows the privacy text before any import", async () => {
+    renderAt("/recipes/import");
+    expect(await screen.findByTestId("ai-privacy-start")).toHaveTextContent(t("import.aiPrivacy"));
+    expect(screen.queryByTestId("ai-note")).toBeNull();
+  });
+
+  it("NotUsed shows no note and no privacy text", async () => {
+    await review();
+    expect(screen.queryByTestId("ai-note")).toBeNull();
+    expect(screen.queryByText(t("import.aiPrivacy"))).toBeNull();
+  });
+
+  it("has Norwegian texts that differ from the English ones", () => {
+    for (const key of ["import.aiMark", "import.aiMarkLabel", "import.aiNote.Applied", "import.aiNote.LimitReached", "import.aiNote.Unavailable", "import.aiPrivacy"] as const) {
+      expect(nb[key], key).toBeTruthy();
+      expect(nb[key], key).not.toBe(en[key]);
+    }
+    expect(nb["import.aiPrivacy"]).toContain("Anthropic");
   });
 });

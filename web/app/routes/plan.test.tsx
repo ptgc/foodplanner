@@ -17,8 +17,8 @@ const me = { userId: "11111111-1111-1111-1111-111111111111", email: "anne.berit@
 const other = { userId: "22222222-2222-2222-2222-222222222222", email: "per@example.test" };
 const week = "2031-03-03"; // a Monday
 
-const dinner: Tag = { id: "dinner", name: "Middag", kind: "Category", isGlobal: true };
-const dessert: Tag = { id: "dessert", name: "Dessert", kind: "Category", isGlobal: true };
+const dinner: Tag = { id: "dinner", name: "Middag", kind: "Category", isGlobal: true, key: null };
+const dessert: Tag = { id: "dessert", name: "Dessert", kind: "Category", isGlobal: true, key: null };
 
 const recipe = (id: string, title: string, tags: Tag[] = [], servings = 4): Summary => ({
   id,
@@ -28,6 +28,9 @@ const recipe = (id: string, title: string, tags: Tag[] = [], servings = 4): Summ
   tags,
   thumbUrl: null,
   cardUrl: null,
+  likedBy: [],
+  liked: false,
+  foodType: "Unknown",
 });
 
 const entry = (id: string, date: string, r: Summary, servings: number, pickedBy = me): Entry => ({
@@ -37,6 +40,7 @@ const entry = (id: string, date: string, r: Summary, servings: number, pickedBy 
   recipeTitle: r.title,
   servings,
   pickedBy,
+  pickedByProfile: null,
 });
 
 const json = (body: unknown, status = 200) =>
@@ -58,6 +62,8 @@ type Server = {
   planCalls: string[];
   writes: { method: string; path: string; body: unknown }[];
   recipeQueries: string[];
+  /** What GET .../pick-options answers for the recipes (T-090); recipes not listed are allowed. */
+  pickOptions: { recipeId: string; allowed: boolean; reason: string | null }[];
 };
 let server: Server;
 let nextId = 1;
@@ -76,6 +82,7 @@ beforeEach(() => {
     planCalls: [],
     writes: [],
     recipeQueries: [],
+    pickOptions: [],
   };
   vi.stubGlobal(
     "fetch",
@@ -100,6 +107,14 @@ beforeEach(() => {
       if (detail) {
         const img = server.imageFor[detail[1]!];
         return json({ id: detail[1], title: "x", image: img ? { ...img, fullUrl: img.cardUrl } : null });
+      }
+      if (path.endsWith("/pick-options")) {
+        return json({
+          date: url.searchParams.get("date"),
+          openDinnerDays: 2,
+          allowedFoodTypes: ["Fish", "Vegetarian"],
+          recipes: server.pickOptions,
+        });
       }
       const plan = path.match(/^\/api\/households\/h1\/meal-plans\/([^/]+)(?:\/entries(?:\/([^/]+))?)?$/);
       if (plan) {
@@ -287,6 +302,27 @@ describe("Week planner: picking a meal", () => {
     expect(screen.getByTestId("planner-notice")).toHaveTextContent("Pannekaker");
     // Focus goes back to the plus that opened the sheet.
     await waitFor(() => expect(plus("2031-03-05")).toHaveFocus());
+  });
+
+  it("greys out recipes that break the meal mix with a short reason, and an adult can still add one", async () => {
+    server.pickOptions = [{ recipeId: "r2", allowed: false, reason: "breaks-meal-mix" }];
+    const user = userEvent.setup();
+    renderPlan();
+    await loaded();
+
+    await user.click(plus("2031-03-05"));
+    const card = await screen.findByRole("button", { name: t("planner.pickRecipe", { title: "Pannekaker" }) });
+    await waitFor(() => expect(card).toHaveAttribute("data-allowed", "false"));
+    expect(within(card).getByTestId("picker-reason")).toHaveTextContent(
+      t("planner.reason.breaksMix", { types: `${t("foodType.Fish")}, ${t("foodType.Vegetarian")}` }),
+    );
+    const fine = screen.getByRole("button", { name: t("planner.pickRecipe", { title: "Fiskesuppe" }) });
+    expect(fine).toHaveAttribute("data-allowed", "true");
+    expect(within(fine).queryByTestId("picker-reason")).toBeNull();
+
+    await user.click(card); // override
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(server.writes).toHaveLength(1);
   });
 
   it("searches and filters by category in the picker", async () => {

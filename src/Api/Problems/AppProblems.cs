@@ -8,6 +8,18 @@ public static class AppProblems
 {
     public const string Unauthenticated = "unauthenticated";
     public const string Forbidden = "forbidden";
+    public const string KidMode = "kid-mode";
+    public const string ProfileNotFound = "profile-not-found";
+    public const string ProfileExists = "profile-exists";
+    public const string ProfileLimit = "profile-limit";
+    public const string ProfileConflict = "profile-conflict";
+    public const string PinNotSet = "pin-not-set";
+    public const string PinIncorrect = "pin-incorrect";
+    public const string PinLocked = "pin-locked";
+    public const string NotInKidMode = "not-in-kid-mode";
+    public const string NoActiveProfile = "no-active-profile";
+    public const string PickNotAllowed = "pick-not-allowed";
+    public const string WeekLocked = "week-locked";
     public const string LoginFailed = "login-failed";
     public const string ConfirmationInvalid = "confirmation-invalid";
     public const string AntiforgeryInvalid = "antiforgery-invalid";
@@ -26,10 +38,17 @@ public static class AppProblems
     public const string ShoppingListItemGenerated = "shopping-list-item-generated";
     public const string ShoppingListConflict = "shopping-list-conflict";
     public const string PantryConflict = "pantry-conflict";
+    public const string RecipeNotPlanned = "recipe-not-planned";
     public const string WeeklyGroceryExists = "weekly-grocery-exists";
     public const string WeeklyGroceryNotFound = "weekly-grocery-not-found";
     public const string WeeklyGroceryLimit = "weekly-grocery-limit";
     public const string WeeklyGroceryConflict = "weekly-grocery-conflict";
+    public const string DismissedSuggestionLimit = "dismissed-suggestion-limit";
+    public const string MealMixRulesConflict = "meal-mix-rules-conflict";
+    public const string StoreExists = "store-exists";
+    public const string StoreNotFound = "store-not-found";
+    public const string StoreLimit = "store-limit";
+    public const string StoreConflict = "store-conflict";
     public const string ForbiddenOrigin = "forbidden-origin";
     public const string ImportNotFound = "import-not-found";
     public const string ImportNotDraft = "import-not-draft";
@@ -42,6 +61,10 @@ public static class AppProblems
     public const string ImportTooLarge = "import-too-large";
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";
+
+    public const string PasswordIncorrect = "password-incorrect";
+    public const string AccountOwnsHouseholds = "account-owns-households";
+    public const string AccountDeletionChanged = "account-deletion-changed";
 
     public const string IngredientNotFound = "ingredient-not-found";
     public const string IngredientInUse = "ingredient-in-use";

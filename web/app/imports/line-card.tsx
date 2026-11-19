@@ -110,6 +110,15 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
         <span className="import-original-label">{t("import.original")}</span> <q>{line.original}</q>
       </p>
 
+      {line.aiSuggested && (
+        <p className="import-ai-mark" role="note" data-testid="ai-mark" aria-label={t("import.aiMarkLabel", { n: index + 1 })}>
+          <span className="import-ai-badge" aria-hidden="true">
+            {t("import.aiBadge")}
+          </span>{" "}
+          <span>{t("import.aiMark")}</span>
+        </p>
+      )}
+
       {attention ? (
         <p className="import-status import-status-bad" data-testid="line-status">
           <span aria-hidden="true">&#9888;</span> <span>{reason}</span>
@@ -155,6 +164,7 @@ export function LineCard({ householdId, index, line, units, serverErrors, busy, 
             <IngredientPicker
               householdId={householdId}
               value={draft.ingredient}
+              suggestedProteinClass={line.suggestedProteinClass}
               onChange={(ingredient) => set({ ingredient })}
               id={fieldId(`${at}.ingredientId`)}
               invalid={`${at}.ingredientId` in errors}

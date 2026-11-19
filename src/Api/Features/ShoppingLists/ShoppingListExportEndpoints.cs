@@ -1,6 +1,7 @@
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.ShoppingLists.Export;
+using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Export;
 using Foodplanner.Infrastructure.Persistence;
 
@@ -29,7 +30,7 @@ public static class ShoppingListExportEndpoints
     }
 
     private static async Task<IResult> Export(
-        string weekStart, string? format, RequestLocale locale, AppDbContext db, IShoppingListExporterSelector exporters,
+        string weekStart, string? format, RequestLocale locale, ICurrentUser user, AppDbContext db, IShoppingListExporterSelector exporters,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -49,7 +50,7 @@ public static class ShoppingListExportEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var list = await ShoppingListEndpoints.ReadAsync(db, monday, locale.Code, cancellationToken);
+        var list = await ShoppingListEndpoints.ReadAsync(db, monday, locale.Code, user.UserId, cancellationToken);
         var result = await exporter!.ExportAsync(
             new ShoppingListExport(monday, locale.Code, [.. list.Main.Select(i => ToExport(i, withQuantities: true))], [.. list.CheckYouHave.Select(i => ToExport(i, withQuantities: false))]),
             cancellationToken);

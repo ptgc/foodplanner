@@ -21,6 +21,9 @@ internal sealed class RecipeConfiguration : IEntityTypeConfiguration<Recipe>
         recipe.Property(r => r.Description).HasMaxLength(Recipe.MaxDescriptionLength);
         recipe.Property(r => r.SourceUrl).HasMaxLength(Recipe.MaxSourceUrlLength);
         recipe.Property(r => r.SourceName).HasMaxLength(Recipe.MaxSourceNameLength);
+        recipe.Property(r => r.FoodType).HasConversion<string>().HasMaxLength(20).IsRequired().HasDefaultValue(FoodType.Unknown);
+        recipe.Property(r => r.FoodTypeIsManual).HasDefaultValue(false);
+        recipe.HasIndex(r => new { r.HouseholdId, r.FoodType });
         recipe.Ignore(r => r.TotalMinutes);
         recipe.Ignore(r => r.SourceDisplayName);
         recipe.HasIndex(r => new { r.HouseholdId, r.Title });

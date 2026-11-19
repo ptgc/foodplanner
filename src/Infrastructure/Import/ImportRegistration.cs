@@ -1,3 +1,4 @@
+using Foodplanner.Infrastructure.Import.Ai;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -16,6 +17,7 @@ public static class ImportRegistration
         services.TryAddSingleton<IHostResolver, DnsHostResolver>();
         services.TryAddSingleton<IFetchPolicy, PublicInternetPolicy>();
         services.TryAddSingleton<IWebPageFetcher, SafeWebPageFetcher>();
+        services.AddAiImport();
         return services;
     }
 }

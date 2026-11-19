@@ -146,6 +146,7 @@ describe("toRequest", () => {
       prepMinutes: null,
       cookMinutes: 30,
       tagIds: ["a", "b"],
+      foodType: null,
       ingredients: [
         { ingredientId: "i1", quantity: 1.5, unitId: "u-g", note: "finhakket", amountKind: "Measured", purpose: "Main", isOptional: false, alternativeIds: [] },
         { ingredientId: "i2", quantity: null, unitId: null, note: null, amountKind: "ToTaste", purpose: "Main", isOptional: false, alternativeIds: [] },
@@ -271,6 +272,10 @@ describe("fromRecipe", () => {
   it("fills the form from the API response, ordering steps by position and marking to-taste lines", () => {
     const recipe: Recipe = {
       id: "r1",
+      likedBy: [],
+      liked: false,
+      foodType: "Unknown",
+      foodTypeIsManual: false,
       sourceUrl: "https://www.matprat.no/x",
       sourceName: "matprat.no",
       title: "Suppe",
@@ -280,7 +285,7 @@ describe("fromRecipe", () => {
       cookMinutes: null,
       totalMinutes: 10,
       image: null,
-      tags: [{ id: "t1", name: "Rask", kind: "Tag", isGlobal: true }],
+      tags: [{ id: "t1", name: "Rask", kind: "Tag", isGlobal: true, key: null }],
       steps: [
         { position: 2, text: "To" },
         { position: 1, text: "Ett" },

@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { failureText } from "../routes/recipes";
 import type { IngredientChoice } from "./recipe-form";
+import { PROTEIN_CLASSES, proteinClassKey, type ProteinClass } from "./food-types";
 import { createIngredient, searchIngredients, type Ingredient } from "./use-catalog";
 import type { Failure } from "./use-recipes";
 
@@ -16,6 +17,10 @@ type Props = {
   id: string;
   describedBy?: string;
   invalid?: boolean;
+  /** Import review (T-104): the class the importer guessed for a new own ingredient; preselected in the create form. */
+  suggestedProteinClass?: ProteinClass | null;
+  /** Prefills the search (a regular-grocery suggestion's label, T-110). */
+  initialTerm?: string;
 };
 
 const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name, dimension: i.dimension });
@@ -24,9 +29,9 @@ const toChoice = (i: Ingredient): IngredientChoice => ({ id: i.id, name: i.name,
  * Picks an ingredient from the catalog (global and the household's own) by searching `?search=`, or creates the
  * household's own ingredient inline. Rule 5: a recipe line always points at an ingredient id, never at free text.
  */
-export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid }: Props) {
+export function IngredientPicker({ householdId, value, onChange, id, describedBy, invalid, suggestedProteinClass, initialTerm }: Props) {
   const { t, locale } = useI18n();
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(initialTerm ?? "");
   const [found, setFound] = useState<{ term: string; items: Ingredient[] } | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [creating, setCreating] = useState(false);
@@ -114,6 +119,7 @@ export function IngredientPicker({ householdId, value, onChange, id, describedBy
         <CreateIngredient
           householdId={householdId}
           initialName={trimmed}
+          suggestedProteinClass={suggestedProteinClass ?? null}
           onCancel={() => setCreating(false)}
           onCreated={(ingredient) => {
             setCreating(false);
@@ -128,20 +134,24 @@ export function IngredientPicker({ householdId, value, onChange, id, describedBy
 function CreateIngredient({
   householdId,
   initialName,
+  suggestedProteinClass,
   onCancel,
   onCreated,
 }: {
   householdId: string;
   initialName: string;
+  suggestedProteinClass: ProteinClass | null;
   onCancel: () => void;
   onCreated: (ingredient: Ingredient) => void;
 }) {
   const { t } = useI18n();
   const nameId = useId();
   const dimensionId = useId();
+  const proteinId = useId();
   const [name, setName] = useState(initialName);
   const [dimension, setDimension] = useState<Ingredient["dimension"]>("Mass");
   const [staple, setStaple] = useState(false);
+  const [proteinClass, setProteinClass] = useState<ProteinClass>(suggestedProteinClass ?? "Unknown");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,7 +159,7 @@ function CreateIngredient({
     if (busy || name.trim() === "") return;
     setBusy(true);
     setError(null);
-    const result = await createIngredient(householdId, { name: name.trim(), dimension, isStaple: staple });
+    const result = await createIngredient(householdId, { name: name.trim(), dimension, isStaple: staple, proteinClass });
     setBusy(false);
     if (result.ok) onCreated(result.value);
     else setError(result.failure === "unreachable" ? t("problem.unreachable") : t(problemKey(result.failure.problemType)));
@@ -168,6 +178,16 @@ function CreateIngredient({
           <option value="Mass">{t("recipe.dimensionMass")}</option>
           <option value="Volume">{t("recipe.dimensionVolume")}</option>
           <option value="Count">{t("recipe.dimensionCount")}</option>
+        </select>
+      </div>
+      <div className="form-field">
+        <label htmlFor={proteinId}>{t("recipe.ingredientProtein")}</label>
+        <select id={proteinId} value={proteinClass} onChange={(e) => setProteinClass(e.target.value as ProteinClass)}>
+          {PROTEIN_CLASSES.map((value) => (
+            <option key={value} value={value}>
+              {t(proteinClassKey(value))}
+            </option>
+          ))}
         </select>
       </div>
       <label className="check-field">

@@ -5,6 +5,7 @@ import type { components } from "../api/schema";
 import { useI18n, type I18n } from "../i18n";
 import { problemKey, problemTypeOf } from "../i18n/problems";
 import { ErrorText, fieldProps } from "../recipes/form-parts";
+import { FOOD_TYPES, foodTypeKey, type FoodType } from "../recipes/food-types";
 import { IngredientRows } from "../recipes/ingredient-rows";
 import {
   checkImage,
@@ -326,6 +327,21 @@ function RecipeForm({ householdId, recipe }: { householdId: string; recipe: Reci
             set("tagIds", [...form.tagIds, tag.id]);
           }}
         />
+
+        <div className="form-field" data-testid="food-type-field">
+          <label htmlFor={fieldId("foodType")}>{t("recipe.foodType")}</label>
+          <select id={fieldId("foodType")} value={form.foodType} onChange={(e) => set("foodType", e.target.value as FoodType | "")}>
+            <option value="">
+              {form.autoFoodType ? t("recipe.foodTypeAutoNow", { type: t(foodTypeKey(form.autoFoodType)) }) : t("recipe.foodTypeAuto")}
+            </option>
+            {FOOD_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {t(foodTypeKey(type))}
+              </option>
+            ))}
+          </select>
+          <p className="alternatives-hint">{t("recipe.foodTypeHint")}</p>
+        </div>
 
         <section aria-labelledby="ingredients-heading">
           <h2 id="ingredients-heading">{t("recipe.ingredientsHeading")}</h2>

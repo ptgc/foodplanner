@@ -427,3 +427,40 @@ links are not logged. Outside Development the API refuses to start unless `Email
   so restarting the API container signs everyone out and invalidates pending confirmation links.
 - Behind a trusted proxy (`ForwardedHeaders:TrustedNetworks` set) the API relies on `X-Forwarded-Proto` (the proxy must send
   `https`) and skips the `AssumeHttps` rewrite; without trusted networks outside Development it logs a warning at startup.
+
+## 13. AI-assisted recipe import (T-077, optional, off by default)
+
+The recipe import can ask Claude Haiku 5.5 (Anthropic API) to read ingredient lines the rule-based parser could not. It is
+**off by default in every environment** and the app works the same without it. Only the unresolved ingredient lines leave the
+server, one batched call per import; the result is checked against the catalog and shown as AI-suggested for you to review.
+
+Configuration (section `AiImport`; env var form `AiImport__Enabled`):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `AiImport:Enabled` | `false` | Master switch. |
+| `AiImport:ApiKey` | none | Anthropic API key. **Secret**: user secrets or Key Vault only, never a file in the repo. |
+| `AiImport:Model` | `claude-haiku-5-5` | Model id. |
+| `AiImport:BaseUrl` | `https://api.anthropic.com` | API host. |
+| `AiImport:TimeoutSeconds` | `20` | A slower call counts as failed and the rule-based result is kept. |
+| `AiImport:DailyCallsPerHousehold` | `20` | Per household and UTC day. |
+| `AiImport:MonthlyCallsPerHousehold` | `200` | Per household and UTC month. |
+| `AiImport:GlobalMonthlyCalls` | `2000` | All households together per UTC month. |
+
+Turn it on locally (the API on the host in Development, see section 5; the compose `api` container does not read user
+secrets, so it stays off). Set the key and the flag yourself; the values are not in this repo and must not be printed or pasted:
+
+```bash
+dotnet user-secrets set AiImport:ApiKey "<your Anthropic key>" --project src/Api
+dotnet user-secrets set AiImport:Enabled true --project src/Api
+```
+
+```powershell
+dotnet user-secrets set AiImport:ApiKey "<your Anthropic key>" --project src/Api
+dotnet user-secrets set AiImport:Enabled true --project src/Api
+```
+
+Turn it off again with `dotnet user-secrets set AiImport:Enabled false --project src/Api`. Test environment: a Key Vault
+secret reference for `AiImport__ApiKey` plus the app setting `AiImport__Enabled=true`, set up by the architect; prod stays
+off until decided. `verify.sh` and e2e never call the real API (tests use a fake client). Details: docs/domain.md, "AI-assisted
+import fallback". The UI must show the privacy text (unresolved import lines may be sent to Anthropic) before the review round ships.

@@ -39,7 +39,8 @@ public sealed class Invite : Entity, ITenantEntity
 
     public DateTimeOffset ExpiresAt { get; private set; }
 
-    public Guid CreatedByUserId { get; private set; }
+    /// <summary>The creator; null once that account was deleted (T-095). Open invites of a deleted account are revoked.</summary>
+    public Guid? CreatedByUserId { get; private set; }
 
     public DateTimeOffset? AcceptedAt { get; private set; }
 

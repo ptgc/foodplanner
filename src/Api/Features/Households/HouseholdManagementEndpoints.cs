@@ -58,6 +58,7 @@ public static class HouseholdManagementEndpoints
 
         // The group's default policy (HouseholdMember) applies: any member, Child included, may leave.
         household.MapPost("/leave", LeaveHousehold)
+            .RequireAuthorization(Policies.FullSession)
             .WithName("LeaveHousehold")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status403Forbidden)

@@ -17,7 +17,19 @@ public sealed class AuthOptions
 
     public int LockoutMinutes { get; set; } = 15;
 
+    /// <summary>Consecutive wrong PINs (unlock, or the proof to change a PIN) that lock the account's PIN (T-026).</summary>
+    public int PinMaxFailedAttempts { get; set; } = 5;
+
+    /// <summary>How long the PIN stays locked after <see cref="PinMaxFailedAttempts"/> wrong attempts (T-026).</summary>
+    public int PinLockoutMinutes { get; set; } = 2;
+
     public int CookieLifetimeDays { get; set; } = 14;
+
+    /// <summary>
+    /// How often a signed-in device re-checks its account (security stamp). A deleted account, a changed password or a
+    /// signed-out-everywhere takes effect on other devices within this time (T-095). Identity's default is 30 minutes.
+    /// </summary>
+    public int SecurityStampValidationMinutes { get; set; } = 1;
 
     /// <summary>
     /// How long a set-password link works, and also the age after which an account that never set its password is

@@ -58,6 +58,11 @@ export default function Login() {
           {t("login.passwordSet")}
         </p>
       )}
+      {params.get("accountDeleted") === "1" && (
+        <p role="status" className="auth-note" data-testid="account-deleted-note">
+          {t("login.accountDeleted")}
+        </p>
+      )}
       <form onSubmit={onSubmit} aria-busy={submitting}>
         <div className="field">
           <label htmlFor="email">{t("login.email")}</label>

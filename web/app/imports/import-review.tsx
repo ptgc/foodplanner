@@ -69,6 +69,27 @@ export function ImportReview({ householdId, draftId }: { householdId: string; dr
   return <ReviewForm key={state.draft.id} householdId={householdId} initial={state.draft} />;
 }
 
+/**
+ * The import-level AI note (T-077). `NotUsed` shows nothing. The privacy line comes with every note because the
+ * client cannot know whether the feature is on (no flag endpoint, by design); it appears only when the server
+ * said AI help was involved or refused.
+ */
+export function AiNote({ status }: { status: ImportDraft["aiAssist"] }) {
+  const { t } = useI18n();
+  if (status === "NotUsed") return null;
+  return (
+    <div className="import-ai-note" data-testid="ai-note" data-status={status}>
+      <p>
+        <span className="import-ai-badge" aria-hidden="true">
+          {t("import.aiBadge")}
+        </span>{" "}
+        {t(`import.aiNote.${status}`)}
+      </p>
+      <p className="import-ai-privacy">{t("import.aiPrivacy")}</p>
+    </div>
+  );
+}
+
 const whole = (text: string): number | null => (/^\d+$/.test(text.trim()) ? Number(text.trim()) : null);
 
 /** The same limits as the API for the part of the draft that is not an ingredient line. */
@@ -262,6 +283,7 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
   return (
     <div className="import-review">
       <p>{t("import.reviewIntro")}</p>
+      <AiNote status={initial.aiAssist} />
       {initial.warnings.length > 0 && <p className="import-notes">{t("import.notes", { count: initial.warnings.length })}</p>}
 
       {(keys.length > 0 || notice) && (

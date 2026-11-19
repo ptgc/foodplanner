@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Catalog;
+using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
@@ -159,6 +160,11 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(p => p.Amount).CurrentValue = 500m),
 
+        // Stores (T-087): name unique per household, so the factory makes a fresh name each time.
+        TenantIsolationCase.For<Store>(
+            (_, _) => Task.FromResult(new Store("Isolation " + Guid.NewGuid().ToString("N"))),
+            entry => entry.Property(s => s.SectionOrderText).CurrentValue = "Dairy,Frozen,MeatFishAndCheese,FruitAndVegetables,DryGoods,Other"),
+
         // Weekly groceries (T-092): unique per (household, ingredient), so the factory seeds its own household ingredient each time.
         TenantIsolationCase.For<WeeklyGrocery>(
             async (env, household) =>
@@ -169,10 +175,43 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(w => w.Amount).CurrentValue = 2m),
 
+        // Dismissed regular-grocery suggestions (T-110): the label is unique per household, so the factory makes a fresh one each time.
+        TenantIsolationCase.For<DismissedGrocerySuggestion>(
+            (_, _) => Task.FromResult(new DismissedGrocerySuggestion("isolation " + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)),
+            entry => entry.Property(d => d.DismissedAt).CurrentValue = DateTimeOffset.UtcNow.AddDays(1)),
+
+        // Kid profiles (T-026): name unique per household, so the factory makes a fresh name each time.
+        TenantIsolationCase.For<MemberProfile>(
+            (_, _) => Task.FromResult(new MemberProfile("Isolation " + Guid.NewGuid().ToString("N")[..12], "fox")),
+            entry => entry.Property(p => p.Avatar).CurrentValue = "owl"),
+
+        // Likes (T-026): unique per (profile, recipe); the factory seeds its own profile and recipe in the household.
+        TenantIsolationCase.For<RecipeLike>(
+            async (env, household) =>
+            {
+                var profile = new MemberProfile("Parent " + Guid.NewGuid().ToString("N")[..12], "cat");
+                await env.SaveAsync(household, profile);
+                var recipe = new Recipe("Parent " + Guid.NewGuid().ToString("N"), null, 2, null, null);
+                await env.SaveAsync(household, recipe);
+                return new RecipeLike(profile.Id, recipe.Id);
+            },
+            entry => entry.Property(l => l.RecipeId).CurrentValue = Guid.NewGuid()), // never saved: every update of another household's row is refused before or in the UPDATE
+
+        // Weekly meal mix rules (T-090): unique per (household, food type), so the factory picks a random type; no references besides the household.
+        TenantIsolationCase.For<MealMixRule>(
+            (_, _) => Task.FromResult(new MealMixRule(
+                Enum.GetValues<FoodType>().Where(t => t != FoodType.Unknown).OrderBy(_ => Random.Shared.Next()).First(), 1)),
+            entry => entry.Property(r => r.MinPerWeek).CurrentValue = 3),
+
         // Recipe import artifact (T-042): one table, the draft is JSON (no foreign keys to ingredients or units); the creating user is global identity data.
         TenantIsolationCase.For<RecipeImport>(
             async (env, _) => new RecipeImport(ImportSource.Text, null, "2 dl melk", "{}", await env.NewUserAsync()),
             entry => entry.Property(i => i.DraftJson).CurrentValue = "{\"title\":\"Changed\"}"),
+
+        // AI call counters (T-077): one row per household; the global monthly counter is not tenant data (see TenantCoverage.Exempt).
+        TenantIsolationCase.For<AiHouseholdUsage>(
+            (_, _) => Task.FromResult(new AiHouseholdUsage(DateTimeOffset.UtcNow)),
+            entry => entry.Property(u => u.DayCalls).CurrentValue = 7),
     ];
 
     private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)

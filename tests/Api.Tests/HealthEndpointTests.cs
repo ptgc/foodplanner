@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Foodplanner.Api.Tests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory) : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(TestApiFactory factory) : IClassFixture<TestApiFactory>
 {
     private sealed record Health(string Status);
 

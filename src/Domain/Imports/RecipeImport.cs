@@ -85,7 +85,8 @@ public sealed class RecipeImport : Entity, ITenantEntity
 
     public ImportStatus Status { get; private set; }
 
-    public Guid CreatedByUserId { get; private set; }
+    /// <summary>The creator; null once that account was deleted (T-095). Drafts of a deleted account are deleted with it.</summary>
+    public Guid? CreatedByUserId { get; private set; }
 
     /// <summary>The recipe made from this import. A plain id, not a foreign key: deleting the recipe leaves it dangling, harmlessly.</summary>
     public Guid? SavedRecipeId { get; private set; }

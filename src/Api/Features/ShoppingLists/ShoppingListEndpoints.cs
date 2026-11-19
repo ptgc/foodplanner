@@ -1,4 +1,5 @@
 using System.Globalization;
+using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
@@ -92,6 +93,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/generate", Generate)
             .WithName("GenerateShoppingList")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -99,13 +101,25 @@ public static class ShoppingListEndpoints
 
         lists.MapPost("/weekly", AddWeeklyGroceries)
             .WithName("AddWeeklyGroceriesToShoppingList")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        // T-109: "add anyway" - one regular grocery that is not due this week. Same permissions as the button.
+        lists.MapPost("/weekly/{groceryId:guid}", AddOneWeeklyGrocery)
+            .WithName("AddWeeklyGroceryToShoppingList")
+            .RequireAuthorization(Policies.FullSession)
+            .Produces<ShoppingListResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         lists.MapPost("/items", AddManualItem)
             .WithName("AddManualShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListItemResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -113,6 +127,7 @@ public static class ShoppingListEndpoints
 
         lists.MapDelete("/items/{itemId:guid}", DeleteManualItem)
             .WithName("DeleteManualShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -121,6 +136,7 @@ public static class ShoppingListEndpoints
 
         lists.MapPut("/items/{itemId:guid}/check", CheckItem)
             .WithName("CheckShoppingItem")
+            .RequireAuthorization(Policies.FullSession)
             .Produces<ShoppingListItemResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -132,7 +148,8 @@ public static class ShoppingListEndpoints
 
     // ---- GET -------------------------------------------------------------------------------------------------------
 
-    private static async Task<IResult> GetList(string weekStart, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> GetList(
+        string weekStart, RequestLocale locale, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -141,13 +158,13 @@ public static class ShoppingListEndpoints
         }
 
         var list = await db.ShoppingLists.AsNoTracking().FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
-        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, cancellationToken));
+        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, user.UserId, cancellationToken));
     }
 
     // ---- Generate / regenerate -------------------------------------------------------------------------------------
 
     private static async Task<IResult> Generate(
-        Guid householdId, string weekStart, RequestLocale locale, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
+        Guid householdId, string weekStart, RequestLocale locale, ICurrentUser user, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
         ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -156,33 +173,46 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var generated = await GenerateFromPlanAsync(db, monday, cancellationToken);
-        var now = time.GetUtcNow();
-
-        // Two members may regenerate at once, or someone may check an item while we flag it. Both surface as a
-        // DbUpdateException (unique index, or a stale row version); the second pass reads the winner's rows and finds
-        // little or nothing left to change, so the result is the same list.
-        for (var attempt = 1; ; attempt++)
+        if (!await RegenerateFromPlanAsync(db, monday, time.GetUtcNow(), cancellationToken))
         {
-            try
-            {
-                await ApplyAsync(db, monday, generated, now, cancellationToken);
-                break;
-            }
-            catch (DbUpdateException) when (attempt < MaxAttempts)
-            {
-                db.ChangeTracker.Clear();
-            }
-            catch (DbUpdateException)
-            {
-                db.ChangeTracker.Clear();
-                return Conflict();
-            }
+            return Conflict();
         }
 
         await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
         var list = await db.ShoppingLists.AsNoTracking().FirstAsync(l => l.WeekStart == monday, cancellationToken);
-        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, cancellationToken));
+        return Results.Ok(await BuildResponseAsync(db, list, monday, locale.Code, user.UserId, cancellationToken));
+    }
+
+    /// <summary>
+    /// Regenerates the week's list from its plan (generate). Two members may regenerate at once, or someone may check an item while we
+    /// flag it. ApplyAsync serialises regenerations on the list row; what still surfaces (a stale row version, a unique index, a
+    /// deadlock victim) is retried, and the next pass reads the winner's rows and finds little or nothing left to change, so the result
+    /// is the same list. False when it kept failing (the caller answers 409). Also used by "what can I make" (T-100).
+    /// </summary>
+    internal static async Task<bool> RegenerateFromPlanAsync(AppDbContext db, DateOnly monday, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                // The plan is read after the list row is taken, so a request that waited cannot overwrite a newer result with an older plan.
+                await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var row = await FindOrCreateListAsync(db, monday, cancellationToken);
+                await LockListRowAsync(db, row, cancellationToken);
+                await ApplyAsync(db, monday, await GenerateFromPlanAsync(db, monday, cancellationToken), now, cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
+            {
+                db.ChangeTracker.Clear();
+            }
+            catch (Exception ex) when (IsRetryable(ex))
+            {
+                db.ChangeTracker.Clear();
+                return false;
+            }
+        }
     }
 
     /// <summary>
@@ -252,11 +282,17 @@ public static class ShoppingListEndpoints
         return ShoppingListGenerator.Generate(meals, catalog);
     }
 
-    /// <summary>One attempt: find or create the list, reconcile its generated items with <paramref name="generated"/>, save once.</summary>
+    /// <summary>
+    /// One attempt: find or create the list, take its row, reconcile its generated items with <paramref name="generated"/>, save
+    /// once. Runs in a transaction (the caller's, or its own) so the list row lock holds until the end: regenerations of one list
+    /// then run one after the other and cannot deadlock on the item rows and the unique (list, ingredient) index (T-102).
+    /// </summary>
     internal static async Task ApplyAsync(
         AppDbContext db, DateOnly monday, GeneratedList generated, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        await using var own = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
         var list = await FindOrCreateListAsync(db, monday, cancellationToken);
+        await LockListRowAsync(db, list, cancellationToken);
 
         var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
             .ToDictionaryAsync(i => i.Id, cancellationToken);
@@ -341,6 +377,41 @@ public static class ShoppingListEndpoints
         db.ShoppingListItems.RemoveRange(plan.RemoveItemIds.Select(id => items[id]));
 
         await db.SaveChangesAsync(cancellationToken);
+        if (own is not null)
+        {
+            await own.CommitAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Takes the list row for the rest of the transaction (a tracked no-op update of the audit column, the same pattern as the
+    /// plan row in T-026) and re-reads it. Every writer that replaces items takes it first, so they queue instead of inserting the
+    /// same (list, ingredient) keys in different orders.
+    /// </summary>
+    internal static async Task LockListRowAsync(AppDbContext db, ShoppingList list, CancellationToken cancellationToken)
+    {
+        db.Entry(list).Property("UpdatedAt").IsModified = true;
+        await db.SaveChangesAsync(cancellationToken);
+        await db.Entry(list).ReloadAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// A failure another attempt can fix: a unique index or row version lost to a concurrent writer, or a deadlock victim (1205,
+    /// which EF wraps in an InvalidOperationException because no retrying execution strategy is set).
+    /// </summary>
+    internal static bool IsRetryable(Exception exception) => exception is DbUpdateException || IsDeadlock(exception);
+
+    internal static bool IsDeadlock(Exception? exception)
+    {
+        for (; exception is not null; exception = exception.InnerException)
+        {
+            if (exception is Microsoft.Data.SqlClient.SqlException { Number: 1205 })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void AddQuantities(AppDbContext db, Guid itemId, IReadOnlyList<StoredQuantity> quantities)
@@ -524,10 +595,13 @@ public static class ShoppingListEndpoints
     /// The "Add weekly groceries" button. Every weekly grocery is made sure to be on the week's list (see
     /// <see cref="WeeklyGroceries.Plan"/>): missing ones are added, changed amounts replaced, the rest untouched, so pressing
     /// twice changes nothing and an item the user removed comes back. The list is then regenerated from the plan with the weekly
-    /// parts laid over it (same code as the generate button), in one transaction. An empty set changes nothing.
+    /// parts laid over it (same code as the generate button), in one transaction. T-109: only the groceries DUE in the week
+    /// are put on the list (<see cref="WeeklyGrocery.IsDueIn"/>). A weekly part that is already on the list for a grocery that
+    /// is not due (added anyway, or before its frequency changed) is never touched: <see cref="WeeklyGroceries.Plan"/> only adds
+    /// and updates, and regeneration keeps weekly parts. A set with nothing due changes nothing and creates no list.
     /// </summary>
     private static async Task<IResult> AddWeeklyGroceries(
-        Guid householdId, string weekStart, RequestLocale locale, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
+        Guid householdId, string weekStart, RequestLocale locale, ICurrentUser user, TimeProvider time, AppDbContext db, IShoppingListNotifier notifier,
         ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -536,8 +610,40 @@ public static class ShoppingListEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var groceries = await db.WeeklyGroceries.AsNoTracking().Select(w => new WeeklyGrocerySpec(w.IngredientId, w.Amount, w.UnitId))
-            .ToListAsync(cancellationToken);
+        var rows = await db.WeeklyGroceries.AsNoTracking().ToListAsync(cancellationToken);
+        var due = rows.Where(w => w.IsDueIn(monday)).Select(w => new WeeklyGrocerySpec(w.IngredientId, w.Amount, w.UnitId)).ToList();
+        return await PutWeeklyOnListAsync(householdId, monday, due, locale, user, time, db, notifier, log, cancellationToken);
+    }
+
+    /// <summary>
+    /// "Add anyway" (T-109): one regular grocery goes on the week's list even though it is not due. Same rules as the button
+    /// (idempotent, list lock, <c>Generated</c> signal). Another household's id is a 404, same as an unknown one.
+    /// </summary>
+    private static async Task<IResult> AddOneWeeklyGrocery(
+        Guid householdId, string weekStart, Guid groceryId, RequestLocale locale, ICurrentUser user, TimeProvider time, AppDbContext db,
+        IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var grocery = await db.WeeklyGroceries.AsNoTracking().FirstOrDefaultAsync(w => w.Id == groceryId, cancellationToken);
+        if (grocery is null)
+        {
+            return AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.WeeklyGroceryNotFound, "Weekly grocery not found");
+        }
+
+        return await PutWeeklyOnListAsync(
+            householdId, monday, [new WeeklyGrocerySpec(grocery.IngredientId, grocery.Amount, grocery.UnitId)], locale, user, time, db, notifier, log,
+            cancellationToken);
+    }
+
+    private static async Task<IResult> PutWeeklyOnListAsync(
+        Guid householdId, DateOnly monday, IReadOnlyList<WeeklyGrocerySpec> groceries, RequestLocale locale, ICurrentUser user, TimeProvider time,
+        AppDbContext db, IShoppingListNotifier notifier, ILogger<ShoppingListChange> log, CancellationToken cancellationToken)
+    {
         var changed = false;
         if (groceries.Count > 0)
         {
@@ -547,6 +653,7 @@ public static class ShoppingListEndpoints
                 {
                     await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
                     var list = await FindOrCreateListAsync(db, monday, cancellationToken);
+                    await LockListRowAsync(db, list, cancellationToken); // list row first, before any item row (same order as ApplyAsync)
                     var items = await db.ShoppingListItems.Where(i => i.ShoppingListId == list.Id && i.IngredientId != null)
                         .ToListAsync(cancellationToken);
                     var plan = WeeklyGroceries.Plan(
@@ -572,12 +679,12 @@ public static class ShoppingListEndpoints
                     await transaction.CommitAsync(cancellationToken);
                     break;
                 }
-                catch (DbUpdateException) when (attempt < MaxAttempts)
+                catch (Exception ex) when (IsRetryable(ex) && attempt < MaxAttempts)
                 {
-                    // Two members pressed at once (unique index) or a row changed: the second pass finds little left to do.
+                    // Two members pressed at once (unique index, deadlock victim) or a row changed: the second pass finds little left to do.
                     db.ChangeTracker.Clear();
                 }
-                catch (DbUpdateException)
+                catch (Exception ex) when (IsRetryable(ex))
                 {
                     db.ChangeTracker.Clear();
                     return Conflict();
@@ -590,7 +697,7 @@ public static class ShoppingListEndpoints
             await NotifyAsync(notifier, log, new ShoppingListChange(householdId, monday, ShoppingListChangeKind.Generated, null), cancellationToken);
         }
 
-        return Results.Ok(await ReadAsync(db, monday, locale.Code, cancellationToken));
+        return Results.Ok(await ReadAsync(db, monday, locale.Code, user.UserId, cancellationToken));
     }
 
     /// <summary>Clears the weekly part of an item and regenerates the week (one transaction). False when it kept failing.</summary>
@@ -602,6 +709,14 @@ public static class ShoppingListEndpoints
             try
             {
                 await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+                var week = await db.ShoppingLists.FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
+                if (week is not null)
+                {
+                    await LockListRowAsync(db, week, cancellationToken); // list row first, before any item row
+                }
+
+                db.ChangeTracker.Clear(); // the item may be tracked from the caller, with state from before the lock
+
                 var item = await FindItemAsync(db, monday, itemId, cancellationToken);
                 if (item is null)
                 {
@@ -617,7 +732,7 @@ public static class ShoppingListEndpoints
                 await transaction.CommitAsync(cancellationToken);
                 return true;
             }
-            catch (DbUpdateException)
+            catch (Exception ex) when (IsRetryable(ex))
             {
                 db.ChangeTracker.Clear();
             }
@@ -675,7 +790,7 @@ public static class ShoppingListEndpoints
             {
                 await db.SaveChangesAsync(cancellationToken);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (Exception ex) when (ex is DbUpdateConcurrencyException || IsDeadlock(ex))
             {
                 db.ChangeTracker.Clear();
                 continue;
@@ -715,21 +830,24 @@ public static class ShoppingListEndpoints
             i => i.Id == itemId && db.ShoppingLists.Any(l => l.Id == i.ShoppingListId && l.WeekStart == monday), cancellationToken);
 
     /// <summary>The current list of a week as GET returns it (an empty shape when there is none). Used by the hub's GetState.</summary>
-    internal static async Task<ShoppingListResponse> ReadAsync(AppDbContext db, DateOnly monday, string locale, CancellationToken cancellationToken)
+    internal static async Task<ShoppingListResponse> ReadAsync(
+        AppDbContext db, DateOnly monday, string locale, Guid? userId, CancellationToken cancellationToken)
     {
         var list = await db.ShoppingLists.AsNoTracking().FirstOrDefaultAsync(l => l.WeekStart == monday, cancellationToken);
-        return await BuildResponseAsync(db, list, monday, locale, cancellationToken);
+        return await BuildResponseAsync(db, list, monday, locale, userId, cancellationToken);
     }
 
+    /// <summary>The list ordered for the viewer: by the store they have chosen (T-087), else the fixed order (T-085).</summary>
     private static async Task<ShoppingListResponse> BuildResponseAsync(
-        AppDbContext db, ShoppingList? list, DateOnly monday, string locale, CancellationToken cancellationToken)
+        AppDbContext db, ShoppingList? list, DateOnly monday, string locale, Guid? userId, CancellationToken cancellationToken)
     {
         if (list is null)
         {
             return new ShoppingListResponse(null, monday, [], []);
         }
 
-        var items = await LoadItemsAsync(db, list.Id, itemId: null, locale, cancellationToken);
+        var order = await StoreEndpoints.ChosenOrderAsync(db, userId, cancellationToken);
+        var items = await LoadItemsAsync(db, list.Id, itemId: null, locale, cancellationToken, order);
         return new ShoppingListResponse(
             list.Id,
             monday,
@@ -742,7 +860,8 @@ public static class ShoppingListEndpoints
     /// order) then id. Generated items are stored by ingredient id, so the name is looked up per request: a language switch re-labels the list. Pass <paramref name="itemId"/> for one item.
     /// </summary>
     private static async Task<ShoppingListItemResponse[]> LoadItemsAsync(
-        AppDbContext db, Guid listId, Guid? itemId, string locale, CancellationToken cancellationToken)
+        AppDbContext db, Guid listId, Guid? itemId, string locale, CancellationToken cancellationToken,
+        IReadOnlyList<StoreSection>? storeOrder = null)
     {
         var items = await db.ShoppingListItems.AsNoTracking()
             .Where(i => i.ShoppingListId == listId && (itemId == null || i.Id == itemId)).ToListAsync(cancellationToken);
@@ -822,8 +941,8 @@ public static class ShoppingListEndpoints
                     : null))
             .ToList();
 
-        // Store section first (the fixed walking order, T-085), then name in the request language.
-        return [.. StoreSectionOrder.Sort(responses, r => r.StoreSection, r => r.Name, comparer, r => r.Id)];
+        // Store section first (the viewer's store order, T-087, else the fixed walking order, T-085), then name in the request language.
+        return [.. StoreSectionOrder.Sort(responses, r => r.StoreSection, r => r.Name, comparer, r => r.Id, storeOrder)];
     }
 
     internal static StringComparer DisplayComparer(string locale) => locale == Locales.Norwegian ? NorwegianComparer : EnglishComparer;
@@ -858,7 +977,7 @@ public static class ShoppingListEndpoints
     private static IResult ItemNotFound() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.ShoppingListItemNotFound, "Shopping list item not found");
 
-    private static IResult Conflict() =>
+    internal static IResult Conflict() =>
         AppProblems.Problem(
             StatusCodes.Status409Conflict,
             AppProblems.ShoppingListConflict,

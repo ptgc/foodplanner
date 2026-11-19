@@ -62,7 +62,7 @@ export async function searchIngredients(householdId: string, term: string): Prom
 
 export async function createIngredient(
   householdId: string,
-  body: { name: string; dimension: Ingredient["dimension"]; isStaple: boolean },
+  body: { name: string; dimension: Ingredient["dimension"]; isStaple: boolean; proteinClass?: Ingredient["proteinClass"] },
 ): Promise<Result<Ingredient>> {
   try {
     const { data, error } = await api.POST("/api/households/{householdId}/ingredients", {

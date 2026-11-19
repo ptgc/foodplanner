@@ -8,6 +8,7 @@ import { powers } from "../household/roles";
 import { useLoaded } from "../household/use-loaded";
 import { useI18n, type MessageKey, type Params } from "../i18n";
 import { searchDelayMs } from "../recipes/ingredient-picker";
+import { PROTEIN_CLASSES, proteinClassKey, type ProteinClass } from "../recipes/food-types";
 import { searchIngredients, type Ingredient } from "../recipes/use-catalog";
 import { useSession } from "../session";
 import { STORE_SECTIONS, storeSectionKey, type StoreSection } from "../shopping/store-sections";
@@ -109,6 +110,22 @@ function Manage({ householdId }: { householdId: string }) {
     reload();
   };
 
+  const changeProteinClass = async (item: Own, proteinClass: ProteinClass) => {
+    setRowError(null);
+    const result = await call(() =>
+      api.PUT("/api/households/{householdId}/ingredients/{ingredientId}", {
+        params: { path: { householdId, ingredientId: item.id } },
+        body: { name: item.name, proteinClass },
+      }),
+    );
+    if (!result.ok) {
+      setRowError({ id: item.id, key: result.key });
+      return;
+    }
+    setNotice({ key: "ingredients.proteinSaved", params: { name: item.name, protein: t(proteinClassKey(proteinClass)) } });
+    reload();
+  };
+
   const confirmDelete = async () => {
     if (!deleting || busy) return;
     setBusy(true);
@@ -206,6 +223,7 @@ function Manage({ householdId }: { householdId: string }) {
                   </span>
                 </div>
                 <SectionPicker item={item} onChange={(section) => changeSection(item, section)} />
+                <ProteinPicker item={item} onChange={(proteinClass) => changeProteinClass(item, proteinClass)} />
                 <div className="household-row-actions">
                   <button type="button" className="button button-outline" aria-label={t("ingredients.renameFor", { name: item.name })} onClick={() => { setRenaming(item.id); setMerging(null); setRowError(null); }}>
                     {t("ingredients.rename")}
@@ -267,6 +285,24 @@ function SectionPicker({ item, onChange }: { item: Own; onChange: (section: Stor
         {STORE_SECTIONS.map((section) => (
           <option key={section} value={section}>
             {t(storeSectionKey(section))}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** What the ingredient is for the food type of recipes (T-089): meat, fish, dairy ... Own ingredients start as "not set". */
+function ProteinPicker({ item, onChange }: { item: Own; onChange: (value: ProteinClass) => void }) {
+  const { t } = useI18n();
+  const selectId = useId();
+  return (
+    <div className="ingredient-section">
+      <label htmlFor={selectId}>{t("ingredients.proteinFor", { name: item.name })}</label>
+      <select id={selectId} value={item.proteinClass} onChange={(e) => onChange(e.target.value as ProteinClass)}>
+        {PROTEIN_CLASSES.map((value) => (
+          <option key={value} value={value}>
+            {t(proteinClassKey(value))}
           </option>
         ))}
       </select>

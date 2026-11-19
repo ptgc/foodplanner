@@ -59,7 +59,7 @@ test("weekly groceries are configured on the household page and put on the list 
     // Household page: add bread (no amount) and milk (1 l).
     await page.goto("/household");
     const card = page.getByTestId("weekly-groceries");
-    await expect(card.getByRole("heading", { name: "Weekly groceries", level: 2 })).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Regular groceries", level: 2 })).toBeVisible();
     await expect(card.getByTestId("weekly-empty")).toBeVisible();
     const add = async (name: string, amount?: { quantity: string; unit: string }) => {
       await card.getByLabel("Ingredient", { exact: true }).fill(name);
@@ -110,11 +110,147 @@ test("weekly groceries are configured on the household page and put on the list 
     // A weekly item can be checked off and removed one by one.
     await toBuy.getByRole("checkbox", { name: bread }).check();
     await expect(toBuy.getByRole("checkbox", { name: bread })).toBeChecked();
-    await toBuy.getByRole("button", { name: `Remove the weekly amount of ${bread}` }).click();
+    await toBuy.getByRole("button", { name: `Remove the regular amount of ${bread}` }).click();
     await expect(toBuy.getByRole("checkbox", { name: bread })).toHaveCount(0);
     await expect(toBuy.getByRole("checkbox", { name: milk })).toBeVisible();
   } finally {
     // Deleting the household removes its weekly groceries, list and own ingredients with it.
+    if (h) await request.delete(`/api/households/${h}`, { headers: await csrf(request) });
+  }
+});
+
+// T-109: a regular grocery that is bought every second week is due in alternate weeks only. The server decides which weeks
+// (counted from when it was added), so the test asks the API for the first due week and checks the page there and in the
+// week after. Same isolation as above: a run-tagged household, deleted in `finally`.
+test("a regular grocery every second week is due in one week, not the next, and can be added anyway", async ({ page }, testInfo) => {
+  const request = page.request;
+  const mobile = (page.viewportSize()?.width ?? 0) <= 390;
+  const stamp = uniqueStamp(testInfo);
+  const cheese = inventedName(stamp, "cheese");
+  let h: string | undefined;
+
+  try {
+    const created = await request.post("/api/households", { headers: await csrf(request), data: { name: `E2E regular ${stamp}` } });
+    expect(created.status(), await created.text()).toBe(201);
+    h = ((await created.json()) as { id: string }).id;
+    const me = (await (await request.get("/api/auth/me")).json()) as { userId: string };
+    await page.addInitScript(([key, id]) => window.localStorage.setItem(key!, id!), [`foodplanner.activeHousehold.${me.userId}`, h]);
+    const ingredient = await request.post(`/api/households/${h}/ingredients`, { headers: await csrf(request), data: { name: cheese, dimension: "Mass", isStaple: false } });
+    expect(ingredient.status(), await ingredient.text()).toBe(201);
+
+    await page.goto("/household");
+    const card = page.getByTestId("weekly-groceries");
+    await card.getByLabel("Ingredient", { exact: true }).fill(cheese);
+    await card.getByRole("button", { name: cheese }).click();
+    await card.getByLabel("How often").selectOption("EveryTwoWeeks");
+    await card.getByRole("button", { name: "Add", exact: true }).click();
+    const row = card.getByTestId("weekly-row").filter({ hasText: cheese });
+    await expect(row).toContainText("Every second week");
+    await expect(row).toContainText("Next: week");
+    if (mobile) {
+      await noHorizontalScroll(page);
+      const move = await row.getByRole("button", { name: `Move ${cheese} to next week` }).boundingBox();
+      expect(move!.height, "touch target").toBeGreaterThanOrEqual(44);
+      const select = await row.getByLabel(`How often for ${cheese}`).boundingBox();
+      expect(select!.height, "touch target").toBeGreaterThanOrEqual(44);
+    }
+
+    // The week the server says is next due, and the one after it.
+    const read = await request.get(`/api/households/${h}/weekly-groceries`);
+    const due = ((await read.json()) as { nextDueWeek: string }[])[0]!.nextDueWeek;
+    const after = new Date(Date.parse(`${due}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10);
+
+    await page.goto(`/shopping?week=${due}`);
+    await expect(page.getByTestId("add-weekly")).toBeEnabled();
+    await expect(page.getByTestId("weekly-not-due")).toHaveCount(0);
+
+    await page.goto(`/shopping?week=${after}`);
+    await expect(page.getByTestId("weekly-none-due")).toBeVisible();
+    await expect(page.getByTestId("add-weekly")).toBeDisabled();
+    const notDue = page.getByTestId("weekly-not-due");
+    await notDue.getByText("Not due this week (1)").click();
+    const anyway = notDue.getByRole("button", { name: `Add ${cheese} anyway` });
+    if (mobile) expect((await anyway.boundingBox())!.height, "touch target").toBeGreaterThanOrEqual(44);
+    await anyway.click();
+    await expect(page.getByRole("region", { name: "To buy" }).getByRole("checkbox", { name: cheese })).toBeVisible();
+    await expect(page.getByTestId("weekly-not-due")).toHaveCount(0);
+    if (mobile) await noHorizontalScroll(page);
+  } finally {
+    if (h) await request.delete(`/api/households/${h}`, { headers: await csrf(request) });
+  }
+});
+
+// T-110: things added to the list by hand in several past weeks are suggested as regular groceries on the household page.
+// Add turns one into a regular grocery (with a picked ingredient) and the suggestion goes; Not now hides another. Run-tagged
+// household, deleted in `finally`; the existing households are never touched.
+test("hand-added items in past weeks are suggested as regular groceries; Add accepts, Not now hides", async ({ page }, testInfo) => {
+  const request = page.request;
+  const mobile = (page.viewportSize()?.width ?? 0) <= 390;
+  const stamp = uniqueStamp(testInfo);
+  const accepted = inventedName(stamp, "tea");
+  const skipped = inventedName(stamp, "jam");
+  let h: string | undefined;
+
+  const mondayBack = (weeks: number): string => {
+    const now = new Date();
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const monday = today - ((new Date(today).getUTCDay() + 6) % 7) * 86_400_000;
+    return new Date(monday - weeks * 7 * 86_400_000).toISOString().slice(0, 10);
+  };
+
+  try {
+    const created = await request.post("/api/households", { headers: await csrf(request), data: { name: `E2E suggest ${stamp}` } });
+    expect(created.status(), await created.text()).toBe(201);
+    h = ((await created.json()) as { id: string }).id;
+    const me = (await (await request.get("/api/auth/me")).json()) as { userId: string };
+    await page.addInitScript(([key, id]) => window.localStorage.setItem(key!, id!), [`foodplanner.activeHousehold.${me.userId}`, h]);
+    const ingredient = await request.post(`/api/households/${h}/ingredients`, { headers: await csrf(request), data: { name: accepted, dimension: "Mass", isStaple: false } });
+    expect(ingredient.status(), await ingredient.text()).toBe(201);
+
+    // Four distinct past weeks, every second week: 1, 3, 5 and 7 weeks ago.
+    for (const back of [1, 3, 5, 7]) {
+      for (const label of [accepted, skipped]) {
+        const res = await request.post(`/api/households/${h}/shopping-lists/${mondayBack(back)}/items`, {
+          headers: await csrf(request),
+          data: { label, quantity: null, unitId: null },
+        });
+        expect(res.status(), await res.text()).toBe(201);
+      }
+    }
+
+    await page.goto("/household");
+    const card = page.getByTestId("weekly-groceries");
+    const section = card.getByTestId("weekly-suggestions");
+    await expect(section.getByRole("heading", { name: "Suggestions" })).toBeVisible();
+    const row = section.getByTestId("suggestion-row").filter({ hasText: accepted });
+    await expect(row).toContainText("4 of the last 12 weeks · Every second week");
+    if (mobile) {
+      await noHorizontalScroll(page);
+      for (const name of [`Add ${accepted} as a regular grocery`, `Not now: ${accepted}`]) {
+        expect((await row.getByRole("button", { name }).boundingBox())!.height, "touch target").toBeGreaterThanOrEqual(44);
+      }
+    }
+
+    // Not now on the second label: gone at once.
+    await section.getByRole("button", { name: `Not now: ${skipped}` }).click();
+    await expect(section.getByTestId("suggestion-row").filter({ hasText: skipped })).toHaveCount(0);
+
+    // Add the first: the picker starts at the label, the frequency at the rhythm.
+    await row.getByRole("button", { name: `Add ${accepted} as a regular grocery` }).click();
+    await expect(row.getByLabel("Ingredient", { exact: true })).toHaveValue(accepted);
+    await expect(row.getByLabel("How often")).toHaveValue("EveryTwoWeeks");
+    // The match button's name also holds the "Your own" badge, so not exact.
+    await row.getByRole("button", { name: accepted }).click();
+    await expect(row.getByText(`Chosen: ${accepted}`)).toBeVisible();
+    await row.getByRole("button", { name: "Add", exact: true }).click();
+
+    await expect(card.getByTestId("weekly-row").filter({ hasText: accepted })).toContainText("Every second week");
+    await expect(card.getByTestId("weekly-suggestions")).toHaveCount(0);
+    await page.reload();
+    await expect(card.getByTestId("weekly-row").filter({ hasText: accepted })).toHaveCount(1);
+    await expect(card.getByTestId("weekly-suggestions")).toHaveCount(0); // neither the added nor the dismissed label comes back
+    if (mobile) await noHorizontalScroll(page);
+  } finally {
     if (h) await request.delete(`/api/households/${h}`, { headers: await csrf(request) });
   }
 });

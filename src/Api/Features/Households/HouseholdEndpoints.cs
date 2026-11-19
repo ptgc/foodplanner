@@ -40,6 +40,7 @@ public static class HouseholdEndpoints
         var households = api.MapGroup("/households");
 
         households.MapPost("", CreateHousehold)
+            .RequireAuthorization(Policies.FullSession)
             .WithName("CreateHousehold")
             .Produces<HouseholdResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem();
@@ -57,11 +58,12 @@ public static class HouseholdEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
         api.MapPost("/invites/{token}/accept", AcceptInvite)
+            .RequireAuthorization(Policies.FullSession)
             .WithName("AcceptInvite")
             .Produces<AcceptInviteResponse>()
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status410Gone)
-            .RequireRateLimiting(RateLimitPolicies.InviteAccept);
+            .ProducesProblem(StatusCodes.Status429TooManyRequests).RequireRateLimiting(RateLimitPolicies.InviteAccept);
 
         return api;
     }
@@ -69,7 +71,8 @@ public static class HouseholdEndpoints
     private static async Task<IResult> CreateHousehold(
         CreateHouseholdRequest? request, ICurrentUser user, ITenantResolution resolution, CancellationToken cancellationToken)
     {
-        if (user.UserId is not { } userId)
+        // A device of a deleted account may keep its cookie for up to the stamp interval (T-095): 401, never an FK error.
+        if (user.UserId is not { } userId || !await resolution.UserExists(userId, cancellationToken))
         {
             return Unauthenticated();
         }
@@ -95,7 +98,11 @@ public static class HouseholdEndpoints
         }
 
         var memberships = await resolution.GetMembershipsForUser(userId, cancellationToken);
-        return Results.Ok(memberships.Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role)).ToArray());
+        // Kid mode (Q-026): only the profile's household is listed; a missing profile household lists none.
+        return Results.Ok(memberships
+            .Where(m => KidModeScope.MayReach(user.IsKidMode, user.ActiveProfileHouseholdId, m.HouseholdId))
+            .Select(m => new HouseholdResponse(m.HouseholdId, m.Name, m.Role.Effective(user.IsKidMode)))
+            .ToArray());
     }
 
     private static async Task<IResult> CreateInvite(
@@ -136,9 +143,9 @@ public static class HouseholdEndpoints
     }
 
     private static async Task<IResult> AcceptInvite(
-        string token, ICurrentUser user, IInviteRedemption redemption, CancellationToken cancellationToken)
+        string token, ICurrentUser user, IInviteRedemption redemption, ITenantResolution resolution, CancellationToken cancellationToken)
     {
-        if (user.UserId is not { } userId)
+        if (user.UserId is not { } userId || !await resolution.UserExists(userId, cancellationToken))
         {
             return Unauthenticated();
         }

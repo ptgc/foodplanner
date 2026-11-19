@@ -15,6 +15,21 @@ public static class AuthSetup
 {
     public const string AuthCookieName = "__Host-foodplanner";
 
+    /// <summary>
+    /// The Identity security stamp check, plus: kid mode survives it (T-026). When the stamp interval has passed, Identity
+    /// rebuilds the principal from the claims factory, which knows nothing about the kid claims; without this the refresh
+    /// would silently unlock the device. A stale claim (its profile was deleted) is copied too: the device stays locked.
+    /// </summary>
+    private static async Task KeepKidModeAsync(CookieValidatePrincipalContext context)
+    {
+        var before = context.Principal;
+        await SecurityStampValidator.ValidatePrincipalAsync(context);
+        if (before is not null && context.Principal is { } after && !ReferenceEquals(before, after))
+        {
+            KidModeClaims.CopyTo(before, after);
+        }
+    }
+
     public static IServiceCollection AddFoodplannerAuth(this IServiceCollection services)
     {
         services.AddProblemDetails();
@@ -22,6 +37,9 @@ public static class AuthSetup
         services.AddOptions<AuthOptions>().BindConfiguration(AuthOptions.Section);
         services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
         services.AddScoped<EmailConfirmationTokens>();
+        services.AddScoped<PinService>();
+        services.AddScoped<PasswordProof>();
+        services.AddScoped<IKidModeSession, KidModeSession>();
         services.AddHostedService<UnconfirmedAccountCleanup>();
 
         // Roles are per membership (T-011), so Identity's role tables and services are not added.
@@ -59,13 +77,24 @@ public static class AuthSetup
                 cookie.Cookie.Path = "/";
                 cookie.Cookie.IsEssential = true;
                 cookie.SlidingExpiration = true;
-                cookie.Events.OnValidatePrincipal = SecurityStampValidator.ValidatePrincipalAsync;
+                cookie.Events.OnValidatePrincipal = KeepKidModeAsync;
                 // The API never redirects for auth.
                 cookie.Events.OnRedirectToLogin = context => AppProblems.WriteAsync(
                     context.HttpContext, StatusCodes.Status401Unauthorized, AppProblems.Unauthenticated, "Not signed in");
                 cookie.Events.OnRedirectToAccessDenied = context => AppProblems.WriteAsync(
                     context.HttpContext, StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
             });
+        // Identity's security stamp validator signs out the two-factor "remember me" scheme too when a stamp no longer matches
+        // or the user is gone. AddIdentityCore registers no such scheme, so without this handler that sign-out threw (a 500 for
+        // every session of a deleted account, T-095). Nothing ever signs in to it; it only has to exist to be signed out.
+        services.AddAuthentication().AddCookie(IdentityConstants.TwoFactorRememberMeScheme, cookie =>
+        {
+            cookie.Cookie.Name = "__Host-foodplanner-unused-2fa";
+            cookie.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            cookie.Cookie.Path = "/";
+        });
+        services.AddOptions<SecurityStampValidatorOptions>().Configure<IOptions<AuthOptions>>(
+            (stamp, auth) => stamp.ValidationInterval = TimeSpan.FromMinutes(auth.Value.SecurityStampValidationMinutes));
         services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme).Configure<IOptions<AuthOptions>>(
             (cookie, auth) => cookie.ExpireTimeSpan = TimeSpan.FromDays(auth.Value.CookieLifetimeDays));
 

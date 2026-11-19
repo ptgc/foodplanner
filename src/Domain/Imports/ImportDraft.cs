@@ -27,7 +27,8 @@ public enum ImportLineStatus
 /// <see cref="UnitId"/>, <see cref="Note"/> and the T-076 fields only. <see cref="AmountKind"/> says how to read the amount:
 /// Measured needs quantity and unit; ToTaste and AsNeeded have neither. <see cref="AlternativeIds"/> are catalog or own
 /// ingredients (ids are re-resolved through the filtered sets when the draft is saved); alternatives that did not match are
-/// text in the note.
+/// text in the note. <see cref="AiSuggested"/> (T-077) marks a line the AI fallback filled in; the person still reviews it, and
+/// editing the line clears the mark.
 /// </summary>
 public sealed record ImportDraftLine(
     string Original,
@@ -45,7 +46,8 @@ public sealed record ImportDraftLine(
     AmountKind AmountKind = AmountKind.Measured,
     IngredientPurpose Purpose = IngredientPurpose.Main,
     bool IsOptional = false,
-    IReadOnlyList<Guid>? AlternativeIds = null)
+    IReadOnlyList<Guid>? AlternativeIds = null,
+    bool AiSuggested = false)
 {
     [JsonIgnore]
     public IReadOnlyList<Guid> Alternatives => AlternativeIds ?? [];
@@ -67,7 +69,8 @@ public sealed record ImportDraft(
     string? ImageUrl,
     IReadOnlyList<string> Steps,
     IReadOnlyList<ImportDraftLine> Lines,
-    IReadOnlyList<string> Warnings)
+    IReadOnlyList<string> Warnings,
+    AiAssistStatus AiAssist = AiAssistStatus.NotUsed)
 {
     [JsonIgnore]
     public bool AllLinesMatched => Lines.All(l => l.Status == ImportLineStatus.Matched);

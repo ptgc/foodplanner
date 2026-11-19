@@ -256,3 +256,9 @@
 .prep-group .recipe-ingredients {
   margin-top: 0.25rem;
 }
+
+.food-type-pill {
+  background: #fdeccb;
+  color: #6b3d00;
+  font-weight: 600;
+}

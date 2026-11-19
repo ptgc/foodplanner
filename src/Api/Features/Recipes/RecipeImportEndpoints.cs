@@ -8,6 +8,7 @@ using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Import;
+using Foodplanner.Infrastructure.Import.Ai;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,9 @@ public sealed record ImportSuggestionResponse(Guid IngredientId, string Name, do
 /// <c>UnitId</c>, <c>ToTaste</c> and <c>AsNeeded</c> have neither. <c>Purpose</c>, <c>IsOptional</c> and <c>Alternatives</c> (other
 /// ingredients that can stand in; unmatched ones are text in <c>Note</c>) are read from phrases like "til steking" and "eller olje".
 /// <c>UnitText</c> is a unit word the catalog lacks ("boks"); <c>UnitCode</c>/<c>UnitName</c> describe the chosen or parsed unit.
+/// <c>SuggestedProteinClass</c> (T-104) is only set for a line with no ingredient yet: the class to preselect when the person
+/// creates the new own ingredient from <c>IngredientText</c> (best effort, <c>Unknown</c> when it cannot tell, null for matched lines).
+/// <c>AiSuggested</c> (T-077) is true for a line the AI fallback filled in: the person still reviews it; editing the line clears it.
 /// </summary>
 public sealed record ImportLineResponse(
     int Position,
@@ -45,9 +49,15 @@ public sealed record ImportLineResponse(
     AmountKind AmountKind,
     IngredientPurpose Purpose,
     bool IsOptional,
-    RecipeAlternativeResponse[] Alternatives);
+    RecipeAlternativeResponse[] Alternatives,
+    ProteinClass? SuggestedProteinClass,
+    bool AiSuggested);
 
-/// <summary><c>CanSave</c> is true when every line is <c>Matched</c>. <c>ImageUrl</c> is only a candidate; nothing is downloaded.</summary>
+/// <summary>
+/// <c>CanSave</c> is true when every line is <c>Matched</c>. <c>ImageUrl</c> is only a candidate; nothing is downloaded.
+/// <c>AiAssist</c> (T-077): <c>NotUsed</c> (off, or nothing to resolve), <c>Applied</c>, <c>LimitReached</c> or <c>Unavailable</c>;
+/// the last two mean the rule-based result stands and the review screen should say why.
+/// </summary>
 public sealed record RecipeImportResponse(
     Guid Id,
     ImportSource Source,
@@ -64,7 +74,8 @@ public sealed record RecipeImportResponse(
     string[] Warnings,
     bool CanSave,
     Guid? SavedRecipeId,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    AiAssistStatus AiAssist);
 
 public sealed record RecipeImportSummaryResponse(Guid Id, ImportSource Source, string? SourceUrl, string Title, DateTimeOffset CreatedAt);
 
@@ -183,7 +194,7 @@ public static class RecipeImportEndpoints
 
     private static async Task<IResult> CreateImport(
         Guid householdId, CreateRecipeImportRequest? request, RequestLocale locale, ICurrentUser user, IWebPageFetcher fetcher,
-        UrlImportRateLimiter limiter, ILogger<RecipeImport> logger, AppDbContext db, CancellationToken cancellationToken)
+        UrlImportRateLimiter limiter, IAiImportAssistant assistant, ILogger<RecipeImport> logger, AppDbContext db, CancellationToken cancellationToken)
     {
         var url = request?.Url?.Trim();
         var text = request?.Text;
@@ -259,7 +270,12 @@ public static class RecipeImportEndpoints
             }
         }
 
-        var draft = ImportDraftBuilder.Build(imported, await LoadMatcherAsync(db, locale.Code, cancellationToken), await LoadUnitLookupAsync(db, cancellationToken));
+        var matcher = await LoadMatcherAsync(db, locale.Code, cancellationToken);
+        var unitIds = await db.Units.AsNoTracking().ToDictionaryAsync(u => u.Code, u => u.Id, cancellationToken);
+        var draft = ImportDraftBuilder.Build(imported, matcher, code => unitIds.TryGetValue(code, out var id) ? id : null);
+
+        // T-077: the optional AI fallback for the lines the rules could not resolve. It never fails the import.
+        draft = await assistant.AssistAsync(draft, matcher, unitIds, cancellationToken);
         var import = new RecipeImport(
             string.IsNullOrEmpty(url) ? ImportSource.Text : ImportSource.Url, string.IsNullOrEmpty(url) ? null : url, raw,
             ImportDraftJson.Serialize(draft), userId);
@@ -388,6 +404,7 @@ public static class RecipeImportEndpoints
                 AlternativeIds = [.. (edit.AlternativeIds ?? [.. current.Alternatives]).Distinct().Where(a => a != edit.IngredientId)],
                 Confidence = 1,
                 Unparsed = false,
+                AiSuggested = false, // The person has now chosen the line themselves.
                 Suggestions = [],
             };
         }
@@ -749,10 +766,31 @@ public static class RecipeImportEndpoints
         }));
     }
 
-    private static async Task<Func<string, Guid?>> LoadUnitLookupAsync(AppDbContext db, CancellationToken cancellationToken)
+    private static bool NeedsSuggestion(ImportDraftLine line) =>
+        line.IngredientId is null && !line.Unparsed && !string.IsNullOrWhiteSpace(line.IngredientText);
+
+    /// <summary>
+    /// The classified ingredients the household can see (global plus own, through the tenant filter) by every name they have, for
+    /// <see cref="ProteinClassSuggester"/>. The household's own row wins over a global one with the same name. Unknown is left out.
+    /// </summary>
+    private static async Task<Dictionary<string, ProteinClass>> LoadClassifiedCatalogAsync(AppDbContext db, CancellationToken cancellationToken)
     {
-        var units = await db.Units.AsNoTracking().ToDictionaryAsync(u => u.Code, u => u.Id, cancellationToken);
-        return code => units.TryGetValue(code, out var id) ? id : null;
+        var rows = await db.Ingredients.AsNoTracking().Where(i => i.ProteinClass != ProteinClass.Unknown)
+            .Select(i => new { i.Id, i.Name, i.ProteinClass, Own = i.HouseholdId != null }).ToListAsync(cancellationToken);
+        var translations = await db.CatalogTranslations.AsNoTracking().Where(t => t.Kind == CatalogTranslation.KindIngredient)
+            .Select(t => new { t.EntityId, t.Name }).ToListAsync(cancellationToken);
+        var aliases = translations.ToLookup(t => t.EntityId, t => t.Name);
+
+        var catalog = new Dictionary<string, ProteinClass>();
+        foreach (var row in rows.OrderBy(r => r.Own))
+        {
+            foreach (var name in aliases[row.Id].Append(row.Name))
+            {
+                catalog[ProteinClassSuggester.CatalogKey(name)] = row.ProteinClass;
+            }
+        }
+
+        return catalog;
     }
 
     private static async Task<RecipeImportResponse> ToResponseAsync(
@@ -766,6 +804,8 @@ public static class RecipeImportEndpoints
                 .NamesByIdAsync(db, CatalogTranslation.KindIngredient, locale, cancellationToken);
         var units = (await db.Units.AsNoTracking().WithNames(db, CatalogTranslation.KindUnit, locale).ToListAsync(cancellationToken))
             .ToDictionary(u => u.Row.Id, u => (u.Row.Code, u.Name));
+
+        var catalog = draft.Lines.Any(NeedsSuggestion) ? await LoadClassifiedCatalogAsync(db, cancellationToken) : null;
 
         var lines = draft.Lines.Select((line, index) =>
         {
@@ -789,7 +829,9 @@ public static class RecipeImportEndpoints
                 line.AmountKind,
                 line.Purpose,
                 line.IsOptional,
-                [.. line.Alternatives.Select(a => new RecipeAlternativeResponse(a, names.GetValueOrDefault(a, string.Empty)))]);
+                [.. line.Alternatives.Select(a => new RecipeAlternativeResponse(a, names.GetValueOrDefault(a, string.Empty)))],
+                NeedsSuggestion(line) ? ProteinClassSuggester.Suggest(line.IngredientText, catalog) : null,
+                line.AiSuggested);
         }).ToArray();
 
         return new RecipeImportResponse(
@@ -808,6 +850,7 @@ public static class RecipeImportEndpoints
             [.. draft.Warnings],
             draft.AllLinesMatched,
             import.SavedRecipeId,
-            db.Entry(import).Property<DateTimeOffset>("CreatedAt").CurrentValue);
+            db.Entry(import).Property<DateTimeOffset>("CreatedAt").CurrentValue,
+            draft.AiAssist);
     }
 }

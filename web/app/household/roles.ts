@@ -19,6 +19,7 @@ export function powers(role: Role) {
     export: role === "Owner" || role === "Adult",
     weekly: role === "Owner" || role === "Adult", // change the weekly groceries (T-092); everyone reads them
     ingredients: role === "Owner" || role === "Adult", // rename, merge, delete own ingredients (T-079)
+    kidProfiles: role === "Owner" || role === "Adult", // kid profiles and the own PIN (T-091)
   };
 }
 

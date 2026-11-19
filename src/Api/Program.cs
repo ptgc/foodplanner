@@ -4,6 +4,7 @@ using Foodplanner.Api.Features.Catalog;
 using Foodplanner.Api.Features.Health;
 using Foodplanner.Api.Features.Households;
 using Foodplanner.Api.Features.MealPlans;
+using Foodplanner.Api.Features.Profiles;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Features.ShoppingLists;
 using Foodplanner.Api.Features.Tags;
@@ -29,6 +30,7 @@ builder.Services.AddScoped<RequestCurrentHousehold>();
 builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredService<RequestCurrentHousehold>());
 // T-034: SignalR hub and the notifier that broadcasts shopping list changes to it.
 builder.Services.AddShoppingListSync();
+builder.Services.AddMealPlanServices();
 
 var app = builder.Build();
 
@@ -87,6 +89,7 @@ if (app.Environment.IsDevelopment())
 var api = app.MapApiRoot();
 api.MapHealthEndpoints();
 api.MapAuthEndpoints();
+api.MapAccountEndpoints();
 api.MapHouseholdEndpoints();
 api.MapHouseholdManagementEndpoints();
 api.MapHouseholdMemberEndpoints();
@@ -96,10 +99,16 @@ api.MapRecipeEndpoints();
 api.MapRecipeImportEndpoints();
 api.MapTagEndpoints();
 api.MapMealPlanEndpoints();
+api.MapMealMixRuleEndpoints();
+api.MapProfileEndpoints();
+api.MapRecipeLikeEndpoints();
+api.MapRecipeSuggestionEndpoints();
 api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
 api.MapPantryEndpoints();
 api.MapWeeklyGroceryEndpoints();
+api.MapGrocerySuggestionEndpoints();
+api.MapStoreEndpoints();
 api.MapRecipeImageEndpoints();
 app.MapShoppingListHub();
 

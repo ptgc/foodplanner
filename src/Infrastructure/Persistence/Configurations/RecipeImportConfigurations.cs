@@ -24,6 +24,26 @@ internal sealed class RecipeImportConfiguration : IEntityTypeConfiguration<Recip
         import.HasIndex(i => new { i.HouseholdId, i.Status });
         import.HasIndex(i => i.CreatedByUserId);
         import.HasOne<Household>().WithMany().HasForeignKey(i => i.HouseholdId).OnDelete(DeleteBehavior.Cascade);
-        import.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+        import.HasOne<AppUser>().WithMany().HasForeignKey(i => i.CreatedByUserId).IsRequired(false).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+// AI call counters (T-077): one row per household (unique), cascade with the household; one global row per month for the cap.
+internal sealed class AiHouseholdUsageConfiguration : IEntityTypeConfiguration<AiHouseholdUsage>
+{
+    public void Configure(EntityTypeBuilder<AiHouseholdUsage> usage)
+    {
+        usage.ToTable("AiHouseholdUsages");
+        usage.HasIndex(u => u.HouseholdId).IsUnique();
+        usage.HasOne<Household>().WithMany().HasForeignKey(u => u.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class AiGlobalUsageConfiguration : IEntityTypeConfiguration<AiGlobalUsage>
+{
+    public void Configure(EntityTypeBuilder<AiGlobalUsage> usage)
+    {
+        usage.ToTable("AiGlobalUsages");
+        usage.HasIndex(u => u.MonthStart).IsUnique();
     }
 }

@@ -4,11 +4,29 @@ import type { components } from "../api/schema";
 import { useI18n, type MessageKey } from "../i18n";
 import { IngredientPicker } from "../recipes/ingredient-picker";
 import type { IngredientChoice } from "../recipes/recipe-form";
+import { isoWeek } from "../shopping/week";
 import { call } from "./call";
 import { useLoaded } from "./use-loaded";
 
 type Weekly = components["schemas"]["WeeklyGroceryResponse"];
 type Unit = components["schemas"]["UnitResponse"];
+type Frequency = components["schemas"]["GroceryFrequency"];
+type Suggestion = components["schemas"]["GrocerySuggestionResponse"];
+
+const frequencies: Frequency[] = ["Weekly", "EveryTwoWeeks", "Monthly"];
+
+function FrequencySelect({ id, value, label, onChange }: { id?: string; value: Frequency; label?: string; onChange: (v: Frequency) => void }) {
+  const { t } = useI18n();
+  return (
+    <select id={id} className="household-freq" aria-label={label} value={value} onChange={(e) => onChange(e.target.value as Frequency)}>
+      {frequencies.map((f) => (
+        <option key={f} value={f}>
+          {t(`household.weekly.freq.${f}`)}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 /** The most the API accepts for one household (WeeklyGrocery.MaxPerHousehold). */
 export const maxWeeklyGroceries = 50;
@@ -52,6 +70,13 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
     };
   }, []);
 
+  const suggestions = useLoaded<Suggestion[]>(canEdit ? householdId : `${householdId}:read-only`, () =>
+    // Child members never call the endpoint (it answers 403); a failed read just hides the section.
+    canEdit
+      ? call(() => api.GET("/api/households/{householdId}/weekly-groceries/suggestions", { params: { path: { householdId } } }))
+      : Promise.resolve({ ok: true as const, data: [] as Suggestion[], status: 200 }),
+  );
+
   const remove = async (item: Weekly) => {
     setError(null);
     const result = await call(() =>
@@ -60,6 +85,26 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
     if (result.ok) reload();
     else setError(result.key);
   };
+
+  /** A change of schedule only: the amount is sent as it is (the API clears it otherwise) and the anchor moves as the API decides. */
+  const reschedule = async (item: Weekly, frequency: Frequency, nextDue?: "ThisWeek" | "NextWeek") => {
+    setError(null);
+    const result = await call(() =>
+      api.PUT("/api/households/{householdId}/weekly-groceries/{id}", {
+        params: { path: { householdId, id: item.id } },
+        body: { quantity: item.quantity ?? null, unitId: item.unitId ?? null, frequency, nextDue },
+      }),
+    );
+    if (result.ok) reload();
+    else setError(result.key);
+  };
+
+  const scheduleText = (item: Weekly) =>
+    item.frequency === "Weekly"
+      ? t("household.weekly.freq.Weekly")
+      : `${t(`household.weekly.freq.${item.frequency}`)} · ${t("household.weekly.next", {
+          week: formatNumber(isoWeek(item.nextDueWeek).week, { useGrouping: false }),
+        })}`;
 
   const quantityText = (item: Weekly) =>
     item.quantity === null || item.quantity === undefined
@@ -79,6 +124,18 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
         <p role="alert" className="form-error">
           {t(error)}
         </p>
+      )}
+      {canEdit && suggestions.data && suggestions.data.length > 0 && (
+        <Suggestions
+          householdId={householdId}
+          units={units}
+          list={suggestions.data}
+          setList={suggestions.setData}
+          onAdded={() => {
+            reload();
+            suggestions.reload();
+          }}
+        />
       )}
       {!items && !loadError && <p role="status">{t("household.weekly.loading")}</p>}
       {items && items.length === 0 && <p data-testid="weekly-empty">{t("household.weekly.empty")}</p>}
@@ -102,9 +159,29 @@ export function WeeklyGroceries({ householdId, canEdit }: { householdId: string;
                   <div className="household-row-main">
                     <span className="household-row-title">{item.name}</span>
                     <span className="household-row-sub">{quantityText(item) || t("household.weekly.noAmount")}</span>
+                    <span className="household-row-sub" data-testid="weekly-schedule">
+                      {scheduleText(item)}
+                    </span>
                   </div>
                   {canEdit && (
                     <div className="household-row-actions">
+                      <FrequencySelect
+                        value={item.frequency}
+                        label={t("household.weekly.frequencyFor", { name: item.name })}
+                        onChange={(f) => void reschedule(item, f)}
+                      />
+                      {item.frequency === "EveryTwoWeeks" &&
+                        (["ThisWeek", "NextWeek"] as const).map((when) => (
+                          <button
+                            key={when}
+                            type="button"
+                            className="button button-outline"
+                            aria-label={t(when === "ThisWeek" ? "household.weekly.moveThisFor" : "household.weekly.moveNextFor", { name: item.name })}
+                            onClick={() => void reschedule(item, item.frequency, when)}
+                          >
+                            {t(when === "ThisWeek" ? "household.weekly.moveThis" : "household.weekly.moveNext")}
+                          </button>
+                        ))}
                       <button
                         type="button"
                         className="button button-outline"
@@ -159,14 +236,29 @@ function UnitSelect({ id, units, value, onChange }: { id: string; units: Unit[];
   );
 }
 
-function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; units: Unit[]; onAdded: () => void }) {
+function AddWeeklyForm({
+  householdId,
+  units,
+  onAdded,
+  suggestion,
+  onCancel,
+}: {
+  householdId: string;
+  units: Unit[];
+  onAdded: () => void;
+  /** T-110: accepting a suggestion; the picker starts at its label and the frequency at its rhythm. */
+  suggestion?: Suggestion;
+  onCancel?: () => void;
+}) {
   const { t } = useI18n();
   const pickerId = useId();
   const quantityId = useId();
   const unitId = useId();
+  const frequencyId = useId();
   const [ingredient, setIngredient] = useState<IngredientChoice | null>(null);
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
+  const [frequency, setFrequency] = useState<Frequency>(suggestion?.frequency ?? "Weekly");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
 
@@ -182,22 +274,32 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
     const result = await call(() =>
       api.POST("/api/households/{householdId}/weekly-groceries", {
         params: { path: { householdId } },
-        body: { ingredientId: ingredient.id, ...amountBody(quantity, unit) },
+        body: { ingredientId: ingredient.id, ...amountBody(quantity, unit), frequency },
       }),
     );
+    if (result.ok && suggestion) {
+      // The picked ingredient may be named differently from the label; dismiss the label so it is not suggested again.
+      await call(() =>
+        api.POST("/api/households/{householdId}/weekly-groceries/suggestions/dismiss", {
+          params: { path: { householdId } },
+          body: { label: suggestion.label },
+        }),
+      );
+    }
     setBusy(false);
     if (result.ok) {
       setIngredient(null);
       setQuantity("");
       setUnit("");
+      setFrequency("Weekly");
       onAdded();
     } else setError(result.key);
   };
 
   return (
     <form className="household-weekly-add" onSubmit={(e) => void submit(e)}>
-      <h3>{t("household.weekly.addTitle")}</h3>
-      <IngredientPicker householdId={householdId} value={ingredient} onChange={setIngredient} id={pickerId} />
+      <h3>{suggestion ? t("household.suggest.addTitle", { label: suggestion.label }) : t("household.weekly.addTitle")}</h3>
+      <IngredientPicker householdId={householdId} value={ingredient} onChange={setIngredient} id={pickerId} initialTerm={suggestion?.label} />
       <div className="household-inline">
         <div className="field">
           <label htmlFor={quantityId}>{t("household.weekly.quantity")}</label>
@@ -208,15 +310,120 @@ function AddWeeklyForm({ householdId, units, onAdded }: { householdId: string; u
           <UnitSelect id={unitId} units={units} value={unit} onChange={setUnit} />
         </div>
       </div>
+      <div className="field">
+        <label htmlFor={frequencyId}>{t("household.weekly.frequency")}</label>
+        <FrequencySelect id={frequencyId} value={frequency} onChange={setFrequency} />
+      </div>
       {error && (
         <p role="alert" className="form-error">
           {t(error)}
         </p>
       )}
-      <button type="submit" className="button" disabled={invalid || busy}>
-        {t("household.weekly.add")}
-      </button>
+      <div className="household-actions">
+        <button type="submit" className="button" disabled={invalid || busy}>
+          {t("household.weekly.add")}
+        </button>
+        {onCancel && (
+          <button type="button" className="button button-outline" onClick={onCancel}>
+            {t("household.weekly.cancel")}
+          </button>
+        )}
+      </div>
     </form>
+  );
+}
+
+function Suggestions({
+  householdId,
+  units,
+  list,
+  setList,
+  onAdded,
+}: {
+  householdId: string;
+  units: Unit[];
+  list: Suggestion[];
+  setList: (next: Suggestion[]) => void;
+  onAdded: () => void;
+}) {
+  const { t } = useI18n();
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [error, setError] = useState<MessageKey | null>(null);
+
+  const dismiss = async (s: Suggestion) => {
+    setError(null);
+    const before = list;
+    setList(list.filter((x) => x.label !== s.label)); // optimistic
+    const result = await call(() =>
+      api.POST("/api/households/{householdId}/weekly-groceries/suggestions/dismiss", {
+        params: { path: { householdId } },
+        body: { label: s.label },
+      }),
+    );
+    if (!result.ok) {
+      setList(before);
+      setError(result.key);
+    }
+  };
+
+  return (
+    <section className="household-suggestions" aria-labelledby="household-suggestions-title" data-testid="weekly-suggestions">
+      <h3 id="household-suggestions-title">{t("household.suggest.title")}</h3>
+      <p className="household-note">{t("household.suggest.body")}</p>
+      {error && (
+        <p role="alert" className="form-error">
+          {t(error)}
+        </p>
+      )}
+      <ul className="household-list">
+        {list.map((s) => (
+          <li key={s.label} className="household-row" data-testid="suggestion-row">
+            {accepting === s.label ? (
+              <AddWeeklyForm
+                householdId={householdId}
+                units={units}
+                suggestion={s}
+                onCancel={() => setAccepting(null)}
+                onAdded={() => {
+                  setAccepting(null);
+                  onAdded();
+                }}
+              />
+            ) : (
+              <>
+                <div className="household-row-main">
+                  <span className="household-row-title">{s.label}</span>
+                  <span className="household-row-sub">
+                    {t("household.suggest.reason", { seen: s.weeksSeen, looked: s.weeksLooked, frequency: t(`household.weekly.freq.${s.frequency}`) })}
+                  </span>
+                </div>
+                <div className="household-row-actions">
+                  <button
+                    type="button"
+                    className="button"
+                    aria-label={t("household.suggest.addFor", { label: s.label })}
+                    onClick={() => {
+                      setError(null);
+                      setAccepting(s.label);
+                    }}
+                  >
+                    {t("household.weekly.add")}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-outline"
+                    aria-label={t("household.suggest.dismissFor", { label: s.label })}
+                    onClick={() => void dismiss(s)}
+                  >
+                    {t("household.suggest.dismiss")}
+                  </button>
+                </div>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

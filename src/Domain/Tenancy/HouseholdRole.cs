@@ -18,6 +18,13 @@ public static class HouseholdRoles
     public static bool Satisfies(this HouseholdRole actual, HouseholdRole required) =>
         Enum.IsDefined(actual) && Enum.IsDefined(required) && actual >= required;
 
+    /// <summary>
+    /// The role that counts for authorization (T-026): in kid mode the lower of the membership role and Child, in every
+    /// household of the account; otherwise the membership role. The one function both the request middleware and the hub use.
+    /// </summary>
+    public static HouseholdRole Effective(this HouseholdRole membershipRole, bool kidMode) =>
+        kidMode && membershipRole > HouseholdRole.Child ? HouseholdRole.Child : membershipRole;
+
     /// <summary>Roles an invite may grant (Q-005): never Owner.</summary>
     public static bool IsInvitable(this HouseholdRole role) => role is HouseholdRole.Adult or HouseholdRole.Child;
 

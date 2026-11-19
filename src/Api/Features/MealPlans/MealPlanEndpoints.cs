@@ -1,8 +1,10 @@
 using System.Globalization;
 using Foodplanner.Api.Authorization;
+using Foodplanner.Api.Features.Profiles;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.MealPlans;
+using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -15,18 +17,41 @@ public sealed record AddMealPlanEntryRequest(DateOnly? Date, Guid? RecipeId, int
 /// <summary>Change an entry: the day (within the same week) and the servings. Both are required.</summary>
 public sealed record UpdateMealPlanEntryRequest(DateOnly? Date, int? Servings);
 
-public sealed record PickedByResponse(Guid UserId, string? Email);
+/// <summary>The account behind a pick or a lock. Both null: that account was deleted (T-095), shown as "Deleted user".</summary>
+public sealed record PickedByResponse(Guid? UserId, string? Email);
 
+/// <summary><c>PickedByProfile</c> is the kid profile that picked the entry (T-026), null when an account holder did or the profile was deleted.</summary>
 public sealed record MealPlanEntryResponse(
-    Guid Id, DateOnly Date, Guid RecipeId, string RecipeTitle, int Servings, PickedByResponse PickedBy);
+    Guid Id, DateOnly Date, Guid RecipeId, string RecipeTitle, int Servings, PickedByResponse PickedBy, ProfileResponse? PickedByProfile);
 
-/// <summary><c>Id</c> is null when nothing has been planned for the week yet (a read never creates a plan).</summary>
-public sealed record MealPlanResponse(Guid? Id, DateOnly WeekStart, MealPlanEntryResponse[] Entries);
+/// <summary>
+/// <c>Id</c> is null when nothing has been planned for the week yet (a read never creates a plan). <c>Locked</c> (T-026): an
+/// Adult locked the week, so a Child or a kid profile cannot change it.
+/// </summary>
+public sealed record MealPlanResponse(
+    Guid? Id, DateOnly WeekStart, MealPlanEntryResponse[] Entries, bool Locked, DateTimeOffset? LockedAt, PickedByResponse? LockedBy);
+
+/// <summary>
+/// Whether a recipe can be added to the day without breaking the household's meal mix rules (T-090). <c>Reason</c> is
+/// <c>not-dinner</c> (kid mode only) or <c>breaks-meal-mix</c> when <c>Allowed</c> is false, else null.
+/// </summary>
+public sealed record PickOptionResponse(Guid RecipeId, bool Allowed, string? Reason);
+
+/// <summary>
+/// The recipes for a day with allowed or not. <c>OpenDinnerDays</c> counts the week's days without a dinner;
+/// <c>AllowedFoodTypes</c> are the food types that can still be added on that day.
+/// </summary>
+public sealed record PickOptionsResponse(DateOnly Date, int OpenDinnerDays, FoodType[] AllowedFoodTypes, PickOptionResponse[] Recipes);
+
+/// <summary>The week is locked: who and when.</summary>
+public sealed record MealPlanLockResponse(bool Locked, DateTimeOffset LockedAt, PickedByResponse LockedBy);
 
 /// <summary>
 /// Weekly meal plans (T-030). The plan of a week is addressed by the ISO-8601 Monday date. Any member reads and adds
-/// entries; changing or deleting an entry needs Adult or Owner, or being the member who picked it (resource policy
-/// <see cref="Policies.MealPlanEntryOwnerOrAdult"/>).
+/// entries; changing or deleting an entry needs Adult or Owner, or being the member (in kid mode: the profile) who picked it
+/// (resource policy <see cref="Policies.MealPlanEntryOwnerOrAdult"/>). An Adult can lock a week (T-026): then only Adult and
+/// Owner can write to it (resource policy <see cref="Policies.MealPlanWeekWritable"/>, answered 409 <c>week-locked</c>).
+/// Every write sends a content-free <c>MealPlanChanged</c> signal to the household's hub group after it is saved.
 /// </summary>
 public static class MealPlanEndpoints
 {
@@ -40,11 +65,18 @@ public static class MealPlanEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        plans.MapGet("/pick-options", GetPickOptions)
+            .WithName("GetMealPlanPickOptions")
+            .Produces<PickOptionsResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
         plans.MapPost("/entries", AddEntry)
             .WithName("AddMealPlanEntry")
             .Produces<MealPlanEntryResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         plans.MapPut("/entries/{entryId:guid}", UpdateEntry)
             .WithName("UpdateMealPlanEntry")
@@ -61,6 +93,20 @@ public static class MealPlanEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        plans.MapPut("/lock", LockWeek)
+            .WithName("LockMealPlanWeek")
+            .RequireAuthorization(Policies.HouseholdAdult)
+            .Produces<MealPlanLockResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        plans.MapDelete("/lock", UnlockWeek)
+            .WithName("UnlockMealPlanWeek")
+            .RequireAuthorization(Policies.HouseholdAdult)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         return api;
     }
@@ -87,12 +133,18 @@ public static class MealPlanEndpoints
         }
 
         var plan = await db.MealPlans.AsNoTracking().FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
-        return Results.Ok(new MealPlanResponse(
-            plan?.Id, monday, plan is null ? [] : await LoadEntriesAsync(db, plan.Id, entryId: null, cancellationToken)));
+        if (plan is null)
+        {
+            return Results.Ok(new MealPlanResponse(null, monday, [], false, null, null));
+        }
+
+        var entries = await LoadEntriesAsync(db, plan.Id, entryId: null, cancellationToken);
+        return Results.Ok(new MealPlanResponse(plan.Id, monday, entries, plan.IsLocked, plan.LockedAt, await LockerAsync(db, plan, cancellationToken)));
     }
 
     private static async Task<IResult> AddEntry(
         Guid householdId, string weekStart, AddMealPlanEntryRequest? request, ICurrentUser user, AppDbContext db,
+        IMealPlanWeekAccess week, IKidPickRules kidRules, IMealPlanNotifier notifier, ILogger<MealPlan> logger,
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
@@ -135,22 +187,47 @@ public static class MealPlanEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["recipeId"] = ["The recipe does not exist."] });
         }
 
+        // In kid mode the pick is attributed to the active profile (from the cookie claim, never the body), and a kid may only
+        // add what IKidPickRules allows (T-026: dinners; T-090 extends it).
+        Guid? profileId = user.IsKidMode ? await ActiveProfileIdAsync(householdId, user, db, cancellationToken) : null;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var plan = await FindOrCreatePlanAsync(db, monday, cancellationToken);
-        var servings = request!.Servings ?? Math.Min(recipe.Servings, MealPlanEntry.MaxServings);
-        var entry = new MealPlanEntry(plan.Id, monday, request.Date!.Value, recipe.Id, servings, userId);
+
+        // The plan row is taken for the rest of the transaction and re-read, so a lock that commits before this write is seen,
+        // and one that comes after waits for it: no write by a Child or kid passes a lock that has been answered.
+        await LockPlanRowAsync(db, plan, cancellationToken);
+        if (!await week.CanWriteAsync(plan))
+        {
+            return WeekLocked();
+        }
+
+        // The kid pick rules (dinner only + the household's meal mix, T-090) are asked INSIDE the plan lock, so two picks at once
+        // cannot both pass a check that only one of them satisfies.
+        if (user.IsKidMode && !await KidMayAddAsync(db, kidRules, monday, request.Date!.Value, recipe.Id, cancellationToken))
+        {
+            return PickNotAllowed();
+        }
+
+        var servings = request.Servings ?? Math.Min(recipe.Servings, MealPlanEntry.MaxServings);
+        var entry = new MealPlanEntry(plan.Id, monday, request.Date!.Value, recipe.Id, servings, userId, profileId);
         db.MealPlanEntries.Add(entry);
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
             return conflict;
         }
 
+        await transaction.CommitAsync(cancellationToken);
+        await NotifyAsync(notifier, logger, new MealPlanChange(householdId, monday, MealPlanChangeKind.EntryAdded, entry.Id), cancellationToken);
+
         var created = (await LoadEntriesAsync(db, plan.Id, entry.Id, cancellationToken)).Single();
         return Results.Created($"/api/households/{householdId}/meal-plans/{monday:yyyy-MM-dd}", created);
     }
 
     private static async Task<IResult> UpdateEntry(
-        string weekStart, Guid entryId, UpdateMealPlanEntryRequest? request, IMealPlanEntryAccess access, AppDbContext db,
-        CancellationToken cancellationToken)
+        Guid householdId, string weekStart, Guid entryId, UpdateMealPlanEntryRequest? request, IMealPlanEntryAccess access,
+        IMealPlanWeekAccess week, AppDbContext db, ICurrentUser user, MealMixKidPickRules kidRules, IMealPlanNotifier notifier,
+        ILogger<MealPlan> logger, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -188,9 +265,26 @@ public static class MealPlanEndpoints
             return EntryNotFound();
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var plan = await db.MealPlans.FirstAsync(p => p.Id == entry.MealPlanId, cancellationToken);
+        await LockPlanRowAsync(db, plan, cancellationToken);
+
+        // The week first, then the entry's owner: a kid editing anyone's pick in a locked week gets week-locked.
+        if (!await week.CanWriteAsync(plan))
+        {
+            return WeekLocked();
+        }
+
         if (!await access.CanChangeAsync(entry))
         {
             return Forbidden();
+        }
+
+        // A move can break the meal mix (moving one of two dinners off a day onto an empty day uses up an open day), so a kid is
+        // held to the rules again: the plan without this entry, then the entry on its new day. Inside the plan lock, like an add.
+        if (user.IsKidMode && entry.Date != request!.Date!.Value && !await KidMayMoveAsync(db, kidRules, monday, entry, request.Date!.Value, cancellationToken))
+        {
+            return PickNotAllowed();
         }
 
         entry.Change(monday, request!.Date!.Value, request.Servings!.Value);
@@ -199,11 +293,14 @@ public static class MealPlanEndpoints
             return conflict;
         }
 
+        await transaction.CommitAsync(cancellationToken);
+        await NotifyAsync(notifier, logger, new MealPlanChange(householdId, monday, MealPlanChangeKind.EntryChanged, entry.Id), cancellationToken);
         return Results.Ok((await LoadEntriesAsync(db, entry.MealPlanId, entry.Id, cancellationToken)).Single());
     }
 
     private static async Task<IResult> DeleteEntry(
-        string weekStart, Guid entryId, IMealPlanEntryAccess access, AppDbContext db, CancellationToken cancellationToken)
+        Guid householdId, string weekStart, Guid entryId, IMealPlanEntryAccess access, IMealPlanWeekAccess week, AppDbContext db,
+        IMealPlanNotifier notifier, ILogger<MealPlan> logger, CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>();
         if (!TryParseWeekStart(weekStart, errors, out var monday))
@@ -217,13 +314,97 @@ public static class MealPlanEndpoints
             return EntryNotFound();
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var plan = await db.MealPlans.FirstAsync(p => p.Id == entry.MealPlanId, cancellationToken);
+        await LockPlanRowAsync(db, plan, cancellationToken);
+
+        if (!await week.CanWriteAsync(plan))
+        {
+            return WeekLocked();
+        }
+
         if (!await access.CanChangeAsync(entry))
         {
             return Forbidden();
         }
 
         db.MealPlanEntries.Remove(entry);
-        return await TrySaveAsync(db, cancellationToken) ?? Results.NoContent();
+        if (await TrySaveAsync(db, cancellationToken) is { } conflict)
+        {
+            return conflict;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        await NotifyAsync(notifier, logger, new MealPlanChange(householdId, monday, MealPlanChangeKind.EntryRemoved, entryId), cancellationToken);
+        return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Locks the week (Adult or Owner). Locking a locked week is 200 and keeps the first locker and time. A week with no plan
+    /// yet gets an empty plan row, as the first entry would create it.
+    /// </summary>
+    private static async Task<IResult> LockWeek(
+        Guid householdId, string weekStart, ICurrentUser user, AppDbContext db, TimeProvider time, IMealPlanNotifier notifier,
+        ILogger<MealPlan> logger, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        if (user.UserId is not { } userId)
+        {
+            return AppProblems.Problem(StatusCodes.Status401Unauthorized, AppProblems.Unauthenticated, "Not signed in");
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var plan = await FindOrCreatePlanAsync(db, monday, cancellationToken);
+        await LockPlanRowAsync(db, plan, cancellationToken);
+        var changed = !plan.IsLocked;
+        plan.Lock(time.GetUtcNow(), userId);
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        if (changed)
+        {
+            await NotifyAsync(notifier, logger, new MealPlanChange(householdId, monday, MealPlanChangeKind.Locked, null), cancellationToken);
+        }
+
+        var locker = await LockerAsync(db, plan, cancellationToken);
+        return Results.Ok(new MealPlanLockResponse(true, plan.LockedAt!.Value, locker ?? new PickedByResponse(null, null)));
+    }
+
+    /// <summary>Unlocks the week (Adult or Owner). Idempotent: an unlocked or missing plan is just 204.</summary>
+    private static async Task<IResult> UnlockWeek(
+        Guid householdId, string weekStart, AppDbContext db, IMealPlanNotifier notifier, ILogger<MealPlan> logger,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var plan = await db.MealPlans.FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
+        if (plan is null)
+        {
+            return Results.NoContent();
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await LockPlanRowAsync(db, plan, cancellationToken);
+        var changed = plan.IsLocked;
+        plan.Unlock();
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        if (changed)
+        {
+            await NotifyAsync(notifier, logger, new MealPlanChange(householdId, monday, MealPlanChangeKind.Unlocked, null), cancellationToken);
+        }
+
+        return Results.NoContent();
     }
 
     private static void CheckServings(int? servings, Dictionary<string, string[]> errors)
@@ -234,11 +415,124 @@ public static class MealPlanEndpoints
         }
     }
 
+    private static IResult PickNotAllowed() =>
+        AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.PickNotAllowed,
+            "That meal cannot be picked",
+            "Kids can pick dinners for the week plan, within the household's meal mix rules.");
+
+    private static readonly Guid DinnerCategoryId = TagSeed.All.Single(t => t.Key == "middag").Id;
+
+    /// <summary>The week as the pick rules see it: what is planned and the household's rules.</summary>
+    private static async Task<KidPickPlan> LoadPickPlanAsync(AppDbContext db, DateOnly monday, Guid? exceptEntryId, CancellationToken cancellationToken)
+    {
+        var rules = await db.MealMixRules.AsNoTracking().Select(r => new MealMixRequirement(r.FoodType, r.MinPerWeek)).ToListAsync(cancellationToken);
+        var dinnerId = DinnerCategoryId;
+        var planned = await (from entry in db.MealPlanEntries.AsNoTracking()
+                             join plan in db.MealPlans.AsNoTracking() on entry.MealPlanId equals plan.Id
+                             join recipe in db.Recipes.AsNoTracking() on entry.RecipeId equals recipe.Id
+                             where plan.WeekStart == monday && (exceptEntryId == null || entry.Id != exceptEntryId)
+                             select new
+                             {
+                                 entry.Date,
+                                 entry.RecipeId,
+                                 recipe.FoodType,
+                                 IsDinner = db.RecipeTags.Any(l => l.RecipeId == entry.RecipeId && l.TagId == dinnerId),
+                             }).ToListAsync(cancellationToken);
+        return new KidPickPlan(monday, [.. planned.Select(p => new KidPickEntry(p.Date, p.RecipeId, p.IsDinner, p.FoodType))], rules);
+    }
+
+    private static async Task<bool> KidMayMoveAsync(
+        AppDbContext db, MealMixKidPickRules rules, DateOnly monday, MealPlanEntry entry, DateOnly day, CancellationToken cancellationToken)
+    {
+        var dinnerId = DinnerCategoryId;
+        var recipe = await db.Recipes.AsNoTracking().Where(r => r.Id == entry.RecipeId).Select(r => new
+        {
+            r.FoodType,
+            IsDinner = db.RecipeTags.Any(l => l.RecipeId == r.Id && l.TagId == dinnerId),
+        }).FirstAsync(cancellationToken);
+        var without = await LoadPickPlanAsync(db, monday, entry.Id, cancellationToken);
+        return rules.FitsMealMix(new KidPickRecipe(entry.RecipeId, recipe.IsDinner ? new HashSet<Guid> { dinnerId } : [], recipe.FoodType), day, without);
+    }
+
+    /// <summary>Asks the kid pick rules whether the recipe may be added on that day of that week (call inside the plan lock).</summary>
+    private static async Task<bool> KidMayAddAsync(
+        AppDbContext db, IKidPickRules rules, DateOnly monday, DateOnly day, Guid recipeId, CancellationToken cancellationToken)
+    {
+        var categories = await (from link in db.RecipeTags.AsNoTracking()
+                                join tag in db.Tags.AsNoTracking() on link.TagId equals tag.Id
+                                where link.RecipeId == recipeId && tag.Kind == TagKind.Category
+                                select tag.Id).ToListAsync(cancellationToken);
+        var foodType = await db.Recipes.AsNoTracking().Where(r => r.Id == recipeId).Select(r => r.FoodType).FirstOrDefaultAsync(cancellationToken);
+        return rules.IsAllowed(
+            new KidPickRecipe(recipeId, categories.ToHashSet(), foodType),
+            day,
+            await LoadPickPlanAsync(db, monday, exceptEntryId: null, cancellationToken));
+    }
+
+    /// <summary>
+    /// For a day: every recipe with whether it can be added and, when not, why (<see cref="PickReasons"/>). In kid mode a recipe that
+    /// is not a dinner is not allowed (a kid pick would be refused); for an adult only the meal mix counts, and an adult may still add a
+    /// "not allowed" recipe (override). Recipe details come from the recipe list; this only answers allowed or not.
+    /// </summary>
+    private static async Task<IResult> GetPickOptions(
+        string weekStart, string? date, ICurrentUser user, AppDbContext db, MealMixKidPickRules rules, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!TryParseWeekStart(weekStart, errors, out var monday))
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) || !MealPlan.IsInWeek(monday, day))
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["date"] = ["The date must be a day of the plan's week (Monday to Sunday), as yyyy-MM-dd."] });
+        }
+
+        var dinnerId = DinnerCategoryId;
+        var plan = await LoadPickPlanAsync(db, monday, exceptEntryId: null, cancellationToken);
+        var recipes = await db.Recipes.AsNoTracking().OrderBy(r => r.Title).ThenBy(r => r.Id).Select(r => new
+        {
+            r.Id,
+            r.FoodType,
+            IsDinner = db.RecipeTags.Any(l => l.RecipeId == r.Id && l.TagId == dinnerId),
+        }).ToListAsync(cancellationToken);
+
+        var options = recipes.Select(r =>
+        {
+            var recipe = new KidPickRecipe(r.Id, r.IsDinner ? new HashSet<Guid> { dinnerId } : [], r.FoodType);
+            if (user.IsKidMode && !rules.IsDinner(recipe))
+            {
+                return new PickOptionResponse(r.Id, false, PickReasons.NotDinner);
+            }
+
+            return rules.FitsMealMix(recipe, day, plan)
+                ? new PickOptionResponse(r.Id, true, null)
+                : new PickOptionResponse(r.Id, false, PickReasons.BreaksMealMix);
+        }).ToArray();
+
+        var dinners = plan.Entries.Where(e => e.IsDinner).ToList();
+        var dinnerDays = dinners.Select(e => e.Date).Distinct().Count();
+        var openDays = Math.Max(0, MealMix.DinnerDaysPerWeek - dinnerDays);
+        var fillsOpenDay = !dinners.Any(e => e.Date == day);
+        var allowedTypes = MealMix.AllowedTypes(plan.Rules ?? [], openDays, [.. dinners.Select(e => e.FoodType)], fillsOpenDay);
+        return Results.Ok(new PickOptionsResponse(day, openDays, [.. allowedTypes], options));
+    }
+
+    /// <summary>The active profile when it still exists in this household; null otherwise (a stale claim attributes to nobody).</summary>
+    private static async Task<Guid?> ActiveProfileIdAsync(Guid householdId, ICurrentUser user, AppDbContext db, CancellationToken cancellationToken) =>
+        user is { ActiveProfileId: { } profileId, ActiveProfileHouseholdId: { } profileHousehold }
+        && profileHousehold == householdId
+        && await db.MemberProfiles.AsNoTracking().AnyAsync(p => p.Id == profileId, cancellationToken)
+            ? profileId
+            : null;
+
     /// <summary>
     /// The plan of the week, created on the first entry. Two members adding at once can both try to create it; the unique
     /// (household, week) index lets one win and the other reads the winner's plan.
     /// </summary>
-    private static async Task<MealPlan> FindOrCreatePlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    internal static async Task<MealPlan> FindOrCreatePlanAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
     {
         var plan = await db.MealPlans.FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
         if (plan is not null)
@@ -261,17 +555,43 @@ public static class MealPlanEndpoints
         }
     }
 
+    /// <summary>
+    /// Takes the plan row for the rest of the transaction (a tracked no-op update of the audit column, the same lock pattern as
+    /// the household row in T-048) and re-reads it, so <see cref="MealPlan.LockedAt"/> is what is committed NOW. Only the audit
+    /// column is written, never a possibly stale lock state.
+    /// </summary>
+    internal static async Task LockPlanRowAsync(AppDbContext db, MealPlan plan, CancellationToken cancellationToken)
+    {
+        db.Entry(plan).Property("UpdatedAt").IsModified = true;
+        await db.SaveChangesAsync(cancellationToken);
+        await db.Entry(plan).ReloadAsync(cancellationToken);
+    }
+
     private static Task<MealPlanEntry?> FindEntryAsync(AppDbContext db, DateOnly monday, Guid entryId, CancellationToken cancellationToken) =>
         db.MealPlanEntries.FirstOrDefaultAsync(
             e => e.Id == entryId && db.MealPlans.Any(p => p.Id == e.MealPlanId && p.WeekStart == monday), cancellationToken);
 
+    private static async Task<PickedByResponse?> LockerAsync(AppDbContext db, MealPlan plan, CancellationToken cancellationToken)
+    {
+        if (plan.LockedByUserId is not { } lockerId)
+        {
+            return null;
+        }
+
+        var email = await db.Users.AsNoTracking().Where(u => u.Id == lockerId).Select(u => u.Email).FirstOrDefaultAsync(cancellationToken);
+        return new PickedByResponse(lockerId, email);
+    }
+
     /// <summary>Entries by date, then in the order they were made. Pass <paramref name="entryId"/> for one entry.</summary>
-    private static async Task<MealPlanEntryResponse[]> LoadEntriesAsync(
+    internal static async Task<MealPlanEntryResponse[]> LoadEntriesAsync(
         AppDbContext db, Guid planId, Guid? entryId, CancellationToken cancellationToken)
     {
         var rows = await (from entry in db.MealPlanEntries.AsNoTracking()
                           join recipe in db.Recipes.AsNoTracking() on entry.RecipeId equals recipe.Id
-                          join picker in db.Users.AsNoTracking() on entry.PickedByUserId equals picker.Id
+                          join picker in db.Users.AsNoTracking() on entry.PickedByUserId equals picker.Id into pickers
+                          from picker in pickers.DefaultIfEmpty()
+                          join profile in db.MemberProfiles.AsNoTracking() on entry.PickedByProfileId equals profile.Id into profiles
+                          from profile in profiles.DefaultIfEmpty()
                           where entry.MealPlanId == planId && (entryId == null || entry.Id == entryId)
                           orderby entry.Date, EF.Property<DateTimeOffset>(entry, "CreatedAt"), entry.Id
                           select new
@@ -282,14 +602,18 @@ public static class MealPlanEndpoints
                               RecipeTitle = recipe.Title,
                               entry.Servings,
                               entry.PickedByUserId,
-                              picker.Email,
+                              Email = picker.Email,
+                              ProfileId = (Guid?)profile.Id,
+                              ProfileName = profile.DisplayName,
+                              ProfileAvatar = profile.Avatar,
                           }).ToListAsync(cancellationToken);
         return rows.Select(r => new MealPlanEntryResponse(
-            r.Id, r.Date, r.RecipeId, r.RecipeTitle, r.Servings, new PickedByResponse(r.PickedByUserId, r.Email))).ToArray();
+            r.Id, r.Date, r.RecipeId, r.RecipeTitle, r.Servings, new PickedByResponse(r.PickedByUserId, r.Email),
+            r.ProfileId is { } id ? new ProfileResponse(id, r.ProfileName, r.ProfileAvatar) : null)).ToArray();
     }
 
     /// <summary>A <see cref="DbUpdateConcurrencyException"/> (a concurrent delete, or a forged entity) is a 409, not a 500. Null when saved.</summary>
-    private static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
+    internal static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
     {
         try
         {
@@ -306,9 +630,30 @@ public static class MealPlanEndpoints
         }
     }
 
+    /// <summary>After the commit: a failing notifier is logged and never undoes the change.</summary>
+    internal static async Task NotifyAsync(
+        IMealPlanNotifier notifier, ILogger<MealPlan> logger, MealPlanChange change, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await notifier.NotifyAsync(change, cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Could not announce meal plan change {Kind} for week {WeekStart}.", change.Kind, change.WeekStart);
+        }
+    }
+
     private static IResult EntryNotFound() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.MealPlanEntryNotFound, "Meal plan entry not found");
 
     private static IResult Forbidden() =>
         AppProblems.Problem(StatusCodes.Status403Forbidden, AppProblems.Forbidden, "Forbidden");
+
+    internal static IResult WeekLocked() =>
+        AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.WeekLocked,
+            "The week is locked",
+            "An adult has locked this week. Only an adult can change it.");
 }

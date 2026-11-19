@@ -8,10 +8,15 @@ import {
   maxMinuteOptions,
   parseFilters,
   toSearchParams,
+  toggleFoodType,
+  toggleLikedBy,
   toggleMaxMinutes,
   toggleTag,
   type RecipeFilters,
 } from "../recipes/filters";
+import { FOOD_TYPES, foodTypeKey } from "../recipes/food-types";
+import { ProfileAvatar } from "../kid/avatar";
+import { useProfiles } from "../kid/kid-api";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
@@ -40,6 +45,7 @@ function RecipesScreen({ householdId }: { householdId: string }) {
   const [params, setParams] = useSearchParams();
   const filters = useMemo(() => parseFilters(params), [params]);
   const tags = useTags(householdId);
+  const { profiles } = useProfiles(householdId);
   const { list, loadMore, retry } = useRecipeList(householdId, filters);
   const searchId = useId();
   const canEdit = canEditRecipes(useActiveRole());
@@ -108,6 +114,30 @@ function RecipesScreen({ householdId }: { householdId: string }) {
           </Chip>
         ))}
       </ChipGroup>
+      <ChipGroup label={t("recipes.foodType")}>
+        {FOOD_TYPES.map((type) => (
+          <Chip key={type} pressed={filters.foodTypes.includes(type)} onClick={() => apply(toggleFoodType(filters, type))}>
+            {t(foodTypeKey(type))}
+          </Chip>
+        ))}
+      </ChipGroup>
+      {profiles && profiles.length > 0 && (
+        <ChipGroup label={t("recipes.likedBy")}>
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              className="chip chip-profile"
+              aria-pressed={filters.likedBy.includes(profile.id)}
+              data-testid="liked-by-chip"
+              onClick={() => apply(toggleLikedBy(filters, profile.id))}
+            >
+              <ProfileAvatar profile={profile} size="xs" />
+              {profile.displayName}
+            </button>
+          ))}
+        </ChipGroup>
+      )}
       {categories.length > 0 && (
         <ChipGroup label={t("recipes.categories")}>
           {categories.map((tag) => (
@@ -212,8 +242,25 @@ function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       <span className="recipe-card-body">
         <span className="recipe-card-title">{recipe.title}</span>
         {minutes !== null && <span className="recipe-card-time">{t("recipes.minutes", { minutes })}</span>}
-        {recipe.tags.length > 0 && (
+        {recipe.likedBy.length > 0 && (
+          <span
+            className="recipe-card-liked"
+            role="img"
+            aria-label={t("recipes.likedByNames", { names: recipe.likedBy.map((p) => p.displayName).join(", ") })}
+            data-testid="recipe-card-liked"
+          >
+            {recipe.likedBy.map((profile) => (
+              <ProfileAvatar key={profile.id} profile={profile} size="xs" />
+            ))}
+          </span>
+        )}
+        {(recipe.foodType !== "Unknown" || recipe.tags.length > 0) && (
           <span className="recipe-card-tags">
+            {recipe.foodType !== "Unknown" && (
+              <span className="tag-pill food-type-pill" data-testid="recipe-card-food-type">
+                {t(foodTypeKey(recipe.foodType))}
+              </span>
+            )}
             {recipe.tags.slice(0, tagsOnCard).map((tag) => (
               <span key={tag.id} className="tag-pill">
                 {tag.name}

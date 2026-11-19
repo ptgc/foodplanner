@@ -60,6 +60,43 @@ public sealed class Recipe : Entity, ITenantEntity
 
     public void ClearImage() => ImageVersion = null;
 
+    /// <summary>The recipe's one food type (T-089): its main protein. Derived from the ingredients, or chosen by hand when <see cref="FoodTypeIsManual"/>.</summary>
+    public FoodType FoodType { get; private set; }
+
+    /// <summary>True when an adult chose the type; a manual type is never overwritten by the derived one.</summary>
+    public bool FoodTypeIsManual { get; private set; }
+
+    /// <summary>Sets the type: a manual choice wins and sticks; null means automatic and takes the derived type.</summary>
+    public void SetFoodType(FoodType? manual, FoodType derived)
+    {
+        if (manual is { } chosen)
+        {
+            if (!Enum.IsDefined(chosen))
+            {
+                throw new ArgumentOutOfRangeException(nameof(manual));
+            }
+
+            FoodType = chosen;
+            FoodTypeIsManual = true;
+            return;
+        }
+
+        FoodType = derived;
+        FoodTypeIsManual = false;
+    }
+
+    /// <summary>Applies a freshly derived type (the ingredients changed); does nothing for a manual type. True when the type changed.</summary>
+    public bool ApplyDerivedFoodType(FoodType derived)
+    {
+        if (FoodTypeIsManual || FoodType == derived)
+        {
+            return false;
+        }
+
+        FoodType = derived;
+        return true;
+    }
+
     /// <summary>Where the recipe came from (an http or https page), or null. Shown as a link to the original (T-075).</summary>
     public string? SourceUrl { get; private set; }
 

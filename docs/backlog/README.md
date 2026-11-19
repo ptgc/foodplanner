@@ -8,7 +8,9 @@ Agent `architect` means the task is done interactively with the human and Claude
 
 Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 chars, no colons.
 
-## Current focus: T-001 (Oda via MCP spike), then T-087, T-026, T-089, T-090, T-091, one at a time; on hold: T-096 (system admin, planned); backlog: T-077, T-095, T-100 (planned), T-086 and T-094 (stretch)
+Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
+
+## Current focus: work order done (T-111, T-095, T-100, T-077, 2026-11-09); not scheduled: T-113 (privacy page); waiting on the architect: T-107 (T-001 Phase B + Q-024), T-001 (manual Phase B, see T-001.md); on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -102,7 +104,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-074 | Registration time as a column | L2 | T-072 | implementer-backend | yes |
 | T-075 | Recipe source link | L3 | T-042, T-043 | implementer-backend | yes |
 | T-076 | Ingredient amount kind, purpose and alternatives | L3 | T-075 | implementer-backend | yes |
-| T-077 | AI-assisted fallback for recipe import | M4 | T-076 | implementer-backend | no |
+| T-077 | AI-assisted fallback for recipe import | M4 | T-076 | implementer-backend | yes |
 | T-078 | Bug: not all text changes when switching language | L3 | T-038, T-039, T-041 | implementer-frontend | no |
 | T-079 | Manage own ingredients: delete, merge, rename | L3 | T-020, T-037, T-042 | implementer-backend | no |
 | T-080 | Bug: photo uploads over 1 MB fail with 413 through the web container | L3 | T-022, T-041 | implementer-infra | no |
@@ -120,10 +122,22 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-092 | Weekly groceries (one tap onto the shopping list) | L3 | T-031, T-085, T-088 | implementer-backend | yes |
 | T-093 | Pantry for everything, with amounts; the shopping list subtracts what we have | L3 | T-037, T-076, T-085, T-092 | implementer-backend | yes |
 | T-094 | Pantry updates itself: add on shopping, deduct on cooking (stretch) | M4 | T-093 | implementer-backend | yes |
-| T-095 | Delete a user account (and clean up e2e test users) | M1 | T-011, T-083 | implementer-backend | no |
+| T-095 | Delete a user account (and clean up e2e test users) | M1 | T-011, T-083 | implementer-backend | yes |
 | T-096 | System admin role for support across households (plan first) | M1 | T-011, T-026 | implementer-backend | yes |
 | T-097 | verify.sh and e2e use little memory on the developer machine | L3 | T-002, T-003, T-027 | implementer-infra | no |
 | T-098 | Find and fix the memory growth in the API test process | L3 | T-097 | implementer-backend | no |
 | T-099 | Store third-party credentials and tokens encrypted | M4 | T-001, T-016 | implementer-backend | yes |
 | T-100 | What can I make with what we have? (recipe suggestions from the pantry) | M4 | T-093 | implementer-backend | no |
 | T-101 | verify.sh runs the API tests in one pass again | L3 | T-097, T-098 | implementer-infra | no |
+| T-102 | Flaky test: concurrent shopping-list regeneration deadlocks | L3 | T-033 | implementer-backend | no |
+| T-103 | Kid mode is confined to the profile's own household (Q-026) | M1 | T-026 | implementer-backend | no |
+| T-104 | Import suggests a protein class for new own ingredients | M1 | T-089 | implementer-backend | no |
+| T-105 | Kid-styled shopping list in kid mode (read only) | M1 | T-091 | implementer-backend, implementer-frontend | no |
+| T-106 | Smaller web bundle and cleaner API types after kid mode | L3 | T-091 | implementer-frontend | no |
+| T-107 | Oda prices and offers: suggest meals and things to buy (stretch) | M4 | T-001, T-053, T-089, T-090, T-093 | implementer-backend | yes |
+| T-108 | Flavourings and minor animal ingredients do not count as protein (fish sauce, egg noodles, stocks) | M1 | T-104 | implementer-backend | no |
+| T-109 | Regular groceries every week, every second week or monthly | L3 | T-092 | implementer-backend, implementer-frontend | yes |
+| T-110 | Suggest regular groceries from what the household adds by hand | L3 | T-109 | implementer-backend, implementer-frontend | yes |
+| T-111 | Suggest monthly regular groceries at 3 of 12 weeks; rekesaus is Seafood | L3 | T-110, T-108 | implementer-backend | no |
+| T-112 | Grocery suggestion dismissal race test fails intermittently | L3 | T-110 | implementer-backend | no |
+| T-113 | Privacy page | M4 | T-077 | implementer-frontend | no |

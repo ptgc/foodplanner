@@ -22,6 +22,12 @@ public static class RateLimitPolicies
 
     /// <summary>Attached by T-010: by client IP.</summary>
     public const string ExternalSignin = "external-signin";
+
+    /// <summary>PIN unlock and PIN change (T-026): by client IP and user. The account lockout is the second layer.</summary>
+    public const string PinUnlock = "pin-unlock";
+
+    /// <summary>Deleting the account (T-095): by client IP and user. The per-email limit and the account lockout of sign-in apply too.</summary>
+    public const string AccountDelete = "account-delete";
 }
 
 public sealed class LimitOptions
@@ -53,6 +59,12 @@ public sealed class RateLimitOptions
     public LimitOptions ExternalSignin { get; set; } = new() { PermitLimit = 20, WindowSeconds = 60 };
 
     public LimitOptions Export { get; set; } = new() { PermitLimit = 3, WindowSeconds = 60 };
+
+    /// <summary>PIN unlock and PIN change (T-026), per client IP and user.</summary>
+    public LimitOptions PinUnlock { get; set; } = new() { PermitLimit = 10, WindowSeconds = 60 };
+
+    /// <summary>Deleting the account (T-095), per client IP and user.</summary>
+    public LimitOptions AccountDelete { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
 
     /// <summary>Recipe imports from a URL (T-042), per user: 10 per 10 minutes. See <see cref="UrlImportRateLimiter"/>.</summary>
     public LimitOptions UrlImport { get; set; } = new() { PermitLimit = 10, WindowSeconds = 600 };
@@ -111,6 +123,12 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.InviteAccept, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"ip:{ClientIp(http)}|user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}", _ => limits.InviteAccept.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.PinUnlock, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"ip:{ClientIp(http)}|user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}", _ => limits.PinUnlock.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.AccountDelete, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"ip:{ClientIp(http)}|user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}", _ => limits.AccountDelete.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.HouseholdExport, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Export.ToFixedWindow()));

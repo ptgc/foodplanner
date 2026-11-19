@@ -67,7 +67,7 @@ describe("a language switch reads catalog names again", () => {
     expect(await screen.findByText(new RegExp(names[first].rice))).toBeInTheDocument();
 
     const second = other();
-    act(() => setLocale(second, false));
+    act(() => void setLocale(second, false));
 
     await waitFor(() => expect(screen.getByText(new RegExp(names[second].rice))).toBeInTheDocument());
     expect(screen.queryByText(new RegExp(`\\b${names[first].rice}\\b`))).not.toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("a language switch reads catalog names again", () => {
     await chip(first);
 
     const second = other();
-    act(() => setLocale(second, false));
+    act(() => void setLocale(second, false));
 
     await waitFor(() => expect(within(document.body).getAllByRole("button", { name: names[second].tag }).length).toBeGreaterThan(0));
     expect(screen.queryByRole("button", { name: names[first].tag })).not.toBeInTheDocument();
