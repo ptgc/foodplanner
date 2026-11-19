@@ -10,6 +10,8 @@ From the repo root (all commands: `dotnet run --project spikes/oda -- <command>`
 | `login` | Registers a client (DCR), opens your browser to sign in to Oda, catches the redirect on `127.0.0.1`, stores tokens. Prints only non-secret metadata (expiry, scope). |
 | `tools` | Lists the server's tools and saves them with input schemas to `findings/tools.json`. |
 | `search <text>` | Product search: name, price, unit price, brand, id, image (if any), URL. |
+| `search-raw <text>` | Read-only. Like `search` (size 3) but prints each product's full raw JSON, then lists offer-like field names (offer, campaign, discount, promo, sale, deal, original, before, compare, badge, label) or "no offer-like fields". For the T-107 check. |
+| `recs <likely_to_buy\|unique_for_you>` | Read-only. Calls one of those two tools (anything else is rejected) with only `{"intent": ...}`, prints the raw result and the offer-like field summary per product. For the T-107 check. |
 | `search-catalog` | Searches 20 Foodplanner catalog names (nb) and writes `findings/search-quality.md`. |
 | `cart` | Shows the cart (lines, count, total). |
 | `add <productId> <qty>` | Adds the product to the cart (qty is a delta). Records what it added. |

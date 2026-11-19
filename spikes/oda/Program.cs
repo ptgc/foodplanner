@@ -13,11 +13,13 @@ try
         case "tools": await ToolsAsync(); break;
         case "search": await SearchAsync(string.Join(' ', args.Skip(1))); break;
         case "search-catalog": await SearchCatalogAsync(); break;
+        case "search-raw": await SearchRawCommandAsync(string.Join(' ', args.Skip(1))); break;
+        case "recs": await RecsAsync(args.Length > 1 ? args[1] : ""); break;
         case "cart": await CartAsync(); break;
         case "add": await AddAsync(long.Parse(args[1]), int.Parse(args[2])); break;
         case "clear-test-items": case "remove": await ClearTestItemsAsync(); break;
         default:
-            Console.WriteLine("Commands: login | tools | search <text> | search-catalog | cart | add <productId> <qty> | clear-test-items");
+            Console.WriteLine("Commands: login | tools | search <text> | search-raw <text> | recs <likely_to_buy|unique_for_you> | search-catalog | cart | add <productId> <qty> | clear-test-items");
             break;
     }
 }
@@ -80,6 +82,65 @@ static async Task SearchAsync(string text)
     if (results.Count > 0 && results[0]!["products"]!.AsArray().FirstOrDefault() is { } first)
     {
         Console.WriteLine("Fields on a product: " + string.Join(", ", first.AsObject().Select(kv => kv.Key)));
+    }
+}
+
+static System.Text.RegularExpressions.Regex OfferLike() => new(
+    "offer|campaign|discount|promo|sale|deal|original|before|compare|badge|label",
+    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+static JsonSerializerOptions Indented() => new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+// Read-only: prints full raw product JSON so offer/campaign fields (T-107) are visible.
+static async Task SearchRawCommandAsync(string text)
+{
+    if (string.IsNullOrWhiteSpace(text)) { throw new InvalidOperationException("search-raw needs a search text."); }
+    using var mcp = await McpClient.ConnectAsync();
+    var results = await SearchRawAsync(mcp, [text], 3);
+    foreach (var r in results)
+    {
+        foreach (var p in r!["products"]?.AsArray() ?? [])
+        {
+            Console.WriteLine(p!.ToJsonString(Indented()));
+            PrintOfferFields(p);
+        }
+    }
+}
+
+static void PrintOfferFields(JsonNode p)
+{
+    var hits = p is JsonObject o ? o.Select(kv => kv.Key).Where(k => OfferLike().IsMatch(k)).ToList() : [];
+    Console.WriteLine(hits.Count == 0 ? "no offer-like fields" : "offer-like fields: " + string.Join(", ", hits));
+}
+
+static IEnumerable<JsonObject> FindProducts(JsonNode? node)
+{
+    switch (node)
+    {
+        case JsonObject o when o.ContainsKey("name") && (o.ContainsKey("id") || o.ContainsKey("price")):
+            yield return o;
+            break;
+        case JsonObject o:
+            foreach (var kv in o) { foreach (var x in FindProducts(kv.Value)) { yield return x; } }
+            break;
+        case JsonArray a:
+            foreach (var i in a) { foreach (var x in FindProducts(i)) { yield return x; } }
+            break;
+    }
+}
+
+// Read-only recommendation tools; strict allowlist.
+static async Task RecsAsync(string tool)
+{
+    if (tool is not ("likely_to_buy" or "unique_for_you")) { throw new InvalidOperationException("recs accepts only likely_to_buy or unique_for_you."); }
+    using var mcp = await McpClient.ConnectAsync();
+    // Schema (findings/tools.public-manifest.json) has only "intent"; no size/limit property.
+    var res = await mcp.CallToolAsync(tool, new JsonObject { ["intent"] = "foodplanner feasibility spike: inspects recommendation fields" });
+    Console.WriteLine(res.ToJsonString(Indented()));
+    foreach (var p in FindProducts(res))
+    {
+        Console.WriteLine($"product {p["id"]} {p["name"]}:");
+        PrintOfferFields(p);
     }
 }
 
