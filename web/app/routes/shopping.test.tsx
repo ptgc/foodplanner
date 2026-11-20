@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetAntiforgeryToken } from "../api/client";
 import type { components } from "../api/schema";
 import { getLocale } from "../i18n";
+import { navigation } from "../shopping/oda";
 import { SessionProvider } from "../session";
 import { n, t } from "../test-i18n";
 import Shopping from "./shopping";
@@ -144,6 +145,8 @@ type Server = {
   stores: { id: string; name: string; sectionOrder: string[] }[];
   chosenStore: string | null;
   chosenPuts: unknown[];
+  /** Bodies of the oda/start POSTs (T-054). */
+  odaStarts: unknown[];
 };
 let server: Server;
 
@@ -231,6 +234,10 @@ function installFetch() {
       if (path.endsWith(`/shopping-lists/${week}`)) {
         return server.listStatus === 200 ? json(server.list) : json({ title: "x", status: server.listStatus }, server.listStatus);
       }
+      if (path.endsWith(`/shopping-lists/${week}/oda/start`) && request.method === "POST") {
+        server.odaStarts.push(await request.json());
+        return json({ authorizeUrl: "https://oda.example/authorize?x=1" });
+      }
       throw new Error(`unexpected ${request.method} ${path}`);
     }),
   );
@@ -253,11 +260,12 @@ const names = (section: HTMLElement) =>
     .map((id) => document.getElementById(id!)?.textContent);
 
 beforeEach(() => {
+  home.role = "Owner";
   resetAntiforgeryToken();
   window.localStorage.clear();
   hubState.hub = null;
   hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
-  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, notDue: [], weeklyWeeks: [], anyway: [], stores: [], chosenStore: null, chosenPuts: [] };
+  server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, notDue: [], weeklyWeeks: [], anyway: [], stores: [], chosenStore: null, chosenPuts: [], odaStarts: [] };
   installFetch();
 });
 afterEach(() => {
@@ -848,5 +856,54 @@ describe("weekly groceries (T-092)", () => {
     await screen.findByTestId("offline-banner");
 
     expect(within(section).getByRole("button", { name: t("shopping.addAnywayFor", { name: "Ost" }) })).toBeDisabled();
+  });
+});
+
+describe("send to Oda (T-054)", () => {
+  const odaButton = () => screen.queryByRole("button", { name: t("oda.button") });
+
+  it.each(["Owner", "Adult"])("shows the button to an %s and confirms exactly the unchecked To-buy items", async (role) => {
+    home.role = role;
+    renderPage();
+    await ready();
+    await userEvent.click(await screen.findByRole("button", { name: t("oda.button") }));
+
+    const dialog = await screen.findByRole("dialog", { name: t("oda.confirm.title") });
+    // Checked items (Brod, Egg) and the Check you have staple (Salt) are not sent.
+    expect(within(within(dialog).getByTestId("oda-items")).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["Melk", "Kaffe"]);
+    for (const key of ["oda.confirm.note.signIn", "oda.confirm.note.onePack", "oda.confirm.note.noOrder", "oda.confirm.note.twice"] as const) {
+      expect(within(dialog).getByText(t(key))).toBeInTheDocument();
+    }
+    expect(server.odaStarts).toEqual([]); // nothing is called before the confirmation
+  });
+
+  it("is hidden for a Child member", async () => {
+    home.role = "Child";
+    renderPage();
+    await ready();
+    await new Promise((r) => setTimeout(r, 100)); // the button is a lazy chunk: give it time to show if it were going to
+    expect(odaButton()).toBeNull();
+  });
+
+  it("starts with confirmed:true, remembers only the week, and navigates the browser to Oda", async () => {
+    const go = vi.spyOn(navigation, "go").mockImplementation(() => undefined);
+    renderPage();
+    await ready();
+    await userEvent.click(await screen.findByRole("button", { name: t("oda.button") }));
+    await userEvent.click(await screen.findByRole("button", { name: t("oda.confirm.submit") }));
+
+    await waitFor(() => expect(go).toHaveBeenCalledWith("https://oda.example/authorize?x=1"));
+    expect(server.odaStarts).toEqual([{ confirmed: true }]);
+    expect(JSON.parse(window.sessionStorage.getItem("foodplanner.oda.pending")!)).toEqual({ householdId: "h1", weekStart: week });
+    expect(JSON.stringify({ ...window.localStorage, ...window.sessionStorage })).not.toContain("authorize");
+    window.sessionStorage.clear();
+  });
+
+  it("disables the button when everything is checked off", async () => {
+    server.list.main = [item("brod", "Brod", { checked: true })];
+    renderPage();
+    await ready();
+    expect(await screen.findByRole("button", { name: t("oda.button") })).toBeDisabled();
+    expect(screen.getByText(t("oda.nothingToSend"))).toBeInTheDocument();
   });
 });

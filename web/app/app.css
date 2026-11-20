@@ -496,3 +496,46 @@ body {
   align-items: center;
   text-decoration: none;
 }
+
+/* T-054: send the shopping list to an Oda cart. */
+.oda-send {
+  margin-bottom: 0.75rem;
+}
+
+.oda-button {
+  width: 100%;
+}
+
+.oda-items {
+  max-height: 40vh;
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.oda-notes {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.oda-callback {
+  max-width: 40rem;
+}
+
+.oda-list {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.oda-cart-link,
+.oda-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch);
+  margin-bottom: 0.75rem;
+  box-sizing: border-box;
+  text-decoration: none;
+}

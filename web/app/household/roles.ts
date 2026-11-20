@@ -19,6 +19,7 @@ export function powers(role: Role) {
     export: role === "Owner" || role === "Adult",
     weekly: role === "Owner" || role === "Adult", // change the weekly groceries (T-092); everyone reads them
     ingredients: role === "Owner" || role === "Adult", // rename, merge, delete own ingredients (T-079)
+    oda: role === "Owner" || role === "Adult", // send the shopping list to an Oda cart (T-054); never a Child member or kid mode
     kidProfiles: role === "Owner" || role === "Adult", // kid profiles and the own PIN (T-091)
   };
 }
