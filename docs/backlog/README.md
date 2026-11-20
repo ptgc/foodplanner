@@ -80,8 +80,8 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-048 | Household member and invite management (backend) | M3 | T-044 | implementer-backend | no |
 | T-050 | IShoppingListExporter and share/copy export | M4 | T-033 | implementer-backend | no |
 | T-051 | Frontend: export shopping list | M4 | T-036, T-050 | implementer-frontend | no |
-| T-052 | Ingredient to product mapping | M4 | T-001, T-033 | implementer-backend | yes |
-| T-053 | Oda cart integration | M4 | T-001, T-050, T-052 | implementer-backend | yes |
+| T-052 | Preferred Oda product per ingredient (later) | M4 | T-053, T-033 | implementer-backend | yes |
+| T-053 | Oda cart integration (session-only) | M4 | T-001, T-050 | implementer-backend | no |
 | T-054 | Frontend: map products and send to Oda | M4 | T-053, T-036 | implementer-frontend | no |
 | T-055 | Voice in the kitchen: feasibility spike | M4 | T-040 | implementer-frontend | no |
 | T-056 | Voice commands in cooking mode | M4 | T-055 | implementer-frontend | no |
@@ -141,3 +141,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-111 | Suggest monthly regular groceries at 3 of 12 weeks; rekesaus is Seafood | L3 | T-110, T-108 | implementer-backend | no |
 | T-112 | Grocery suggestion dismissal race test fails intermittently | L3 | T-110 | implementer-backend | no |
 | T-113 | Privacy page | M4 | T-077 | implementer-frontend | no |
+| T-114 | Oda cart fill prefers what the household usually buys (later) | M4 | T-053 | implementer-backend | no |
