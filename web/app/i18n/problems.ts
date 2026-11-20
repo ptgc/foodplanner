@@ -66,6 +66,11 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:profile-conflict": "kid.problem.profileConflict",
   "urn:foodplanner:problem:week-locked": "planner.problem.weekLocked",
   "urn:foodplanner:problem:pick-not-allowed": "planner.problem.pickNotAllowed",
+  "urn:foodplanner:problem:oda-state-invalid": "oda.problem.stateInvalid",
+  "urn:foodplanner:problem:oda-unavailable": "oda.problem.unavailable",
+  "urn:foodplanner:problem:oda-too-many-items": "oda.problem.tooMany",
+  "urn:foodplanner:problem:oda-not-configured": "oda.problem.notConfigured",
+  "urn:foodplanner:problem:oda-nothing-to-add": "oda.problem.nothingToAdd",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */

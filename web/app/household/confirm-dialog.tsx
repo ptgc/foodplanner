@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useI18n, type MessageKey } from "../i18n";
 
 const focusable =
@@ -15,6 +15,10 @@ type Props = {
   error: MessageKey | null;
   onConfirm: () => void;
   onCancel: () => void;
+  /** Extra content under the body (a list, notes). */
+  children?: ReactNode;
+  /** "primary" for a confirmation that is not destructive. */
+  tone?: "danger" | "primary";
 };
 
 /**
@@ -22,7 +26,7 @@ type Props = {
  * described by its body, focus starts on Cancel (or on the text field), Tab stays inside, Escape cancels, and focus
  * returns to the control that opened it. Confirming only calls `onConfirm`; the caller decides when to close.
  */
-export function ConfirmDialog({ title, body, confirmLabel, requireText, requireTextLabel, busy, error, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ title, body, confirmLabel, requireText, requireTextLabel, busy, error, onConfirm, onCancel, children, tone = "danger" }: Props) {
   const { t } = useI18n();
   const titleId = useId();
   const bodyId = useId();
@@ -90,6 +94,7 @@ export function ConfirmDialog({ title, body, confirmLabel, requireText, requireT
         <form onSubmit={submit} aria-busy={busy}>
           <h2 id={titleId}>{title}</h2>
           <p id={bodyId}>{body}</p>
+          {children}
           {requireText !== undefined && (
             <div className="field">
               <label htmlFor={inputId}>{requireTextLabel}</label>
@@ -114,7 +119,7 @@ export function ConfirmDialog({ title, body, confirmLabel, requireText, requireT
             <button ref={cancel} type="button" className="button button-outline" disabled={busy} onClick={onCancel}>
               {t("household.dialog.cancel")}
             </button>
-            <button type="submit" className="button button-danger" disabled={busy || !matches}>
+            <button type="submit" className={tone === "danger" ? "button button-danger" : "button"} disabled={busy || !matches}>
               {confirmLabel}
             </button>
           </div>
