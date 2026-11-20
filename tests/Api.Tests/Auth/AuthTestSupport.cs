@@ -132,6 +132,7 @@ public sealed class AuthHost : IAsyncDisposable
             ["RateLimiting:Export:PermitLimit"] = "1000",
             ["RateLimiting:PinUnlock:PermitLimit"] = "1000",
             ["RateLimiting:AccountDelete:PermitLimit"] = "1000",
+            ["RateLimiting:Oda:PermitLimit"] = "1000",
             // T-077: the AI fallback is off in every test host, even when the developer's user secrets turn it on. A test that
             // wants it enables it explicitly and brings a fake client; no test host can reach the real API.
             ["AiImport:Enabled"] = "false",

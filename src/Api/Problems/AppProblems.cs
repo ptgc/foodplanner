@@ -62,6 +62,13 @@ public static class AppProblems
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";
 
+    public const string OdaConfirmationRequired = "oda-confirmation-required";
+    public const string OdaNothingToAdd = "oda-nothing-to-add";
+    public const string OdaTooManyItems = "oda-too-many-items";
+    public const string OdaNotConfigured = "oda-not-configured";
+    public const string OdaStateInvalid = "oda-state-invalid";
+    public const string OdaUnavailable = "oda-unavailable";
+
     public const string PasswordIncorrect = "password-incorrect";
     public const string AccountOwnsHouseholds = "account-owns-households";
     public const string AccountDeletionChanged = "account-deletion-changed";

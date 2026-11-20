@@ -17,6 +17,10 @@
     <PackageReference Include="Testcontainers.Azurite" Version="4.16.0" />
   </ItemGroup>
   <ItemGroup>
+    <!-- T-053: recorded, scrubbed Oda responses (from spikes/oda/findings) that the fake Oda serves. -->
+    <None Include="Oda\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Api\Foodplanner.Api.csproj" />
   </ItemGroup>
 </Project>
