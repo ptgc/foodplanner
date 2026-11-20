@@ -82,7 +82,7 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-051 | Frontend: export shopping list | M4 | T-036, T-050 | implementer-frontend | no |
 | T-052 | Preferred Oda product per ingredient (later) | M4 | T-053, T-033 | implementer-backend | yes |
 | T-053 | Oda cart integration (session-only) | M4 | T-001, T-050 | implementer-backend | no |
-| T-054 | Frontend: map products and send to Oda | M4 | T-053, T-036 | implementer-frontend | no |
+| T-054 | Frontend: send shopping list to Oda | M4 | T-053, T-036 | implementer-frontend | no |
 | T-055 | Voice in the kitchen: feasibility spike | M4 | T-040 | implementer-frontend | no |
 | T-056 | Voice commands in cooking mode | M4 | T-055 | implementer-frontend | no |
 | T-057 | More external login providers | M4 | T-010 | implementer-backend | no |
