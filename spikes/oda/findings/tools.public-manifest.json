@@ -1,0 +1,840 @@
+[
+  {
+    "name": "product_search",
+    "description": "Search for products by name or keywords for one or more query strings. Returns matching products per query with has_more when more results exist. Pagination is batch-wide: the same page and size apply to every query in the batch. Use get_category or get_brand to browse by category or brand instead.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "queries": {
+          "description": "A list of query strings to search for products. Maximum 10 queries allowed.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number for products.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 5,
+          "description": "Maximum number of products to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "queries"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "recipe_search",
+    "description": "Search for recipes by name or keywords. Results are paginated; use page and size to browse, and has_more in the response to fetch the next page.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "description": "Search query, e.g. a recipe name or ingredient.",
+          "type": "string"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number for recipes.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 5,
+          "description": "Maximum number of recipes to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_category",
+    "description": "Load a product category by id with its parent, immediate child categories, and a paginated list of products. Products are sorted by relevance. Use page and size to browse products; check has_more in the response for the next page. Discover category ids from the categories://tree resource or from parent/children in a previous call. Use get_brand or product_search for other ways to find products.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "category_id": {
+          "description": "Category id to load (from the categories://tree resource or a previous call).",
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number for category products.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 20,
+          "description": "Maximum number of category products to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "category_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_brand",
+    "description": "Load a product brand by id with a paginated list of its products, sorted by popularity. Use page and size to browse; check has_more in the response for the next page. Pass brand_id from MCPProduct on product_search or get_category results.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "brand_id": {
+          "description": "Brand id to load (from MCPProduct.brand_id on search or category results).",
+          "type": "integer"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number for products in the selected brand.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 20,
+          "description": "Maximum number of products to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "brand_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "likely_to_buy",
+    "description": "Return products the user is likely to buy right now based on purchase history and reorder patterns — staples and regular items, not discovery picks. Use when the user wants to restock their usual basket, reorder weekly groceries, or see what they typically buy. For personalized discovery and new items, use unique_for_you instead.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "unique_for_you",
+    "description": "Return personalized product recommendations for discovery. Items match the user's shopping profile from order history, purchase patterns, and product attributes, with emphasis on products outside their usual basket — not staples they buy regularly. Use when the user wants inspiration, something new, or recommendations based on tastes rather than a specific search query. For usual reorder items, use likely_to_buy instead.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "similar_and_related_products",
+    "description": "Return products related to a given product_id, grouped by context. Each group has a group_type of category (more in the same category), brand (more from the same brand), or related (similar alternatives). Use when the user is viewing a product and wants alternatives, more from the same brand or category, or items like the one they are considering. Pass product_id from product_search, get_category, or get_cart results.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "product_id": {
+          "description": "The product ID to find similar and related products for.",
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_cart",
+    "description": "Return the current user's cart: product lines grouped by source, summary totals, total_breakdown (subtotal, discounts, surcharge, bottle deposit, packaging, delivery fee, and surcharge threshold description), delivery address, selected delivery slot, and a url to open the cart in the shop. Use to inspect contents, explain fees, summarize what is in the cart, or help the user prepare for checkout. Checkout and payment happen in the shop — share the url field as a clickable link when the user is ready to review and pay.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "manipulate_cart",
+    "description": "Apply one or more cart operations and return the updated cart. Each operation targets exactly one of: product_id, recipe_id, product_list_id (shopping or dinner list id), or order_number. For product_id, recipe_id, and product_list_id, positive quantity adds and negative reduces or removes. order_number re-adds all products from that order regardless of quantity. Quantities are always relative to what the cart already holds, never an exact target, so to reach a specific quantity call get_cart first and send the difference. To remove a product completely, send a negative quantity at least as large as the amount in the cart; overshooting is safe because removals stop at zero. Use from_recipe_portions when adding a recipe. Returns the updated cart with a checkout url.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "items": {
+            "description": "A single cart manipulation operation.\n\nExactly one of product_id, recipe_id, product_list_id, or order_number must be set.",
+            "properties": {
+              "quantity": {
+                "description": "How much to add (positive) or remove (negative) for product_id, recipe_id and product_list_id operations. Always a delta, not a target quantity. For product_id, removals apply across all cart lines for that product, including recipe and list lines; overshooting is safe. Ignored for order_number operations, which always re-add all products from the order.",
+                "type": "integer"
+              },
+              "productId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a product to add to or reduce in the cart."
+              },
+              "recipeId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a recipe to add to or remove from the cart."
+              },
+              "productListId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a shopping list or dinner list whose contents should be added to or removed from the cart. Dinner lists are product lists and use the same id field."
+              },
+              "orderNumber": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Order number whose products should be re-added to the cart. Always adds; quantity is ignored and a negative quantity does not remove the order."
+              },
+              "fromRecipePortions": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Number of portions when adding a recipe. Uses the user's preferred portion count or the recipe default when omitted."
+              }
+            },
+            "required": [
+              "quantity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "operations"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "clear_cart",
+    "description": "Remove all products from the user's cart and return the empty cart. Use when the user wants to start over or empty the cart completely. Returns the updated cart with a checkout url.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "order_tracking",
+    "description": "Return live delivery tracking for an order by order_number, including delivery status and progress. Use get_orders to find order numbers, or get_order for full order details including line items.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "order_number": {
+          "type": "string"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_number"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "feedback",
+    "description": "Submit feedback about the MCP server and tools. Offer this when the user wants a capability the MCP tools do not provide, or when you hit a missing tool or limitation. Use for technical issues, usability problems, or improvement suggestions about how the MCP works — not for shop, delivery, or order complaints.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "free_text": {
+          "description": "Feedback about the MCP server and tools. Include the requested action, tools attempted, and what was missing or failed. Only letters, numbers, spaces, and basic punctuation (period, comma, !, ?, ;, :, quotes, parentheses, hyphen). Limited to one submission per user per 15min.",
+          "maxLength": 500,
+          "minLength": 1,
+          "pattern": "^[\\w\\s.,!?;:'\\\"()\\-]+$",
+          "type": "string"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "free_text"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_orders",
+    "description": "Return the current user's order history, paginated. Each order includes summary metadata such as order number, date, and status. Use page and size to browse; check has_more for the next page. Call get_order for full line-item details on one order, or order_tracking for live delivery status.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "description": "Page number for orders.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 10,
+          "description": "Maximum number of orders to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_delivery_addresses",
+    "description": "Return all delivery addresses on the user's account. Each address includes an id and whether it is currently selected on the cart (is_selected). Use the selected address id, or pass another address id, when calling get_delivery_slots or select_delivery_slot.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_delivery_slots",
+    "description": "Return available delivery slots for the user's cart on a single date. Pass delivery_date as an ISO date (e.g. 2026-07-19); returns slots empty when we do not deliver that day. When delivery_date is omitted, returns slots for the next deliverable day. Optionally pass delivery_address_id to check slots for a specific address. Use select_delivery_slot with a slot id from the results to book a slot.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery_address_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delivery address to fetch slots for. Defaults to the cart's current delivery address."
+        },
+        "delivery_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Calendar date to fetch slots for (ISO format, e.g. 2026-07-19). Defaults to the next deliverable day when omitted."
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "select_delivery_slot",
+    "description": "Book a delivery slot on the user's cart by delivery_slot_id. Call get_delivery_slots first to list available slots and their ids. Optionally pass delivery_address_id to select the slot for a specific address, and is_unattended_delivery when the address supports leaving the order outside the door. Returns the selected slot details. Fails if the slot is full or unavailable.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery_slot_id": {
+          "description": "The delivery slot id to select.",
+          "type": "integer"
+        },
+        "delivery_address_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delivery address to use when selecting the slot. Defaults to the cart's current delivery address."
+        },
+        "is_unattended_delivery": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether to enable unattended delivery. Only applies when the address supports it."
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "delivery_slot_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_order",
+    "description": "Return full details for a single order by order_number, including line items, totals, and delivery information. Use get_orders to browse order history and find order numbers. Use order_tracking for live delivery status on an in-progress delivery.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "order_number": {
+          "type": "string"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "order_number"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_product_lists",
+    "description": "Step 1 — browse the user's shopping lists (metadata only, no products). Shopping lists are general saved product collections for repeat orders, e.g. weekly groceries or household staples. Excludes dinner lists — use get_dinner_lists for saved meals. Returns id, title, and product count per list; use page and size to paginate. When the user picks a list, call get_product_list with its id to load the products. Use create_product_list to create a new list or manipulate_product_list to edit an existing one.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "description": "Page number for product lists.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 10,
+          "description": "Maximum number of product lists to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_dinner_lists",
+    "description": "Step 1 — browse the user's dinner lists (metadata only, no products). Dinner lists are saved meals: a specific combination of products for one dish, e.g. pasta bolognese ingredients or a ready-made pizza. Excludes general shopping lists — use get_product_lists for those. Returns id, title, and product count per list; use page and size to paginate. When the user picks a list, call get_product_list with its id to load the products. Use create_product_list to create a new list or manipulate_product_list to edit an existing one.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "description": "Page number for dinner lists.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 10,
+          "description": "Maximum number of dinner lists to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_product_list",
+    "description": "Step 2 — load one list with its full product contents and quantities. Requires a product_list_id from get_product_lists (shopping list) or get_dinner_lists (dinner list). Unlike the browse tools, this returns the actual products in the list. To add the list to the cart, call manipulate_cart with product_list_id. To edit products in the list, call manipulate_product_list.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "product_list_id": {
+          "description": "List id from get_product_lists or get_dinner_lists. Works for both shopping lists and dinner lists.",
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_list_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "create_product_list",
+    "description": "Create a new saved shopping list or dinner list for the current user. Optionally include initial products. Returns the new list with its products. Use manipulate_product_list to add, remove, or change products later.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "description": "Display name for the new list.",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional description of the list."
+        },
+        "is_dinner_list": {
+          "default": false,
+          "description": "When true, create a dinner list (saved meal). When false, create a general shopping list.",
+          "type": "boolean"
+        },
+        "operations": {
+          "anyOf": [
+            {
+              "items": {
+                "description": "A single product list manipulation operation.",
+                "properties": {
+                  "productId": {
+                    "description": "ID of the product to add, reduce, set, or remove from the list.",
+                    "type": "integer"
+                  },
+                  "quantity": {
+                    "description": "How much to add (positive) or remove (negative).",
+                    "type": "integer"
+                  },
+                  "delete": {
+                    "default": false,
+                    "description": "When true, remove the product from the list entirely. Zero-quantity rows are kept on lists unless delete is true.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "productId",
+                  "quantity"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional initial products to add to the new list."
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "manipulate_product_list",
+    "description": "Update a saved shopping list or dinner list. Pass operations to add, remove, or change products. Positive quantity adds units; negative quantity reduces units. Set delete to true when removing a product entirely — unlike the cart, zero-quantity rows are kept on lists unless delete is true. Optionally pass title or description to update list metadata in the same call. Returns the updated list.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "product_list_id": {
+          "description": "List id from get_product_lists or get_dinner_lists. Works for both shopping lists and dinner lists.",
+          "type": "integer"
+        },
+        "operations": {
+          "anyOf": [
+            {
+              "items": {
+                "description": "A single product list manipulation operation.",
+                "properties": {
+                  "productId": {
+                    "description": "ID of the product to add, reduce, set, or remove from the list.",
+                    "type": "integer"
+                  },
+                  "quantity": {
+                    "description": "How much to add (positive) or remove (negative).",
+                    "type": "integer"
+                  },
+                  "delete": {
+                    "default": false,
+                    "description": "When true, remove the product from the list entirely. Zero-quantity rows are kept on lists unless delete is true.",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "productId",
+                  "quantity"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Product changes to apply. Omit to only update title or description."
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New display name for the list, if renaming."
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New description for the list, if updating."
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_list_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "delete_product_list",
+    "description": "Permanently delete a saved shopping list or dinner list owned by the current user. This cannot be undone.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "product_list_id": {
+          "description": "List id from get_product_lists or get_dinner_lists. Works for both shopping lists and dinner lists.",
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "product_list_id"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_liked_recipes",
+    "description": "Return recipes the user has liked or favorited, paginated and ordered by most recently liked. Use page and size to browse; check has_more for the next page. Use recipe_search to find new recipes.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "description": "Page number for liked recipes.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 10,
+          "description": "Maximum number of liked recipes to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_purchased_recipes",
+    "description": "Return recipes the user has previously bought ingredients for, paginated and ordered by most recently purchased. Use page and size to browse; check has_more for the next page. Use recipe_search to find new recipes, or manipulate_cart with recipe_id to re-order one.",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "description": "Page number for purchased recipes.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 10,
+          "description": "Maximum number of purchased recipes to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+]

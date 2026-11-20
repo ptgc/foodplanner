@@ -1,0 +1,3 @@
+<Project>
+  <!-- Intentionally empty: stops MSBuild from inheriting the main solution's strict repo-root Directory.Build.props. -->
+</Project>
