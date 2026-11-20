@@ -5,7 +5,7 @@ namespace Foodplanner.Architecture.Tests;
 /// <summary>T-050, ADR 0008: the exporter port is provider-neutral and its implementations live behind the adapter boundary.</summary>
 public class ExporterBoundaryTests
 {
-    private static readonly string[] ProviderWords = ["Oda", "Kolonial", "Rema", "Kiwi", "Meny"];
+    private static readonly string[] ProviderWords = ["Oda", "Kolonial", "Rema", "Kiwi", "Meny", "Mcp"];
 
     [Fact]
     public void The_exporter_port_lives_in_Domain_and_every_implementation_lives_outside_it()
@@ -22,6 +22,29 @@ public class ExporterBoundaryTests
         Assert.Contains(
             typeof(Foodplanner.Infrastructure.AssemblyMarker).Assembly.GetTypes(),
             t => typeof(IShoppingListExporter).IsAssignableFrom(t) && t is { IsClass: true });
+    }
+
+    [Fact]
+    public void The_oda_exporter_lives_in_Infrastructure_and_is_covered_by_the_boundary()
+    {
+        var oda = typeof(Foodplanner.Infrastructure.Oda.OdaShoppingListExporter);
+        Assert.True(typeof(IShoppingListExporter).IsAssignableFrom(oda));
+        Assert.Equal(typeof(Foodplanner.Infrastructure.AssemblyMarker).Assembly, oda.Assembly);
+        Assert.Equal("oda", new Foodplanner.Infrastructure.Oda.OdaShoppingListExporter().Name);
+    }
+
+    [Fact]
+    public void The_Oda_code_keeps_no_static_state_so_nothing_from_Oda_outlives_a_request()
+    {
+        // T-053 "No_data_kept": no static collection or mutable static field anywhere in the Oda namespace (compiler-generated lambda caches excluded).
+        var offenders = typeof(Foodplanner.Infrastructure.AssemblyMarker).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Foodplanner.Infrastructure.Oda" && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false))
+            .SelectMany(t => t.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly)
+                .Where(f => !f.IsLiteral && (!f.IsInitOnly || (f.FieldType != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(f.FieldType))))
+                .Select(f => $"{t.FullName}.{f.Name}"))
+            .ToArray();
+
+        Assert.Empty(offenders);
     }
 
     [Fact]

@@ -31,6 +31,8 @@ builder.Services.AddScoped<ICurrentHousehold>(services => services.GetRequiredSe
 // T-034: SignalR hub and the notifier that broadcasts shopping list changes to it.
 builder.Services.AddShoppingListSync();
 builder.Services.AddMealPlanServices();
+// T-053: the encrypted flow cookie of the session-only Oda sign-in (Data Protection; the shared key ring is T-016).
+builder.Services.AddSingleton<OdaFlowCookie>();
 
 var app = builder.Build();
 
@@ -105,6 +107,7 @@ api.MapRecipeLikeEndpoints();
 api.MapRecipeSuggestionEndpoints();
 api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
+api.MapOdaEndpoints();
 api.MapPantryEndpoints();
 api.MapWeeklyGroceryEndpoints();
 api.MapGrocerySuggestionEndpoints();

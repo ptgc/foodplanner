@@ -28,6 +28,9 @@ public static class RateLimitPolicies
 
     /// <summary>Deleting the account (T-095): by client IP and user. The per-email limit and the account lockout of sign-in apply too.</summary>
     public const string AccountDelete = "account-delete";
+
+    /// <summary>Starting and completing the Oda cart flow (T-053): by user.</summary>
+    public const string OdaAction = "oda-action";
 }
 
 public sealed class LimitOptions
@@ -65,6 +68,9 @@ public sealed class RateLimitOptions
 
     /// <summary>Deleting the account (T-095), per client IP and user.</summary>
     public LimitOptions AccountDelete { get; set; } = new() { PermitLimit = 5, WindowSeconds = 60 };
+
+    /// <summary>Oda cart flow (T-053), per user: 10 per minute across <c>oda/start</c> and <c>oda/cart</c>.</summary>
+    public LimitOptions Oda { get; set; } = new() { PermitLimit = 10, WindowSeconds = 60 };
 
     /// <summary>Recipe imports from a URL (T-042), per user: 10 per 10 minutes. See <see cref="UrlImportRateLimiter"/>.</summary>
     public LimitOptions UrlImport { get; set; } = new() { PermitLimit = 10, WindowSeconds = 600 };
@@ -132,6 +138,9 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.HouseholdExport, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Export.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.OdaAction, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Oda.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.ExternalSignin, http =>
                 RateLimitPartition.GetFixedWindowLimiter($"ip:{ClientIp(http)}", _ => limits.ExternalSignin.ToFixedWindow()));
         });

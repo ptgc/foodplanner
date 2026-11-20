@@ -1,0 +1,8 @@
+{
+  "groups": [ { "id": "default", "title": "Cart", "groupType": "default", "items": [] } ],
+  "productQuantityCount": 0,
+  "totalGrossAmount": "0.00",
+  "totalBreakdown": { "subtotal": "0.00", "productDiscounts": "0.00", "couponDiscount": "0.00", "surcharge": "0.00", "bottleDeposit": "0.00", "packaging": "0.00", "deliveryFee": "0.00", "total": "0.00", "surchargeThresholdDescription": null },
+  "url": "https://oda.com/no/cart/",
+  "validationMessages": [ "Fake: an item in your cart is sold out and blocks checkout." ]
+}

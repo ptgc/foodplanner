@@ -115,7 +115,7 @@ public sealed class ShoppingListExportEndpointTests(AuthDatabase db) : IClassFix
         Assert.Equal(HttpStatusCode.BadRequest, tuesday.StatusCode);
         Assert.True((await tuesday.JsonAsync()).GetProperty("errors").TryGetProperty("weekStart", out _));
 
-        using var format = await owner.Client.GetAsync(Url(household, "?format=oda"));
+        using var format = await owner.Client.GetAsync(Url(household, "?format=zip"));
         Assert.Equal(HttpStatusCode.BadRequest, format.StatusCode);
         Assert.True((await format.JsonAsync()).GetProperty("errors").TryGetProperty("format", out _));
     }

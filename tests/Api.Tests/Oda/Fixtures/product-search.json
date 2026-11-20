@@ -1,0 +1,17 @@
+{
+  "rice": [
+    {"id":1001,"name":"Fake Basmatiris 1 kg","description":"Ris","price":"39.90","unitPrice":"39.90","unitName":"kg","brand":"Fake","brandId":11,"url":"https://oda.com/no/products/1001-fake-basmatiris/","availability":{"isAvailable":true,"description":"Available","code":"available"}},
+    {"id":1004,"name":"Fake Jasminris 1 kg","description":"Ris","price":"42.90","unitPrice":"42.90","unitName":"kg","brand":"Fake","brandId":11,"url":"https://oda.com/no/products/1004-fake-jasminris/","availability":{"isAvailable":true,"description":"Available","code":"available"}}
+  ],
+  "egg": [
+    {"id":1002,"name":"Fake Egg 6 stk (utsolgt)","description":"Egg","price":"29.90","unitPrice":"4.98","unitName":"stk","brand":"Fake","brandId":12,"url":"https://oda.com/no/products/1002-fake-egg/","availability":{"isAvailable":false,"description":"Sold out","code":"sold_out"}},
+    {"id":1003,"name":"Fake Egg 12 stk","description":"Egg","price":"54.90","unitPrice":"4.58","unitName":"stk","brand":"Fake","brandId":12,"url":"https://oda.com/no/products/1003-fake-egg-12/","availability":{"isAvailable":true,"description":"Available","code":"available"}}
+  ],
+  "kaffefilter": [],
+  "melk": [
+    {"id":1005,"name":"Fake Melk 1 l (utsolgt)","description":"Melk","price":"24.90","unitPrice":"24.90","unitName":"l","brand":"Fake","brandId":13,"url":"https://oda.com/no/products/1005-fake-melk/","availability":{"isAvailable":false,"description":"Sold out","code":"sold_out_supplier"}}
+  ],
+  "refused": [
+    {"id":1006,"name":"Fake Refused Product","description":"x","price":"10.00","unitPrice":"10.00","unitName":"stk","brand":null,"brandId":null,"url":null,"availability":{"isAvailable":true,"description":"Available","code":"available"}}
+  ]
+}

@@ -1,0 +1,156 @@
+[
+  {
+    "name": "product_search",
+    "title": "Search for products",
+    "description": "Search for products by name or keywords for one or more query strings. Returns matching products per query with has_more when more results exist. Pagination is batch-wide: the same page and size apply to every query in the batch. Use get_category or get_brand to browse by category or brand instead.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "queries": {
+          "description": "A list of query strings to search for products. Maximum 10 queries allowed.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10,
+          "minItems": 1,
+          "type": "array"
+        },
+        "page": {
+          "default": 1,
+          "description": "Page number for products.",
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "size": {
+          "default": 5,
+          "description": "Maximum number of products to return per page.",
+          "maximum": 20,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "queries"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_cart",
+    "title": "Get cart",
+    "description": "Return the current user's cart: product lines grouped by source, summary totals, total_breakdown (subtotal, discounts, surcharge, bottle deposit, packaging, delivery fee, and surcharge threshold description), delivery address, selected delivery slot, and a url to open the cart in the shop. Use to inspect contents, explain fees, summarize what is in the cart, or help the user prepare for checkout. Checkout and payment happen in the shop — share the url field as a clickable link when the user is ready to review and pay.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "manipulate_cart",
+    "title": "Update cart",
+    "description": "Apply one or more cart operations and return the updated cart. Each operation targets exactly one of: product_id, recipe_id, product_list_id (shopping or dinner list id), or order_number. For product_id, recipe_id, and product_list_id, positive quantity adds and negative reduces or removes. order_number re-adds all products from that order regardless of quantity. Quantities are always relative to what the cart already holds, never an exact target, so to reach a specific quantity call get_cart first and send the difference. To remove a product completely, send a negative quantity at least as large as the amount in the cart; overshooting is safe because removals stop at zero. Use from_recipe_portions when adding a recipe. Returns the updated cart with a checkout url.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "items": {
+            "description": "A single cart manipulation operation.\n\nExactly one of product_id, recipe_id, product_list_id, or order_number must be set.",
+            "properties": {
+              "quantity": {
+                "description": "How much to add (positive) or remove (negative) for product_id, recipe_id and product_list_id operations. Always a delta, not a target quantity. For product_id, removals apply across all cart lines for that product, including recipe and list lines; overshooting is safe. Ignored for order_number operations, which always re-add all products from the order.",
+                "type": "integer"
+              },
+              "productId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a product to add to or reduce in the cart."
+              },
+              "recipeId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a recipe to add to or remove from the cart."
+              },
+              "productListId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "ID of a shopping list or dinner list whose contents should be added to or removed from the cart. Dinner lists are product lists and use the same id field."
+              },
+              "orderNumber": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Order number whose products should be re-added to the cart. Always adds; quantity is ignored and a negative quantity does not remove the order."
+              },
+              "fromRecipePortions": {
+                "anyOf": [
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Number of portions when adding a recipe. Uses the user's preferred portion count or the recipe default when omitted."
+              }
+            },
+            "required": [
+              "quantity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "required": [
+        "operations"
+      ],
+      "type": "object"
+    }
+  }
+]
