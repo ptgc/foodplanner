@@ -15,6 +15,23 @@ public sealed class LoginTests(AuthDatabase db) : IClassFixture<AuthDatabase>, I
     public ValueTask DisposeAsync() => _host.DisposeAsync();
 
     [Fact]
+    public async Task Session_survives_a_fake_clock_pinned_far_in_the_past()
+    {
+        // The server stamps the cookie's Expires from the fake clock; the test client's cookie jar uses the real clock.
+        // A clock pinned months back must not make the jar drop the cookie (the test host uses a very long lifetime).
+        _host.Time.Now = DateTimeOffset.UtcNow.AddDays(-90);
+        var email = AuthHost.NewEmail();
+        await _host.CreateUserAsync(email);
+        using var client = _host.CreateClient();
+
+        using var login = await client.LoginAsync(email, AuthHost.Password);
+        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+
+        using var me = await client.GetAsync("/api/auth/me");
+        Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+    }
+
+    [Fact]
     public async Task Login_logout_round_trip()
     {
         var email = AuthHost.NewEmail();
