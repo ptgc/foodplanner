@@ -123,6 +123,10 @@ public sealed class AuthHost : IAsyncDisposable
         {
             ["ConnectionStrings:Default"] = connectionString,
             ["Email:Provider"] = "Recording",
+            // The server stamps the auth cookie's absolute Expires from the fake clock, but the test HttpClient's cookie jar
+            // judges it against the real clock. A test that pins the fake clock more than the normal lifetime (14 days) in the
+            // past would have its cookie dropped as already expired (401). A very long lifetime keeps tests date-independent.
+            ["Auth:CookieLifetimeDays"] = "36500",
             ["RateLimiting:Auth:PermitLimit"] = "1000",
             ["RateLimiting:LoginByEmail:PermitLimit"] = "1000",
             ["RateLimiting:Export:PermitLimit"] = "1000",
