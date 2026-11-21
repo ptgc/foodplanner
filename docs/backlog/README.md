@@ -142,3 +142,5 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-112 | Grocery suggestion dismissal race test fails intermittently | L3 | T-110 | implementer-backend | no |
 | T-113 | Privacy page | M4 | T-077 | implementer-frontend | no |
 | T-114 | Oda cart fill prefers what the household usually buys (later) | M4 | T-053 | implementer-backend | no |
+| T-115 | Oda follow-ups: https return address and revoke on cancel | M4 | T-053 | implementer-backend | no |
+| T-116 | Oda follow-ups: result numbers, stale pending entry, bundle budget | M4 | T-054 | implementer-frontend | no |
