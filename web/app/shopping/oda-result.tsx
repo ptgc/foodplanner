@@ -46,13 +46,28 @@ export function OdaResult({ result, pending }: { result: OdaCompleteResult; pend
   );
 }
 
+/** A formatted quantity, the raw text when it is not a number, or null when there is nothing to show (never "NaN"). */
+export function quantityText(value: unknown, format: (n: number) => string): string | null {
+  if (typeof value === "number") return Number.isFinite(value) ? format(value) : null;
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (text === "" || text.toLowerCase() === "nan") return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? format(n) : text;
+}
+
 function AddedList({ lines }: { lines: OdaCart["added"] }) {
   const { t, formatNumber } = useI18n();
   return (
     <ul className="oda-list" data-testid="oda-added">
       {lines.map((l, i) => (
         <li key={`${l.itemId}-${i}`}>
-          {t("oda.result.addedLine", { name: l.name, productName: l.productName, quantity: formatNumber(Number(l.quantity)) })}
+          {(() => {
+            const quantity = quantityText(l.quantity, formatNumber);
+            return quantity === null
+              ? t("oda.result.addedLineNoQuantity", { name: l.name, productName: l.productName })
+              : t("oda.result.addedLine", { name: l.name, productName: l.productName, quantity });
+          })()}
         </li>
       ))}
     </ul>

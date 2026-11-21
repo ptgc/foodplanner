@@ -192,6 +192,7 @@ export const nb: Dictionary = {
   "oda.result.cancelled": "Du avbrøt hos Oda. Ingenting ble lagt i kurven.",
   "oda.result.added": "Lagt i kurven",
   "oda.result.addedLine": "{name}: {productName}, {quantity}",
+  "oda.result.addedLineNoQuantity": "{name}: {productName}",
   "oda.result.notAdded": "Ikke lagt i kurven",
   "oda.result.notAddedLine": "{name}: {reason}",
   "oda.reason.no-match": "fant ikke noe produkt",

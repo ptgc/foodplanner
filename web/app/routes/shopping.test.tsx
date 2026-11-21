@@ -894,7 +894,7 @@ describe("send to Oda (T-054)", () => {
 
     await waitFor(() => expect(go).toHaveBeenCalledWith("https://oda.example/authorize?x=1"));
     expect(server.odaStarts).toEqual([{ confirmed: true }]);
-    expect(JSON.parse(window.sessionStorage.getItem("foodplanner.oda.pending")!)).toEqual({ householdId: "h1", weekStart: week });
+    expect(JSON.parse(window.sessionStorage.getItem("foodplanner.oda.pending")!)).toEqual({ householdId: "h1", weekStart: week, at: expect.any(Number) });
     expect(JSON.stringify({ ...window.localStorage, ...window.sessionStorage })).not.toContain("authorize");
     window.sessionStorage.clear();
   });

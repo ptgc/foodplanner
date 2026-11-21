@@ -193,6 +193,7 @@ export const en = {
   "oda.result.cancelled": "You stopped at Oda. Nothing was added.",
   "oda.result.added": "Added",
   "oda.result.addedLine": "{name}: {productName}, {quantity}",
+  "oda.result.addedLineNoQuantity": "{name}: {productName}",
   "oda.result.notAdded": "Not added",
   "oda.result.notAddedLine": "{name}: {reason}",
   "oda.reason.no-match": "no matching product",
