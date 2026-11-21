@@ -34,13 +34,26 @@ public sealed class OdaOptions
     /// <summary>Per call to Oda.</summary>
     public int TimeoutSeconds { get; set; } = 30;
 
+    /// <summary>Own time limit for each token revoke, independent of the request's cancellation.</summary>
+    public int RevokeTimeoutSeconds { get; set; } = 10;
+
     public IReadOnlyList<string> EffectiveAllowedHosts =>
         AllowedHosts.Where(h => !string.IsNullOrWhiteSpace(h)).Select(h => h.Trim().ToLowerInvariant()).ToArray() is { Length: > 0 } hosts
             ? hosts
             : ["oda.com"];
 
+    /// <summary>Hosts that may use plain http (local development only).</summary>
+    public static bool IsLocalHost(Uri uri) => uri.Host is "localhost" or "127.0.0.1" or "[::1]";
+
+    /// <summary>The return address, or null when the origin is invalid or plain http on a non-local host.</summary>
     public Uri? RedirectUri =>
-        Uri.TryCreate(WebOrigin?.Trim().TrimEnd('/') + CallbackPath, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" ? uri : null;
+        Uri.TryCreate(WebOrigin?.Trim().TrimEnd('/') + CallbackPath, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || (uri.Scheme == Uri.UriSchemeHttp && IsLocalHost(uri)))
+            ? uri
+            : null;
+
+    /// <summary>True when a client id and an origin are set but the origin is refused (not https, not a local host), so Oda counts as not configured.</summary>
+    public bool HasInsecureOrigin => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(WebOrigin) && RedirectUri is null;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && RedirectUri is not null;
 

@@ -112,6 +112,8 @@ public sealed class OdaClientTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunAsync(provider, cancellation.Token));
 
         Assert.Contains(fake.RevokeRequests, r => OdaHost.Form(r.Body)["token"] == fake.AccessToken);
+        Assert.False(fake.RevokeTokenWasCancelled); // not the request's token
+        Assert.True(fake.RevokeHadOwnTimeout); // its own timeout instead
     }
 
     // ---- Nothing is kept ---------------------------------------------------------------------------------------------

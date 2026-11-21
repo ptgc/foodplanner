@@ -47,6 +47,12 @@ internal sealed class FakeOda : HttpMessageHandler
 
     public int RevokeFailures { get; set; }
 
+    /// <summary>True when a revoke call arrived with an already cancelled token (it must not use the request's).</summary>
+    public bool RevokeTokenWasCancelled { get; private set; }
+
+    /// <summary>True when the revoke call carried a cancellable token, that is its own timeout.</summary>
+    public bool RevokeHadOwnTimeout { get; private set; }
+
     public bool Sse { get; set; }
 
     /// <summary>Tools left out of <c>tools/list</c>.</summary>
@@ -126,7 +132,7 @@ internal sealed class FakeOda : HttpMessageHandler
             "/.well-known/oauth-protected-resource/mcp" => Json(Fixture("prm.json")),
             "/.well-known/oauth-authorization-server/o" => Json(Metadata()),
             "/o/token/" => Token(),
-            "/o/revoke_token/" => Revoke(body),
+            "/o/revoke_token/" => Revoke(body, cancellationToken),
             "/mcp" => Mcp(recorded, body, cancellationToken),
             _ => new HttpResponseMessage(HttpStatusCode.NotFound),
         };
@@ -160,8 +166,10 @@ internal sealed class FakeOda : HttpMessageHandler
         return Json(token);
     }
 
-    private HttpResponseMessage Revoke(string body)
+    private HttpResponseMessage Revoke(string body, CancellationToken cancellationToken)
     {
+        RevokeTokenWasCancelled |= cancellationToken.IsCancellationRequested;
+        RevokeHadOwnTimeout = cancellationToken.CanBeCanceled;
         var call = Interlocked.Increment(ref _revokeCalls);
         if (call <= RevokeFailures)
         {

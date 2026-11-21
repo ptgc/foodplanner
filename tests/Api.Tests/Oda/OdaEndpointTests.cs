@@ -194,6 +194,18 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
         Assert.Equal(0, fake.RequestCount);
     }
 
+    [Fact]
+    public async Task Start_with_a_plain_http_non_local_origin_is_not_configured()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake, null, ("Oda:WebOrigin", "http://app.example.com"));
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        using var start = await owner.Client.PostAsync(OdaHost.Url(household, "start"), new { confirmed = true });
+        await start.AssertProblemAsync(HttpStatusCode.NotFound, "oda-not-configured");
+        Assert.Equal(0, fake.RequestCount);
+    }
+
     // ---- Flow state --------------------------------------------------------------------------------------------------
 
     [Fact]

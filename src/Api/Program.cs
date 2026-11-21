@@ -36,6 +36,11 @@ builder.Services.AddSingleton<OdaFlowCookie>();
 
 var app = builder.Build();
 
+if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Foodplanner.Infrastructure.Oda.OdaOptions>>().Value.HasInsecureOrigin)
+{
+    app.Logger.LogWarning("Oda:WebOrigin must be https (http is allowed only for localhost, 127.0.0.1 and [::1]); the Oda flow is disabled.");
+}
+
 // One-shot host command (scripts/local-seed): seeds the local admin and exits. Refuses outside Development.
 if (args.Contains(LocalAdminSeeder.Command))
 {

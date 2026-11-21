@@ -198,14 +198,19 @@ public sealed class OdaOAuth(OdaHttp http, IOptions<OdaOptions> options)
                         new("client_id", Settings.ClientId!.Trim()),
                     ]),
                 };
-                // Not the request's token: revoking must still happen when the request was cancelled. The client timeout bounds it.
-                if ((await http.SendAsync(request, CancellationToken.None)).IsSuccess)
+                // Not the request's token: revoking must still happen when the request was cancelled. Its own timeout bounds it.
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(Math.Max(1, Settings.RevokeTimeoutSeconds)));
+                if ((await http.SendAsync(request, timeout.Token)).IsSuccess)
                 {
                     return true;
                 }
             }
             catch (ProviderUnavailableException)
             {
+            }
+            catch (OperationCanceledException)
+            {
+                // The revoke's own timeout elapsed; try again.
             }
         }
 
