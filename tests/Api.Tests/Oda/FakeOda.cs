@@ -53,6 +53,9 @@ internal sealed class FakeOda : HttpMessageHandler
     /// <summary>True when the revoke call carried a cancellable token, that is its own timeout.</summary>
     public bool RevokeHadOwnTimeout { get; private set; }
 
+    /// <summary>Revoke calls never answer (until their token is cancelled).</summary>
+    public bool RevokeHangs { get; set; }
+
     public bool Sse { get; set; }
 
     /// <summary>Tools left out of <c>tools/list</c>.</summary>
@@ -127,6 +130,11 @@ internal sealed class FakeOda : HttpMessageHandler
         }
 
         var path = request.RequestUri!.AbsolutePath;
+        if (path == "/o/revoke_token/" && RevokeHangs)
+        {
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+        }
+
         return path switch
         {
             "/.well-known/oauth-protected-resource/mcp" => Json(Fixture("prm.json")),

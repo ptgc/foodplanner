@@ -533,6 +533,19 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
     }
 
     [Fact]
+    public async Task A_revoke_that_never_answers_times_out_twice_and_reports_the_connection_open()
+    {
+        var fake = new FakeOda { IssueRefreshToken = false, RevokeHangs = true };
+        await using var host = Host(fake, null, ("Oda:RevokeTimeoutSeconds", "1"));
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Equal(2, fake.RevokeRequests.Count);
+        Assert.False(result.GetProperty("connectionClosed").GetBoolean());
+    }
+
+    [Fact]
     public async Task A_single_revoke_failure_is_retried_once_and_closes_the_connection()
     {
         var fake = new FakeOda { IssueRefreshToken = false, RevokeFailures = 1 };
