@@ -11,3 +11,4 @@ Implement exactly one backlog task. Read CLAUDE.md, docs/domain.md, relevant ADR
 For a new or changed HTTP route, follow the add-endpoint skill (.claude/skills/add-endpoint/SKILL.md).
 Follow existing patterns; copy the structure of the nearest existing feature. Write tests with the code. Keep Domain pure.
 Run ./scripts/verify.sh and finish with the finish-task skill. Stay inside task scope; raise a question instead of guessing.
+For a new entity or table follow the add-tenant-entity skill; for any model change follow the add-migration skill (.claude/skills/).
