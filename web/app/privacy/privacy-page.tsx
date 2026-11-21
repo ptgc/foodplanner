@@ -28,14 +28,17 @@ export default function PrivacyPage() {
           <li>{t("privacy.stores.recipes")}</li>
           <li>{t("privacy.stores.plans")}</li>
         </ul>
+        <p>{t("privacy.stores.records")}</p>
         <p>{t("privacy.stores.visible")}</p>
         <p>{t("privacy.stores.device")}</p>
+        <p>{t("privacy.stores.deviceClear")}</p>
       </section>
 
       <section aria-labelledby="privacy-cookies">
         <h2 id="privacy-cookies">{t("privacy.cookies.title")}</h2>
         <ul>
           <li>{t("privacy.cookies.signin")}</li>
+          <li>{t("privacy.cookies.xsrf")}</li>
           <li>{t("privacy.cookies.oda")}</li>
         </ul>
         <p>{t("privacy.cookies.none")}</p>
@@ -62,6 +65,7 @@ export default function PrivacyPage() {
           </p>
         )}
         <p>{t("privacy.rights.delete")}</p>
+        <p>{t("privacy.rights.handover")}</p>
         {showLinks && (
           <p>
             <Link className="button" to="/account/delete" data-testid="privacy-delete-link">
