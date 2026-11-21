@@ -131,21 +131,26 @@ const pendingKey = "foodplanner.oda.pending";
 
 export type OdaPending = { householdId: string; weekStart: string };
 
-export function rememberPending(pending: OdaPending): void {
+/** The same lifetime as the server's flow cookie: an entry older than this is a forgotten attempt. */
+export const pendingTtlMs = 10 * 60 * 1000;
+
+/** Remembers the week for the callback. Every send overwrites the entry (and so restarts the 10 minutes). */
+export function rememberPending(pending: OdaPending, now: number = Date.now()): void {
   try {
-    window.sessionStorage.setItem(pendingKey, JSON.stringify(pending));
+    window.sessionStorage.setItem(pendingKey, JSON.stringify({ ...pending, at: now }));
   } catch {
     // Blocked storage: the callback then cannot find the week and says so.
   }
 }
 
-/** Reads and clears the pending week. */
-export function takePending(): OdaPending | null {
+/** Reads and clears the pending week. An entry older than 10 minutes (or without a timestamp) is ignored. */
+export function takePending(now: number = Date.now()): OdaPending | null {
   try {
     const raw = window.sessionStorage.getItem(pendingKey);
     window.sessionStorage.removeItem(pendingKey);
     if (!raw) return null;
-    const v = JSON.parse(raw) as Partial<OdaPending>;
+    const v = JSON.parse(raw) as Partial<OdaPending> & { at?: unknown };
+    if (typeof v.at !== "number" || !Number.isFinite(v.at) || now - v.at > pendingTtlMs) return null;
     return typeof v.householdId === "string" && typeof v.weekStart === "string" ? { householdId: v.householdId, weekStart: v.weekStart } : null;
   } catch {
     return null;
