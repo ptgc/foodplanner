@@ -194,6 +194,18 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
         Assert.Equal(0, fake.RequestCount);
     }
 
+    [Fact]
+    public async Task Start_with_a_plain_http_non_local_origin_is_not_configured()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake, null, ("Oda:WebOrigin", "http://app.example.com"));
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        using var start = await owner.Client.PostAsync(OdaHost.Url(household, "start"), new { confirmed = true });
+        await start.AssertProblemAsync(HttpStatusCode.NotFound, "oda-not-configured");
+        Assert.Equal(0, fake.RequestCount);
+    }
+
     // ---- Flow state --------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -518,6 +530,19 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
         Assert.False(result.GetProperty("connectionClosed").GetBoolean());
         Assert.Contains("Privacy & security", result.GetProperty("connectionMessage").GetString(), StringComparison.Ordinal);
         Assert.Equal("done", result.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task A_revoke_that_never_answers_times_out_twice_and_reports_the_connection_open()
+    {
+        var fake = new FakeOda { IssueRefreshToken = false, RevokeHangs = true };
+        await using var host = Host(fake, null, ("Oda:RevokeTimeoutSeconds", "1"));
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Equal(2, fake.RevokeRequests.Count);
+        Assert.False(result.GetProperty("connectionClosed").GetBoolean());
     }
 
     [Fact]
