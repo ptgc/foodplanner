@@ -101,6 +101,11 @@ export default function Login() {
           {t("login.createAccount")}
         </Link>
       </p>
+      <p>
+        <Link to="/privacy" className="auth-link" data-testid="privacy-link">
+          {t("privacy.link")}
+        </Link>
+      </p>
     </main>
   );
 }

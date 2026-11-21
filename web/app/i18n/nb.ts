@@ -33,6 +33,7 @@ export const nb: Dictionary = {
     "Du er logget inn, men nettleseren beholdt ikke øktinformasjonskapselen. Safari lagrer ikke sikre informasjonskapsler på http://localhost; prøv Chrome eller bruk https.",
 
   "login.createAccount": "Opprett konto",
+  "privacy.link": "Personvern",
   "login.passwordSet": "Passordet er satt. Logg inn med det.",
   "login.accountDeleted": "Kontoen din er slettet.",
 

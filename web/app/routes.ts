@@ -4,6 +4,7 @@ export default [
   route("login", "routes/login.tsx"),
   route("register", "routes/register.tsx"),
   route("set-password", "routes/set-password.tsx"),
+  route("privacy", "routes/privacy.tsx"),
   layout("routes/shell.tsx", [
     index("routes/home.tsx"),
     route("recipes", "routes/recipes.tsx"),
