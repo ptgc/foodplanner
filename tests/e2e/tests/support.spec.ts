@@ -2,7 +2,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { adminState, expect, memberCredentials, signIn, test, uniqueStamp } from "./fixtures";
 
 test.use({ storageState: adminState });
-test.setTimeout(180_000);
+test.setTimeout(120_000);
 
 // T-096: the system admin support pages. The seeded admin is on Support:SystemAdminEmails (local-secrets copies Seed:AdminEmail
 // there), so /support is theirs; the seeded member is not. The test works in its OWN household (named with the run tag), which
@@ -83,7 +83,7 @@ test("the admin starts a read session, sees the members and ends the session; a 
     expect(rows.map((r) => r.action)).toContain("view.members");
 
     // A signed-in account that is not a system admin sees a plain "not found", and the API refuses the support routes.
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] }, viewport: { width: 390, height: 844 } });
     try {
       const memberPage = await context.newPage();
       await signIn(memberPage, "/support", memberCredentials());
