@@ -152,3 +152,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-122 | Local demo household "Håvard og Rikke" | L3 | T-029 | implementer-backend | no |
 | T-123 | Household plan: Claude limits per household, set by the super admin | M4 | T-096, T-118 | implementer-backend | yes |
 | T-124 | Sign in as household or as super admin; separate super admin account (later) | M4 | T-096, T-010 | implementer-frontend | no |
+| T-125 | Photo import hardening (review follow-ups from T-118) | M4 | T-118 | implementer-backend | no |
