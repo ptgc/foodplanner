@@ -71,6 +71,28 @@ if (Get-Secret 'Seed:MemberPassword') {
     Write-Host 'Generated Seed:MemberPassword.'
 }
 
+# T-122: demo household owner "Håvard og Rikke". The address is on example.test, which can never receive mail.
+if (Get-Secret 'Seed:DemoEmail') {
+    Write-Host 'Seed:DemoEmail already set, keeping it.'
+} else {
+    dotnet user-secrets set Seed:DemoEmail havard.rikke@example.test --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Set Seed:DemoEmail.'
+}
+
+if (Get-Secret 'Seed:DemoPassword') {
+    Write-Host 'Seed:DemoPassword already set, keeping it.'
+} else {
+    $chars = [char[]]'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    $rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $bytes = New-Object byte[] 20
+    $rng.GetBytes($bytes)
+    $dpw = -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
+    dotnet user-secrets set Seed:DemoPassword $dpw --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Generated Seed:DemoPassword.'
+}
+
 if (Get-Secret 'ConnectionStrings:Default') {
     Write-Host 'ConnectionStrings:Default already set, keeping it.'
 } else {

@@ -59,6 +59,22 @@ else
   echo "Generated Seed:MemberPassword."
 fi
 
+# T-122: demo household owner "Håvard og Rikke". The address is on example.test, which can never receive mail.
+if has Seed:DemoEmail; then
+  echo "Seed:DemoEmail already set, keeping it."
+else
+  dotnet user-secrets set Seed:DemoEmail havard.rikke@example.test --project src/Api >/dev/null
+  echo "Set Seed:DemoEmail."
+fi
+
+if has Seed:DemoPassword; then
+  echo "Seed:DemoPassword already set, keeping it."
+else
+  dpw="$(head -c 64 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
+  dotnet user-secrets set Seed:DemoPassword "${dpw:0:20}" --project src/Api >/dev/null
+  echo "Generated Seed:DemoPassword."
+fi
+
 if has ConnectionStrings:Default; then
   echo "ConnectionStrings:Default already set, keeping it."
 else
