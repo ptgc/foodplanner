@@ -46,6 +46,9 @@ public static class SupportActions
     public const string ViewShoppingList = "view.shopping-list";
     public const string ViewRecipes = "view.recipes";
     public const string ViewAccessLog = "view.access-log";
+    public const string ViewPlan = "view.plan";
+    public const string PlanSet = "plan.set";
+    public const string PlanReset = "plan.reset";
     public const string InviteCancel = "invite.cancel";
     public const string MemberPromoteOwner = "member.promote-owner";
     public const string MemberPinUnlock = "member.pin-unlock";

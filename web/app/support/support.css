@@ -94,3 +94,20 @@
   align-items: center;
   margin-bottom: 0.75rem;
 }
+
+/* Subscription panel (T-123): a label and three limits; every control is at least 44px. */
+.support-plan-form {
+  margin-top: 1rem;
+}
+
+.support-plan-limit .support-radio input {
+  min-width: 1.25rem;
+}
+
+.support-plan-limit input[type="number"] {
+  max-width: 10rem;
+}
+
+.support-plan-default {
+  color: #4a4a55;
+}

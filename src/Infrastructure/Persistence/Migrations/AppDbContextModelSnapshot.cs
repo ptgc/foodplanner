@@ -4525,6 +4525,50 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("Households", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.Tenancy.HouseholdPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("LineHelpPerDay")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LineHelpPerMonth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int?>("PhotoImportsPerDay")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdPlans", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_HouseholdPlans_LineHelpPerDay", "[LineHelpPerDay] IS NULL OR ([LineHelpPerDay] >= 0 AND [LineHelpPerDay] <= 10000)");
+
+                            t.HasCheckConstraint("CK_HouseholdPlans_LineHelpPerMonth", "[LineHelpPerMonth] IS NULL OR ([LineHelpPerMonth] >= 0 AND [LineHelpPerMonth] <= 10000)");
+
+                            t.HasCheckConstraint("CK_HouseholdPlans_PhotoImportsPerDay", "[PhotoImportsPerDay] IS NULL OR ([PhotoImportsPerDay] >= 0 AND [PhotoImportsPerDay] <= 10000)");
+                        });
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.Tenancy.Invite", b =>
                 {
                     b.Property<Guid>("Id")
@@ -5172,6 +5216,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Tenancy.HouseholdPlan", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.Tenancy.Invite", b =>

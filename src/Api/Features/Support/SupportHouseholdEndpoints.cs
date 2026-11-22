@@ -14,7 +14,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Foodplanner.Api.Features.Support;
 
 /// <summary>
-/// The household overview. <c>Plan</c> is empty until household plans exist (T-123 fills it); today no plan is stored.
+/// The household overview. <c>Plan</c> is the label of the household's custom plan (T-123), or null (default plan, or a plan without a label).
 /// </summary>
 public sealed record SupportHouseholdOverview(
     Guid Id,
@@ -145,6 +145,8 @@ public static class SupportHouseholdEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
+        household.MapSupportPlanEndpoints();
+
         return support;
     }
 
@@ -171,7 +173,7 @@ public static class SupportHouseholdEndpoints
             household.Id,
             household.Name,
             household.CreatedAt,
-            Plan: null,
+            Plan: await db.HouseholdPlans.AsNoTracking().Select(p => p.Name).FirstOrDefaultAsync(cancellationToken),
             await db.Memberships.CountAsync(cancellationToken),
             await db.Memberships.CountAsync(m => m.Role == HouseholdRole.Owner, cancellationToken),
             await db.Invites.CountAsync(i => i.AcceptedAt == null && i.ExpiresAt > now, cancellationToken),

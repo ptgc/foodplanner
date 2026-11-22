@@ -87,8 +87,8 @@ public sealed record RecipeImportResponse(
 /// <summary>The cropped dish picture of a photo import (T-118), served by <c>GET imports/{id}/picture</c> until the import is saved or discarded.</summary>
 public sealed record SuggestedImageResponse(string Url);
 
-/// <summary>What is left of the household's photo imports today (T-118). Also on the answer of a successful photo import, so the screen updates without another request.</summary>
-public sealed record PhotoUsageResponse(int RemainingToday, int DailyLimit);
+/// <summary>What is left of the household's photo imports today (T-118; for an unlimited plan, T-123, <c>Unlimited</c> is true and both numbers are null).Also on the answer of a successful photo import, so the screen updates without another request.</summary>
+public sealed record PhotoUsageResponse(int? RemainingToday, int? DailyLimit, bool Unlimited = false);
 
 public sealed record RecipeImportSummaryResponse(Guid Id, ImportSource Source, string? SourceUrl, string Title, DateTimeOffset CreatedAt);
 

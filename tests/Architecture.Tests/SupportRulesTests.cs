@@ -33,9 +33,10 @@ public partial class SupportRulesTests
     {
         var files = Src().Where(f => !f.Path.Contains("/Migrations/", StringComparison.Ordinal)).ToList();
 
-        // The bypass lives in TenantResolution.cs only, with the same number of call sites as before T-096 (19 on dev).
+        // The bypass lives in TenantResolution.cs only: the 19 call sites of before T-096, plus the one of EnsureHouseholdPlan (T-123,
+        // the local seeder's way to read a household's plan before any household context exists).
         var resolution = Assert.Single(files, f => f.Path == TenantSourceRules.TenantResolutionFile);
-        Assert.Equal(19, Bypass().Matches(resolution.CodeWithStrings).Count);
+        Assert.Equal(20, Bypass().Matches(resolution.CodeWithStrings).Count);
         Assert.Equal([TenantSourceRules.TenantResolutionFile], files.Where(f => Bypass().IsMatch(f.CodeWithStrings)).Select(f => f.Path).ToArray());
 
         // The allow-list of files that may use a bypass or a write scope is the pre-existing one.
@@ -69,6 +70,17 @@ public partial class SupportRulesTests
                 "src/Infrastructure/Persistence/Tenancy/TenantResolution.cs",
             ],
             callers);
+    }
+
+    [Fact]
+    public void EnsureHouseholdPlan_has_exactly_one_caller_the_local_seeder()
+    {
+        var files = Src().Where(f => f.Code.Contains("EnsureHouseholdPlan", StringComparison.Ordinal)).Select(f => f.Path).Order(StringComparer.Ordinal).ToArray();
+
+        Assert.Equal(TenantSourceRules.EnsureHouseholdPlanFiles.Order(StringComparer.Ordinal).ToArray(), files);
+
+        var callers = Src().Where(f => f.Code.Contains(".EnsureHouseholdPlan(", StringComparison.Ordinal)).Select(f => f.Path).ToArray();
+        Assert.Equal(["src/Api/Seeding/LocalAdminSeeder.cs"], callers);
     }
 
     [Fact]

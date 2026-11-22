@@ -11,6 +11,7 @@ const tabs: { id: PanelId; label: MessageKey }[] = [
   { id: "invites", label: "support.tab.invites" },
   { id: "profiles", label: "support.tab.profiles" },
   { id: "plan", label: "support.tab.plan" },
+  { id: "subscription", label: "support.tab.subscription" },
   { id: "shopping", label: "support.tab.shopping" },
   { id: "recipes", label: "support.tab.recipes" },
   { id: "log", label: "support.tab.log" },

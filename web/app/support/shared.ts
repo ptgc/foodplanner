@@ -4,6 +4,12 @@ import type { MessageKey } from "../i18n";
 export type SupportSession = components["schemas"]["SupportSessionResponse"];
 export type Category = components["schemas"]["SupportReasonCategory"];
 
+/** What `run` of an {@link Action} answers when the server refused the input: the form shows the field errors and the dialog closes. */
+export const FIELD_ERRORS = "fieldErrors" as const;
+
+/** What a write action does once confirmed: the message key of a failure, `FIELD_ERRORS`, or null when it worked. */
+export type Action = { body: string; run: () => Promise<MessageKey | null | typeof FIELD_ERRORS>; onDone: () => void };
+
 export const categories: Category[] = ["LostOwner", "StuckInvite", "PinLockout", "LockedWeek", "DataProblem", "Other"];
 
 export const categoryKeys: Record<Category, MessageKey> = {

@@ -155,6 +155,51 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
     }
 
     [Fact]
+    public async Task Seed_makes_home_unlimited()
+    {
+        var admin = AuthHost.NewEmail();
+        var demoEmail = AuthHost.NewEmail();
+        await using var host = CreateHost(admin, demoEmail: demoEmail, demoSecret: SeedPassword);
+
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+
+        using var scope = host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var memberships = context.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]);
+        var adminUser = await host.FindUserAsync(admin);
+        var demoUser = await host.FindUserAsync(demoEmail);
+        var homeId = (await memberships.SingleAsync(m => m.UserId == adminUser.Id, Ct)).HouseholdId;
+        var demoId = (await memberships.SingleAsync(m => m.UserId == demoUser.Id, Ct)).HouseholdId;
+        var plans = context.HouseholdPlans.IgnoreQueryFilters([AppDbContext.TenantFilterName]).AsNoTracking();
+
+        var plan = await plans.SingleAsync(p => p.HouseholdId == homeId, Ct); // twice seeded, still one row
+        Assert.Equal("Unlimited", plan.Name);
+        Assert.True(plan.Limits.PhotoImportsPerDay.IsUnlimited);
+        Assert.True(plan.Limits.LineHelpPerDay.IsUnlimited);
+        Assert.True(plan.Limits.LineHelpPerMonth.IsUnlimited);
+        Assert.False(await plans.AnyAsync(p => p.HouseholdId == demoId, Ct)); // the demo household keeps the default plan
+    }
+
+    [Fact]
+    public async Task Seed_does_not_add_a_plan_outside_Development()
+    {
+        var admin = AuthHost.NewEmail();
+        await using var host = CreateHost(admin, "Production");
+        var before = await CountPlansAsync(host);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => LocalAdminSeeder.RunAsync(host.Services, Ct));
+
+        Assert.Equal(before, await CountPlansAsync(host));
+    }
+
+    private static async Task<int> CountPlansAsync(AuthHost host)
+    {
+        using var scope = host.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().HouseholdPlans.IgnoreQueryFilters([AppDbContext.TenantFilterName]).CountAsync(Ct);
+    }
+
+    [Fact]
     public async Task Demo_user_uses_the_default_address_when_none_is_configured()
     {
         await using var host = CreateHost(AuthHost.NewEmail(), demoSecret: SeedPassword);

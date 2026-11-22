@@ -22,8 +22,8 @@ namespace Foodplanner.Api.Features.Recipes;
 /// <summary>The multipart body of a photo import (documentation of the contract; the endpoint reads the parts itself).</summary>
 public sealed record PhotoImportUpload(IFormFile[] Photos, string? SourceName);
 
-/// <summary><c>Enabled</c> false means the feature is off (or has no key): the client hides it. <c>RemainingToday</c> counts photo imports left for the household in the current UTC day.</summary>
-public sealed record PhotoUsageStatusResponse(bool Enabled, int DailyLimit, int RemainingToday);
+/// <summary><c>Enabled</c> false means the feature is off (or has no key): the client hides it. <c>RemainingToday</c> counts photo imports left for the household in the current UTC day under its plan (T-123). <c>Unlimited</c> true means the plan has no daily limit: both numbers are null.</summary>
+public sealed record PhotoUsageStatusResponse(bool Enabled, bool Unlimited, int? DailyLimit, int? RemainingToday);
 
 /// <summary>
 /// Recipe from a photo (T-118). One to four photos of ONE recipe are read by Claude into an import draft in the existing import
@@ -92,10 +92,11 @@ public static class PhotoImportEndpoints
         var settings = options.Value;
         if (!settings.IsActive(shared.Value))
         {
-            return Results.Ok(new PhotoUsageStatusResponse(false, settings.DailyPerHousehold, 0));
+            return Results.Ok(new PhotoUsageStatusResponse(false, false, settings.DailyPerHousehold, 0));
         }
 
-        return Results.Ok(new PhotoUsageStatusResponse(true, settings.DailyPerHousehold, await limiter.PhotoRemainingTodayAsync(cancellationToken)));
+        var quota = await limiter.PhotoQuotaAsync(cancellationToken);
+        return Results.Ok(new PhotoUsageStatusResponse(true, quota.Unlimited, quota.DailyLimit, quota.Remaining));
     }
 
     private static async Task<IResult> GetPicture(
@@ -168,7 +169,7 @@ public static class PhotoImportEndpoints
         switch (await limiter.TryReservePhotoAsync(cancellationToken))
         {
             case AiReservation.HouseholdLimit:
-                return LimitReached(http.HttpContext, settings, time);
+                return await LimitReachedAsync(http.HttpContext, limiter, settings, time, cancellationToken);
             case AiReservation.GlobalLimit:
                 return AppProblems.Problem(
                     StatusCodes.Status503ServiceUnavailable, AppProblems.PhotoImportCapacity, "Photo import is full this month",
@@ -247,9 +248,9 @@ public static class PhotoImportEndpoints
             }
 
             await WriteLogAsync(db, logger, householdId, settings, prepared.Count, result, AiCallOutcome.Ok, watch, import.Id);
-            var remaining = await limiter.PhotoRemainingTodayAsync(cancellationToken);
+            var quota = await limiter.PhotoQuotaAsync(cancellationToken);
             var response = await RecipeImportEndpoints.ToResponseAsync(
-                db, import, draft, locale.Code, cancellationToken, new PhotoUsageResponse(remaining, settings.DailyPerHousehold));
+                db, import, draft, locale.Code, cancellationToken, new PhotoUsageResponse(quota.Remaining, quota.DailyLimit, quota.Unlimited));
             return Results.Created($"/api/households/{householdId}/imports/{import.Id}", response);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -423,8 +424,10 @@ public static class PhotoImportEndpoints
         }
     }
 
-    private static IResult LimitReached(HttpContext http, AiPhotoImportOptions settings, TimeProvider time)
+    private static async Task<IResult> LimitReachedAsync(
+        HttpContext http, IAiUsageLimiter limiter, AiPhotoImportOptions settings, TimeProvider time, CancellationToken cancellationToken)
     {
+        var quota = await QuotaOrFallbackAsync(limiter, settings, cancellationToken);
         var now = time.GetUtcNow();
         var tomorrow = new DateTimeOffset(now.UtcDateTime.Date.AddDays(1), TimeSpan.Zero);
         var seconds = Math.Max(1, (int)Math.Ceiling((tomorrow - now).TotalSeconds));
@@ -434,22 +437,26 @@ public static class PhotoImportEndpoints
             AppProblems.PhotoImportLimitReached,
             "Photo import limit reached",
             "Your household has used today's photo imports. Try again tomorrow, or paste the recipe text or a web address instead.",
-            new Dictionary<string, object?> { ["remainingToday"] = 0, ["dailyLimit"] = settings.DailyPerHousehold });
+            new Dictionary<string, object?> { ["unlimited"] = quota.Unlimited, ["remainingToday"] = 0, ["dailyLimit"] = quota.DailyLimit });
+    }
+
+    /// <summary>The count is a courtesy next to the problem: when it cannot be read, the default plan with nothing left is shown.</summary>
+    private static async Task<PhotoQuota> QuotaOrFallbackAsync(IAiUsageLimiter limiter, AiPhotoImportOptions settings, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await limiter.PhotoQuotaAsync(cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new PhotoQuota(false, settings.DailyPerHousehold, 0);
+        }
     }
 
     private static async Task<IResult> ProblemAsync(PhotoReadOutcome outcome, IAiUsageLimiter limiter, AiPhotoImportOptions settings, CancellationToken cancellationToken)
     {
-        var remaining = 0;
-        try
-        {
-            remaining = await limiter.PhotoRemainingTodayAsync(cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // The count is a courtesy; the problem is what matters.
-        }
-
-        var extensions = new Dictionary<string, object?> { ["remainingToday"] = remaining, ["dailyLimit"] = settings.DailyPerHousehold };
+        var quota = await QuotaOrFallbackAsync(limiter, settings, cancellationToken);
+        var extensions = new Dictionary<string, object?> { ["unlimited"] = quota.Unlimited, ["remainingToday"] = quota.Remaining, ["dailyLimit"] = quota.DailyLimit };
         const string fallback = " You can paste the recipe text or use a web address instead.";
         return outcome switch
         {

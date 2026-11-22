@@ -1,4 +1,5 @@
 using Foodplanner.Domain.Imports;
+using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -30,8 +31,23 @@ public interface IAiUsageLimiter
     /// <summary>Gives a photo reservation back (only when nothing was sent to Claude).</summary>
     Task ReleasePhotoAsync(CancellationToken cancellationToken);
 
-    /// <summary>How many photo imports the current household may still make today (never negative).</summary>
-    Task<int> PhotoRemainingTodayAsync(CancellationToken cancellationToken);
+    /// <summary>The current household's photo imports today under its plan: unlimited, or the daily limit and what is left (never negative).</summary>
+    Task<PhotoQuota> PhotoQuotaAsync(CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// What a household may still do with photo imports today (T-123). <c>Unlimited</c> carries no numbers. Lowering a limit below
+/// what was used leaves <c>Remaining</c> at 0; a plan change never resets or refunds a counter.
+/// </summary>
+public sealed record PhotoQuota(bool Unlimited, int? DailyLimit, int? Remaining);
+
+/// <summary>The default plan, read from configuration (T-123). Households without a <c>HouseholdPlan</c> row follow it live.</summary>
+public static class HouseholdPlanDefaults
+{
+    public static HouseholdPlanLimits From(AiImportOptions lineHelp, AiPhotoImportOptions photo) => new(
+        AiLimit.Configured(photo.DailyPerHousehold),
+        AiLimit.Configured(lineHelp.DailyCallsPerHousehold),
+        AiLimit.Configured(lineHelp.MonthlyCallsPerHousehold));
 }
 
 /// <summary>
@@ -40,6 +56,10 @@ public interface IAiUsageLimiter
 /// over (another day or month stored) restarts at one. The first call of a household or month inserts the row; two inserts at
 /// once hit the unique index, the loser retries as an update. A call is counted when reserved, whether or not the AI answers
 /// (it may still have cost money). The household rows go through the tenant filter, so only the current household is touched.
+/// The household's limits come from its <see cref="HouseholdPlan"/> (T-123), read once per reservation through the tenant filter
+/// (no row: the default plan from configuration, live). An unlimited limit is passed to the UPDATE as <c>int.MaxValue</c>, so the
+/// condition never fails and the counters keep counting (usage metrics); the global caps apply to every household. The plan is
+/// read before the single atomic statement, so a plan changed a moment earlier can apply to at most the requests already in flight.
 /// </summary>
 public sealed class AiUsageLimiter(
     AppDbContext db, TimeProvider time, IOptions<AiImportOptions> options, IOptions<AiPhotoImportOptions>? photoOptions = null) : IAiUsageLimiter
@@ -52,7 +72,8 @@ public sealed class AiUsageLimiter(
         var now = time.GetUtcNow();
         var day = AiUsagePeriod.Day(now);
         var month = AiUsagePeriod.Month(now);
-        if (settings.DailyCallsPerHousehold <= 0 || settings.MonthlyCallsPerHousehold <= 0)
+        var limits = await LimitsAsync(settings, photoOptions?.Value ?? new AiPhotoImportOptions(), cancellationToken);
+        if (limits.LineHelpPerDay.IsNone || limits.LineHelpPerMonth.IsNone)
         {
             return AiReservation.HouseholdLimit;
         }
@@ -62,7 +83,7 @@ public sealed class AiUsageLimiter(
             return AiReservation.GlobalLimit;
         }
 
-        if (!await ReserveHouseholdAsync(now, day, month, settings, cancellationToken))
+        if (!await ReserveHouseholdAsync(now, day, month, limits.LineHelpPerDay.ToCeiling(), limits.LineHelpPerMonth.ToCeiling(), cancellationToken))
         {
             return AiReservation.HouseholdLimit;
         }
@@ -76,11 +97,16 @@ public sealed class AiUsageLimiter(
         return AiReservation.Reserved;
     }
 
-    private async Task<bool> ReserveHouseholdAsync(
-        DateTimeOffset now, DateOnly day, DateOnly month, AiImportOptions settings, CancellationToken cancellationToken)
+    /// <summary>The current household's limits: its plan row (tenant filter, so never another household's) or the configured defaults.</summary>
+    private async Task<HouseholdPlanLimits> LimitsAsync(AiImportOptions lineHelp, AiPhotoImportOptions photo, CancellationToken cancellationToken)
     {
-        var dayLimit = settings.DailyCallsPerHousehold;
-        var monthLimit = settings.MonthlyCallsPerHousehold;
+        var plan = await db.HouseholdPlans.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
+        return HouseholdPlanLimits.Resolve(plan, HouseholdPlanDefaults.From(lineHelp, photo));
+    }
+
+    private async Task<bool> ReserveHouseholdAsync(
+        DateTimeOffset now, DateOnly day, DateOnly month, int dayLimit, int monthLimit, CancellationToken cancellationToken)
+    {
         for (var attempt = 0; attempt < Attempts; attempt++)
         {
             // UpdatedAt is intentionally not set by these ExecuteUpdate calls: a counter row's UpdatedAt is not read anywhere, and
@@ -99,9 +125,15 @@ public sealed class AiUsageLimiter(
                 return true;
             }
 
+            if (await db.AiHouseholdUsages.AnyAsync(
+                    u => !((u.MonthStart != month || u.MonthCalls < monthLimit) && (u.Day != day || u.DayCalls < dayLimit)), cancellationToken))
+            {
+                return false; // The row exists and the condition fails: a limit is reached.
+            }
+
             if (await db.AiHouseholdUsages.AnyAsync(cancellationToken))
             {
-                return false; // The row exists and the condition failed: a limit is reached.
+                continue; // The row was created by another request after our UPDATE found none: update it on the next pass.
             }
 
             var row = new AiHouseholdUsage(now);
@@ -137,9 +169,14 @@ public sealed class AiUsageLimiter(
                 return true;
             }
 
+            if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month && u.Calls >= cap, cancellationToken))
+            {
+                return false; // The month's row exists and the cap is reached.
+            }
+
             if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month, cancellationToken))
             {
-                return false;
+                continue; // Created by another request after our UPDATE found none: update it on the next pass.
             }
 
             var row = new AiGlobalUsage(now);
@@ -169,7 +206,8 @@ public sealed class AiUsageLimiter(
         var now = time.GetUtcNow();
         var day = AiUsagePeriod.Day(now);
         var month = AiUsagePeriod.Month(now);
-        if (settings.DailyPerHousehold <= 0)
+        var limits = await LimitsAsync(options.Value, settings, cancellationToken);
+        if (limits.PhotoImportsPerDay.IsNone)
         {
             return AiReservation.HouseholdLimit;
         }
@@ -179,7 +217,7 @@ public sealed class AiUsageLimiter(
             return AiReservation.GlobalLimit;
         }
 
-        if (!await ReservePhotoHouseholdAsync(now, day, settings.DailyPerHousehold, cancellationToken))
+        if (!await ReservePhotoHouseholdAsync(now, day, limits.PhotoImportsPerDay.ToCeiling(), cancellationToken))
         {
             return AiReservation.HouseholdLimit;
         }
@@ -203,12 +241,17 @@ public sealed class AiUsageLimiter(
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.PhotoCalls, u => u.PhotoCalls - 1), cancellationToken);
     }
 
-    public async Task<int> PhotoRemainingTodayAsync(CancellationToken cancellationToken)
+    public async Task<PhotoQuota> PhotoQuotaAsync(CancellationToken cancellationToken)
     {
-        var limit = (photoOptions?.Value ?? new AiPhotoImportOptions()).DailyPerHousehold;
+        var limit = (await LimitsAsync(options.Value, photoOptions?.Value ?? new AiPhotoImportOptions(), cancellationToken)).PhotoImportsPerDay;
+        if (limit.Count is not { } daily)
+        {
+            return new PhotoQuota(true, null, null);
+        }
+
         var day = AiUsagePeriod.Day(time.GetUtcNow());
         var used = await db.AiHouseholdUsages.AsNoTracking().Where(u => u.PhotoDay == day).Select(u => u.PhotoDayCalls).FirstOrDefaultAsync(cancellationToken);
-        return Math.Max(0, limit - used);
+        return new PhotoQuota(false, daily, Math.Max(0, daily - used));
     }
 
     private async Task<bool> ReservePhotoHouseholdAsync(DateTimeOffset now, DateOnly day, int limit, CancellationToken cancellationToken)
@@ -227,9 +270,14 @@ public sealed class AiUsageLimiter(
                 return true;
             }
 
+            if (await db.AiHouseholdUsages.AnyAsync(u => u.PhotoDay == day && u.PhotoDayCalls >= limit, cancellationToken))
+            {
+                return false; // The row exists and the daily limit is reached.
+            }
+
             if (await db.AiHouseholdUsages.AnyAsync(cancellationToken))
             {
-                return false;
+                continue; // Created by another request after our UPDATE found none: update it on the next pass.
             }
 
             var row = AiHouseholdUsage.ForFirstPhotoCall(now);
@@ -265,9 +313,14 @@ public sealed class AiUsageLimiter(
                 return true;
             }
 
-            if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month, cancellationToken))
+            if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month && u.PhotoCalls >= cap, cancellationToken))
             {
                 return false;
+            }
+
+            if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month, cancellationToken))
+            {
+                continue; // Created by another request after our UPDATE found none: update it on the next pass.
             }
 
             var row = AiGlobalUsage.ForFirstPhotoCall(now);

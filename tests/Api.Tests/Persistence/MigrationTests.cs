@@ -779,6 +779,55 @@ public sealed class MigrationTests(SqlServerFixture server)
     }
 
     [Fact]
+    public async Task Migration_AddHouseholdPlans()
+    {
+        var connectionString = await server.CreateDatabaseAsync("householdplans", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+        var all = context.Database.GetMigrations().ToList();
+        var plans = all.Single(id => id.EndsWith("_AddHouseholdPlans", StringComparison.Ordinal));
+
+        // The database before this migration, with households and usage counters: existing households get no plan row and behave as before.
+        await migrator.MigrateAsync(all[all.IndexOf(plans) - 1], Ct);
+        await ScalarAsync(connectionString, """
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (NEWID(), N'Before plans', @now, @now), (NEWID(), N'Also before', @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM HouseholdPlans"));
+        Assert.Equal(2, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Households"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.indexes WHERE name = N'IX_HouseholdPlans_HouseholdId' AND is_unique = 1"));
+        Assert.Equal(3, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.check_constraints WHERE parent_object_id = OBJECT_ID(N'HouseholdPlans')"));
+
+        // A second row for one household fails; a limit outside 0 to 10000 fails; unlimited (null) is fine.
+        await ScalarAsync(connectionString, """
+            INSERT INTO HouseholdPlans (Id, HouseholdId, Name, PhotoImportsPerDay, LineHelpPerDay, LineHelpPerMonth, CreatedAt, UpdatedAt)
+            SELECT NEWID(), Id, N'Unlimited', NULL, NULL, NULL, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM Households WHERE Name = N'Before plans'
+            """);
+        await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(connectionString, """
+            INSERT INTO HouseholdPlans (Id, HouseholdId, Name, PhotoImportsPerDay, LineHelpPerDay, LineHelpPerMonth, CreatedAt, UpdatedAt)
+            SELECT NEWID(), Id, N'Second', 1, 1, 1, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM Households WHERE Name = N'Before plans'
+            """));
+        foreach (var column in new[] { "PhotoImportsPerDay", "LineHelpPerDay", "LineHelpPerMonth" })
+        {
+            foreach (var value in new[] { -1, 10_001 })
+            {
+                await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(connectionString, $"""
+                    INSERT INTO HouseholdPlans (Id, HouseholdId, Name, {column}, CreatedAt, UpdatedAt)
+                    SELECT NEWID(), Id, N'Bad', {value}, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM Households WHERE Name = N'Also before'
+                    """));
+            }
+        }
+
+        // Deleting the household removes its plan (the one cascade).
+        await ScalarAsync(connectionString, "DELETE FROM Households WHERE Name = N'Before plans'");
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM HouseholdPlans"));
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    [Fact]
     public async Task AddSupportAccess_migration_applies_with_the_trigger_and_the_active_session_index_and_deleting_a_household_still_removes_everything()
     {
         var connectionString = await server.CreateDatabaseAsync("supportaccess", Ct);

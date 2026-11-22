@@ -6,17 +6,15 @@ import { ConfirmDialog } from "../household/confirm-dialog";
 import { roleKeys } from "../household/roles";
 import { useLoaded } from "../household/use-loaded";
 import { useI18n, type MessageKey } from "../i18n";
-import { categoryKeys, shiftWeek, weekStartOf } from "./shared";
+import { categoryKeys, FIELD_ERRORS, shiftWeek, weekStartOf, type Action } from "./shared";
+import { Subscription } from "./support-subscription";
 
-export type PanelId = "overview" | "members" | "invites" | "profiles" | "plan" | "shopping" | "recipes" | "log";
+export type PanelId = "overview" | "members" | "invites" | "profiles" | "plan" | "subscription" | "shopping" | "recipes" | "log";
 
 type Member = components["schemas"]["SupportMemberItem"];
 type Invite = components["schemas"]["SupportInviteItem"];
 
 type Props = { panel: PanelId; householdId: string; householdName: string; write: boolean };
-
-/** What a write action does once confirmed: the message key of a failure, or null when it worked. */
-type Action = { body: string; run: () => Promise<MessageKey | null>; onDone: () => void };
 
 function useFormats() {
   const { locale } = useI18n();
@@ -46,6 +44,11 @@ export function SupportPanels({ panel, householdId, householdName, write }: Prop
     setBusy(true);
     const key = await confirming.run();
     setBusy(false);
+    if (key === FIELD_ERRORS) {
+      setConfirming(null); // the form beside the field shows what to fix
+      return;
+    }
+
     if (key) {
       setFailure(key);
       return;
@@ -63,6 +66,7 @@ export function SupportPanels({ panel, householdId, householdName, write }: Prop
       {panel === "invites" && <Invites householdId={householdId} householdName={householdName} write={write} confirm={confirm} />}
       {panel === "profiles" && <Profiles householdId={householdId} />}
       {panel === "plan" && <Plan householdId={householdId} householdName={householdName} write={write} confirm={confirm} />}
+      {panel === "subscription" && <Subscription householdId={householdId} householdName={householdName} write={write} confirm={confirm} />}
       {panel === "shopping" && <Shopping householdId={householdId} />}
       {panel === "recipes" && <Recipes householdId={householdId} />}
       {panel === "log" && <AccessLog householdId={householdId} />}

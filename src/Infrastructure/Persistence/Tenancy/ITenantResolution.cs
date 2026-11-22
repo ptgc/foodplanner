@@ -72,6 +72,13 @@ public interface ITenantResolution
     /// the account are deleted, and before the user row is deleted (the user foreign keys are NO ACTION).
     /// </summary>
     Task<AccountErasureResult> EraseUserReferences(Guid userId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Makes sure the household has a plan with exactly this label and these limits (T-123): creates the row or replaces it, and does
+    /// nothing when it already matches. Idempotent. Its ONE caller is the Development-only local seeder (the architect's own household
+    /// is made unlimited there); in production a super admin sets plans through a support write session, which is audited.
+    /// </summary>
+    Task EnsureHouseholdPlan(Guid householdId, string? name, HouseholdPlanLimits limits, CancellationToken cancellationToken);
 }
 
 /// <summary>How many rows <see cref="ITenantResolution.EraseUserReferences"/> touched, per kind.</summary>

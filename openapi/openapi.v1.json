@@ -8792,6 +8792,174 @@
         }
       }
     },
+    "/api/support/households/{targetHouseholdId}/plan": {
+      "get": {
+        "tags": [
+          "SupportPlanEndpoints"
+        ],
+        "operationId": "GetSupportHouseholdPlan",
+        "parameters": [
+          {
+            "name": "targetHouseholdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportPlanResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "SupportPlanEndpoints"
+        ],
+        "operationId": "SetSupportHouseholdPlan",
+        "parameters": [
+          {
+            "name": "targetHouseholdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SupportPlanRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportPlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "SupportPlanEndpoints"
+        ],
+        "operationId": "ResetSupportHouseholdPlan",
+        "parameters": [
+          {
+            "name": "targetHouseholdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/support-access": {
       "get": {
         "tags": [
@@ -10792,6 +10960,7 @@
           "remainingToday": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -10800,16 +10969,22 @@
           "dailyLimit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
             "format": "int32"
+          },
+          "unlimited": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
       "PhotoUsageStatusResponse": {
         "required": [
           "enabled",
+          "unlimited",
           "dailyLimit",
           "remainingToday"
         ],
@@ -10818,9 +10993,13 @@
           "enabled": {
             "type": "boolean"
           },
+          "unlimited": {
+            "type": "boolean"
+          },
           "dailyLimit": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -10829,6 +11008,7 @@
           "remainingToday": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
+              "null",
               "integer",
               "string"
             ],
@@ -12792,6 +12972,127 @@
           }
         }
       },
+      "SupportPlanDefaults": {
+        "required": [
+          "photoImportsPerDay",
+          "lineHelpPerDay",
+          "lineHelpPerMonth"
+        ],
+        "type": "object",
+        "properties": {
+          "photoImportsPerDay": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          },
+          "lineHelpPerDay": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          },
+          "lineHelpPerMonth": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          }
+        }
+      },
+      "SupportPlanLimit": {
+        "required": [
+          "unlimited",
+          "limit"
+        ],
+        "type": "object",
+        "properties": {
+          "unlimited": {
+            "type": "boolean"
+          },
+          "limit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SupportPlanRequest": {
+        "required": [
+          "name",
+          "photoImportsPerDay",
+          "lineHelpPerDay",
+          "lineHelpPerMonth"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photoImportsPerDay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SupportPlanLimit"
+              }
+            ]
+          },
+          "lineHelpPerDay": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SupportPlanLimit"
+              }
+            ]
+          },
+          "lineHelpPerMonth": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SupportPlanLimit"
+              }
+            ]
+          }
+        }
+      },
+      "SupportPlanResponse": {
+        "required": [
+          "source",
+          "name",
+          "photoImportsPerDay",
+          "lineHelpPerDay",
+          "lineHelpPerMonth",
+          "defaults"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photoImportsPerDay": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          },
+          "lineHelpPerDay": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          },
+          "lineHelpPerMonth": {
+            "$ref": "#/components/schemas/SupportPlanLimit"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/SupportPlanDefaults"
+          }
+        }
+      },
       "SupportProfileItem": {
         "required": [
           "id",
@@ -13515,6 +13816,9 @@
     },
     {
       "name": "SupportHouseholdEndpoints"
+    },
+    {
+      "name": "SupportPlanEndpoints"
     },
     {
       "name": "SupportAccessEndpoints"
