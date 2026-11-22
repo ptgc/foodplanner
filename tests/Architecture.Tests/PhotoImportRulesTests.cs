@@ -23,7 +23,7 @@ public partial class PhotoImportRulesTests
         var options = new AiPhotoImportOptions();
 
         Assert.False(options.Enabled);
-        Assert.Equal("claude-opus-5-5", options.Model);
+        Assert.Equal("claude-sonnet-5-5", options.Model);
         Assert.Equal("medium", options.Effort);
         Assert.Equal(12_000, options.MaxOutputTokens);
         Assert.Equal(90, options.TimeoutSeconds);

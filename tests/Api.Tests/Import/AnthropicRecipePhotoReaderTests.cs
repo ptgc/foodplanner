@@ -48,7 +48,7 @@ public sealed class AnthropicRecipePhotoReaderTests(AuthDatabase db) : IClassFix
             id = "msg_test",
             type = "message",
             role = "assistant",
-            model = "claude-opus-5-5",
+            model = "claude-sonnet-5-5",
             content = new[] { new { type = "text", text } },
             stop_reason = stopReason,
             stop_sequence = (string?)null,
@@ -96,7 +96,7 @@ public sealed class AnthropicRecipePhotoReaderTests(AuthDatabase db) : IClassFix
 
         using var json = JsonDocument.Parse(Assert.Single(bodies));
         var root = json.RootElement;
-        Assert.Equal("claude-opus-5-5", root.GetProperty("model").GetString());
+        Assert.Equal("claude-sonnet-5-5", root.GetProperty("model").GetString());
         Assert.Equal(7777, root.GetProperty("max_tokens").GetInt32());
         foreach (var forbidden in new[] { "temperature", "top_p", "top_k", "thinking", "tools", "tool_choice", "stream" })
         {

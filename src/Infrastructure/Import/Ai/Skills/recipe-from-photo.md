@@ -1,4 +1,4 @@
-Version: 1
+Version: 2
 
 # Recipe from photos
 
@@ -22,12 +22,12 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 
 ## Text fields
 
-- `title`: as printed on the page.
+- `title`: the whole heading as printed, including every "med ...", "fra ..." and "i ..." part, even when it is long. Only a separate tagline in a smaller or different style under the heading (a slogan or praise line) is left out; when in doubt keep the full heading. Copy the spelling letter by letter.
 - `servings`: the number the recipe is for ("til 4", "4 porsjoner"). For "pr. skattkiste" and similar per-unit amounts use the number printed, or 1 when the amount is per single unit. For a range such as "6-7 porsjoner" use the lower number. Otherwise null.
 - `prepMinutes` and `cookMinutes`: only when printed, in whole minutes. A single total time with no split is `cookMinutes`. A range uses the upper number.
 - `description`: the tip or intro text of the page ("Kokkeknep", "Tips", "Til info", a short introduction), verbatim when short and shortened when long. Quotes from testers or readers are left out. Null when there is none.
 - `sourceBook`: what the user typed in the message, else the book title printed on the page, else null.
-- `steps`: one entry per printed step, in order, without the step number or heading. Keep the wording of the page.
+- `steps`: one entry per printed (numbered) step, in order, without the step number or heading. Keep the wording of the page. Never split one printed step into several entries and never merge two.
 - `rawText`: all text of the recipe on the page in reading order (not decoration), for the app's record.
 - All text stays in the language of the page. Do not translate.
 
@@ -36,6 +36,7 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 - Headings such as "Saus:", "Topping:", "Forslag til fyll", "Til servering", "Fyll", "Annet" are not ingredients. Put the group into the `note` of every member ("til sausen") and set `purpose` where the heading means one (Serving or Garnish for "til servering" and "topping").
 - A group or line marked optional ("valgfritt", "kan sløyfes", "evt.", "forslag til ...") sets `isOptional` to true for its members. "Forslag til tilbehør" means purpose Serving and optional.
 - An ingredient used in two groups is two lines, each with its own group note.
+- Read every line of every group to the end of the list, including the short last lines (salt, pepper, oil, lemon, "til servering"). Before you answer, check that each printed line has exactly one ingredient line. A line that names two ingredients without separate amounts ("salt og pepper", "sitron og sukker") is two lines.
 - A sub-recipe or spice mix line (a taco spice mix, "pesto, se side 72") is one ingredient line as printed; a page reference such as "se side 72" makes it optional with the reference in the `note`.
 
 ## Amounts
@@ -43,11 +44,16 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 - "0,5", "1/2" and "1½" are numbers; write them with a decimal point in JSON (0.5, 1.5).
 - A range such as "8-12" or "200-250 g" gives `quantityLow` 8 and `quantity` 12 (the upper bound); put the printed range in the `note` ("8-12"). "ca." is ignored in the number and may go in the `note`.
 - A can, jar, glass, bag, bunch or handful ("boks", "glass", "pose", "bunt", "neve") is not a unit: use `stk` (or the weight when it is printed) with the word in the `note`, for example "1 boks" gives quantity 1, unit `stk`, note "boks". "en stor neve spinat" is AsNeeded.
-- "salt og pepper" is two lines, both ToTaste, purpose Seasoning. "etter smak" is ToTaste.
+- "salt og pepper" is two lines, both ToTaste, purpose Seasoning. "etter smak" and "litt" of a seasoning ("litt nykvernet pepper") are ToTaste. AsNeeded is for "til steking", "til servering", "til panering" and a handful of leaves.
+- A line that starts with a number or fraction is Measured; read small numbers and fractions carefully, a bare "1" or "½" in front of the name is an amount. Never answer AsNeeded or ToTaste for such a line.
+- When a line gives both a count and a weight or volume ("1 pose, 500 g", "2 filet, ca. 400 g"), use the weight or volume as the amount and put the count in the `note`.
 - "til steking", "til panering" and "til servering" without an amount are AsNeeded (purpose Frying for "til steking").
 - Water ("1 liter vann") is an ingredient only when an amount is printed.
 - `amountKind` is `Measured`, `ToTaste` or `AsNeeded`. Measured needs a `quantity` and a `unit`. ToTaste and AsNeeded have `quantity`, `quantityLow` and `unit` set to null.
 - `purpose` is `Main`, `Frying`, `Serving`, `Garnish` or `Seasoning`; Main when nothing else fits.
+- Seasoning is only salt and pepper (and "etter smak" lines). Herbs and spices with an amount (oregano, karri, løkpulver, chilipulver, muskat) are Main.
+- Anything printed "til topping", "til servering", "på toppen" or in a serving group (grated cheese, pesto, ketchup, croutons, cherry tomatoes on top) is Serving. Garnish is only for a decorative sprinkle (a few leaves, a pinch of flakes).
+- Oil or butter that the steps use only to fry or sauté is Frying, also when it has an amount.
 
 ## Units
 
@@ -60,6 +66,10 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 - `ingredient` is the base ingredient: singular, in the language of the page, without amount, preparation or brand. `original` is the line as printed.
 - A variant becomes the base ingredient and the variant goes in the `note`: småpoteter is Potet (note "småpoteter" or "kokte"), torskeloin is Torsk, kremfløte is Fløte, sort pepper is pepper, stekeolje and rapsolje are Rapsolje.
 - A real product difference stays a separate ingredient: røde linser and grønne linser, cayennepepper (kajennepepper) and pepper, dried and fresh herbs (tørket basilikum and fersk basilikum), rødløk and løk where the book tells them apart.
+- Keep the product word the page uses; never swap it for a synonym or shorten it: "potetgnocchi" is not Gnocchi, "grønnsakbuljong" and "grønnsakkraft" stay as printed, "hvitløkpulver" is not Hvitløkskrydder, "malt koriander" (ground) is not the fresh herb. Stock cubes ("buljongterning") are the stock with unit `stk` and the note "terning".
+- Canned and fresh differ: "hermetiske tomater" stay Hermetiske tomater, "cherrytomater" stay Cherrytomater, neither is Tomat. A pasta sheet is Lasagneplater, a ready-made item keeps its name (pølser, karbonader, pommes frites).
+- Preparation, form and state words go into the `note`, not the name: fersk, frisk, frosne, pillede, ristede, finhakket, revet, skylt, delt i to. A fresh herb or vegetable is its plain name (Dill, Basilikum, Koriander, Mynte); dried and ground ones are "Tørket basilikum", "Malt koriander".
+- Plain "mel" is Hvetemel. "Nøytral olje" stays Nøytral olje. Sweet pepper kinds (søtpaprika, rød paprika) are Paprika with the kind in the `note`.
 - Mushroom kinds are different ingredients with different tastes: aromasopp, sjampinjong and plain sopp must never be merged into one base ingredient. Keep the kind that is printed.
 - Optional: `isOptional` is true for "kan sløyfes", "valgfritt", "evt.". `alternatives` lists other ingredients that can replace this one ("eller olje"), as plain base names.
 - An ingredient you do not recognise is returned as a plain proposed name as printed (singular, without amount). Never replace it silently with a different ingredient.
@@ -75,3 +85,8 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 
 Fill the schema: `isRecipe`, `readable`, `title`, `servings`, `prepMinutes`, `cookMinutes`, `description`, `sourceBook`, `rawText`, `steps` (strings), `ingredients` (each with `original`, `ingredient`, `amountKind`, `quantity`, `quantityLow`, `unit`, `purpose`, `isOptional`, `alternatives`, `note`), `picture` and `warnings` (strings).
 The enums are exactly `Measured`, `ToTaste`, `AsNeeded` for the amount kind and `Main`, `Frying`, `Serving`, `Garnish`, `Seasoning` for the purpose.
+
+## Changelog
+
+- v2: whole heading as title (no separate tagline), steps not split, all list lines read, count plus weight uses the weight, bare numbers are Measured, purpose rules (Seasoning only salt and pepper, toppings are Serving, frying oil is Frying), naming rules (keep printed product words, canned and cherry tomatoes, preparation words to the note, plain mel is Hvetemel).
+- v1: first version.
