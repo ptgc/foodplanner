@@ -295,6 +295,49 @@ public sealed class HouseholdPlanLimiterTests(AuthDatabase db) : IClassFixture<A
     }
 
     [Fact]
+    public async Task Concurrent_first_line_help_reservations_never_over_reserve()
+    {
+        // Verifier addition: the first-reservation race (no counter row yet) for line help, with a day limit of 4.
+        await using var host = Host(db.ConnectionString);
+        var limited = await NewHouseholdAsync(host);
+        await SetPlanAsync(limited, null, 4, null);
+        var open = await NewHouseholdAsync(host);
+        await SetPlanAsync(open, null, null, null);
+        var time = new ManualTimeProvider(new DateTimeOffset(2032, 5, 10, 12, 0, 0, TimeSpan.Zero)); // a month no other test counts in
+
+        var limitedResults = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => NewRig(limited, time: time).Line()));
+        var openResults = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => NewRig(open, time: time).Line()));
+
+        Assert.Equal(4, limitedResults.Count(r => r == AiReservation.Reserved));
+        Assert.Equal(6, limitedResults.Count(r => r == AiReservation.HouseholdLimit));
+        Assert.Equal(4, await CounterAsync(limited, "DayCalls"));
+        Assert.Equal(4, await CounterAsync(limited, "MonthCalls"));
+        Assert.All(openResults, r => Assert.Equal(AiReservation.Reserved, r));
+        Assert.Equal(10, await CounterAsync(open, "DayCalls"));
+    }
+
+    [Fact]
+    public async Task Concurrent_first_reservations_respect_the_global_cap_for_an_unlimited_household()
+    {
+        // Verifier addition: the global month row does not exist yet, ten requests race to create it, the cap is 4.
+        await using var host = Host(db.ConnectionString);
+        var household = await NewHouseholdAsync(host);
+        await SetPlanAsync(household, null, null, null);
+        var photoTime = new ManualTimeProvider(new DateTimeOffset(2032, 6, 10, 12, 0, 0, TimeSpan.Zero));
+        var lineTime = new ManualTimeProvider(new DateTimeOffset(2032, 7, 10, 12, 0, 0, TimeSpan.Zero));
+
+        var photos = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => NewRig(household, new AiPhotoImportOptions { GlobalMonthly = 4 }, time: photoTime).Photo()));
+        Assert.Equal(4, photos.Count(r => r == AiReservation.Reserved));
+        Assert.Equal(6, photos.Count(r => r == AiReservation.GlobalLimit));
+        Assert.Equal(4, await CounterAsync(household, "PhotoDayCalls")); // every refused one was given back
+
+        var lines = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => NewRig(household, lineHelp: new AiImportOptions { GlobalMonthlyCalls = 4 }, time: lineTime).Line()));
+        Assert.Equal(4, lines.Count(r => r == AiReservation.Reserved));
+        Assert.Equal(6, lines.Count(r => r == AiReservation.GlobalLimit));
+        Assert.Equal(4, await CounterAsync(household, "DayCalls"));
+    }
+
+    [Fact]
     public async Task Concurrent_reservations_respect_a_limited_plan()
     {
         await using var host = Host(db.ConnectionString);
