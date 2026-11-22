@@ -70,7 +70,10 @@ public sealed record ImportDraft(
     IReadOnlyList<string> Steps,
     IReadOnlyList<ImportDraftLine> Lines,
     IReadOnlyList<string> Warnings,
-    AiAssistStatus AiAssist = AiAssistStatus.NotUsed)
+    AiAssistStatus AiAssist = AiAssistStatus.NotUsed,
+    string? SourceName = null,
+    bool HasSuggestedImage = false,
+    bool UseSuggestedImage = false)
 {
     [JsonIgnore]
     public bool AllLinesMatched => Lines.All(l => l.Status == ImportLineStatus.Matched);

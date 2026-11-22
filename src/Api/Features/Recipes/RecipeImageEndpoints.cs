@@ -118,6 +118,24 @@ public static class RecipeImageEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["file"] = [processed.Message!] });
         }
 
+        if (await SetImageAsync(db, images, logger, householdId, recipe, processed, cancellationToken) is { } failed)
+        {
+            return failed;
+        }
+
+        return Results.Ok(RecipeImageUrls.All(recipe));
+    }
+
+    /// <summary>
+    /// Stores the three sizes under a new version, points the recipe at it and deletes the previous version's files. The one code
+    /// path of "this recipe gets this picture": the upload endpoint and saving a photo import (T-118) both use it. Returns a
+    /// conflict result (nothing stored) or null.
+    /// </summary>
+    internal static async Task<IResult?> SetImageAsync(
+        AppDbContext db, IImageStore images, ILogger logger, Guid householdId, Recipe recipe, ImageProcessingResult processed,
+        CancellationToken cancellationToken)
+    {
+        var recipeId = recipe.Id;
         var previous = recipe.ImageVersion;
         var version = Guid.NewGuid();
         var prefix = RecipeImageBlobNames.VersionPrefix(householdId, recipeId, version);
@@ -146,7 +164,7 @@ public static class RecipeImageEndpoints
             await TryDeleteBlobsAsync(images, logger, RecipeImageBlobNames.VersionPrefix(householdId, recipeId, old), cancellationToken);
         }
 
-        return Results.Ok(RecipeImageUrls.All(recipe));
+        return null;
     }
 
     private static async Task<IResult> GetImage(

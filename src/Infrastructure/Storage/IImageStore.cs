@@ -15,6 +15,17 @@ public interface IImageStore
     Task DeletePrefixAsync(string prefix, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// The temporary dish picture of a photo import (T-118, Q-035): one WebP under the household prefix, so a household delete and the
+/// T-044 prefix delete remove it. Built from the row's own ids, never from client input; deleted when the import is saved or discarded.
+/// </summary>
+public static class ImportPictureBlobNames
+{
+    public static string Prefix(Guid householdId, Guid importId) => $"{householdId:N}/imports/{importId:N}/";
+
+    public static string Picture(Guid householdId, Guid importId) => $"{Prefix(householdId, importId)}picture.webp";
+}
+
 /// <summary>Blob names for recipe images. The household id comes first so one household's files share a prefix.</summary>
 public static class RecipeImageBlobNames
 {

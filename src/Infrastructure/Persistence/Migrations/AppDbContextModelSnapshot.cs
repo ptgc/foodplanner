@@ -3349,6 +3349,71 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("RecipeLikes", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.Imports.AiCallLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Effort")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ImportId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("InputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("OutputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PhotoCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SkillVersion")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StopReason")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.ToTable("AiCallLogs", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.Imports.AiGlobalUsage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3363,6 +3428,9 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("MonthStart")
                         .HasColumnType("date");
+
+                    b.Property<int>("PhotoCalls")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -3399,6 +3467,12 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("MonthStart")
                         .HasColumnType("date");
+
+                    b.Property<DateOnly>("PhotoDay")
+                        .HasColumnType("date");
+
+                    b.Property<int>("PhotoDayCalls")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset");
@@ -4636,6 +4710,15 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RecipeId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.Imports.AiCallLog", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

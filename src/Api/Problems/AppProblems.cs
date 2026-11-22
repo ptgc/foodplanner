@@ -63,6 +63,15 @@ public static class AppProblems
     public const string ImportTooLarge = "import-too-large";
     public const string ImportUnsupportedContent = "import-unsupported-content";
     public const string ImportNoRecipeFound = "import-no-recipe-found";
+    public const string PhotoImportDisabled = "photo-import-disabled";
+    public const string PhotoImportLimitReached = "photo-import-limit-reached";
+    public const string PhotoImportCapacity = "photo-import-capacity";
+    public const string PhotoImportBusy = "photo-import-busy";
+    public const string PhotoImportNotARecipe = "photo-import-not-a-recipe";
+    public const string PhotoImportUnreadable = "photo-import-unreadable";
+    public const string PhotoImportRefused = "photo-import-refused";
+    public const string PhotoImportFailed = "photo-import-failed";
+    public const string PhotoImportTimeout = "photo-import-timeout";
 
     public const string OdaConfirmationRequired = "oda-confirmation-required";
     public const string OdaNothingToAdd = "oda-nothing-to-add";

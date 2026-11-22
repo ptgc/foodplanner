@@ -25,6 +25,10 @@ public static class AiImportRegistration
             },
             sp.GetRequiredService<IOptions<AiImportOptions>>(),
             sp.GetService<ILogger<AnthropicRecipeLineAi>>()));
+        services.AddOptions<AiPhotoImportOptions>().BindConfiguration(AiPhotoImportOptions.Section).ValidateOnStart();
+        services.AddSingleton<IValidateOptions<AiPhotoImportOptions>, AiPhotoImportOptionsValidator>();
+        services.TryAddSingleton<IRecipePhotoReader, AnthropicRecipePhotoReader>();
+        services.TryAddSingleton(sp => new PhotoImportGate(sp.GetRequiredService<IOptions<AiPhotoImportOptions>>().Value.MaxConcurrent));
         services.AddScoped<IAiUsageLimiter, AiUsageLimiter>();
         services.AddScoped<IAiImportAssistant, AiImportAssistant>();
         return services;

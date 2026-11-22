@@ -737,6 +737,47 @@ public sealed class MigrationTests(SqlServerFixture server)
         Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
     }
 
+    [Fact]
+    public async Task Migration_AddPhotoImportUsage()
+    {
+        var connectionString = await server.CreateDatabaseAsync("photoimportusage", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        // The database as T-077 and T-052 left it: usage counters with values.
+        await migrator.MigrateAsync("20261122110244_AddPreferredOdaProducts", Ct);
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Old usage', @now, @now);
+            INSERT INTO AiHouseholdUsages (Id, HouseholdId, Day, DayCalls, MonthStart, MonthCalls, CreatedAt, UpdatedAt)
+                VALUES (NEWID(), @h, '2026-11-20', 5, '2026-11-01', 17, @now, @now);
+            INSERT INTO AiGlobalUsages (Id, MonthStart, Calls, CreatedAt, UpdatedAt) VALUES (NEWID(), '2026-11-01', 123, @now, @now);
+            """);
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddPhotoImportUsage'"));
+        Assert.Equal(5, await ScalarAsync(connectionString, "SELECT DayCalls FROM AiHouseholdUsages"));
+        Assert.Equal(17, await ScalarAsync(connectionString, "SELECT MonthCalls FROM AiHouseholdUsages"));
+        Assert.Equal(123, await ScalarAsync(connectionString, "SELECT Calls FROM AiGlobalUsages"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT PhotoDayCalls FROM AiHouseholdUsages")); // a row without a photo day counts as zero
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT PhotoCalls FROM AiGlobalUsages"));
+
+        // Deleting a household removes its call log rows (the one cascade).
+        await ScalarAsync(connectionString, """
+            INSERT INTO AiCallLogs (Id, HouseholdId, Kind, Model, Effort, SkillVersion, PhotoCount, InputTokens, OutputTokens, StopReason, Outcome, DurationMs, ImportId, CreatedAt, UpdatedAt)
+            SELECT NEWID(), Id, N'PhotoImport', N'claude-opus-5-5', N'medium', 1, 2, 1000, 500, N'end_turn', N'Ok', 1234, NULL, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET()
+            FROM Households WHERE Name = N'Old usage'
+            """);
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AiCallLogs"));
+        await ScalarAsync(connectionString, "DELETE FROM Households WHERE Name = N'Old usage'");
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AiCallLogs"));
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AiHouseholdUsages"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM AiGlobalUsages")); // the global counter is not household data
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
     private static async Task<string[]> ColumnsAsync(string connectionString, string table)
     {
         var columns = new List<string>();

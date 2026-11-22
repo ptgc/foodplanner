@@ -532,6 +532,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/imports/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["CreatePhotoRecipeImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/imports/photo-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetPhotoImportUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/imports/{importId}/picture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetRecipeImportPicture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/tags": {
         parameters: {
             query?: never;
@@ -1334,7 +1382,7 @@ export interface components {
         /** @enum {unknown} */
         ImportLineStatus: "Matched" | "UnmatchedIngredient" | "UnmatchedUnit" | "Unparsed";
         /** @enum {unknown} */
-        ImportSource: "Url" | "Text";
+        ImportSource: "Url" | "Text" | "Photo";
         /** @enum {unknown} */
         ImportStatus: "Draft" | "Saved" | "Discarded";
         ImportSuggestionResponse: {
@@ -1576,6 +1624,23 @@ export interface components {
             unitName: null | string;
             isExpired: boolean;
         };
+        PhotoImportUpload: {
+            photos: components["schemas"]["IFormFile"][];
+            sourceName: null | string;
+        };
+        PhotoUsageResponse: {
+            /** Format: int32 */
+            remainingToday: number | string;
+            /** Format: int32 */
+            dailyLimit: number | string;
+        };
+        PhotoUsageStatusResponse: {
+            enabled: boolean;
+            /** Format: int32 */
+            dailyLimit: number | string;
+            /** Format: int32 */
+            remainingToday: number | string;
+        };
         PickedByResponse: {
             /** Format: uuid */
             userId: null | string;
@@ -1663,6 +1728,11 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             aiAssist: components["schemas"]["AiAssistStatus"];
+            sourceName?: null | string;
+            suggestedImage?: null | components["schemas"]["SuggestedImageResponse"];
+            /** @default false */
+            useSuggestedImage: boolean;
+            photoUsage?: null | components["schemas"]["PhotoUsageResponse"];
         };
         RecipeImportSummaryResponse: {
             /** Format: uuid */
@@ -1812,6 +1882,7 @@ export interface components {
         SaveRecipeImportResponse: {
             /** Format: uuid */
             recipeId: string;
+            pictureSaved?: null | boolean;
         };
         ScaledRecipeResponse: {
             /** Format: uuid */
@@ -1891,6 +1962,9 @@ export interface components {
         };
         /** @enum {unknown} */
         StoreSection: "Other" | "FruitAndVegetables" | "MeatFishAndCheese" | "Frozen" | "Dairy" | "DryGoods";
+        SuggestedImageResponse: {
+            url: string;
+        };
         /** @enum {unknown} */
         TagKind: "Category" | "Tag";
         TagResponse: {
@@ -1949,6 +2023,8 @@ export interface components {
             cookMinutes: null | number | string;
             steps: null | string[];
             lines: null | components["schemas"]["UpdateImportLineRequest"][];
+            sourceName?: null | string;
+            useSuggestedImage?: null | boolean;
         };
         UpdateWeeklyGroceryRequest: {
             /** Format: double */
@@ -4175,8 +4251,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                importId: string;
                 householdId: string;
+                importId: string;
             };
             cookie?: never;
         };
@@ -4277,6 +4353,214 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreatePhotoRecipeImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["PhotoImportUpload"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeImportResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetPhotoImportUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoUsageStatusResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetRecipeImportPicture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+                importId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

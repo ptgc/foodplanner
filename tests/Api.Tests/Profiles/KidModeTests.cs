@@ -41,7 +41,8 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
     /// <summary>A multipart endpoint is only routed for a multipart body, so it gets one; every other call has an empty JSON body.</summary>
     private static Task<HttpResponseMessage> CallAsync(ApiClient client, RouteEndpoint endpoint, string method, string url) =>
         endpoint.Metadata.GetMetadata<IAcceptsMetadata>()?.ContentTypes.Contains("multipart/form-data") == true
-            ? client.PutFileAsync(url, [1, 2, 3])
+            ? client.SendMultipartAsync(
+                new HttpMethod(method), url, new MultipartFormDataContent { { new ByteArrayContent([1, 2, 3]), url.EndsWith("/photo", StringComparison.Ordinal) ? "photos" : "file", "photo.jpg" } })
             : client.SendAsync(new HttpMethod(method), url);
 
     private static List<(RouteEndpoint Endpoint, string Method, string Policy)> RoleProtectedEndpoints(AuthHost host) =>

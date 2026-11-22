@@ -7,11 +7,14 @@ using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.Users;
+using Foodplanner.Infrastructure.Images;
 using Foodplanner.Infrastructure.Import;
 using Foodplanner.Infrastructure.Import.Ai;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
+using Foodplanner.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Features.Recipes;
 
@@ -75,7 +78,17 @@ public sealed record RecipeImportResponse(
     bool CanSave,
     Guid? SavedRecipeId,
     DateTimeOffset CreatedAt,
-    AiAssistStatus AiAssist);
+    AiAssistStatus AiAssist,
+    string? SourceName = null,
+    SuggestedImageResponse? SuggestedImage = null,
+    bool UseSuggestedImage = false,
+    PhotoUsageResponse? PhotoUsage = null);
+
+/// <summary>The cropped dish picture of a photo import (T-118), served by <c>GET imports/{id}/picture</c> until the import is saved or discarded.</summary>
+public sealed record SuggestedImageResponse(string Url);
+
+/// <summary>What is left of the household's photo imports today (T-118). Also on the answer of a successful photo import, so the screen updates without another request.</summary>
+public sealed record PhotoUsageResponse(int RemainingToday, int DailyLimit);
 
 public sealed record RecipeImportSummaryResponse(Guid Id, ImportSource Source, string? SourceUrl, string Title, DateTimeOffset CreatedAt);
 
@@ -91,7 +104,9 @@ public sealed record UpdateRecipeImportRequest(
     int? PrepMinutes,
     int? CookMinutes,
     string[]? Steps,
-    UpdateImportLineRequest[]? Lines);
+    UpdateImportLineRequest[]? Lines,
+    string? SourceName = null,
+    bool? UseSuggestedImage = null);
 
 /// <summary>
 /// Edits the line at <c>Position</c>, or removes it with <c>Remove</c>. <c>IngredientId</c> is required. Patch semantics: an absent
@@ -115,7 +130,8 @@ public sealed record UpdateImportLineRequest(
     bool? IsOptional = null,
     Guid[]? AlternativeIds = null);
 
-public sealed record SaveRecipeImportResponse(Guid RecipeId);
+/// <summary><c>PictureSaved</c> (T-118) is set only when the import had a suggested picture the person chose to use: false means the recipe is saved but the picture could not be stored (add one on the recipe page).</summary>
+public sealed record SaveRecipeImportResponse(Guid RecipeId, bool? PictureSaved = null);
 
 /// <summary>
 /// Recipe import (T-042): paste text or give a URL, review a draft with matched ingredients, fix what did not match, save as a
@@ -327,6 +343,12 @@ public static class RecipeImportEndpoints
             errors["description"] = [$"The description can be at most {Recipe.MaxDescriptionLength} characters."];
         }
 
+        var sourceName = request.SourceName is null ? draft.SourceName : string.IsNullOrWhiteSpace(request.SourceName) ? null : request.SourceName.Trim();
+        if (sourceName is { Length: > Recipe.MaxSourceNameLength } || sourceName?.Any(char.IsControl) == true)
+        {
+            errors["sourceName"] = [$"The source name can be at most {Recipe.MaxSourceNameLength} characters, without control characters."];
+        }
+
         if (request.Servings is < Recipe.MinServings or > Recipe.MaxServings)
         {
             errors["servings"] = [$"Servings must be {Recipe.MinServings} to {Recipe.MaxServings}."];
@@ -418,6 +440,8 @@ public static class RecipeImportEndpoints
             CookMinutes = request.CookMinutes ?? draft.CookMinutes,
             Steps = [.. steps.Select(s => s.Trim())],
             Lines = [.. lines.Where((_, index) => !removed.Contains(index))],
+            SourceName = sourceName,
+            UseSuggestedImage = draft.HasSuggestedImage && (request.UseSuggestedImage ?? draft.UseSuggestedImage),
         };
 
         import.UpdateDraft(ImportDraftJson.Serialize(updated));
@@ -435,7 +459,9 @@ public static class RecipeImportEndpoints
     /// otherwise the answer is a ValidationProblem on <c>lines[i].ingredientId</c> or <c>lines[i].unitId</c>. The recipe and the
     /// import's new status are written in one transaction, so saving twice at once yields one recipe (the row version).
     /// </summary>
-    private static async Task<IResult> SaveImport(Guid householdId, Guid importId, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<IResult> SaveImport(
+        Guid householdId, Guid importId, AppDbContext db, IImageStore images, IOptions<ImageOptions> imageOptions, ILogger<RecipeImport> logger,
+        CancellationToken cancellationToken)
     {
         var import = await FindAsync(db, importId, cancellationToken);
         if (import is null)
@@ -480,7 +506,8 @@ public static class RecipeImportEndpoints
             [.. draft.Lines.Select(l => new RecipeIngredientRequest(
                 l.IngredientId, l.Quantity, l.UnitId, l.Note, l.AmountKind.ToString(), l.Purpose.ToString(), l.IsOptional, [.. l.Alternatives]))],
             null,
-            import.SourceUrl);
+            import.SourceUrl,
+            draft.SourceName);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var recipe = await RecipeEndpoints.TryCreateAsync(db, request, errors, cancellationToken);
@@ -496,10 +523,54 @@ public static class RecipeImportEndpoints
         }
 
         await transaction.CommitAsync(cancellationToken);
-        return Results.Created($"/api/households/{householdId}/recipes/{recipe.Id}", new SaveRecipeImportResponse(recipe.Id));
+
+        // T-118: the suggested dish picture becomes the recipe picture only after the recipe is committed; a failure never undoes the recipe.
+        bool? pictureSaved = null;
+        if (draft.HasSuggestedImage)
+        {
+            if (draft.UseSuggestedImage)
+            {
+                pictureSaved = await TryUseSuggestedPictureAsync(db, images, imageOptions.Value, logger, householdId, importId, recipe, cancellationToken);
+            }
+
+            await RecipeImageEndpoints.TryDeleteBlobsAsync(images, logger, ImportPictureBlobNames.Prefix(householdId, importId), CancellationToken.None);
+        }
+
+        return Results.Created($"/api/households/{householdId}/recipes/{recipe.Id}", new SaveRecipeImportResponse(recipe.Id, pictureSaved));
     }
 
-    private static async Task<IResult> DiscardImport(Guid importId, AppDbContext db, CancellationToken cancellationToken)
+    private static async Task<bool> TryUseSuggestedPictureAsync(
+        AppDbContext db, IImageStore images, ImageOptions options, ILogger logger, Guid householdId, Guid importId, Recipe recipe,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = await images.OpenReadAsync(ImportPictureBlobNames.Picture(householdId, importId), cancellationToken);
+            if (stream is null)
+            {
+                return false;
+            }
+
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer, cancellationToken);
+            var processed = await Task.Run(() => RecipeImageProcessor.Process(buffer.ToArray(), options), cancellationToken);
+            if (!processed.Succeeded)
+            {
+                return false;
+            }
+
+            return await RecipeImageEndpoints.SetImageAsync(db, images, logger, householdId, recipe, processed, cancellationToken) is null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning("The suggested picture of an import could not be saved ({Error}).", ex.GetType().Name);
+            db.ChangeTracker.Clear();
+            return false;
+        }
+    }
+
+    private static async Task<IResult> DiscardImport(
+        Guid householdId, Guid importId, AppDbContext db, IImageStore images, ILogger<RecipeImport> logger, CancellationToken cancellationToken)
     {
         var import = await FindAsync(db, importId, cancellationToken);
         if (import is null)
@@ -512,10 +583,16 @@ public static class RecipeImportEndpoints
             return NotDraft(import);
         }
 
+        var hadPicture = import.Source == ImportSource.Photo;
         import.Discard();
         if (await TrySaveAsync(db, cancellationToken) is { } conflict)
         {
             return conflict;
+        }
+
+        if (hadPicture)
+        {
+            await RecipeImageEndpoints.TryDeleteBlobsAsync(images, logger, ImportPictureBlobNames.Prefix(householdId, importId), CancellationToken.None);
         }
 
         return Results.NoContent();
@@ -527,10 +604,10 @@ public static class RecipeImportEndpoints
 
     /// <summary>The import in the route's household that has not been discarded (a discarded one is gone for the caller).</summary>
 
-    private static Task<RecipeImport?> FindAsync(AppDbContext db, Guid importId, CancellationToken cancellationToken) =>
+    internal static Task<RecipeImport?> FindAsync(AppDbContext db, Guid importId, CancellationToken cancellationToken) =>
         db.RecipeImports.FirstOrDefaultAsync(i => i.Id == importId && i.Status != ImportStatus.Discarded, cancellationToken);
 
-    private static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
+    internal static async Task<IResult?> TrySaveAsync(AppDbContext db, CancellationToken cancellationToken)
     {
         try
         {
@@ -547,7 +624,7 @@ public static class RecipeImportEndpoints
         }
     }
 
-    private static IResult NotFound() =>
+    internal static IResult NotFound() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.ImportNotFound, "Import not found");
 
     private static IResult NotDraft(RecipeImport import) =>
@@ -751,7 +828,7 @@ public static class RecipeImportEndpoints
     /// The household's visible ingredients (global plus own, through the tenant filter, so never another household's) as match
     /// candidates, each with every name it has: the English and translated names of a global row, or the one typed name.
     /// </summary>
-    private static async Task<IngredientMatcher> LoadMatcherAsync(AppDbContext db, string locale, CancellationToken cancellationToken)
+    internal static async Task<IngredientMatcher> LoadMatcherAsync(AppDbContext db, string locale, CancellationToken cancellationToken)
     {
         var rows = await db.Ingredients.AsNoTracking().WithNames(db, CatalogTranslation.KindIngredient, locale).ToListAsync(cancellationToken);
         var translations = await db.CatalogTranslations.AsNoTracking().Where(t => t.Kind == CatalogTranslation.KindIngredient)
@@ -793,8 +870,9 @@ public static class RecipeImportEndpoints
         return catalog;
     }
 
-    private static async Task<RecipeImportResponse> ToResponseAsync(
-        AppDbContext db, RecipeImport import, ImportDraft draft, string locale, CancellationToken cancellationToken)
+    internal static async Task<RecipeImportResponse> ToResponseAsync(
+        AppDbContext db, RecipeImport import, ImportDraft draft, string locale, CancellationToken cancellationToken,
+        PhotoUsageResponse? photoUsage = null)
     {
         var ingredientIds = draft.Lines.Where(l => l.IngredientId is not null).Select(l => l.IngredientId!.Value)
             .Concat(draft.Lines.SelectMany(l => l.Alternatives)).Distinct().ToList();
@@ -851,6 +929,12 @@ public static class RecipeImportEndpoints
             draft.AllLinesMatched,
             import.SavedRecipeId,
             db.Entry(import).Property<DateTimeOffset>("CreatedAt").CurrentValue,
-            draft.AiAssist);
+            draft.AiAssist,
+            draft.SourceName,
+            draft.HasSuggestedImage && import.Status == ImportStatus.Draft
+                ? new SuggestedImageResponse($"/api/households/{import.HouseholdId}/imports/{import.Id}/picture")
+                : null,
+            draft.UseSuggestedImage,
+            photoUsage);
     }
 }

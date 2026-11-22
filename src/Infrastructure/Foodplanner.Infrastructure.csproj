@@ -3,11 +3,18 @@
     <ProjectReference Include="..\Domain\Foodplanner.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The photo import skill and its schema (T-118): the system prompt and the structured-output schema, shared with scripts/recipe-photo-eval.mjs. -->
+    <EmbeddedResource Include="Import\Ai\Skills\recipe-from-photo.md" LogicalName="Foodplanner.Skills.recipe-from-photo.md" />
+    <EmbeddedResource Include="Import\Ai\Skills\recipe-from-photo.schema.json" LogicalName="Foodplanner.Skills.recipe-from-photo.schema.json" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Tenancy tests use the internal write scope and a test-only AppDbContext subclass. -->
     <InternalsVisibleTo Include="Foodplanner.Api.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
+    <!-- Photo import (T-118, Q-037): the official Anthropic SDK, for the new call only. -->
+    <PackageReference Include="Anthropic" Version="[13.12.0]" />
     <!-- Image resizing (T-022, Q-014): NetVips (MIT) over libvips (LGPL, dynamically linked native library). Exact pins. -->
     <PackageReference Include="NetVips" Version="[3.2.0]" />
     <PackageReference Include="NetVips.Native" Version="[8.18.7]" />
