@@ -12,6 +12,7 @@ using Foodplanner.Infrastructure.Images;
 using Foodplanner.Infrastructure.Import.Ai;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Storage;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -35,6 +36,18 @@ public static class PhotoImportEndpoints
 {
     public const int MaxBodyBytes = 44 * 1024 * 1024;
     public const int MaxSourceNameLength = Recipe.MaxSourceNameLength;
+
+    /// <summary>
+    /// Form limits of the photo POST: the multipart body is buffered in memory, never spooled to a temp file (the default threshold is 64 KB),
+    /// because the photos must not touch the disk. The request body size cap (<see cref="MaxBodyBytes"/>) stays as the outer limit.
+    /// </summary>
+    public static readonly FormOptions FormLimits = new()
+    {
+        BufferBody = true,
+        MemoryBufferThreshold = MaxBodyBytes,
+        MultipartBodyLengthLimit = MaxBodyBytes,
+        BufferBodyLengthLimit = MaxBodyBytes,
+    };
 
     public static IEndpointRouteBuilder MapPhotoImportEndpoints(this IEndpointRouteBuilder api)
     {
@@ -169,6 +182,7 @@ public static class PhotoImportEndpoints
         PhotoReadResult result;
         using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
+            // A client that hangs up during the call is not a timeout: it is rethrown (the filter above); a reader-side cancellation maps to Timeout.
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, settings.TimeoutSeconds)));
             try
             {
@@ -256,6 +270,8 @@ public static class PhotoImportEndpoints
 
         try
         {
+            // The whole body stays in memory (T-118: photos are never written to disk): see FormLimits.
+            http.HttpContext.Features.Set<IFormFeature>(new FormFeature(http, FormLimits));
             return await http.ReadFormAsync(cancellationToken);
         }
         catch (InvalidDataException)

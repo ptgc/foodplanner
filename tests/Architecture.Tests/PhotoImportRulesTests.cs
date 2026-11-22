@@ -163,6 +163,22 @@ public partial class PhotoImportRulesTests
     }
 
     [Fact]
+    public void The_photo_form_is_read_in_memory_never_spooled_to_a_temp_file()
+    {
+        var limits = Foodplanner.Api.Features.Recipes.PhotoImportEndpoints.FormLimits;
+        var body = Foodplanner.Api.Features.Recipes.PhotoImportEndpoints.MaxBodyBytes;
+
+        Assert.True(limits.MemoryBufferThreshold >= body); // the default 64 KB would write file sections to disk
+        Assert.Equal(body, limits.MultipartBodyLengthLimit);
+        Assert.True(limits.BufferBody);
+
+        // And the endpoint really reads the form with those limits.
+        var endpoint = SourceScanner.Load("src/Api").Single(f => f.Path.EndsWith("PhotoImportEndpoints.cs", StringComparison.Ordinal));
+        Assert.Contains("new FormFeature(http, FormLimits)", endpoint.Code, StringComparison.Ordinal);
+        Assert.True(endpoint.Code.IndexOf("new FormFeature(", StringComparison.Ordinal) < endpoint.Code.IndexOf("ReadFormAsync(cancellationToken)", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Verify_and_the_workflows_never_call_the_eval_script()
     {
         var files = new List<string> { Path.Combine(Root, "scripts", "verify.sh") };
