@@ -152,5 +152,161 @@
       ],
       "type": "object"
     }
+  },
+  {
+    "name": "likely_to_buy",
+    "title": "Get likely-to-buy products",
+    "description": "Return products the user is likely to buy right now based on purchase history and reorder patterns — staples and regular items, not discovery picks. Use when the user wants to restock their usual basket, reorder weekly groceries, or see what they typically buy. For personalized discovery and new items, use unique_for_you instead.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "intent": {
+          "description": "In one short sentence, third person, what the user is trying to accomplish by calling this tool, e.g. 'wants to restock milk for the week'. Used only for MCP usage analytics.",
+          "maxLength": 300,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "items": {
+            "description": "Represents a single product",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "price": {
+                "description": "The price of the product",
+                "type": "string"
+              },
+              "unitPrice": {
+                "description": "The unit price of the product",
+                "type": "string"
+              },
+              "unitName": {
+                "description": "The name of the unit price",
+                "type": "string"
+              },
+              "brand": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The brand of the product, if available"
+              },
+              "brandId": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The ID of the brand of the product, if available"
+              },
+              "url": {
+                "anyOf": [
+                  {
+                    "format": "uri",
+                    "maxLength": 2083,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The URL to the product's page"
+              },
+              "availability": {
+                "anyOf": [
+                  {
+                    "description": "Product availability",
+                    "properties": {
+                      "isAvailable": {
+                        "description": "Whether the product can be purchased right now.",
+                        "type": "boolean"
+                      },
+                      "description": {
+                        "description": "Human-readable explanation of the availability status.",
+                        "type": "string"
+                      },
+                      "code": {
+                        "enum": [
+                          "available",
+                          "available_later",
+                          "available_weekdays",
+                          "not_for_sale",
+                          "restricted_item_user_policy",
+                          "sold_out",
+                          "sold_out_partial",
+                          "sold_out_supplier",
+                          "unavailable_alcohol_time",
+                          "unavailable_date",
+                          "unavailable_time",
+                          "unavailable_in_area",
+                          "unavailable_temporarily",
+                          "unavailable_unattended",
+                          "unavailable_weekday",
+                          "unknown"
+                        ],
+                        "type": "string",
+                        "description": "Machine-readable availability status code."
+                      }
+                    },
+                    "required": [
+                      "isAvailable",
+                      "description",
+                      "code"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "Product availability. Omitted for historical order lines."
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "description",
+              "price",
+              "unitPrice",
+              "unitName"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "x-fastmcp-wrap-result": true
+    },
+    "annotations": {
+      "title": "Get likely-to-buy products",
+      "readOnlyHint": true
+    }
   }
 ]

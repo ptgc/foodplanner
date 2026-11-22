@@ -194,6 +194,8 @@ export const nb: Dictionary = {
   "oda.result.added": "Lagt i kurven",
   "oda.result.addedLine": "{name}: {productName}, {quantity}",
   "oda.result.addedLineNoQuantity": "{name}: {productName}",
+  "oda.result.usual": "Du kjøper ofte denne",
+  "oda.result.usualUnavailable": "Vi kunne ikke lese hva dere vanligvis kjøper, så de første treffene ble brukt.",
   "oda.result.notAdded": "Ikke lagt i kurven",
   "oda.result.notAddedLine": "{name}: {reason}",
   "oda.reason.no-match": "fant ikke noe produkt",

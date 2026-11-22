@@ -13,5 +13,10 @@
   ],
   "refused": [
     {"id":1006,"name":"Fake Refused Product","description":"x","price":"10.00","unitPrice":"10.00","unitName":"stk","brand":null,"brandId":null,"url":null,"availability":{"isAvailable":true,"description":"Available","code":"available"}}
-  ]
+  ],
+  "tomat": [{"id":2001,"name":"Fake Tomat Vanlig","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2001-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":2002,"name":"Fake Tomat Cherry Favoritt","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2002-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}}],
+  "ost": [{"id":2011,"name":"Fake Ost Vanlig","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2011-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":2012,"name":"Fake Ost Favoritt (utsolgt)","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2012-fake/","availability":{"isAvailable":false,"description":"x","code":"available"}},
+    {"id":2013,"name":"Fake Ost Tredje","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2013-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}}]
 }

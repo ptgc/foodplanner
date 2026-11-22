@@ -25,11 +25,12 @@ const problem = (type: string, status: number, extra: Record<string, unknown> = 
 const cart = (over: Partial<Cart> = {}): Cart => ({
   status: "done",
   cartUrl: "https://oda.example/cart",
-  added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1 }],
+  added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" }],
   notAdded: [],
   cartMessages: [],
   connectionClosed: true,
   connectionMessage: null,
+  usuallyBought: { status: "used", count: 0 },
   ...over,
 });
 
@@ -106,7 +107,7 @@ describe("Oda callback page", () => {
   });
 
   it("writes nothing from Oda to browser storage", async () => {
-    answer = () => json(cart({ cartMessages: ["Sold out"], added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk", quantity: 1 }] }));
+    answer = () => json(cart({ cartMessages: ["Sold out"], added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk", quantity: 1, source: "first-hit" }] }));
     arrive(`?code=${secret}&state=st-1`);
     renderPage();
     await screen.findByTestId("oda-result");
@@ -121,7 +122,7 @@ describe("Oda callback page", () => {
       json(
         cart({
           status: "partial",
-          added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1 }],
+          added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" }],
           notAdded: [
             { itemId: "i2", name: "Kaffe", reason: "no-match" },
             { itemId: "i3", name: "Egg", reason: "unavailable" },
@@ -151,7 +152,7 @@ describe("Oda callback page", () => {
         cart({
           cartUrl: "javascript:alert(1)",
           cartMessages: ['<img src=x onerror="alert(1)"> <b>bold</b>'],
-          added: [{ itemId: "i1", name: "Melk", productName: "<script>alert(1)</script>", quantity: 1 }],
+          added: [{ itemId: "i1", name: "Melk", productName: "<script>alert(1)</script>", quantity: 1, source: "first-hit" }],
         }),
       );
     arrive(`?code=${secret}&state=st-1`);
@@ -195,7 +196,7 @@ describe("Oda callback page", () => {
   it("on 502 shows what was already added, the not-closed note, and the text export", async () => {
     answer = () =>
       problem("oda-unavailable", 502, {
-        added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1 }],
+        added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" }],
         connectionClosed: false,
         fallback: { export: "text" },
       });

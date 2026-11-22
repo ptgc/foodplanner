@@ -61,13 +61,18 @@ function AddedList({ lines }: { lines: OdaCart["added"] }) {
   return (
     <ul className="oda-list" data-testid="oda-added">
       {lines.map((l, i) => (
-        <li key={`${l.itemId}-${i}`}>
+        <li key={`${l.itemId}-${i}`} data-source={l.source}>
           {(() => {
             const quantity = quantityText(l.quantity, formatNumber);
             return quantity === null
               ? t("oda.result.addedLineNoQuantity", { name: l.name, productName: l.productName })
               : t("oda.result.addedLine", { name: l.name, productName: l.productName, quantity });
           })()}
+          {l.source === "usually-bought" && (
+            <span className="oda-usual" data-testid="oda-usual">
+              {t("oda.result.usual")}
+            </span>
+          )}
         </li>
       ))}
     </ul>
@@ -87,6 +92,11 @@ function CartResult({ cart, back }: { cart: OdaCart; back: React.ReactNode }) {
         <section aria-labelledby="oda-added-title">
           <h2 id="oda-added-title">{t("oda.result.added")}</h2>
           <AddedList lines={cart.added} />
+          {cart.usuallyBought?.status === "unavailable" && (
+            <p className="shop-hint" data-testid="oda-usual-unavailable">
+              {t("oda.result.usualUnavailable")}
+            </p>
+          )}
         </section>
       )}
       {cart.notAdded.length > 0 && (

@@ -28,8 +28,8 @@ public sealed class OdaOptions
 
     public int MaxItemsPerAction { get; set; } = 100;
 
-    /// <summary>Hits asked for per query. Only the first available one is used.</summary>
-    public int SearchPageSize { get; set; } = 5;
+    /// <summary>Hits asked for per query (T-114: the usually bought product is looked for among them, so the page is 10; the tool allows up to 20).</summary>
+    public int SearchPageSize { get; set; } = 10;
 
     /// <summary>Per call to Oda.</summary>
     public int TimeoutSeconds { get; set; } = 30;

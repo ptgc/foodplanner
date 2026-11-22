@@ -63,6 +63,7 @@ const cartBody = (over: Record<string, unknown>) => ({
   cartMessages: [],
   connectionClosed: true,
   connectionMessage: null,
+  usuallyBought: { status: "skipped", count: 0 },
   ...over,
 });
 
@@ -242,6 +243,74 @@ test("expired sign-in (400 oda-state-invalid) says try again", async ({ page }, 
     await sendToOda(page, week, [label]);
     await expect(page.getByTestId("oda-failed")).toContainText("sign-in at Oda expired");
     await expect(page.getByTestId("oda-text-fallback")).toHaveCount(0);
+  } finally {
+    await removeItems(page.request, h, week);
+  }
+});
+
+test("usually bought (T-114): the line chosen from the history has the label, the others do not, and nothing is stored", async ({ page }, testInfo) => {
+  const week = weekFor(testInfo, 5);
+  const h = await householdId(page.request);
+  const label = `E2E tomat ${uniqueStamp(testInfo)}`;
+  try {
+    await addItem(page.request, h, week, label);
+    await fakeOda(page, "code=fake-code-6&state=fake-state-6", (route) =>
+      route.fulfill({
+        json: cartBody({
+          added: [
+            {
+              itemId: "00000000-0000-0000-0000-000000000006",
+              name: "Tomat",
+              productName: "Cherrytomater Favoritt med en ganske lang produktbeskrivelse 250 g",
+              quantity: 1,
+              source: "usually-bought",
+            },
+            { itemId: "00000000-0000-0000-0000-000000000007", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" },
+          ],
+          usuallyBought: { status: "used", count: 1 },
+        }),
+      }),
+    );
+    await sendToOda(page, week, [label]);
+
+    const added = page.getByTestId("oda-added");
+    await expect(added).toBeVisible();
+    const usual = added.getByTestId("oda-usual");
+    await expect(usual).toHaveCount(1);
+    await expect(usual).toHaveText("Usually bought");
+    await expect(added.locator("li", { hasText: "Tomat" }).getByTestId("oda-usual")).toBeVisible();
+    await expect(added.locator("li", { hasText: "Melk" }).getByTestId("oda-usual")).toHaveCount(0);
+    await expect(page.getByTestId("oda-usual-unavailable")).toHaveCount(0);
+    await expect(page.getByTestId("oda-not-closed")).toHaveCount(0);
+    await storageHoldsNoOdaData(page, "Cherrytomater", "usually-bought", "fake-code-6");
+    if (testInfo.project.name.startsWith("mobile")) {
+      await noHorizontalScroll(page);
+      const box = (await usual.boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    }
+  } finally {
+    await removeItems(page.request, h, week);
+  }
+});
+
+test("usually bought (T-114): when the history could not be read, one plain line says so", async ({ page }, testInfo) => {
+  const week = weekFor(testInfo, 6);
+  const h = await householdId(page.request);
+  const label = `E2E smør ${uniqueStamp(testInfo)}`;
+  try {
+    await addItem(page.request, h, week, label);
+    await fakeOda(page, "code=fake-code-7&state=fake-state-7", (route) =>
+      route.fulfill({
+        json: cartBody({
+          added: [{ itemId: "00000000-0000-0000-0000-000000000008", name: "Smør", productName: "Meierismør 250 g", quantity: 1, source: "first-hit" }],
+          usuallyBought: { status: "unavailable", count: 0 },
+        }),
+      }),
+    );
+    await sendToOda(page, week, [label]);
+
+    await expect(page.getByTestId("oda-usual-unavailable")).toContainText("could not be read");
+    await expect(page.getByTestId("oda-usual")).toHaveCount(0);
   } finally {
     await removeItems(page.request, h, week);
   }

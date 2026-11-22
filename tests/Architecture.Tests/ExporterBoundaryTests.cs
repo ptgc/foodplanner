@@ -48,6 +48,22 @@ public class ExporterBoundaryTests
     }
 
     [Fact]
+    public void No_Oda_type_holds_a_collection_in_an_instance_field_so_purchase_history_cannot_outlive_a_request()
+    {
+        // T-114 "History_never_persisted_or_logged": the "usually bought" ids live in one local variable of the fill. Options classes
+        // (configuration) and the per-request outcome record (the lines for the response, search product names only) may hold lists.
+        var offenders = typeof(Foodplanner.Infrastructure.AssemblyMarker).Assembly.GetTypes()
+            .Where(t => t.Namespace == "Foodplanner.Infrastructure.Oda" && t.Name is not (nameof(Foodplanner.Infrastructure.Oda.OdaOptions) or nameof(Foodplanner.Infrastructure.Oda.OdaActionOutcome))
+                        && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute), false))
+            .SelectMany(t => t.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly)
+                .Where(f => f.FieldType != typeof(string) && typeof(System.Collections.IEnumerable).IsAssignableFrom(f.FieldType))
+                .Select(f => $"{t.FullName}.{f.Name}"))
+            .ToArray();
+
+        Assert.Empty(offenders);
+    }
+
+    [Fact]
     public void Domain_has_no_provider_types_in_the_export_model_or_anywhere()
     {
         var offenders = typeof(Foodplanner.Domain.AssemblyMarker).Assembly.GetTypes()

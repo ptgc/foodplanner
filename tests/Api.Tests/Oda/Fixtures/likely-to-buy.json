@@ -1,0 +1,804 @@
+{
+ "result": [
+  {
+   "id": 7001,
+   "name": "Fake Usual Product 1",
+   "description": "Usual 1",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7001-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7002,
+   "name": "Fake Usual Product 2",
+   "description": "Usual 2",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7002-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7003,
+   "name": "Fake Usual Product 3",
+   "description": "Usual 3",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7003-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7004,
+   "name": "Fake Usual Product 4",
+   "description": "Usual 4",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7004-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7005,
+   "name": "Fake Usual Product 5",
+   "description": "Usual 5",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7005-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7006,
+   "name": "Fake Usual Product 6",
+   "description": "Usual 6",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7006-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7007,
+   "name": "Fake Usual Product 7",
+   "description": "Usual 7",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7007-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7008,
+   "name": "Fake Usual Product 8",
+   "description": "Usual 8",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7008-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7009,
+   "name": "Fake Usual Product 9",
+   "description": "Usual 9",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7009-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7010,
+   "name": "Fake Usual Product 10",
+   "description": "Usual 10",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7010-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7011,
+   "name": "Fake Usual Product 11",
+   "description": "Usual 11",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7011-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7012,
+   "name": "Fake Usual Product 12",
+   "description": "Usual 12",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7012-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7013,
+   "name": "Fake Usual Product 13",
+   "description": "Usual 13",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7013-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7014,
+   "name": "Fake Usual Product 14",
+   "description": "Usual 14",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7014-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7015,
+   "name": "Fake Usual Product 15",
+   "description": "Usual 15",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7015-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7016,
+   "name": "Fake Usual Product 16",
+   "description": "Usual 16",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7016-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7017,
+   "name": "Fake Usual Product 17",
+   "description": "Usual 17",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7017-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7018,
+   "name": "Fake Usual Product 18",
+   "description": "Usual 18",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7018-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7019,
+   "name": "Fake Usual Product 19",
+   "description": "Usual 19",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7019-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7020,
+   "name": "Fake Usual Product 20",
+   "description": "Usual 20",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7020-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7021,
+   "name": "Fake Usual Product 21",
+   "description": "Usual 21",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7021-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7022,
+   "name": "Fake Usual Product 22",
+   "description": "Usual 22",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7022-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7023,
+   "name": "Fake Usual Product 23",
+   "description": "Usual 23",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7023-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7024,
+   "name": "Fake Usual Product 24",
+   "description": "Usual 24",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7024-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7025,
+   "name": "Fake Usual Product 25",
+   "description": "Usual 25",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7025-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7026,
+   "name": "Fake Usual Product 26",
+   "description": "Usual 26",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7026-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7027,
+   "name": "Fake Usual Product 27",
+   "description": "Usual 27",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7027-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7028,
+   "name": "Fake Usual Product 28",
+   "description": "Usual 28",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7028-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7029,
+   "name": "Fake Usual Product 29",
+   "description": "Usual 29",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7029-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7030,
+   "name": "Fake Usual Product 30",
+   "description": "Usual 30",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7030-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7031,
+   "name": "Fake Usual Product 31",
+   "description": "Usual 31",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7031-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7032,
+   "name": "Fake Usual Product 32",
+   "description": "Usual 32",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7032-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7033,
+   "name": "Fake Usual Product 33",
+   "description": "Usual 33",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7033-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7034,
+   "name": "Fake Usual Product 34",
+   "description": "Usual 34",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7034-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7035,
+   "name": "Fake Usual Product 35",
+   "description": "Usual 35",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7035-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7036,
+   "name": "Fake Usual Product 36",
+   "description": "Usual 36",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7036-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7037,
+   "name": "Fake Usual Product 37",
+   "description": "Usual 37",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7037-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7038,
+   "name": "Fake Usual Product 38",
+   "description": "Usual 38",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7038-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7039,
+   "name": "Fake Usual Product 39",
+   "description": "Usual 39",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7039-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7040,
+   "name": "Fake Usual Product 40",
+   "description": "Usual 40",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7040-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7041,
+   "name": "Fake Usual Product 41",
+   "description": "Usual 41",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7041-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7042,
+   "name": "Fake Usual Product 42",
+   "description": "Usual 42",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7042-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7043,
+   "name": "Fake Usual Product 43",
+   "description": "Usual 43",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7043-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7044,
+   "name": "Fake Usual Product 44",
+   "description": "Usual 44",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7044-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7045,
+   "name": "Fake Usual Product 45",
+   "description": "Usual 45",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7045-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7046,
+   "name": "Fake Usual Product 46",
+   "description": "Usual 46",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7046-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7047,
+   "name": "Fake Usual Product 47",
+   "description": "Usual 47",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7047-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7048,
+   "name": "Fake Usual Product 48",
+   "description": "Usual 48",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7048-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7049,
+   "name": "Fake Usual Product 49",
+   "description": "Usual 49",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7049-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  },
+  {
+   "id": 7050,
+   "name": "Fake Usual Product 50",
+   "description": "Usual 50",
+   "price": "20.00",
+   "unitPrice": "20.00",
+   "unitName": "stk",
+   "brand": "Fake",
+   "brandId": 70,
+   "url": "https://oda.com/no/products/7050-fake-usual/",
+   "availability": {
+    "isAvailable": true,
+    "description": "Available",
+    "code": "available"
+   }
+  }
+ ]
+}

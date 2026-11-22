@@ -8552,7 +8552,8 @@
           "itemId",
           "name",
           "productName",
-          "quantity"
+          "quantity",
+          "source"
         ],
         "type": "object",
         "properties": {
@@ -8573,6 +8574,9 @@
               "string"
             ],
             "format": "int32"
+          },
+          "source": {
+            "type": "string"
           }
         }
       },
@@ -8584,7 +8588,8 @@
           "notAdded",
           "cartMessages",
           "connectionClosed",
-          "connectionMessage"
+          "connectionMessage",
+          "usuallyBought"
         ],
         "type": "object",
         "properties": {
@@ -8623,6 +8628,9 @@
               "null",
               "string"
             ]
+          },
+          "usuallyBought": {
+            "$ref": "#/components/schemas/OdaUsuallyBoughtResponse"
           }
         }
       },
@@ -8696,6 +8704,26 @@
         "properties": {
           "authorizeUrl": {
             "type": "string"
+          }
+        }
+      },
+      "OdaUsuallyBoughtResponse": {
+        "required": [
+          "status",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
