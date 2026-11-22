@@ -14,7 +14,7 @@ namespace Foodplanner.Api.Features.ShoppingLists;
 /// Set the Oda product for an ingredient. <c>OdaProductId</c> is Oda's integer product id, more than 0. Foodplanner cannot check that
 /// it exists at Oda (no Oda call is made here): a wrong id matches no search hit and the cart fill falls back.
 /// </summary>
-public sealed record OdaPreferenceRequest(decimal? OdaProductId);
+public sealed record OdaPreferenceRequest(long? OdaProductId);
 
 /// <summary>One choice: the ingredient (name in the request language) and when it was set. No Oda product id or name is returned.</summary>
 public sealed record OdaPreferenceResponse(Guid IngredientId, string IngredientName, DateTimeOffset SetAt);
@@ -39,6 +39,7 @@ public static class OdaPreferenceEndpoints
 
         preferences.MapPut("/{ingredientId:guid}", SetOdaPreference)
             .WithName("SetOdaPreference")
+            .Accepts<OdaPreferenceRequest>("application/json")
             .Produces<OdaPreferenceResponse>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -71,17 +72,17 @@ public static class OdaPreferenceEndpoints
     }
 
     private static async Task<IResult> SetOdaPreference(
-        Guid ingredientId, OdaPreferenceRequest? request, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
+        Guid ingredientId, HttpRequest http, RequestLocale locale, AppDbContext db, CancellationToken cancellationToken)
     {
-        if (request?.OdaProductId is not { } raw || raw != decimal.Truncate(raw) || raw < 1 || raw > long.MaxValue)
+        // The body is read by hand so that every bad value (missing, text, 1.5, too large, no or broken JSON) is a field error on
+        // odaProductId and not a binder failure. The route documents the body as OdaPreferenceRequest (an integer) in OpenAPI.
+        if (await ReadProductIdAsync(http, cancellationToken) is not { } productId)
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
                 ["odaProductId"] = ["odaProductId must be a whole number above 0."],
             });
         }
-
-        var productId = (long)raw;
 
         // Q-012 rule: the ingredient is resolved through the filtered set. Another household's id and an unknown id are the same 404.
         var name = await db.Ingredients.AsNoTracking().Where(i => i.Id == ingredientId)
@@ -133,6 +134,41 @@ public static class OdaPreferenceEndpoints
             AppProblems.OdaPreferenceConflict,
             "Choice changed at the same time",
             "Someone else changed this choice at the same moment. Nothing was lost; try again.");
+    }
+
+    private const int MaxBodyBytes = 1024;
+
+    /// <summary>The valid product id of the request body, or null for anything else.</summary>
+    private static async Task<long?> ReadProductIdAsync(HttpRequest http, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var buffer = new byte[MaxBodyBytes + 1];
+            var length = 0;
+            int read;
+            while (length < buffer.Length && (read = await http.Body.ReadAsync(buffer.AsMemory(length), cancellationToken)) > 0)
+            {
+                length += read;
+            }
+
+            if (length is 0 or > MaxBodyBytes)
+            {
+                return null;
+            }
+
+            using var document = System.Text.Json.JsonDocument.Parse(buffer.AsMemory(0, length));
+            return document.RootElement is { ValueKind: System.Text.Json.JsonValueKind.Object } root
+                   && root.TryGetProperty("odaProductId", out var value)
+                   && value.ValueKind == System.Text.Json.JsonValueKind.Number
+                   && value.TryGetInt64(out var id)
+                   && PreferredOdaProduct.IsValidProductId(id)
+                ? id
+                : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Idempotent: no row is also 204. An ingredient that is unknown or another household's is a 404.</summary>

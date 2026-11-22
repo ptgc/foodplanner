@@ -5794,17 +5794,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "type": "null"
-                  },
-                  {
-                    "$ref": "#/components/schemas/OdaPreferenceRequest"
-                  }
-                ]
+                "$ref": "#/components/schemas/OdaPreferenceRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -8998,13 +8992,13 @@
         "type": "object",
         "properties": {
           "odaProductId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "number",
+              "integer",
               "string"
             ],
-            "format": "double"
+            "format": "int64"
           }
         }
       },

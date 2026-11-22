@@ -1516,7 +1516,7 @@ export interface components {
         /** @enum {unknown} */
         OdaPreferenceProblem: "unavailable" | "not-found" | null;
         OdaPreferenceRequest: {
-            /** Format: double */
+            /** Format: int64 */
             odaProductId: null | number | string;
         };
         OdaPreferenceResponse: {
@@ -6212,9 +6212,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": null | components["schemas"]["OdaPreferenceRequest"];
+                "application/json": components["schemas"]["OdaPreferenceRequest"];
             };
         };
         responses: {

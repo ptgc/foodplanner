@@ -275,17 +275,13 @@ public sealed class OdaPreferenceTests(AuthDatabase db) : IClassFixture<AuthData
         var owner = await host.SignInAsync();
         var household = await owner.Client.CreateHouseholdAsync();
 
-        foreach (var body in new object?[] { new { }, new { odaProductId = 0 }, new { odaProductId = -5 }, new { odaProductId = 1.5 }, new { odaProductId = 9223372036854775808m } })
+        foreach (var body in new object?[] { new { }, new { odaProductId = 0 }, new { odaProductId = -5 }, new { odaProductId = 1.5 }, new { odaProductId = 9223372036854775808m }, new { odaProductId = "abc" }, new { odaProductId = (string?)null }, null })
         {
             using var response = await PutAsync(owner.Client, household, Rice, body);
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.True((await response.JsonAsync()).GetProperty("errors").TryGetProperty("odaProductId", out _), "expected an error for odaProductId");
         }
 
-        using var text = await PutAsync(owner.Client, household, Rice, new { odaProductId = "abc" });
-        using var none = await PutAsync(owner.Client, household, Rice, null);
-        Assert.Equal(HttpStatusCode.BadRequest, text.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, none.StatusCode);
         Assert.Equal(0, await RowsAsync(household));
     }
 

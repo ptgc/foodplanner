@@ -76,10 +76,10 @@ function show(result: Cart) {
   );
 }
 
-const open = async (user: ReturnType<typeof userEvent.setup>) => user.click(screen.getByRole("button", { name: t("oda.pick.open") }));
+const open = async (user: ReturnType<typeof userEvent.setup>) => user.click(await screen.findByRole("button", { name: t("oda.pick.open") }));
 
 describe("the picker on the Oda result (T-052: Picker_web)", () => {
-  it("shows for a line with two or more alternatives, not for a manual item or a line with one and no choice", () => {
+  it("shows for a line with two or more alternatives, not for a manual item or a line with one and no choice", async () => {
     show(
       cart([
         tomatoLine(),
@@ -88,14 +88,14 @@ describe("the picker on the Oda result (T-052: Picker_web)", () => {
       ]),
     );
 
-    expect(screen.getAllByRole("button", { name: t("oda.pick.open") })).toHaveLength(1);
+    expect(await screen.findAllByRole("button", { name: t("oda.pick.open") })).toHaveLength(1);
     expect(screen.getByText("Smør", { exact: false })).toBeInTheDocument();
   });
 
-  it("shows for a line with a choice even with fewer than two alternatives", () => {
+  it("shows for a line with a choice even with fewer than two alternatives", async () => {
     show(cart([tomatoLine({ hasPreference: true, source: "preferred", alternatives: [{ ...alternatives[0]!, isPreferred: true }] })]));
 
-    expect(screen.getByRole("button", { name: t("oda.pick.open") })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: t("oda.pick.open") })).toBeInTheDocument();
     expect(screen.getByTestId("oda-choice")).toHaveTextContent(t("oda.result.choice"));
   });
 
@@ -132,7 +132,7 @@ describe("the picker on the Oda result (T-052: Picker_web)", () => {
     const user = userEvent.setup();
     show(cart([tomatoLine({ hasPreference: true, source: "preferred", productId: 2002, alternatives: alternatives.map((a) => ({ ...a, isPreferred: a.productId === 2002 })) })]));
 
-    await user.click(screen.getByRole("button", { name: t("oda.pick.removeFor", { name: "Cherry tomatoes" }) }));
+    await user.click(await screen.findByRole("button", { name: t("oda.pick.removeFor", { name: "Cherry tomatoes" }) }));
 
     await waitFor(() => expect(screen.getByTestId("oda-removed")).toBeInTheDocument());
     expect(calls).toEqual([{ method: "DELETE", path: `/api/households/h1/oda-preferences/${tomato}`, body: null }]);

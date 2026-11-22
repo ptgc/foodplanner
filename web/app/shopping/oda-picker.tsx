@@ -1,27 +1,25 @@
-import { useId, useState } from "react";
-import { useI18n, type MessageKey } from "../i18n";
+import { Suspense, useState } from "react";
+import { useI18n } from "../i18n";
+import { lazyWithMessages } from "../i18n/lazy";
 import { type OdaAdded, quantityText } from "./oda";
-import { clearPreference, setPreference, useOnline } from "./oda-preferences";
+
+// The picker (list of products, buttons, its texts) is its own chunk with its own message group: only an Adult who looks at a
+// finished fill with something to choose from ever loads it.
+const OdaPickPanel = lazyWithMessages("oda", () => import("./oda-pick-panel"));
 
 type Change = "set" | "removed" | null;
 
 /**
- * One added line of the Oda result (T-052): the text, its labels ("Your Oda choice", "Usually bought", why the choice was not
- * used) and, for an Adult on a finished fill, the picker. Picking only calls Foodplanner's own endpoints; it never changes the
- * Oda cart. Names and ids of the products live in this response and in React state only, never in browser storage. Everything
- * that came from Oda is rendered as plain text.
+ * One added line of the Oda result (T-052): the text and its labels ("Your Oda choice", "Usually bought", why the choice was
+ * not used), and, for an Adult on a finished fill, the picker. Names and ids of the products live in this response and in React
+ * state only, never in browser storage. Everything that came from Oda is rendered as plain text.
  */
 export function OdaAddedLine({ line, householdId, interactive }: { line: OdaAdded; householdId: string; interactive: boolean }) {
   const { t, formatNumber } = useI18n();
-  const online = useOnline();
-  const listId = useId();
   const initial = line.alternatives.find((a) => a.isPreferred);
   const [has, setHas] = useState(line.hasPreference);
   const [chosen, setChosen] = useState<string | null>(initial ? String(initial.productId) : null);
   const [change, setChange] = useState<Change>(null);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
 
   const quantity = quantityText(line.quantity, formatNumber);
   const text =
@@ -33,34 +31,7 @@ export function OdaAddedLine({ line, householdId, interactive }: { line: OdaAdde
   const showChoice = change === "set" || (change === null && line.source === "preferred");
   const showUsual = line.source === "usually-bought" && change !== "set";
   const problem = change === null ? line.preferenceProblem : null;
-  const ingredientId = line.ingredientId;
-  const canPick = interactive && ingredientId !== null && (line.alternatives.length >= 2 || has);
-
-  const pick = async (productId: number) => {
-    if (!ingredientId) return;
-    setBusy(true);
-    setError(null);
-    const result = await setPreference(householdId, ingredientId, productId);
-    setBusy(false);
-    if (result.ok) {
-      setHas(true);
-      setChosen(String(productId));
-      setChange("set");
-    } else setError(result.key);
-  };
-
-  const remove = async () => {
-    if (!ingredientId) return;
-    setBusy(true);
-    setError(null);
-    const result = await clearPreference(householdId, ingredientId);
-    setBusy(false);
-    if (result.ok) {
-      setHas(false);
-      setChosen(null);
-      setChange("removed");
-    } else setError(result.key);
-  };
+  const canPick = interactive && line.ingredientId !== null && (line.alternatives.length >= 2 || has);
 
   return (
     <>
@@ -86,70 +57,25 @@ export function OdaAddedLine({ line, householdId, interactive }: { line: OdaAdde
         </span>
       )}
       {canPick && (
-        <div className="oda-pick">
-          <div className="oda-pick-actions">
-            <button
-              type="button"
-              className="button button-outline oda-pick-button"
-              aria-expanded={open}
-              aria-controls={listId}
-              onClick={() => setOpen((o) => !o)}
-            >
-              {t("oda.pick.open")}
-            </button>
-            {has && (
-              <button
-                type="button"
-                className="button button-outline oda-pick-button"
-                aria-label={t("oda.pick.removeFor", { name: line.name })}
-                disabled={!online || busy}
-                onClick={() => void remove()}
-              >
-                {t("oda.pick.remove")}
-              </button>
-            )}
-          </div>
-          {open && (
-            <div id={listId} className="oda-pick-panel">
-              <ul className="oda-alternatives" aria-label={t("oda.pick.listLabel", { name: line.name })} data-testid="oda-alternatives">
-                {line.alternatives.map((a) => {
-                  const id = String(a.productId);
-                  const isChosen = chosen === id;
-                  return (
-                    <li key={id} className="oda-alternative" data-testid="oda-alternative">
-                      <span className="oda-alternative-name">{a.productName}</span>
-                      {a.isAdded && <span className="oda-alternative-mark">{t("oda.pick.inCart")}</span>}
-                      {isChosen && change === "set" ? (
-                        <span className="oda-saved" role="status">
-                          {t("oda.pick.saved")}
-                        </span>
-                      ) : isChosen ? (
-                        <span className="oda-alternative-mark">{t("oda.result.choice")}</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="button button-outline oda-pick-button"
-                          aria-label={t("oda.pick.useFor", { product: a.productName })}
-                          disabled={!online || busy}
-                          onClick={() => void pick(Number(a.productId))}
-                        >
-                          {t("oda.pick.use")}
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="shop-hint">{t("oda.pick.note")}</p>
-              {!online && <p className="shop-hint">{t("oda.pick.offline")}</p>}
-            </div>
-          )}
-          {error && (
-            <p role="alert" className="form-error" data-testid="oda-pick-error">
-              {t(error)}
-            </p>
-          )}
-        </div>
+        <Suspense fallback={null}>
+          <OdaPickPanel
+            line={line}
+            householdId={householdId}
+            has={has}
+            chosen={chosen}
+            saved={change === "set"}
+            onSaved={(id) => {
+              setHas(true);
+              setChosen(id);
+              setChange("set");
+            }}
+            onRemoved={() => {
+              setHas(false);
+              setChosen(null);
+              setChange("removed");
+            }}
+          />
+        </Suspense>
       )}
     </>
   );
