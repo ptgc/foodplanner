@@ -127,6 +127,8 @@ Frontend (T-119). Vitest with component tests, Playwright against a faked API (`
 - [ ] Generated TS client: `./scripts/openapi.sh` output is committed and the upload uses the same multipart mechanism as the recipe picture upload (no hand-written API types); bundle budgets unchanged or raised with a reason; `./scripts/verify.sh` green.
 
 ## Open questions
+
+**Answered by the architect 2026-11-22:** Q-035, Q-036 and Q-037 go with the recommendations (crop kept as a temporary blob until save; no catalog sent to Claude, server-side matching, switch to global names only if the eval shows more than about 15% unmatched; official Anthropic C# SDK for the new call only). The spec's other decisions stand as written. Learned rules from the example books are in eval-private/recipe-photos/LESSONS.md (local, not in git) and go into the skill file.
 - [Q-035](../questions/Q-035.md): where the cropped dish picture lives between import and save (temp blob, a column, ...). Recommendation: temporary blob in the image store under the household prefix.
 - [Q-036](../questions/Q-036.md): how the catalog is given to Claude (none and server-side matching; global names; household names). Recommendation: none, resolve on the server, revisit if the eval shows many unmatched lines.
 - [Q-037](../questions/Q-037.md): the official Anthropic C# SDK for the new call only or for T-077's call too (new NuGet dependency). Recommendation: new call only.
