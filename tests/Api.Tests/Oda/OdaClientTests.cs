@@ -43,7 +43,7 @@ public sealed class OdaClientTests
 
     private static Task<OdaActionOutcome> RunAsync(ServiceProvider provider, CancellationToken cancellationToken = default) =>
         provider.CreateScope().ServiceProvider.GetRequiredService<OdaCartAction>().RunAsync(
-            Guid.NewGuid(), Guid.NewGuid(), new OdaSecret(OdaHost.Code), new OdaSecret(OdaOAuth.NewVerifier()), Lines, cancellationToken);
+            Guid.NewGuid(), Guid.NewGuid(), new OdaSecret(OdaHost.Code), new OdaSecret(OdaOAuth.NewVerifier()), Lines, new Dictionary<Guid, string>(), cancellationToken);
 
     // ---- Contract fixtures -------------------------------------------------------------------------------------------
 

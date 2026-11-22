@@ -122,6 +122,19 @@ internal sealed class WeeklyGroceryConfiguration : IEntityTypeConfiguration<Week
     }
 }
 
+// Preferred Oda products (T-052): one Oda product id per household and ingredient, nothing else from Oda. Only Household cascades.
+internal sealed class PreferredOdaProductConfiguration : IEntityTypeConfiguration<PreferredOdaProduct>
+{
+    public void Configure(EntityTypeBuilder<PreferredOdaProduct> preferred)
+    {
+        preferred.ToTable("PreferredOdaProducts");
+        preferred.HasIndex(p => new { p.HouseholdId, p.IngredientId }).IsUnique();
+        preferred.HasIndex(p => p.IngredientId);
+        preferred.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+        preferred.HasOne<Ingredient>().WithMany().HasForeignKey(p => p.IngredientId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 // Dismissed regular-grocery suggestions (T-110): the normalised label, unique per household. Only cascade: Household.
 internal sealed class DismissedGrocerySuggestionConfiguration : IEntityTypeConfiguration<DismissedGrocerySuggestion>
 {

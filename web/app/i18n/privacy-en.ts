@@ -20,7 +20,7 @@ export const privacyEn = {
   "privacy.ai.title": "AI help with recipe imports",
   "privacy.ai.body": "If AI help is on, lines we can't read may be sent to Anthropic (no names or account data). Only the unresolved ingredient lines of an import are sent, never the whole page, and nothing else about you or your household. You always check the result before it is saved.",
   "privacy.oda.title": "Oda",
-  "privacy.oda.body": "\"Add to Oda cart\" signs you in to Oda only for that one action. Foodplanner stores no Oda sign-in token and no Oda data. The items on your shopping list are sent to Oda to fill the cart, and the connection is closed afterwards. If closing the connection fails, the app tells you to remove it in Oda under Privacy & security.",
+  "privacy.oda.body": "\"Add to Oda cart\" signs you in to Oda only for that one action. Foodplanner stores no Oda sign-in token and no Oda data, with one exception: if you choose an Oda product for an ingredient, Foodplanner keeps only that product's number for your household, nothing else from Oda. The items on your shopping list are sent to Oda to fill the cart, and the connection is closed afterwards. If closing the connection fails, the app tells you to remove it in Oda under Privacy & security.",
   "privacy.rights.title": "Your choices",
   "privacy.rights.export": "Owners and Adults can export everything a household holds as a file, from the household page.",
   "privacy.rights.delete": "You can delete your account at any time, with your password. Households where you are the only member are deleted with it.",

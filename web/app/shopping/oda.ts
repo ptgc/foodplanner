@@ -17,6 +17,16 @@ export type OdaStartResult =
 /** The browser navigation, a seam so tests can watch it. A full-page navigation: Oda is another origin. */
 export const navigation = { go: (url: string) => window.location.assign(url) };
 
+/** A formatted quantity, the raw text when it is not a number, or null when there is nothing to show (never "NaN"). */
+export function quantityText(value: unknown, format: (n: number) => string): string | null {
+  if (typeof value === "number") return Number.isFinite(value) ? format(value) : null;
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (text === "" || text.toLowerCase() === "nan") return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? format(n) : text;
+}
+
 /** Only an http(s) address is followed or linked: Oda text must never become a script address. */
 export function safeHttpUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -81,15 +91,38 @@ function addedOf(body: unknown): OdaAdded[] {
     const l = raw as Record<string, unknown>;
     const name = asString(l.name);
     if (name === null) continue;
+    const source = asString(l.source);
+    const problem = asString(l.preferenceProblem);
     lines.push({
       itemId: asString(l.itemId) ?? "",
       name,
       productName: asString(l.productName) ?? "",
       quantity: typeof l.quantity === "number" || typeof l.quantity === "string" ? l.quantity : 1,
-      source: asString(l.source) ?? "first-hit",
+      source: source === "preferred" || source === "usually-bought" ? source : "first-hit",
+      ingredientId: asString(l.ingredientId),
+      productId: typeof l.productId === "number" ? l.productId : 0,
+      hasPreference: l.hasPreference === true,
+      preferenceProblem: problem === "unavailable" || problem === "not-found" ? problem : null,
+      // The picker is for a finished fill: a failed one carries no alternatives.
+      alternatives: [],
     });
   }
   return lines;
+}
+
+/**
+ * The choice fields (T-052) of a finished fill's line, so a response from an API that does not send them yet (a deploy in the
+ * middle of a rollout) still shows the line, without a picker, instead of breaking the result screen.
+ */
+function withChoiceFields(line: OdaAdded): OdaAdded {
+  const raw = line as Partial<OdaAdded>;
+  return {
+    ...line,
+    ingredientId: raw.ingredientId ?? null,
+    hasPreference: raw.hasPreference === true,
+    preferenceProblem: raw.preferenceProblem ?? null,
+    alternatives: Array.isArray(raw.alternatives) ? raw.alternatives : [],
+  };
 }
 
 function failure(status: number, body: unknown): Extract<OdaCompleteResult, { kind: "failed" }> {
@@ -119,7 +152,7 @@ export async function completeOda(
       params: { path: { householdId, weekStart } },
       body: { state: params.state, code: params.code, error: params.error },
     });
-    if (response.ok && data) return { kind: "result", cart: data };
+    if (response.ok && data) return { kind: "result", cart: { ...data, added: data.added.map(withChoiceFields) } };
     return failure(response.status, error);
   } catch {
     return { kind: "failed", reason: "failed", added: [], connectionClosed: null, offerText: true };

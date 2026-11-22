@@ -18,5 +18,17 @@
     {"id":2002,"name":"Fake Tomat Cherry Favoritt","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2002-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}}],
   "ost": [{"id":2011,"name":"Fake Ost Vanlig","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2011-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}},
     {"id":2012,"name":"Fake Ost Favoritt (utsolgt)","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2012-fake/","availability":{"isAvailable":false,"description":"x","code":"available"}},
-    {"id":2013,"name":"Fake Ost Tredje","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2013-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}}]
+    {"id":2013,"name":"Fake Ost Tredje","description":"x","price":"30.00","unitPrice":"30.00","unitName":"stk","brand":"Fake","brandId":14,"url":"https://oda.com/no/products/2013-fake/","availability":{"isAvailable":true,"description":"x","code":"available"}}],
+  "bacon": [
+    {"id":987654320,"name":"Fake Recognisable Bacon One","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":987654321,"name":"Fake Recognisable Bacon Two","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}}],
+  "pasta": [
+    {"id":3001,"name":"Fake Pasta Alfa","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":3002,"name":"Fake Pasta Beta (utsolgt)","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":false,"description":"x","code":"sold_out"}},
+    {"id":3003,"name":"Fake Pasta Gamma","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":3004,"name":"Fake Pasta Delta (utsolgt)","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":false,"description":"x","code":"sold_out"}},
+    {"id":3005,"name":"Fake Pasta Epsilon","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":3006,"name":"Fake Pasta Zeta","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":3007,"name":"Fake Pasta Eta","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}},
+    {"id":3008,"name":"Fake Pasta Theta","description":"x","price":"20.00","unitPrice":"20.00","unitName":"stk","availability":{"isAvailable":true,"description":"x","code":"available"}}]
 }

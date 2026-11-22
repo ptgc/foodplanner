@@ -206,6 +206,11 @@ function ShoppingScreen({ householdId, canOda }: { householdId: string; canOda: 
           />
         </Suspense>
       )}
+      {canOda && (
+        <Link className="button button-outline shop-pantry-link" to="/shopping/oda-choices" data-testid="oda-choices-link">
+          {t("oda.choices.link")}
+        </Link>
+      )}
       {message && (
         <p role="alert" className="form-error">
           {message}

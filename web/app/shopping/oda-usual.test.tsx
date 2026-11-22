@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { components } from "../api/schema";
 import { translate, type Locale } from "../i18n";
 import { t } from "../test-i18n";
+import { addedLine } from "./oda-fixtures";
 import { OdaResult } from "./oda-result";
 
 type Cart = components["schemas"]["OdaCartResponse"];
@@ -15,8 +16,8 @@ function cart(over: Partial<Cart> = {}): Cart {
     status: "done",
     cartUrl: "https://oda.example/cart",
     added: [
-      { itemId: "i1", name: "Tomat", productName: "Cherrytomater 250 g", quantity: 1, source: "usually-bought" },
-      { itemId: "i2", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" },
+      addedLine({ itemId: "i1", name: "Tomat", productName: "Cherrytomater 250 g", quantity: 1, source: "usually-bought" }),
+      addedLine({ itemId: "i2", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: 1, source: "first-hit" }),
     ],
     notAdded: [],
     cartMessages: [],
@@ -65,7 +66,7 @@ describe("Oda result marks usually bought lines (T-114)", () => {
   });
 
   it("shows no note when the history was used or skipped, and no 'connection closed' line", () => {
-    for (const status of ["used", "skipped"]) {
+    for (const status of ["used", "skipped"] as const) {
       const { unmount } = show(cart({ usuallyBought: { status, count: 0 } }));
       expect(screen.queryByTestId("oda-usual-unavailable")).toBeNull();
       expect(screen.queryByTestId("oda-not-closed")).toBeNull();
@@ -80,7 +81,7 @@ describe("Oda result marks usually bought lines (T-114)", () => {
   });
 
   it("renders product names as plain text and writes nothing to browser storage", () => {
-    show(cart({ added: [{ itemId: "i1", name: "Tomat", productName: "<img src=x onerror=alert(1)>", quantity: 1, source: "usually-bought" }] }));
+    show(cart({ added: [addedLine({ itemId: "i1", name: "Tomat", productName: "<img src=x onerror=alert(1)>", quantity: 1, source: "usually-bought" })] }));
 
     expect(document.querySelector("img")).toBeNull();
     expect(window.localStorage.length).toBe(0);

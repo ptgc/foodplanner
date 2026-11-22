@@ -875,6 +875,7 @@ describe("send to Oda (T-054)", () => {
       expect(within(dialog).getByText(t(key))).toBeInTheDocument();
     }
     expect(server.odaStarts).toEqual([]); // nothing is called before the confirmation
+    expect(screen.getByTestId("oda-choices-link")).toHaveAttribute("href", "/shopping/oda-choices"); // T-052
   });
 
   it("is hidden for a Child member", async () => {
@@ -883,6 +884,7 @@ describe("send to Oda (T-054)", () => {
     await ready();
     await new Promise((r) => setTimeout(r, 100)); // the button is a lazy chunk: give it time to show if it were going to
     expect(odaButton()).toBeNull();
+    expect(screen.queryByTestId("oda-choices-link")).toBeNull(); // T-052: the choices link is for Adults only
   });
 
   it("starts with confirmed:true, remembers only the week, and navigates the browser to Oda", async () => {

@@ -43,6 +43,8 @@ public static class AppProblems
     public const string WeeklyGroceryNotFound = "weekly-grocery-not-found";
     public const string WeeklyGroceryLimit = "weekly-grocery-limit";
     public const string WeeklyGroceryConflict = "weekly-grocery-conflict";
+    public const string OdaPreferenceLimit = "oda-preference-limit";
+    public const string OdaPreferenceConflict = "oda-preference-conflict";
     public const string DismissedSuggestionLimit = "dismissed-suggestion-limit";
     public const string MealMixRulesConflict = "meal-mix-rules-conflict";
     public const string StoreExists = "store-exists";

@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { useI18n, type MessageKey } from "../i18n";
 import { ExportBar } from "./export-bar";
 import { safeHttpUrl, type OdaCart, type OdaCompleteResult, type OdaPending } from "./oda";
+import { OdaAddedLine } from "./oda-picker";
 
 type Failed = Extract<OdaCompleteResult, { kind: "failed" }>;
 
@@ -40,46 +41,26 @@ export function OdaResult({ result, pending }: { result: OdaCompleteResult; pend
     </Link>
   );
   return result.kind === "result" ? (
-    <CartResult cart={result.cart} back={back} />
+    <CartResult cart={result.cart} back={back} householdId={pending.householdId} />
   ) : (
     <FailedResult failed={result} pending={pending} back={back} />
   );
 }
 
-/** A formatted quantity, the raw text when it is not a number, or null when there is nothing to show (never "NaN"). */
-export function quantityText(value: unknown, format: (n: number) => string): string | null {
-  if (typeof value === "number") return Number.isFinite(value) ? format(value) : null;
-  if (typeof value !== "string") return null;
-  const text = value.trim();
-  if (text === "" || text.toLowerCase() === "nan") return null;
-  const n = Number(text);
-  return Number.isFinite(n) ? format(n) : text;
-}
-
-function AddedList({ lines }: { lines: OdaCart["added"] }) {
-  const { t, formatNumber } = useI18n();
+/** The lines that reached the cart. Only a finished fill of an Adult is interactive (the picker, T-052). */
+function AddedList({ lines, householdId, interactive }: { lines: OdaCart["added"]; householdId: string; interactive: boolean }) {
   return (
     <ul className="oda-list" data-testid="oda-added">
       {lines.map((l, i) => (
         <li key={`${l.itemId}-${i}`} data-source={l.source}>
-          {(() => {
-            const quantity = quantityText(l.quantity, formatNumber);
-            return quantity === null
-              ? t("oda.result.addedLineNoQuantity", { name: l.name, productName: l.productName })
-              : t("oda.result.addedLine", { name: l.name, productName: l.productName, quantity });
-          })()}
-          {l.source === "usually-bought" && (
-            <span className="oda-usual" data-testid="oda-usual">
-              {t("oda.result.usual")}
-            </span>
-          )}
+          <OdaAddedLine line={l} householdId={householdId} interactive={interactive} />
         </li>
       ))}
     </ul>
   );
 }
 
-function CartResult({ cart, back }: { cart: OdaCart; back: React.ReactNode }) {
+function CartResult({ cart, back, householdId }: { cart: OdaCart; back: React.ReactNode; householdId: string }) {
   const { t } = useI18n();
   const cartUrl = safeHttpUrl(cart.cartUrl);
   const status = statusKeys[cart.status];
@@ -91,7 +72,7 @@ function CartResult({ cart, back }: { cart: OdaCart; back: React.ReactNode }) {
       {cart.added.length > 0 && (
         <section aria-labelledby="oda-added-title">
           <h2 id="oda-added-title">{t("oda.result.added")}</h2>
-          <AddedList lines={cart.added} />
+          <AddedList lines={cart.added} householdId={householdId} interactive />
           {cart.usuallyBought?.status === "unavailable" && (
             <p className="shop-hint" data-testid="oda-usual-unavailable">
               {t("oda.result.usualUnavailable")}
@@ -136,6 +117,9 @@ function CartResult({ cart, back }: { cart: OdaCart; back: React.ReactNode }) {
           {t("oda.result.notClosed")}
         </p>
       )}
+      <Link className="button button-outline oda-back" to="/shopping/oda-choices" data-testid="oda-choices-link">
+        {t("oda.choices.link")}
+      </Link>
       {back}
     </div>
   );
@@ -152,7 +136,7 @@ function FailedResult({ failed, pending, back }: { failed: Failed; pending: OdaP
       {failed.added.length > 0 && (
         <section aria-labelledby="oda-added-before">
           <p id="oda-added-before">{t("oda.result.addedBefore")}</p>
-          <AddedList lines={failed.added} />
+          <AddedList lines={failed.added} householdId={pending.householdId} interactive={false} />
         </section>
       )}
       {failed.connectionClosed === false && (

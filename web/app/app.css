@@ -551,3 +551,17 @@ body {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
+/* T-052: the picker under a line of the Oda result, and the choices page. Touch targets are 44px, long names wrap. */
+.oda-line-text { overflow-wrap: anywhere; }
+.oda-choice { font-weight: 600; }
+.oda-problem { display: block; margin-top: 0.25rem; font-size: 0.875rem; overflow-wrap: anywhere; }
+.oda-saved { font-size: 0.875rem; font-weight: 600; }
+.oda-pick { margin-top: 0.5rem; }
+.oda-pick-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.oda-pick-button { min-height: var(--touch); box-sizing: border-box; overflow-wrap: anywhere; }
+.oda-pick-panel { margin-top: 0.5rem; }
+.oda-alternatives { margin: 0 0 0.5rem; padding: 0; list-style: none; }
+.oda-alternative { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; width: 100%; min-height: var(--touch); box-sizing: border-box; padding: 0.25rem 0; border-bottom: 1px solid currentColor; }
+.oda-alternative-name { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.oda-alternative-mark { font-size: 0.8125rem; }

@@ -359,6 +359,144 @@ public class CartFillTests
         await Assert.ThrowsAsync<OperationCanceledException>(() => CartFiller.FillAsync(session, Items(2), CancellationToken.None));
     }
 
+    // ---- The household's own pick (T-052: Fill_priority_order) -------------------------------------------------------
+
+    [Fact]
+    public void The_preferred_hit_beats_a_usual_hit_that_ranks_higher()
+    {
+        var match = ProductMatcher.Match([Hit("1"), Hit("2"), Hit("3")], Usual("1"), "3");
+
+        Assert.Equal("3", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.Preferred, match.Source);
+        Assert.Equal(PreferenceProblem.None, match.PreferenceProblem);
+    }
+
+    [Fact]
+    public void A_usual_hit_beats_the_first_hit_when_no_preference_matches_and_says_why()
+    {
+        var match = ProductMatcher.Match([Hit("1"), Hit("2"), Hit("3")], Usual("2"), "99");
+
+        Assert.Equal("2", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.UsuallyBought, match.Source);
+        Assert.Equal(PreferenceProblem.NotFound, match.PreferenceProblem);
+    }
+
+    [Fact]
+    public void The_first_hit_is_used_when_neither_applies()
+    {
+        var none = ProductMatcher.Match([Hit("1"), Hit("2")], Usual(), null);
+        var gone = ProductMatcher.Match([Hit("1"), Hit("2")], Usual(), "99");
+
+        Assert.Equal(ProductMatchSource.FirstHit, none.Source);
+        Assert.Equal(PreferenceProblem.None, none.PreferenceProblem);
+        Assert.Equal("1", gone.Product!.ProductId);
+        Assert.Equal(PreferenceProblem.NotFound, gone.PreferenceProblem);
+    }
+
+    [Fact]
+    public void A_preferred_hit_that_is_sold_out_is_unavailable_and_the_next_rules_apply()
+    {
+        var hits = new[] { Hit("1"), Hit("2", available: false), Hit("3") };
+
+        var first = ProductMatcher.Match(hits, Usual(), "2");
+        var usual = ProductMatcher.Match(hits, Usual("3"), "2");
+
+        Assert.Equal("1", first.Product!.ProductId);
+        Assert.Equal(PreferenceProblem.Unavailable, first.PreferenceProblem);
+        Assert.Equal("3", usual.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.UsuallyBought, usual.Source);
+        Assert.Equal(PreferenceProblem.Unavailable, usual.PreferenceProblem);
+    }
+
+    [Fact]
+    public void With_nothing_available_the_preference_is_not_mentioned_and_an_empty_preference_equals_T_114()
+    {
+        var unavailable = ProductMatcher.Match([Hit("1", false), Hit("2", false)], Usual(), "2");
+        var hits = new[] { Hit("1"), Hit("2"), Hit("3") };
+
+        Assert.Equal(ProductMatchOutcome.Unavailable, unavailable.Outcome);
+        Assert.Equal(PreferenceProblem.None, unavailable.PreferenceProblem);
+        Assert.Equal(ProductMatcher.Match(hits, Usual("2")), ProductMatcher.Match(hits, Usual("2"), null));
+        Assert.Equal(ProductMatchOutcome.NoMatch, ProductMatcher.Match([], Usual(), "1").Outcome);
+    }
+
+    [Fact]
+    public void Alternatives_are_the_first_five_available_hits_and_always_contain_the_added_product()
+    {
+        var hits = new[] { Hit("1"), Hit("2", false), Hit("3"), Hit("4"), Hit("5"), Hit("6"), Hit("7"), Hit("8") };
+
+        var inside = ProductMatcher.Alternatives(hits, hits[2], "5");
+        var beyond = ProductMatcher.Alternatives(hits, hits[7], null);
+
+        Assert.Equal(["1", "3", "4", "5", "6"], inside.Select(a => a.ProductId).ToArray());
+        Assert.Equal(["3"], inside.Where(a => a.IsAdded).Select(a => a.ProductId).ToArray());
+        Assert.Equal(["5"], inside.Where(a => a.IsPreferred).Select(a => a.ProductId).ToArray());
+        Assert.Equal(["1", "3", "4", "5", "8"], beyond.Select(a => a.ProductId).ToArray());
+        Assert.Single(beyond, a => a.IsAdded);
+        Assert.DoesNotContain(beyond, a => a.IsPreferred);
+        Assert.Throws<ArgumentNullException>(() => ProductMatcher.Alternatives(null!, hits[0], null));
+    }
+
+    [Fact]
+    public void Selection_carries_the_ingredient_of_an_item()
+    {
+        var ingredient = Guid.NewGuid();
+
+        var lines = CartLineSelector.Select([new CartSourceItem(Guid.NewGuid(), "Rice", false, ingredient), new CartSourceItem(Guid.NewGuid(), "Manual", false)]);
+
+        Assert.Equal(ingredient, lines[0].IngredientId);
+        Assert.Null(lines[1].IngredientId);
+    }
+
+    [Fact]
+    public async Task The_fill_uses_the_preference_then_history_then_the_first_hit_and_manual_items_get_no_preference()
+    {
+        var withPick = Guid.NewGuid();
+        var withHistory = Guid.NewGuid();
+        var session = new FakeSession
+        {
+            Hits = q => [Hit(q + "-a"), Hit(q + "-b"), Hit(q + "-c")],
+            Usual = new HashSet<string> { "pick-a", "hist-b", "manual-b" },
+        };
+        var lines = new[]
+        {
+            new CartLine(Guid.NewGuid(), "pick", withPick),
+            new CartLine(Guid.NewGuid(), "hist", withHistory),
+            new CartLine(Guid.NewGuid(), "manual"),
+        };
+
+        var result = await CartFiller.FillAsync(session, lines, CancellationToken.None, preferences: new Dictionary<Guid, string> { [withPick] = "pick-c" });
+
+        Assert.Equal(["pick-c", "hist-b", "manual-b"], result.Added.Select(a => a.ProductId).ToArray());
+        Assert.Equal(
+            [ProductMatchSource.Preferred, ProductMatchSource.UsuallyBought, ProductMatchSource.UsuallyBought],
+            result.Added.Select(a => a.Source).ToArray());
+        Assert.Equal([true, false, false], result.Added.Select(a => a.HasPreference).ToArray());
+        Assert.Equal(1, result.PreferredCount);
+        Assert.Equal(3, result.Added[0].AlternativeList.Count);
+        Assert.Empty(result.Added[2].AlternativeList); // a manual item offers no picker
+    }
+
+    [Fact]
+    public async Task The_history_is_not_read_when_the_picks_decide_every_item_with_an_available_hit()
+    {
+        var one = Guid.NewGuid();
+        var two = Guid.NewGuid();
+        var session = new FakeSession { Hits = q => q == "none" ? [] : [Hit(q + "-a"), Hit(q + "-b")] };
+        var lines = new[] { new CartLine(Guid.NewGuid(), "one", one), new CartLine(Guid.NewGuid(), "two", two), new CartLine(Guid.NewGuid(), "none") };
+
+        var decided = await CartFiller.FillAsync(
+            session, lines, CancellationToken.None, preferences: new Dictionary<Guid, string> { [one] = "one-b", [two] = "two-a" });
+        var open = await CartFiller.FillAsync(
+            session, [.. lines.Take(2)], CancellationToken.None, preferences: new Dictionary<Guid, string> { [one] = "one-b", [two] = "gone" });
+
+        Assert.Equal(1, session.HistoryReads); // only the second fill read it: "two" was not decided
+        Assert.Equal(UsuallyBoughtStatus.Skipped, decided.UsuallyBought);
+        Assert.Equal(UsuallyBoughtStatus.Used, open.UsuallyBought);
+        Assert.Equal(PreferenceProblem.NotFound, open.Added[1].PreferenceProblem);
+        Assert.Equal(PreferenceProblem.None, decided.Added[0].PreferenceProblem);
+    }
+
     private sealed class MismatchedSession : ICartProviderSession
     {
         public Task<IReadOnlyList<IReadOnlyList<ProductCandidate>>> SearchAsync(IReadOnlyList<string> queries, CancellationToken cancellationToken) =>

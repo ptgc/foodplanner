@@ -4014,6 +4014,38 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                     b.ToTable("PantryItems", (string)null);
                 });
 
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PreferredOdaProduct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("HouseholdId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("OdaProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("HouseholdId", "IngredientId")
+                        .IsUnique();
+
+                    b.ToTable("PreferredOdaProducts", (string)null);
+                });
+
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingList", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4816,6 +4848,21 @@ namespace Foodplanner.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.PreferredOdaProduct", b =>
+                {
+                    b.HasOne("Foodplanner.Domain.Tenancy.Household", null)
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Foodplanner.Domain.Catalog.Ingredient", null)
+                        .WithMany()
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Foodplanner.Domain.ShoppingLists.ShoppingList", b =>

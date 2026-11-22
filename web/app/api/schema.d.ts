@@ -916,6 +916,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/oda-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ListOdaPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/oda-preferences/{ingredientId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["SetOdaPreference"];
+        post?: never;
+        delete: operations["ClearOdaPreference"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/pantry": {
         parameters: {
             query?: never;
@@ -1440,7 +1472,21 @@ export interface components {
             productName: string;
             /** Format: int32 */
             quantity: number | string;
-            source: string;
+            source: components["schemas"]["OdaLineSource"];
+            /** Format: uuid */
+            ingredientId: null | string;
+            /** Format: int64 */
+            productId: number | string;
+            hasPreference: boolean;
+            preferenceProblem: null | components["schemas"]["OdaPreferenceProblem"];
+            alternatives: components["schemas"]["OdaAlternativeResponse"][];
+        };
+        OdaAlternativeResponse: {
+            /** Format: int64 */
+            productId: number | string;
+            productName: string;
+            isAdded: boolean;
+            isPreferred: boolean;
         };
         OdaCartResponse: {
             status: string;
@@ -1457,11 +1503,28 @@ export interface components {
             code: null | string;
             error: null | string;
         };
+        /** @enum {unknown} */
+        OdaHistoryStatus: "used" | "unavailable" | "skipped";
+        /** @enum {unknown} */
+        OdaLineSource: "preferred" | "usually-bought" | "first-hit";
         OdaNotAddedItemResponse: {
             /** Format: uuid */
             itemId: string;
             name: string;
             reason: string;
+        };
+        /** @enum {unknown} */
+        OdaPreferenceProblem: "unavailable" | "not-found" | null;
+        OdaPreferenceRequest: {
+            /** Format: int64 */
+            odaProductId: null | number | string;
+        };
+        OdaPreferenceResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            ingredientName: string;
+            /** Format: date-time */
+            setAt: string;
         };
         OdaStartRequest: {
             confirmed: null | boolean;
@@ -1470,7 +1533,7 @@ export interface components {
             authorizeUrl: string;
         };
         OdaUsuallyBoughtResponse: {
-            status: string;
+            status: components["schemas"]["OdaHistoryStatus"];
             /** Format: int32 */
             count: number | string;
         };
@@ -6081,6 +6144,166 @@ export interface operations {
             };
             /** @description Bad Gateway */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListOdaPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OdaPreferenceResponse"][];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetOdaPreference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredientId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OdaPreferenceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OdaPreferenceResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ClearOdaPreference: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredientId: string;
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

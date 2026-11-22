@@ -22,7 +22,7 @@ export const privacyNb: Record<keyof typeof privacyEn, string> = {
   "privacy.ai.title": "KI-hjelp ved import av oppskrifter",
   "privacy.ai.body": "Hvis KI-hjelp er slått på, kan linjer vi ikke klarer å lese, bli sendt til Anthropic (uten navn eller kontodata). Bare de uleste ingredienslinjene i en import sendes, aldri hele siden, og ingenting annet om deg eller husholdningen. Du sjekker alltid resultatet før det lagres.",
   "privacy.oda.title": "Oda",
-  "privacy.oda.body": "«Legg i Oda-handlekurv» logger deg inn hos Oda bare for den ene handlingen. Foodplanner lagrer ingen Oda-innloggingsnøkkel og ingen data fra Oda. Varene på handlelisten sendes til Oda for å fylle handlekurven, og forbindelsen lukkes etterpå. Hvis det ikke går an å lukke forbindelsen, ber appen deg fjerne den i Oda under Personvern og sikkerhet.",
+  "privacy.oda.body": "«Legg i Oda-handlekurv» logger deg inn hos Oda bare for den ene handlingen. Foodplanner lagrer ingen Oda-innloggingsnøkkel og ingen data fra Oda, med ett unntak: velger du et Oda-produkt for en vare, lagrer Foodplanner bare produktnummeret for husstanden din, ingenting annet fra Oda. Varene på handlelisten sendes til Oda for å fylle handlekurven, og forbindelsen lukkes etterpå. Hvis det ikke går an å lukke forbindelsen, ber appen deg fjerne den i Oda under Personvern og sikkerhet.",
   "privacy.rights.title": "Dine valg",
   "privacy.rights.export": "Eiere og voksne kan eksportere alt en husholdning har lagret, som en fil, fra husholdningssiden.",
   "privacy.rights.delete": "Du kan slette kontoen din når som helst, med passordet ditt. Husholdninger der du er eneste medlem, slettes sammen med den.",

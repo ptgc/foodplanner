@@ -113,6 +113,7 @@ api.MapRecipeSuggestionEndpoints();
 api.MapShoppingListEndpoints();
 api.MapShoppingListExportEndpoints();
 api.MapOdaEndpoints();
+api.MapOdaPreferenceEndpoints();
 api.MapPantryEndpoints();
 api.MapWeeklyGroceryEndpoints();
 api.MapGrocerySuggestionEndpoints();

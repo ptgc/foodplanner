@@ -47,8 +47,25 @@ public enum CartNotAddedReason
     Rejected,
 }
 
+/// <summary>
+/// A line that reached the cart. T-052: <see cref="IngredientId"/> is the item's ingredient (null for a manual item),
+/// <see cref="ProductId"/> the added product, <see cref="HasPreference"/> whether the household has a pick for the ingredient (used or
+/// not), <see cref="PreferenceProblem"/> why the pick was not used, <see cref="Alternatives"/> what the picker offers. Response only.
+/// </summary>
 public sealed record CartAddedLine(
-    Guid ItemId, string Name, string ProductName, int Quantity, ProductMatchSource Source = ProductMatchSource.FirstHit);
+    Guid ItemId,
+    string Name,
+    string ProductName,
+    int Quantity,
+    ProductMatchSource Source = ProductMatchSource.FirstHit,
+    Guid? IngredientId = null,
+    string ProductId = "",
+    bool HasPreference = false,
+    PreferenceProblem PreferenceProblem = PreferenceProblem.None,
+    IReadOnlyList<CartAlternative>? Alternatives = null)
+{
+    public IReadOnlyList<CartAlternative> AlternativeList => Alternatives ?? [];
+}
 
 /// <summary>Whether the purchase history was used for this fill: read (<see cref="Used"/>), not readable (<see cref="Unavailable"/>) or not asked for (<see cref="Skipped"/>).</summary>
 public enum UsuallyBoughtStatus
@@ -74,6 +91,9 @@ public sealed record CartFillResult(
     /// <summary>Number of added lines chosen because the household usually buys the product.</summary>
     public int UsuallyBoughtCount => Added.Count(a => a.Source == ProductMatchSource.UsuallyBought);
 
+    /// <summary>Number of added lines chosen because of the household's own pick (T-052).</summary>
+    public int PreferredCount => Added.Count(a => a.Source == ProductMatchSource.Preferred);
+
     public CartFillStatus Status =>
         Added.Count == 0 ? CartFillStatus.NothingAdded : NotAdded.Count == 0 ? CartFillStatus.Done : CartFillStatus.Partial;
 }
@@ -86,15 +106,20 @@ public static class CartFiller
 {
     public const int DefaultBatchSize = 10;
 
+    /// <param name="preferences">The household's own picks (T-052): ingredient id to the provider's product id. Null means none.</param>
     public static async Task<CartFillResult> FillAsync(
-        ICartProviderSession session, IReadOnlyList<CartLine> lines, CancellationToken cancellationToken, int batchSize = DefaultBatchSize)
+        ICartProviderSession session, IReadOnlyList<CartLine> lines, CancellationToken cancellationToken, int batchSize = DefaultBatchSize,
+        IReadOnlyDictionary<Guid, string>? preferences = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(lines);
         ArgumentOutOfRangeException.ThrowIfLessThan(batchSize, 1);
 
+        string? PreferredFor(CartLine line) =>
+            line.IngredientId is { } ingredient && preferences is not null && preferences.TryGetValue(ingredient, out var id) ? id : null;
+
         var notAdded = new List<CartNotAddedLine>();
-        var matched = new List<(CartLine Line, ProductCandidate Product, ProductMatchSource Source)>();
+        var matched = new List<(CartLine Line, IReadOnlyList<ProductCandidate> Hits, ProductMatch Match, string? Preferred)>();
         var searched = new List<(CartLine Line, IReadOnlyList<ProductCandidate> Hits)>();
 
         // Search everything first: a failure here has touched no cart.
@@ -116,7 +141,9 @@ public static class CartFiller
         // Any failure is not a failure of the fill: no retry, the first available hits are used.
         var history = UsuallyBoughtStatus.Skipped;
         IReadOnlySet<string> usual = new HashSet<string>(StringComparer.Ordinal);
-        if (searched.Any(s => s.Hits.Any(h => h.IsAvailable)))
+        // Skipped too when the household's own picks decide every item that has an available hit (T-052).
+        if (searched.Any(s => s.Hits.Any(h => h.IsAvailable)
+                              && !(PreferredFor(s.Line) is { } pick && s.Hits.Any(h => h.IsAvailable && h.ProductId == pick))))
         {
             try
             {
@@ -131,11 +158,12 @@ public static class CartFiller
 
         foreach (var (line, hits) in searched)
         {
-            var match = ProductMatcher.Match(hits, usual);
+            var preferred = PreferredFor(line);
+            var match = ProductMatcher.Match(hits, usual, preferred);
             switch (match.Outcome)
             {
                 case ProductMatchOutcome.Matched:
-                    matched.Add((line, match.Product!, match.Source));
+                    matched.Add((line, hits, match, preferred));
                     break;
                 case ProductMatchOutcome.NoMatch:
                     notAdded.Add(new CartNotAddedLine(line.ItemId, line.Name, CartNotAddedReason.NoMatch));
@@ -152,7 +180,7 @@ public static class CartFiller
             IReadOnlySet<string> inCart;
             try
             {
-                inCart = await session.AddOnePackEachAsync([.. batch.Select(m => m.Product.ProductId)], cancellationToken);
+                inCart = await session.AddOnePackEachAsync([.. batch.Select(m => m.Match.Product!.ProductId)], cancellationToken);
             }
             catch (ProviderUnavailableException ex)
             {
@@ -160,11 +188,22 @@ public static class CartFiller
                 throw new CartFillInterruptedException(ex.Message, [.. added]);
             }
 
-            foreach (var (line, product, source) in batch)
+            foreach (var (line, hits, match, preferred) in batch)
             {
+                var product = match.Product!;
                 if (inCart.Contains(product.ProductId))
                 {
-                    added.Add(new CartAddedLine(line.ItemId, line.Name, product.Name, 1, source));
+                    added.Add(new CartAddedLine(
+                        line.ItemId,
+                        line.Name,
+                        product.Name,
+                        1,
+                        match.Source,
+                        line.IngredientId,
+                        product.ProductId,
+                        preferred is not null,
+                        match.PreferenceProblem,
+                        line.IngredientId is null ? [] : ProductMatcher.Alternatives(hits, product, preferred)));
                 }
                 else
                 {

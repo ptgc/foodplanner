@@ -79,6 +79,9 @@ internal sealed class FakeOda : HttpMessageHandler
     /// <summary>Response fields removed from the cart the tools return (<c>groups</c> from manipulate_cart).</summary>
     public HashSet<string> OmitCartFields { get; } = [];
 
+    /// <summary>Product ids the search reports as not available (sold out), whatever the fixture says.</summary>
+    public HashSet<long> SoldOut { get; } = [];
+
     /// <summary>Product ids the cart refuses to take (the call succeeds but the line is not in the cart).</summary>
     public HashSet<long> RefuseProducts { get; } = [];
 
@@ -326,6 +329,11 @@ internal sealed class FakeOda : HttpMessageHandler
 
             foreach (var product in products)
             {
+                if (SoldOut.Contains(product!["id"]!.GetValue<long>()))
+                {
+                    product["availability"]!["isAvailable"] = false;
+                }
+
                 _catalog[product!["id"]!.GetValue<long>()] = product.DeepClone();
             }
 

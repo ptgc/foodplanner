@@ -22,7 +22,8 @@ public sealed class OdaCartAction(OdaOAuth oauth, OdaMcpSessionFactory sessions,
 {
     /// <summary>Throws only for cancellation. Every Oda failure is returned as an outcome without <see cref="OdaActionOutcome.Fill"/>.</summary>
     public async Task<OdaActionOutcome> RunAsync(
-        Guid householdId, Guid userId, OdaSecret code, OdaSecret verifier, IReadOnlyList<CartLine> lines, CancellationToken cancellationToken)
+        Guid householdId, Guid userId, OdaSecret code, OdaSecret verifier, IReadOnlyList<CartLine> lines, IReadOnlyDictionary<Guid, string> preferences,
+        CancellationToken cancellationToken)
     {
         var clock = Stopwatch.StartNew();
         OdaEndpoints? endpoints = null;
@@ -35,7 +36,7 @@ public sealed class OdaCartAction(OdaOAuth oauth, OdaMcpSessionFactory sessions,
             endpoints = await oauth.DiscoverAsync(cancellationToken);
             tokens = await oauth.ExchangeAsync(endpoints, code, verifier, cancellationToken);
             var session = await sessions.OpenAsync(tokens.Access, cancellationToken);
-            fill = await CartFiller.FillAsync(session, lines, cancellationToken);
+            fill = await CartFiller.FillAsync(session, lines, cancellationToken, preferences: preferences);
         }
         catch (CartFillInterruptedException ex)
         {
@@ -55,7 +56,7 @@ public sealed class OdaCartAction(OdaOAuth oauth, OdaMcpSessionFactory sessions,
 
         var added = fill?.Added.Count ?? partial.Count;
         logger.LogInformation(
-            "Oda cart action for household {HouseholdId} by user {UserId}: {Outcome}, added {Added}, not added {NotAdded}, connection closed {Closed}, usually bought {UsuallyBought} (history {History}), {Milliseconds} ms",
+            "Oda cart action for household {HouseholdId} by user {UserId}: {Outcome}, added {Added}, not added {NotAdded}, connection closed {Closed}, usually bought {UsuallyBought} (history {History}), preferred {Preferred}, {Milliseconds} ms",
             householdId,
             userId,
             fill is null ? "failed" : "finished",
@@ -64,6 +65,7 @@ public sealed class OdaCartAction(OdaOAuth oauth, OdaMcpSessionFactory sessions,
             closed,
             fill?.UsuallyBoughtCount ?? 0,
             fill?.UsuallyBought.ToString() ?? "none",
+            fill?.PreferredCount ?? 0,
             clock.ElapsedMilliseconds);
         return new OdaActionOutcome(fill, partial, closed);
     }
