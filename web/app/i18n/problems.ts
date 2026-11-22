@@ -73,6 +73,13 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:oda-too-many-items": "oda.problem.tooMany",
   "urn:foodplanner:problem:oda-not-configured": "oda.problem.notConfigured",
   "urn:foodplanner:problem:oda-nothing-to-add": "oda.problem.nothingToAdd",
+  "urn:foodplanner:problem:support-session-required": "support.problem.sessionRequired",
+  "urn:foodplanner:problem:support-session-mismatch": "support.problem.sessionMismatch",
+  "urn:foodplanner:problem:support-write-required": "support.problem.writeRequired",
+  "urn:foodplanner:problem:support-audit-failed": "support.problem.auditFailed",
+  "urn:foodplanner:problem:password-incorrect": "support.problem.passwordIncorrect",
+  "urn:foodplanner:problem:password-required": "support.problem.passwordRequired",
+  "urn:foodplanner:problem:household-not-found": "support.problem.householdNotFound",
 };
 
 /** The `type` of a ProblemDetails body, if the value looks like one. */
