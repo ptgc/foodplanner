@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus (2026-11-22): now: recipe from a photo with Claude (T-118, then T-119), next: T-126 support-access view, T-128 bundle cleanup (budget is full); follow-ups T-125, T-127, T-128 (T-124 later; own key T-120/T-099 and admin emails T-121 later); waiting on the architect: T-117 (check the privacy page wording, T-113, and the skills T-065, T-066, T-067, all merged into dev and in review); later: T-107; stretch: T-086, T-094
+## Current focus (2026-11-22): theme "easy to start, gives time back". In progress: T-129 (photo import on Sonnet 5.5, skill v2), T-128 (bundle cleanup). Queue, in order: T-119 (photo upload screen), T-130 (Sync with Oda), T-131 (Kom i gang + Help, how-to rule), T-132 (pantry from a photo). Also open: T-126 (support-access view), T-125, T-127. Waiting on the architect: T-117 (privacy wording and skills check). Later: T-120/T-099 (own Claude key), T-121 (admin emails), T-124 (admin sign-in mode), T-107. Stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -157,3 +157,6 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-127 | e2e: separate member account per Playwright project | W | - | implementer-frontend | no |
 | T-128 | Shrink the web bundle back under a lower total budget | W | - | implementer-frontend | no |
 | T-129 | Photo import on Sonnet 5.5, and skill version 2 | M4 | T-118 | implementer-backend | no |
+| T-130 | "Sync with Oda": set up preferred products in one go | M4 | T-052, T-114 | implementer-backend | no |
+| T-131 | Getting started ("Kom i gang") and Help with how-tos | M4 | T-119 | implementer-frontend | no |
+| T-132 | Fill the pantry from a photo | M4 | T-118, T-119, T-093 | implementer-backend | no |
