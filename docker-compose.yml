@@ -66,6 +66,9 @@ services:
       ConnectionStrings__Default: Server=sql;Database=foodplanner;User Id=sa;Password=${MSSQL_SA_PASSWORD:?run scripts/local-up};TrustServerCertificate=True
       # No production email provider yet (T-017). Outside Development the API refuses to start without this.
       Email__Provider: Recording
+      # T-096: the system admin allow-list. scripts/local-up passes it from the Support:SystemAdminEmails:0 user secret (the seeded
+      # admin); empty = nobody is a system admin. Never put an address here: it is configuration, a Key Vault setting in Azure.
+      Support__SystemAdminEmails__0: ${SUPPORT_ADMIN_EMAIL:-}
       # Oda cart (T-053). Empty client id = not configured (the Oda button is hidden, the text export still works). To try the real
       # Oda locally: ./scripts/oda-register-client.sh http://localhost:3000, then ODA_CLIENT_ID=<printed client_id> docker compose up.
       # Neither value is a secret (public OAuth client).

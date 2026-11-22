@@ -139,6 +139,11 @@ public sealed class AuthHost : IAsyncDisposable
             ["AiImport:ApiKey"] = "",
             ["AiPhotoImport:Enabled"] = "false",
             ["RateLimiting:PhotoImport:PermitLimit"] = "1000",
+            // T-096: nobody is a system admin unless a test says so, even when the developer's user secrets list the seeded admin.
+            ["Support:SystemAdminEmails:0"] = "",
+            ["Support:SystemAdminEmails:1"] = "",
+            ["RateLimiting:SupportSession:PermitLimit"] = "1000",
+            ["RateLimiting:SupportSearch:PermitLimit"] = "1000",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {

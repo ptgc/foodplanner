@@ -124,6 +124,35 @@ public sealed class PinService(AppDbContext db, IPasswordHasher<AppUser> hasher,
         throw new InvalidOperationException("The PIN could not be saved.");
     }
 
+    /// <summary>
+    /// Support clears the attempt counter and the lock of the account's PIN (T-096). It never reads, sets, resets or removes the PIN
+    /// itself. An account without a PIN, or without a lock, changes nothing. The caller has already proved the account is a member of
+    /// the household in question.
+    /// </summary>
+    public async Task ClearLockoutAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < MaxRetries; attempt++)
+        {
+            var pin = await db.UserPins.FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
+            if (pin is null || !pin.ClearLockout(time.GetUtcNow()))
+            {
+                return;
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+
+        throw new InvalidOperationException("The PIN lock could not be cleared.");
+    }
+
     private async Task ClearAsync(Guid userId, CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < MaxRetries; attempt++)

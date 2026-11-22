@@ -34,6 +34,12 @@ public static class RateLimitPolicies
 
     /// <summary>Recipe from a photo (T-118): by user. Each call can cost money, so this is the burst limit on top of the daily and monthly counters.</summary>
     public const string PhotoImport = "photo-import";
+
+    /// <summary>Starting a support session (T-096): by admin user. Starting one asks for a reason and, for write, the password.</summary>
+    public const string SupportSessionStart = "support-session";
+
+    /// <summary>Searching and listing households and users in support (T-096): by admin user.</summary>
+    public const string SupportSearch = "support-search";
 }
 
 public sealed class LimitOptions
@@ -80,6 +86,12 @@ public sealed class RateLimitOptions
 
     /// <summary>Recipe from a photo (T-118), per user: 5 per 10 minutes.</summary>
     public LimitOptions PhotoImport { get; set; } = new() { PermitLimit = 5, WindowSeconds = 600 };
+
+    /// <summary>Starting support sessions (T-096), per admin: 20 per hour.</summary>
+    public LimitOptions SupportSession { get; set; } = new() { PermitLimit = 20, WindowSeconds = 3600 };
+
+    /// <summary>Household and user search in support (T-096), per admin: 60 per minute.</summary>
+    public LimitOptions SupportSearch { get; set; } = new() { PermitLimit = 60, WindowSeconds = 60 };
 }
 
 /// <summary>
@@ -150,6 +162,12 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.PhotoImport, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.PhotoImport.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.SupportSessionStart, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.SupportSession.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.SupportSearch, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.SupportSearch.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.ExternalSignin, http =>
                 RateLimitPartition.GetFixedWindowLimiter($"ip:{ClientIp(http)}", _ => limits.ExternalSignin.ToFixedWindow()));
         });

@@ -132,15 +132,25 @@ public static class MealPlanEndpoints
             return Results.ValidationProblem(errors);
         }
 
+        return Results.Ok(await ReadWeekAsync(db, monday, cancellationToken));
+    }
+
+    /// <summary>The plan of a week as GET returns it (an empty shape when there is none). Shared with the support read (T-096).</summary>
+    internal static async Task<MealPlanResponse> ReadWeekAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    {
         var plan = await db.MealPlans.AsNoTracking().FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
         if (plan is null)
         {
-            return Results.Ok(new MealPlanResponse(null, monday, [], false, null, null));
+            return new MealPlanResponse(null, monday, [], false, null, null);
         }
 
         var entries = await LoadEntriesAsync(db, plan.Id, entryId: null, cancellationToken);
-        return Results.Ok(new MealPlanResponse(plan.Id, monday, entries, plan.IsLocked, plan.LockedAt, await LockerAsync(db, plan, cancellationToken)));
+        return new MealPlanResponse(plan.Id, monday, entries, plan.IsLocked, plan.LockedAt, await LockerAsync(db, plan, cancellationToken));
     }
+
+    /// <summary>The week of a route value, with the validation error under <c>weekStart</c>. Shared with the support endpoints (T-096).</summary>
+    internal static bool TryParseWeek(string value, Dictionary<string, string[]> errors, out DateOnly weekStart) =>
+        TryParseWeekStart(value, errors, out weekStart);
 
     private static async Task<IResult> AddEntry(
         Guid householdId, string weekStart, AddMealPlanEntryRequest? request, ICurrentUser user, AppDbContext db,
@@ -386,17 +396,8 @@ public static class MealPlanEndpoints
             return Results.ValidationProblem(errors);
         }
 
-        var plan = await db.MealPlans.FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
-        if (plan is null)
-        {
-            return Results.NoContent();
-        }
-
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        await LockPlanRowAsync(db, plan, cancellationToken);
-        var changed = plan.IsLocked;
-        plan.Unlock();
-        await db.SaveChangesAsync(cancellationToken);
+        var changed = await UnlockWeekRowAsync(db, monday, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         if (changed)
@@ -405,6 +406,26 @@ public static class MealPlanEndpoints
         }
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Unlocks the week of the current household: takes the plan row, clears the lock, saves. Idempotent: no plan, or an unlocked
+    /// one, changes nothing (and writes no plan row). True when a lock was cleared. The caller owns the transaction and the live
+    /// signal. Shared by the Adult endpoint and the support fix (T-096), so both run the same code.
+    /// </summary>
+    internal static async Task<bool> UnlockWeekRowAsync(AppDbContext db, DateOnly monday, CancellationToken cancellationToken)
+    {
+        var plan = await db.MealPlans.FirstOrDefaultAsync(p => p.WeekStart == monday, cancellationToken);
+        if (plan is null)
+        {
+            return false;
+        }
+
+        await LockPlanRowAsync(db, plan, cancellationToken);
+        var changed = plan.IsLocked;
+        plan.Unlock();
+        await db.SaveChangesAsync(cancellationToken);
+        return changed;
     }
 
     private static void CheckServings(int? servings, Dictionary<string, string[]> errors)

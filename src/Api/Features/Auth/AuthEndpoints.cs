@@ -2,6 +2,7 @@ using System.Net.Mail;
 using Foodplanner.Api.Problems;
 using Foodplanner.Api.Realtime;
 using Foodplanner.Api.Security;
+using Foodplanner.Api.Support;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Email;
 using Foodplanner.Infrastructure.Identity;
@@ -320,10 +321,13 @@ public static class AuthEndpoints
         return Results.NoContent();
     }
 
-    private static IResult GetMe(ICurrentUser current) =>
+    private static async Task<IResult> GetMe(ICurrentUser current, ISystemAdminStatus admin, CancellationToken cancellationToken) =>
         current is { IsAuthenticated: true, UserId: { } id, Email: { } email }
             ? Results.Ok(new MeResponse(
-                id, email, current.IsKidMode ? new KidModeInfo(current.ActiveProfileId, current.ActiveProfileHouseholdId) : null))
+                id,
+                email,
+                current.IsKidMode ? new KidModeInfo(current.ActiveProfileId, current.ActiveProfileHouseholdId) : null,
+                await admin.IsSystemAdminAsync(cancellationToken)))
             : AppProblems.Problem(StatusCodes.Status401Unauthorized, AppProblems.Unauthenticated, "Not signed in");
 
     private static string? ValidateEmail(string? value, Dictionary<string, string[]> errors)
@@ -381,5 +385,10 @@ public static class AuthEndpoints
     /// <summary>Kid mode (T-026): the device is locked to this profile. The ids are null when the claim is malformed.</summary>
     public sealed record KidModeInfo(Guid? ProfileId, Guid? HouseholdId);
 
-    public sealed record MeResponse(Guid UserId, string Email, KidModeInfo? KidMode);
+    /// <summary>
+    /// <c>IsSystemAdmin</c> (T-096): the account is on the configured admin allow-list (confirmed, not locked out) and the device is
+    /// not in kid mode. Evaluated on every call; it only decides whether the web app shows the support entry. The API refuses
+    /// everything else on its own.
+    /// </summary>
+    public sealed record MeResponse(Guid UserId, string Email, KidModeInfo? KidMode, bool IsSystemAdmin);
 }
