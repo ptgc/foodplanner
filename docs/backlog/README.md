@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus (2026-11-21): in progress: T-115 and T-116 (Oda follow-ups), T-113 (privacy page; the architect approves the wording), T-065, T-066, T-067 (skills merged, waiting on the architect's check); waiting on the architect: T-053 (real-Oda try-out, last criterion); later: T-052, T-114 (Oda product choice), T-107; on hold: T-096; stretch: T-086, T-094
+## Current focus (2026-11-22): now: real-Oda try-out (T-053, last criterion), then more recipes; waiting on the architect: T-117 (check the privacy page wording, T-113, and the skills T-065, T-066, T-067, all merged into dev and in review); later: T-052, T-114 (Oda product choice), T-107; on hold: T-096; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -144,3 +144,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-114 | Oda cart fill prefers what the household usually buys (later) | M4 | T-053 | implementer-backend | no |
 | T-115 | Oda follow-ups: https return address and revoke on cancel | M4 | T-053 | implementer-backend | no |
 | T-116 | Oda follow-ups: result numbers, stale pending entry, bundle budget | M4 | T-054 | implementer-frontend | no |
+| T-117 | Architect check: privacy page wording and agent skills | W | T-113, T-065, T-066, T-067 | architect | no |
