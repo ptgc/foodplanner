@@ -156,3 +156,4 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-126 | Household "Support access" view and support review notes | M4 | T-096 | implementer-frontend | no |
 | T-127 | e2e: separate member account per Playwright project | W | - | implementer-frontend | no |
 | T-128 | Shrink the web bundle back under a lower total budget | W | - | implementer-frontend | no |
+| T-129 | Photo import on Sonnet 5.5, and skill version 2 | M4 | T-118 | implementer-backend | no |
