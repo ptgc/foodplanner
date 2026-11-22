@@ -13,7 +13,7 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    private AuthHost CreateHost(string email, string environment = "Development", string? password = SeedPassword, string? memberEmail = null) => AuthHost.Create(
+    private AuthHost CreateHost(string email, string environment = "Development", string? password = SeedPassword, string? memberEmail = null, string? demoEmail = null, string? demoSecret = null) => AuthHost.Create(
         db.ConnectionString,
         new Dictionary<string, string?>
         {
@@ -21,6 +21,8 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
             [LocalAdminSeeder.PasswordKey] = password,
             [LocalAdminSeeder.MemberEmailKey] = memberEmail,
             [LocalAdminSeeder.MemberPasswordKey] = memberEmail is null ? null : SeedPassword,
+            [LocalAdminSeeder.DemoEmailKey] = demoEmail,
+            [LocalAdminSeeder.DemoPasswordKey] = demoSecret,
         },
         environment);
 
@@ -119,5 +121,60 @@ public sealed class LocalAdminSeederTests(AuthDatabase db) : IClassFixture<AuthD
         await Assert.ThrowsAsync<InvalidOperationException>(() => LocalAdminSeeder.RunAsync(host.Services, Ct));
 
         Assert.Null(await host.FindUserAsync(member));
+    }
+
+    [Fact]
+    public async Task Seeding_twice_gives_one_demo_user_owning_one_demo_household_and_leaves_Home_and_member_alone()
+    {
+        var admin = AuthHost.NewEmail();
+        var member = AuthHost.NewEmail();
+        var demoEmail = AuthHost.NewEmail();
+        await using var host = CreateHost(admin, memberEmail: member, demoEmail: demoEmail, demoSecret: SeedPassword);
+
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+
+        var demo = await host.FindUserAsync(demoEmail);
+        Assert.True(demo.EmailConfirmed);
+        using var scope = host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal(1, await context.Users.CountAsync(u => u.Email == demoEmail, Ct));
+        var memberships = context.Memberships.IgnoreQueryFilters([AppDbContext.TenantFilterName]);
+        Assert.Equal(1, await memberships.CountAsync(m => m.UserId == demo.Id, Ct));
+        using var client = host.CreateClient();
+        using var login = await client.LoginAsync(demoEmail, SeedPassword);
+        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+        using var households = await client.GetAsync("/api/households");
+        var home = Assert.Single((await households.JsonAsync()).EnumerateArray());
+        Assert.Equal(LocalAdminSeeder.DemoHouseholdName, home.GetProperty("name").GetString());
+        Assert.Equal("Owner", home.GetProperty("role").GetString());
+        var adminUser = await host.FindUserAsync(admin);
+        Assert.Equal(1, await memberships.CountAsync(m => m.UserId == adminUser.Id, Ct));
+        var memberUser = await host.FindUserAsync(member);
+        Assert.False(await memberships.AnyAsync(m => m.UserId == memberUser.Id, Ct));
+    }
+
+    [Fact]
+    public async Task Demo_user_uses_the_default_address_when_none_is_configured()
+    {
+        await using var host = CreateHost(AuthHost.NewEmail(), demoSecret: SeedPassword);
+
+        await LocalAdminSeeder.RunAsync(host.Services, Ct);
+
+        Assert.EndsWith("@example.test", LocalAdminSeeder.DefaultDemoEmail);
+        using var scope = host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.True(await context.Users.AnyAsync(u => u.Email == LocalAdminSeeder.DefaultDemoEmail, Ct));
+    }
+
+    [Fact]
+    public async Task Seed_refuses_outside_Development_and_creates_no_demo_user()
+    {
+        var demoEmail = AuthHost.NewEmail();
+        await using var host = CreateHost(AuthHost.NewEmail(), "Production", demoEmail: demoEmail, demoSecret: SeedPassword);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => LocalAdminSeeder.RunAsync(host.Services, Ct));
+
+        Assert.Null(await host.FindUserAsync(demoEmail));
     }
 }

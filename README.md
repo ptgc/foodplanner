@@ -282,7 +282,7 @@ npm --prefix web run api:generate
 | `doctor` | checks the machine: tools, container engine, branch |
 | `local-secrets` | generates the SQL password and the seeded admin login into user secrets, once (run by `local-up` for you) |
 | `local-migrate` | applies EF migrations to the local database (idempotent; run by `local-up`) |
-| `local-seed` | creates the local admin and the household "Home" (Development only, idempotent; run by `local-up`) |
+| `local-seed` | creates the local admin and the household "Home", plus the demo household "Håvard og Rikke" (Development only, idempotent; run by `local-up`) |
 | `local-up` | starts the stack, migrates and seeds; `local-up sql` starts only SQL and Azurite, the database init, migrations and seed |
 | `local-down` | stops, keeps the SQL and Azurite volumes |
 | `local-reset` | stops and deletes the SQL and Azurite volumes |
@@ -312,6 +312,10 @@ random SQL Server `sa` password (24 letters and digits plus one `-`; meets the S
   user; `e2e.sh`/`e2e.ps1` pass both to Playwright as `E2E_MEMBER_EMAIL`/`E2E_MEMBER_PASSWORD`, never printed. Like the
   admin, it exists only through the Development-only seed (no production backdoor). If you set up before T-045, run
   `local-secrets` and `local-seed` again.
+- `Seed:DemoEmail` (`havard.rikke@example.test`, a domain that can never receive mail) and `Seed:DemoPassword` (random, 20
+  letters and digits): a confirmed user that `local-seed` makes Owner of a second household, "Håvard og Rikke" (T-122), so
+  two households exist locally (super admin pages, per-household limits). The password lives in user secrets only; read it
+  with `dotnet user-secrets list --project src/Api`. Run `local-secrets` then `local-seed` to add it to an existing setup.
 
 **Local admin login.** Sign in at http://localhost:3000 with `Seed:AdminEmail` and `Seed:AdminPassword`. List the secrets (this prints the values, do not paste the output anywhere):
 

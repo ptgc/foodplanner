@@ -10,7 +10,7 @@ namespace Foodplanner.Api.Seeding;
 /// <c>Seed:AdminPassword</c> (user secrets). Run from the host with <c>dotnet run --project src/Api -- seed-admin</c>
 /// (scripts/local-seed). Development only: it refuses in any other environment, and Program never runs it on its own.
 /// Optionally (T-045, e2e invite flow) also creates a second confirmed user from <c>Seed:MemberEmail</c> and
-/// <c>Seed:MemberPassword</c> who belongs to NO household: the tests invite them. Idempotent. Uses UserManager (configured hasher and password rules) and ITenantResolution (household + Owner).
+/// <c>Seed:MemberPassword</c> who belongs to NO household: the tests invite them. Optionally (T-122) a demo user (Seed:DemoEmail, default havard.rikke@example.test, and Seed:DemoPassword) who owns household "Håvard og Rikke". Idempotent. Uses UserManager (configured hasher and password rules) and ITenantResolution (household + Owner).
 /// </summary>
 public static class LocalAdminSeeder
 {
@@ -20,6 +20,11 @@ public static class LocalAdminSeeder
     public const string PasswordKey = "Seed:AdminPassword";
     public const string MemberEmailKey = "Seed:MemberEmail";
     public const string MemberPasswordKey = "Seed:MemberPassword";
+    public const string DemoHouseholdName = "Håvard og Rikke";
+    public const string DemoEmailKey = "Seed:DemoEmail";
+    public const string DemoPasswordKey = "Seed:DemoPassword";
+    // example.test is reserved (RFC 2606): it can never receive mail.
+    public const string DefaultDemoEmail = "havard.rikke@example.test";
 
     public static async Task<int> RunAsync(IServiceProvider services, CancellationToken cancellationToken = default)
     {
@@ -55,6 +60,24 @@ public static class LocalAdminSeeder
         if (!string.IsNullOrWhiteSpace(memberEmail) && !string.IsNullOrEmpty(memberPw))
         {
             await EnsureConfirmedUserAsync(users, memberEmail, memberPw);
+        }
+
+        // T-122: a second household with its own Owner, so two households can be seen locally (super admin, limits).
+        var demoPw = configuration[DemoPasswordKey];
+        if (!string.IsNullOrEmpty(demoPw))
+        {
+            var demoEmail = configuration[DemoEmailKey];
+            if (string.IsNullOrWhiteSpace(demoEmail))
+            {
+                demoEmail = DefaultDemoEmail;
+            }
+
+            var demo = await EnsureConfirmedUserAsync(users, demoEmail, demoPw);
+            var demoMemberships = await resolution.GetMembershipsForUser(demo.Id, cancellationToken);
+            if (!demoMemberships.Any(m => m.Name == DemoHouseholdName && m.Role == HouseholdRole.Owner))
+            {
+                await resolution.CreateHouseholdWithOwner(DemoHouseholdName, demo.Id, cancellationToken);
+            }
         }
 
         return 0;
