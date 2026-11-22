@@ -1,6 +1,7 @@
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Households;
 using Foodplanner.Domain.Imports;
+using Foodplanner.Domain.Support;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
@@ -28,6 +29,8 @@ public static class TenantCoverage
         [typeof(AppUser)] = "Global login identity (ADR 0004, T-009), not household data.",
         [typeof(UserPin)] = "Per-account secret, like the identity tables (T-026): the PIN hash and attempt counter of one account, keyed by the account, no HouseholdId.",
         [typeof(AiGlobalUsage)] = "One number per month: how many AI import calls all households made together, for the global cap (T-077). No household data, no HouseholdId; touched only by the usage limiter's atomic update.",
+        [typeof(SupportSession)] = "Global support record, not household data (T-096): a system admin's session for one household, keyed by TargetHouseholdId without a foreign key, so deleting the household or the account never touches it. Support reads and writes household data only through the household's own tenant filter.",
+        [typeof(SupportAuditEntry)] = "Global support record, not household data (T-096): the append-only audit of support access, keyed by TargetHouseholdId without a foreign key and with name snapshots, so it survives deleting the household or the account.",
         [typeof(IdentityUserClaim<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserLogin<Guid>)] = "Global login identity (T-009).",
         [typeof(IdentityUserToken<Guid>)] = "Global login identity (T-009).",

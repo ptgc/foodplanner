@@ -14,7 +14,13 @@ function Invoke-Compose {
     $pw = Get-Secret 'Sql:SaPassword'
     if (-not $pw) { throw 'No Sql:SaPassword user secret yet. Run .\scripts\local-secrets.ps1 first.' }
     $env:MSSQL_SA_PASSWORD = $pw
+    # T-096: the local system admin allow-list (a user secret copied from Seed:AdminEmail) reaches the api container the same way.
+    $supportAdmin = Get-Secret 'Support:SystemAdminEmails:0'
+    if ($supportAdmin) { $env:SUPPORT_ADMIN_EMAIL = $supportAdmin }
     try { docker compose @args }
-    finally { Remove-Item Env:\MSSQL_SA_PASSWORD -ErrorAction SilentlyContinue }
+    finally {
+        Remove-Item Env:\MSSQL_SA_PASSWORD -ErrorAction SilentlyContinue
+        Remove-Item Env:\SUPPORT_ADMIN_EMAIL -ErrorAction SilentlyContinue
+    }
     if ($LASTEXITCODE -ne 0) { throw "docker compose $($args -join ' ') failed (exit $LASTEXITCODE)" }
 }

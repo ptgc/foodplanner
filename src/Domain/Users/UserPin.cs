@@ -58,6 +58,23 @@ public sealed class UserPin
         return result;
     }
 
+    /// <summary>
+    /// Support clears the counter and the lock (T-096). The hash is never read, set or changed. True when there was something
+    /// to clear, so an idempotent repeat changes nothing.
+    /// </summary>
+    public bool ClearLockout(DateTimeOffset now)
+    {
+        if (FailedCount == 0 && LockedUntil is null)
+        {
+            return false;
+        }
+
+        FailedCount = 0;
+        LockedUntil = null;
+        UpdatedAt = now;
+        return true;
+    }
+
     /// <summary>A right PIN: counter and lock cleared.</summary>
     public void RegisterSuccess(DateTimeOffset now)
     {

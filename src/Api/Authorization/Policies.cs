@@ -1,3 +1,5 @@
+using Foodplanner.Api.Support;
+using Foodplanner.Domain.Support;
 using Foodplanner.Domain.Tenancy;
 using Microsoft.AspNetCore.Authorization;
 
@@ -27,6 +29,15 @@ public static class Policies
 
     /// <summary>The session is not locked to a kid profile (T-026). For account-level actions that are not under a household role policy.</summary>
     public const string FullSession = "FullSession";
+
+    /// <summary>A system admin (T-096): the account's confirmed email is on the configured allow-list, checked per request, never in kid mode. Not a household role.</summary>
+    public const string SystemAdmin = "SystemAdmin";
+
+    /// <summary>A system admin with an active support session for exactly the routed household (T-096). No membership, so no member policy passes with it.</summary>
+    public const string SupportSessionRead = "SupportSessionRead";
+
+    /// <summary><see cref="SupportSessionRead"/> and the session is a write session (T-096). For the four named fixes only.</summary>
+    public const string SupportSessionWrite = "SupportSessionWrite";
 }
 
 /// <summary>Satisfied when the caller's role in the current household is at least <see cref="Minimum"/>.</summary>
@@ -60,6 +71,8 @@ public static class AuthorizationSetup
         services.AddScoped<IAuthorizationHandler, MealPlanEntryOwnerOrAdultHandler>();
         services.AddScoped<IAuthorizationHandler, MealPlanWeekWritableHandler>();
         services.AddScoped<IAuthorizationHandler, FullSessionHandler>();
+        services.AddScoped<IAuthorizationHandler, SystemAdminHandler>();
+        services.AddScoped<IAuthorizationHandler, SupportSessionHandler>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, KidModeAuthorizationResultHandler>();
         services.AddScoped<IMealPlanWeekAccess, MealPlanWeekAccess>();
         services.AddScoped<IMealPlanEntryAccess, MealPlanEntryAccess>();
@@ -74,6 +87,18 @@ public static class AuthorizationSetup
             authorization.AddPolicy(
                 Policies.FullSession,
                 new AuthorizationPolicyBuilder().RequireAuthenticatedUser().AddRequirements(new FullSessionRequirement()).Build());
+            authorization.AddPolicy(
+                Policies.SystemAdmin,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser()
+                    .AddRequirements(new FullSessionRequirement(), new SystemAdminRequirement()).Build());
+            authorization.AddPolicy(
+                Policies.SupportSessionRead,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser()
+                    .AddRequirements(new FullSessionRequirement(), new SystemAdminRequirement(), new SupportSessionRequirement(requireWrite: false)).Build());
+            authorization.AddPolicy(
+                Policies.SupportSessionWrite,
+                new AuthorizationPolicyBuilder().RequireAuthenticatedUser()
+                    .AddRequirements(new FullSessionRequirement(), new SystemAdminRequirement(), new SupportSessionRequirement(requireWrite: true)).Build());
             authorization.AddPolicy(Policies.HouseholdMember, Build(HouseholdRole.Child));
             authorization.AddPolicy(Policies.HouseholdAdult, Build(HouseholdRole.Adult));
             authorization.AddPolicy(Policies.HouseholdOwner, Build(HouseholdRole.Owner));

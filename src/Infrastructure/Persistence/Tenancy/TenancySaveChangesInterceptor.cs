@@ -1,5 +1,6 @@
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.Common;
+using Foodplanner.Domain.Support;
 using Foodplanner.Domain.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -75,6 +76,12 @@ internal sealed class TenancySaveChangesInterceptor : SaveChangesInterceptor
         // The interceptor runs before SaveChanges' own DetectChanges; detect here so the guard sees every change.
         context.ChangeTracker.DetectChanges();
         var entries = context.ChangeTracker.Entries().ToList();
+
+        // T-096: the support audit log is append-only. No code path edits or deletes a row (a database trigger says the same).
+        if (entries.Any(e => e.Entity is SupportAuditEntry && e.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("The support audit log is append-only: an entry cannot be changed or deleted.");
+        }
 
         var assignments = new List<(PropertyEntry Property, Guid HouseholdId)>();
         var savingRows = new List<(EntityEntry Entry, Guid Household)>();

@@ -778,6 +778,60 @@ public sealed class MigrationTests(SqlServerFixture server)
         Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
     }
 
+    [Fact]
+    public async Task AddSupportAccess_migration_applies_with_the_trigger_and_the_active_session_index_and_deleting_a_household_still_removes_everything()
+    {
+        var connectionString = await server.CreateDatabaseAsync("supportaccess", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+
+        // The migration before this one, with a household and a recipe: the new tables arrive on a database that has data.
+        var migrator = context.GetService<IMigrator>();
+        var all = context.Database.GetMigrations().ToList();
+        var support = all.Single(id => id.EndsWith("_AddSupportAccess", StringComparison.Ordinal));
+        await migrator.MigrateAsync(all[all.IndexOf(support) - 1], Ct);
+        await ScalarAsync(connectionString, """
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (NEWID(), N'Before support', @now, @now);
+            """);
+
+        await context.Database.MigrateAsync(Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddSupportAccess'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Households"));
+        foreach (var table in new[] { "SupportSessions", "SupportAuditEntries" })
+        {
+            Assert.NotEqual(DBNull.Value, await ScalarAsync(connectionString, $"SELECT OBJECT_ID('{table}')"));
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID('{table}') OR referenced_object_id = OBJECT_ID('{table}')"));
+            Assert.Equal(0, await ScalarAsync(connectionString, $"SELECT COUNT(*) FROM sys.columns WHERE object_id = OBJECT_ID('{table}') AND name = 'HouseholdId'"));
+        }
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.triggers WHERE name = 'TR_SupportAuditEntries_AppendOnly' AND parent_id = OBJECT_ID('SupportAuditEntries')"));
+        Assert.Equal(1, await ScalarAsync(
+            connectionString,
+            "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('SupportSessions') AND name = 'UX_SupportSessions_AdminUserId_Active' AND is_unique = 1 AND filter_definition IS NOT NULL"));
+
+        // Deleting a household removes everything of the household, and leaves the support records alone.
+        await ScalarAsync(connectionString, """
+            DECLARE @h uniqueidentifier = (SELECT TOP 1 Id FROM Households), @now datetimeoffset = SYSDATETIMEOFFSET(), @admin uniqueidentifier = NEWID();
+            INSERT INTO SupportSessions (Id, AdminUserId, TargetHouseholdId, Mode, ReasonCategory, ReasonNote, StartedAt, ExpiresAt) VALUES (NEWID(), @admin, @h, 'Read', 'Other', N'ten chars!!', @now, @now);
+            INSERT INTO SupportAuditEntries (Id, At, AdminUserId, AdminEmail, TargetHouseholdId, TargetHouseholdName, Action, Outcome) VALUES (NEWID(), @now, @admin, N'a@example.test', @h, N'Before support', N'session.start', 'Success');
+            """);
+        await ScalarAsync(connectionString, "DELETE FROM Households");
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Households"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM SupportSessions"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM SupportAuditEntries"));
+
+        // Only one active session per admin.
+        const string startAnother = """
+            INSERT INTO SupportSessions (Id, AdminUserId, TargetHouseholdId, Mode, ReasonCategory, ReasonNote, StartedAt, ExpiresAt)
+            SELECT TOP 1 NEWID(), AdminUserId, TargetHouseholdId, 'Read', 'Other', N'ten chars!!', StartedAt, ExpiresAt FROM SupportSessions
+            """;
+        await ScalarAsync(connectionString, "UPDATE SupportSessions SET EndedAt = SYSDATETIMEOFFSET(), EndedReason = 'ended'");
+        await ScalarAsync(connectionString, startAnother); // the first active one of that admin
+        await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(connectionString, startAnother)); // a second active one is refused
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
     private static async Task<string[]> ColumnsAsync(string connectionString, string table)
     {
         var columns = new List<string>();

@@ -15,5 +15,6 @@ compose() {
     echo "No Sql:SaPassword user secret yet. Run ./scripts/local-secrets.sh first." >&2
     return 1
   fi
-  MSSQL_SA_PASSWORD="$pw" docker compose "$@"
+  # T-096: the local system admin allow-list (a user secret copied from Seed:AdminEmail) reaches the api container the same way.
+  MSSQL_SA_PASSWORD="$pw" SUPPORT_ADMIN_EMAIL="$(secret Support:SystemAdminEmails:0)" docker compose "$@"
 }

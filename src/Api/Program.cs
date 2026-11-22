@@ -7,10 +7,12 @@ using Foodplanner.Api.Features.MealPlans;
 using Foodplanner.Api.Features.Profiles;
 using Foodplanner.Api.Features.Recipes;
 using Foodplanner.Api.Features.ShoppingLists;
+using Foodplanner.Api.Features.Support;
 using Foodplanner.Api.Features.Tags;
 using Foodplanner.Api.OpenApi;
 using Foodplanner.Api.Security;
 using Foodplanner.Api.Seeding;
+using Foodplanner.Api.Support;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Infrastructure;
@@ -24,6 +26,8 @@ builder.Services.AddEmailSender(builder.Environment.IsDevelopment());
 builder.Services.AddFoodplannerAuth();
 builder.Services.AddFoodplannerRateLimiting();
 builder.Services.AddHouseholdPolicies();
+// T-096: system admin support (allow-list from configuration, sessions, audit).
+builder.Services.AddSupport();
 builder.Services.AddOptions<HouseholdOptions>().BindConfiguration(HouseholdOptions.Section).ValidateDataAnnotations().ValidateOnStart();
 // One light per-request instance, set by HouseholdContextMiddleware (Q-004).
 builder.Services.AddScoped<RequestCurrentHousehold>();
@@ -40,6 +44,8 @@ if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<Foodpl
 {
     app.Logger.LogWarning("Oda:WebOrigin must be https (http is allowed only for localhost, 127.0.0.1 and [::1]); the Oda flow is disabled.");
 }
+
+app.LogConfiguredAdmins();
 
 // One-shot host command (scripts/local-seed): seeds the local admin and exits. Refuses outside Development.
 if (args.Contains(LocalAdminSeeder.Command))
@@ -81,6 +87,8 @@ app.UseRouting();
 app.UseAuthentication();
 // After authentication (needs the caller) and before authorization (policies read the role).
 app.UseMiddleware<HouseholdContextMiddleware>();
+// T-096: for /api/support routes only; sets the household of an active support session (no role).
+app.UseMiddleware<SupportContextMiddleware>();
 app.UseMiddleware<HubOriginMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
@@ -120,6 +128,8 @@ api.MapWeeklyGroceryEndpoints();
 api.MapGrocerySuggestionEndpoints();
 api.MapStoreEndpoints();
 api.MapRecipeImageEndpoints();
+api.MapSupportEndpoints();
+api.MapSupportAccessEndpoints();
 app.MapShoppingListHub();
 
 app.Run();

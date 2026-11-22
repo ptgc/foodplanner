@@ -108,29 +108,52 @@ public static class HouseholdMemberEndpoints
             return HouseholdManagementEndpoints.Forbidden();
         }
 
+        var applied = await ApplyRoleAsync(db, userId, role, cancellationToken);
+        if (applied.Result is { } refused)
+        {
+            return refused;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return Results.Ok(await ToResponseAsync(db, applied.Membership!, cancellationToken));
+    }
+
+    /// <summary>
+    /// Sets a member's role of the current household (T-048). Must run inside the caller's transaction, after
+    /// <see cref="HouseholdManagementEndpoints.LockHouseholdAsync"/>: that lock is what serialises two Owner changes, so the
+    /// last-Owner check below cannot race. Looks the member up through the tenant filter (another household's user is not found)
+    /// and refuses to demote the last Owner. Shared by the Owner endpoint and the support promotion (T-096): the same rules.
+    /// </summary>
+    internal static async Task<(IResult? Result, Membership? Membership)> ApplyRoleAsync(
+        AppDbContext db, Guid userId, HouseholdRole role, CancellationToken cancellationToken)
+    {
         var membership = await db.Memberships.SingleOrDefaultAsync(m => m.UserId == userId, cancellationToken);
         if (membership is null)
         {
-            return HouseholdManagementEndpoints.MemberGone();
+            return (HouseholdManagementEndpoints.MemberGone(), null);
         }
 
         if (membership.Role == HouseholdRole.Owner && role != HouseholdRole.Owner
             && !await db.Memberships.AnyAsync(m => m.Role == HouseholdRole.Owner && m.UserId != userId, cancellationToken))
         {
-            return AppProblems.Problem(
+            return (AppProblems.Problem(
                 StatusCodes.Status409Conflict,
                 HouseholdManagementEndpoints.LastOwner,
                 "Last owner cannot be demoted",
-                "Make another member an Owner first, or delete the household.");
+                "Make another member an Owner first, or delete the household."), null);
         }
 
         membership.ChangeRole(role);
         await db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        return (null, membership);
+    }
 
-        var email = await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Email).SingleOrDefaultAsync(cancellationToken);
+    /// <summary>The member as the Owner endpoint returns it.</summary>
+    internal static async Task<MemberResponse> ToResponseAsync(AppDbContext db, Membership membership, CancellationToken cancellationToken)
+    {
+        var email = await db.Users.AsNoTracking().Where(u => u.Id == membership.UserId).Select(u => u.Email).SingleOrDefaultAsync(cancellationToken);
         var joinedAt = db.Entry(membership).Property<DateTimeOffset>("CreatedAt").CurrentValue;
-        return Results.Ok(new MemberResponse(userId, email, membership.Role, joinedAt));
+        return new MemberResponse(membership.UserId, email, membership.Role, joinedAt);
     }
 
     private static async Task<IResult> ListOpenInvites(
@@ -161,15 +184,26 @@ public static class HouseholdMemberEndpoints
         // Only open invites are found, as only they are listed; the tenant filter keeps it to this household. Invite.Revoke
         // moves ExpiresAt to now (the row stays), so the link answers 410 invite-invalid. A redemption committing between
         // this read and the save only has its (already accepted) invite's expiry moved: harmless, the membership stands.
-        var now = time.GetUtcNow();
+        return await RevokeOpenInviteAsync(db, inviteId, time.GetUtcNow(), cancellationToken) ? Results.NoContent() : InviteNotFoundProblem();
+    }
+
+    /// <summary>
+    /// Ends an open invite of the current household (T-048). False when there is none with that id (unknown, not open, or another
+    /// household's: all the same answer). Shared by the Owner endpoint and the support fix (T-096): the same rule.
+    /// </summary>
+    internal static async Task<bool> RevokeOpenInviteAsync(AppDbContext db, Guid inviteId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
         var invite = await db.Invites.SingleOrDefaultAsync(i => i.Id == inviteId && i.AcceptedAt == null && i.ExpiresAt > now, cancellationToken);
         if (invite is null)
         {
-            return AppProblems.Problem(StatusCodes.Status404NotFound, InviteNotFound, "Invite not found", "There is no open invite with that id in this household.");
+            return false;
         }
 
         invite.Revoke(now);
         await db.SaveChangesAsync(cancellationToken);
-        return Results.NoContent();
+        return true;
     }
+
+    internal static IResult InviteNotFoundProblem() =>
+        AppProblems.Problem(StatusCodes.Status404NotFound, InviteNotFound, "Invite not found", "There is no open invite with that id in this household.");
 }

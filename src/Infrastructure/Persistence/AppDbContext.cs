@@ -4,6 +4,7 @@ using Foodplanner.Domain.Imports;
 using Foodplanner.Domain.MealPlans;
 using Foodplanner.Domain.Recipes;
 using Foodplanner.Domain.ShoppingLists;
+using Foodplanner.Domain.Support;
 using Foodplanner.Domain.Tenancy;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Identity;
@@ -129,6 +130,12 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     /// <summary>One row per call to Claude with its tokens and outcome (T-118), for the metrics of T-121.</summary>
     public DbSet<AiCallLog> AiCallLogs => Set<AiCallLog>();
+
+    /// <summary>System admin support sessions (T-096). Global, not household data; no foreign keys.</summary>
+    public DbSet<SupportSession> SupportSessions => Set<SupportSession>();
+
+    /// <summary>The append-only support audit log (T-096). Global, not household data; no foreign keys.</summary>
+    public DbSet<SupportAuditEntry> SupportAuditEntries => Set<SupportAuditEntry>();
 
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;

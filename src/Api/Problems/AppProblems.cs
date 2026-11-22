@@ -81,6 +81,14 @@ public static class AppProblems
     public const string OdaUnavailable = "oda-unavailable";
 
     public const string PasswordIncorrect = "password-incorrect";
+    public const string PasswordRequired = "password-required";
+
+    // System admin support (T-096).
+    public const string SupportSessionRequired = "support-session-required";
+    public const string SupportSessionMismatch = "support-session-mismatch";
+    public const string SupportWriteRequired = "support-write-required";
+    public const string SupportAuditFailed = "support-audit-failed";
+    public const string HouseholdNotFound = "household-not-found";
     public const string AccountOwnsHouseholds = "account-owns-households";
     public const string AccountDeletionChanged = "account-deletion-changed";
 

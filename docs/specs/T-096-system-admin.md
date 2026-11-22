@@ -189,4 +189,16 @@ Platform
 - [ ] `Admin_ui_visible_only_to_admin`: Vitest: `/support` renders only when `me.isSystemAdmin`; the write-only buttons are absent in a read session; each action shows a confirmation naming household and effect; end-to-end Playwright (T-027 harness) for the seeded admin: start a read session, see members, end the session.
 
 ## Open questions
-- [Q-023](../questions/Q-023.md): (1) how admin is granted and revoked (config allow-list), (2) read versus write scope (read plus four named fixes), (3) prior consent from the household (none in v1), (4) what the household sees (in-app log plus email on writes), (5) audit immutability and retention (append-only with trigger, kept forever). Open; the spec assumes the recommendations.
+- [Q-023](../questions/Q-023.md): (1) how admin is granted and revoked (config allow-list), (2) read versus write scope (read plus four named fixes), (3) prior consent from the household (none in v1), (4) what the household sees (in-app log plus email on writes), (5) audit immutability and retention (append-only with trigger, kept forever). Answered by the architect 2026-10-29: all recommendations accepted.
+
+## Implementation notes (T-096 build, 2026-11-22; docs/domain.md has the full description)
+Where the build differs from or adds to the text above:
+- The support household group's route parameter is `targetHouseholdId` (not `householdId`), because `HouseholdRouteRulesTests` reserves `householdId` for `/api/households/{householdId}`.
+- Added by the architect (2026-11-22): `GET /api/support/households` also LISTS every household, paged (at most 20 per page; the answer is `{ items, page, pageSize, total }`), and the overview has a `plan` field that stays null until household plans exist (T-123).
+- A tenth read action `session.view` (`GET /api/support/sessions/current`) so that every endpoint under `/api/support` is audited; the access log shown to the admin pages (`.../access-log`) is paged.
+- Invite status is `Open`, `Accepted` or `Expired`: an invite ended by support or by a leaving creator only has its expiry moved, so it reads as `Expired`.
+- No `appsettings.Development.json`: the local admin address is never in the repository. `scripts/local-secrets` copies the existing `Seed:AdminEmail` user secret into `Support:SystemAdminEmails:0` (never printed), and `docker-compose.yml` passes it to the api container as `Support__SystemAdminEmails__0`. `Admin_config_is_not_in_repo_and_capped` is therefore `More_than_five_admin_addresses_fail_startup_and_five_start` plus `The_repository_configuration_names_no_admin_address` (appsettings and any `*.bicepparam`; there is no `infra` folder yet).
+- The admin list is read from `IConfiguration` on every request (not through an options snapshot), so a changed setting applies to the next request; the options class still validates the cap at startup.
+- A denied attempt (`access.denied`) stores the attempted household id but no name, so nothing of the other household is read.
+- The audit trigger refuses UPDATE and DELETE for every login. Refusing TRUNCATE needs an application database login without that permission, which is an infrastructure item and cannot be tested with the test container's `sa` login.
+- Not built in this task: the web "Support access" section in household settings (the API is done), the Bicep reference to the Key Vault secret, an ADR for Q-023.

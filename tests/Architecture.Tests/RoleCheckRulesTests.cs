@@ -34,19 +34,26 @@ public class RoleCheckRulesTests
     // Gap h. GetMembershipsForUser returns the caller's role in every household. Feature code must not use it to decide
     // anything; the one legitimate use is echoing the list back in ListHouseholds. A call site elsewhere is flagged.
     // What the allowed method does with the roles it gets back cannot be checked by this scanner (review catches it).
-    private static readonly string AllowedMembershipListing = typeof(Foodplanner.Api.Features.Households.HouseholdEndpoints).FullName + "+<ListHouseholds>";
+    // T-096: the support user search is the one additional named caller: it lists which households a found user belongs to
+    // (id, name, role), behind the SystemAdmin policy and an audit row.
+    private static readonly string[] AllowedMembershipListings =
+    [
+        typeof(Foodplanner.Api.Features.Households.HouseholdEndpoints).FullName + "+<ListHouseholds>",
+        typeof(Foodplanner.Api.Features.Support.SupportEndpoints).FullName + "+<SupportUserSearch>",
+    ];
 
     private static bool IsAllowedMembershipListing(string check) =>
         check.StartsWith(nameof(ITenantResolution) + "." + nameof(ITenantResolution.GetMembershipsForUser), StringComparison.Ordinal)
-        && check.Contains("type " + AllowedMembershipListing, StringComparison.Ordinal);
+        && AllowedMembershipListings.Any(allowed => check.Contains("type " + allowed, StringComparison.Ordinal));
 
     [Fact]
-    public void Membership_listing_is_used_only_by_ListHouseholds()
+    public void Membership_listing_is_used_only_by_ListHouseholds_and_SupportUserSearch()
     {
         var endpoints = typeof(Foodplanner.Api.Features.Households.HouseholdEndpoints);
 
-        // Not vacuous: the one allowed call site exists, and the scanner sees it.
+        // Not vacuous: the allowed call sites exist, and the scanner sees them.
         Assert.Contains(RoleChecks(endpoints), IsAllowedMembershipListing);
+        Assert.Contains(RoleChecks(typeof(Foodplanner.Api.Features.Support.SupportEndpoints)), IsAllowedMembershipListing);
         Assert.Contains(RoleChecks(typeof(ListsMemberships)), c => c.Contains("GetMembershipsForUser", StringComparison.Ordinal));
         Assert.DoesNotContain(RoleChecks(typeof(ListsMemberships)), IsAllowedMembershipListing);
     }

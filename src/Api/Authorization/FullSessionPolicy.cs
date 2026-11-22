@@ -41,6 +41,12 @@ internal sealed class KidModeAuthorizationResultHandler : IAuthorizationMiddlewa
 
     public Task HandleAsync(RequestDelegate next, HttpContext context, AuthorizationPolicy policy, PolicyAuthorizationResult authorizeResult)
     {
+        // T-096: the support routes never name kid mode and never announce themselves to a caller who is not an admin.
+        if (authorizeResult.Forbidden && context.GetEndpoint()?.Metadata.GetMetadata<Support.SupportRouteMetadata>() is not null)
+        {
+            return SupportDenials.HandleAsync(context, authorizeResult);
+        }
+
         if (authorizeResult.Forbidden
             && authorizeResult.AuthorizationFailure?.FailedRequirements.OfType<FullSessionRequirement>().Any() == true
             && !IsUnreachableHousehold(context))

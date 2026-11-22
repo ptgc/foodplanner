@@ -35,6 +35,17 @@ if (Get-Secret 'Seed:AdminEmail') {
     Write-Host 'Set Seed:AdminEmail.'
 }
 
+# T-096: the seeded admin is also the local system admin (support across households). The allow-list is configuration, never
+# in the repo: it is copied from the existing Seed:AdminEmail secret and never printed. (In Azure it is a Key Vault setting.)
+if (Get-Secret 'Support:SystemAdminEmails:0') {
+    Write-Host 'Support:SystemAdminEmails:0 already set, keeping it.'
+} else {
+    $adminEmail = Get-Secret 'Seed:AdminEmail'
+    dotnet user-secrets set Support:SystemAdminEmails:0 $adminEmail --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host 'Set Support:SystemAdminEmails:0 (the seeded admin).'
+}
+
 if (Get-Secret 'Seed:AdminPassword') {
     Write-Host 'Seed:AdminPassword already set, keeping it.'
 } else {

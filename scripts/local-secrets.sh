@@ -34,6 +34,17 @@ else
   echo "Set Seed:AdminEmail."
 fi
 
+# T-096: the seeded admin is also the local system admin (support across households). The allow-list is configuration, never
+# in the repo: it is copied from the existing Seed:AdminEmail secret and never printed. (In Azure it is a Key Vault setting.)
+existing="$(dotnet user-secrets list --project src/Api)"
+if has Support:SystemAdminEmails:0; then
+  echo "Support:SystemAdminEmails:0 already set, keeping it."
+else
+  admin_email="$(secret Seed:AdminEmail)"
+  dotnet user-secrets set Support:SystemAdminEmails:0 "$admin_email" --project src/Api >/dev/null
+  echo "Set Support:SystemAdminEmails:0 (the seeded admin)."
+fi
+
 if has Seed:AdminPassword; then
   echo "Seed:AdminPassword already set, keeping it."
 else

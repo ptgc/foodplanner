@@ -20,6 +20,7 @@ export default [
     route("pantry", "routes/pantry.tsx"),
     route("what-can-i-make", "routes/what-can-i-make.tsx"),
     route("household", "routes/household.tsx"),
+    route("support", "routes/support.tsx"),
     route("account/delete", "routes/account-delete.tsx"),
     route("ingredients", "routes/ingredients.tsx"),
     route("invite/:token", "routes/invite.tsx"),
