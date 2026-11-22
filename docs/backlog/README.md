@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus (2026-11-22): now: recipe from a photo with Claude (T-118, then T-119), demo household T-122, then super admin T-096 and household plans T-123 (T-124 later; own key T-120/T-099 and admin emails T-121 later); waiting on the architect: T-117 (check the privacy page wording, T-113, and the skills T-065, T-066, T-067, all merged into dev and in review); later: T-107; stretch: T-086, T-094
+## Current focus (2026-11-22): now: recipe from a photo with Claude (T-118, then T-119), household plans T-123 next, then T-126 support-access view; follow-ups T-125, T-127, T-128 (T-124 later; own key T-120/T-099 and admin emails T-121 later); waiting on the architect: T-117 (check the privacy page wording, T-113, and the skills T-065, T-066, T-067, all merged into dev and in review); later: T-107; stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -153,3 +153,6 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-123 | Household plan: Claude limits per household, set by the super admin | M4 | T-096, T-118 | implementer-backend | yes |
 | T-124 | Sign in as household or as super admin; separate super admin account (later) | M4 | T-096, T-010 | implementer-frontend | no |
 | T-125 | Photo import hardening (review follow-ups from T-118) | M4 | T-118 | implementer-backend | no |
+| T-126 | Household "Support access" view and support review notes | M4 | T-096 | implementer-frontend | no |
+| T-127 | e2e: separate member account per Playwright project | W | - | implementer-frontend | no |
+| T-128 | Shrink the web bundle back under a lower total budget | W | - | implementer-frontend | no |
