@@ -13,11 +13,12 @@ function cartWith(quantity: unknown): Cart {
   return {
     status: "done",
     cartUrl: "https://oda.example/cart",
-    added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: quantity as number }],
+    added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: quantity as number, source: "first-hit" }],
     notAdded: [],
     cartMessages: [],
     connectionClosed: true,
     connectionMessage: null,
+    usuallyBought: { status: "used", count: 0 },
   };
 }
 

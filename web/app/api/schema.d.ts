@@ -1440,6 +1440,7 @@ export interface components {
             productName: string;
             /** Format: int32 */
             quantity: number | string;
+            source: string;
         };
         OdaCartResponse: {
             status: string;
@@ -1449,6 +1450,7 @@ export interface components {
             cartMessages: string[];
             connectionClosed: boolean;
             connectionMessage: null | string;
+            usuallyBought: components["schemas"]["OdaUsuallyBoughtResponse"];
         };
         OdaCompleteRequest: {
             state: null | string;
@@ -1466,6 +1468,11 @@ export interface components {
         };
         OdaStartResponse: {
             authorizeUrl: string;
+        };
+        OdaUsuallyBoughtResponse: {
+            status: string;
+            /** Format: int32 */
+            count: number | string;
         };
         OpenInviteResponse: {
             /** Format: uuid */

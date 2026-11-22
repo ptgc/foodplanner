@@ -45,6 +45,18 @@ internal sealed class FakeOda : HttpMessageHandler
     /// <summary>Tool whose call is received and then never answered in time (the transport throws a timeout).</summary>
     public string? TimeoutTool { get; set; }
 
+    /// <summary>Status a single tool answers with (for example 429 for <c>likely_to_buy</c>), after recording the call.</summary>
+    public Dictionary<string, HttpStatusCode> ToolStatus { get; } = [];
+
+    /// <summary>Tools whose call answers a result with <c>isError</c> true.</summary>
+    public HashSet<string> ToolIsError { get; } = [];
+
+    /// <summary>Extra product ids in the purchase history (<c>likely_to_buy</c>), on top of the 50 recorded products; named <c>Fake History Name {id}</c>.</summary>
+    public HashSet<long> UsualProductIds { get; } = [];
+
+    /// <summary>How the history answer is damaged: <c>no-result</c> (the result field is missing), <c>entry-no-id</c> (one entry without an id is added), <c>not-array</c>.</summary>
+    public string? HistoryDamage { get; set; }
+
     public int RevokeFailures { get; set; }
 
     /// <summary>True when a revoke call arrived with an already cancelled token (it must not use the request's).</summary>
@@ -233,6 +245,16 @@ internal sealed class FakeOda : HttpMessageHandler
                     throw new TaskCanceledException("The fake Oda never answered.", new TimeoutException());
                 }
 
+                if (ToolStatus.TryGetValue(name, out var toolStatus))
+                {
+                    return new HttpResponseMessage(toolStatus);
+                }
+
+                if (ToolIsError.Contains(name))
+                {
+                    return Rpc(id, new JsonObject { ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = "upstream-error-body-should-not-leak" }), ["isError"] = true });
+                }
+
                 if (FailTool == name)
                 {
                     return new HttpResponseMessage(HttpStatusCode.InternalServerError) { Content = new StringContent("upstream-error-body-should-not-leak") };
@@ -243,6 +265,7 @@ internal sealed class FakeOda : HttpMessageHandler
                     "product_search" => Wrap(new JsonObject { ["result"] = Search(args) }),
                     "manipulate_cart" => Wrap(Manipulate(args)),
                     "get_cart" => Wrap(CartJson(withUrl: true)),
+                    "likely_to_buy" => Wrap(History()),
                     _ => throw new InvalidOperationException($"The fake Oda has no tool '{name}': the app called something it must not."),
                 });
             default:
@@ -310,6 +333,38 @@ internal sealed class FakeOda : HttpMessageHandler
         }
 
         return rows;
+    }
+
+    private JsonNode History()
+    {
+        var products = Fixture("likely-to-buy.json")["result"]!.DeepClone().AsArray();
+        foreach (var id in UsualProductIds)
+        {
+            products.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["name"] = $"Fake History Name {id}",
+                ["description"] = "history",
+                ["price"] = "20.00",
+                ["unitPrice"] = "20.00",
+                ["unitName"] = "stk",
+                ["availability"] = new JsonObject { ["isAvailable"] = true, ["description"] = "Available", ["code"] = "available" },
+            });
+        }
+
+        switch (HistoryDamage)
+        {
+            case "no-result":
+                return new JsonObject { ["items"] = products };
+            case "not-array":
+                return new JsonObject { ["result"] = "nothing" };
+            case "entry-no-id":
+                products.Add(new JsonObject { ["name"] = "Fake History Without Id" });
+                products.Add(new JsonObject { ["id"] = "not-a-number", ["name"] = "Fake History Bad Id" });
+                break;
+        }
+
+        return new JsonObject { ["result"] = products };
     }
 
     private JsonNode Manipulate(JsonNode args)

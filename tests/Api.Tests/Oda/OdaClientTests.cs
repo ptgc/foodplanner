@@ -65,6 +65,40 @@ public sealed class OdaClientTests
         Assert.Contains(fake.Requests, r => r.Url.AbsolutePath == "/.well-known/oauth-authorization-server/o");
     }
 
+    [Fact]
+    public async Task Contract_fixture_likely_to_buy_deserialises_and_only_ids_are_used()
+    {
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(1004);
+        await using var provider = Services(fake);
+
+        var outcome = await RunAsync(provider, TestContext.Current.CancellationToken);
+
+        Assert.Equal(UsuallyBoughtStatus.Used, outcome.Fill!.UsuallyBought);
+        Assert.Equal(1, outcome.Fill.UsuallyBoughtCount);
+        Assert.Equal(["Fake Jasminris 1 kg", "Fake Egg 12 stk"], outcome.Fill.Added.Select(a => a.ProductName).ToArray());
+        Assert.Single(fake.ToolCalls("likely_to_buy"));
+        Assert.Equal(["intent"], fake.ToolCalls("likely_to_buy")[0].AsObject().Select(p => p.Key).ToArray()); // no paging, no other argument
+    }
+
+    [Theory]
+    [InlineData("no-result", UsuallyBoughtStatus.Unavailable)]
+    [InlineData("not-array", UsuallyBoughtStatus.Unavailable)]
+    [InlineData("entry-no-id", UsuallyBoughtStatus.Used)]
+    public async Task A_damaged_likely_to_buy_fixture_never_throws_or_fails_the_fill(string damage, UsuallyBoughtStatus expected)
+    {
+        var fake = new FakeOda { HistoryDamage = damage };
+        fake.UsualProductIds.Add(1004);
+        await using var provider = Services(fake);
+
+        var outcome = await RunAsync(provider, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Succeeded);
+        Assert.Equal(expected, outcome.Fill!.UsuallyBought);
+        Assert.Equal(expected == UsuallyBoughtStatus.Used ? 1 : 0, outcome.Fill.UsuallyBoughtCount); // entries without a valid id are ignored
+        Assert.Equal(2, outcome.Fill.Added.Count);
+    }
+
     [Theory]
     [InlineData("tool", "product_search")]
     [InlineData("tool", "manipulate_cart")]

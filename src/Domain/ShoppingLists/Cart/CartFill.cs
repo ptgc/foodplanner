@@ -17,6 +17,13 @@ public interface ICartProviderSession
     Task<IReadOnlySet<string>> AddOnePackEachAsync(IReadOnlyList<string> productIds, CancellationToken cancellationToken);
 
     Task<CartSnapshot> ReadCartAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The ids of the products the household usually buys (T-114), read once per fill and only used to choose among an item's own
+    /// search hits. Optional: fails with <see cref="ProviderUnavailableException"/> when it cannot be read, and the fill goes on without it.
+    /// Names and everything else the provider returns are dropped.
+    /// </summary>
+    Task<IReadOnlySet<string>> ReadUsuallyBoughtIdsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>The cart as the provider reports it: a link to open it and the provider's own validation messages (for example a sold-out line).</summary>
@@ -40,7 +47,16 @@ public enum CartNotAddedReason
     Rejected,
 }
 
-public sealed record CartAddedLine(Guid ItemId, string Name, string ProductName, int Quantity);
+public sealed record CartAddedLine(
+    Guid ItemId, string Name, string ProductName, int Quantity, ProductMatchSource Source = ProductMatchSource.FirstHit);
+
+/// <summary>Whether the purchase history was used for this fill: read (<see cref="Used"/>), not readable (<see cref="Unavailable"/>) or not asked for (<see cref="Skipped"/>).</summary>
+public enum UsuallyBoughtStatus
+{
+    Used,
+    Unavailable,
+    Skipped,
+}
 
 public sealed record CartNotAddedLine(Guid ItemId, string Name, CartNotAddedReason Reason);
 
@@ -52,14 +68,18 @@ public enum CartFillStatus
 }
 
 public sealed record CartFillResult(
-    IReadOnlyList<CartAddedLine> Added, IReadOnlyList<CartNotAddedLine> NotAdded, CartSnapshot? Cart)
+    IReadOnlyList<CartAddedLine> Added, IReadOnlyList<CartNotAddedLine> NotAdded, CartSnapshot? Cart,
+    UsuallyBoughtStatus UsuallyBought = UsuallyBoughtStatus.Skipped)
 {
+    /// <summary>Number of added lines chosen because the household usually buys the product.</summary>
+    public int UsuallyBoughtCount => Added.Count(a => a.Source == ProductMatchSource.UsuallyBought);
+
     public CartFillStatus Status =>
         Added.Count == 0 ? CartFillStatus.NothingAdded : NotAdded.Count == 0 ? CartFillStatus.Done : CartFillStatus.Partial;
 }
 
 /// <summary>
-/// Fills a provider cart from a list of lines: search (batched), pick the first available hit per line, add one pack each (batched),
+/// Fills a provider cart from a list of lines: search (batched), read the purchase history once (T-114), pick per line the usually bought available hit or else the first available hit, add one pack each (batched),
 /// read the cart once. Nothing is retried, because quantities are deltas. Never orders or pays.
 /// </summary>
 public static class CartFiller
@@ -74,7 +94,8 @@ public static class CartFiller
         ArgumentOutOfRangeException.ThrowIfLessThan(batchSize, 1);
 
         var notAdded = new List<CartNotAddedLine>();
-        var matched = new List<(CartLine Line, ProductCandidate Product)>();
+        var matched = new List<(CartLine Line, ProductCandidate Product, ProductMatchSource Source)>();
+        var searched = new List<(CartLine Line, IReadOnlyList<ProductCandidate> Hits)>();
 
         // Search everything first: a failure here has touched no cart.
         foreach (var batch in lines.Chunk(batchSize))
@@ -87,19 +108,41 @@ public static class CartFiller
 
             for (var i = 0; i < batch.Length; i++)
             {
-                var match = ProductMatcher.Match(hits[i]);
-                switch (match.Outcome)
-                {
-                    case ProductMatchOutcome.Matched:
-                        matched.Add((batch[i], match.Product!));
-                        break;
-                    case ProductMatchOutcome.NoMatch:
-                        notAdded.Add(new CartNotAddedLine(batch[i].ItemId, batch[i].Name, CartNotAddedReason.NoMatch));
-                        break;
-                    default:
-                        notAdded.Add(new CartNotAddedLine(batch[i].ItemId, batch[i].Name, CartNotAddedReason.Unavailable));
-                        break;
-                }
+                searched.Add((batch[i], hits[i]));
+            }
+        }
+
+        // One history call (T-114), only when something could be matched, after the last search and before the first cart call.
+        // Any failure is not a failure of the fill: no retry, the first available hits are used.
+        var history = UsuallyBoughtStatus.Skipped;
+        IReadOnlySet<string> usual = new HashSet<string>(StringComparer.Ordinal);
+        if (searched.Any(s => s.Hits.Any(h => h.IsAvailable)))
+        {
+            try
+            {
+                usual = await session.ReadUsuallyBoughtIdsAsync(cancellationToken);
+                history = UsuallyBoughtStatus.Used;
+            }
+            catch (ProviderUnavailableException)
+            {
+                history = UsuallyBoughtStatus.Unavailable;
+            }
+        }
+
+        foreach (var (line, hits) in searched)
+        {
+            var match = ProductMatcher.Match(hits, usual);
+            switch (match.Outcome)
+            {
+                case ProductMatchOutcome.Matched:
+                    matched.Add((line, match.Product!, match.Source));
+                    break;
+                case ProductMatchOutcome.NoMatch:
+                    notAdded.Add(new CartNotAddedLine(line.ItemId, line.Name, CartNotAddedReason.NoMatch));
+                    break;
+                default:
+                    notAdded.Add(new CartNotAddedLine(line.ItemId, line.Name, CartNotAddedReason.Unavailable));
+                    break;
             }
         }
 
@@ -117,11 +160,11 @@ public static class CartFiller
                 throw new CartFillInterruptedException(ex.Message, [.. added]);
             }
 
-            foreach (var (line, product) in batch)
+            foreach (var (line, product, source) in batch)
             {
                 if (inCart.Contains(product.ProductId))
                 {
-                    added.Add(new CartAddedLine(line.ItemId, line.Name, product.Name, 1));
+                    added.Add(new CartAddedLine(line.ItemId, line.Name, product.Name, 1, source));
                 }
                 else
                 {
@@ -140,6 +183,6 @@ public static class CartFiller
             // The items are in the cart already; a missing link is reported as such, not as a failure.
         }
 
-        return new CartFillResult(added, notAdded, cart);
+        return new CartFillResult(added, notAdded, cart, history);
     }
 }

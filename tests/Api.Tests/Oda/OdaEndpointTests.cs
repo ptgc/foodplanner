@@ -364,10 +364,10 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
 
         var searches = fake.ToolCalls("product_search");
         Assert.Equal([10, 10, 5], searches.Select(s => s["queries"]!.AsArray().Count).ToArray());
-        Assert.All(searches, s => Assert.InRange(s["size"]!.GetValue<int>(), 1, 5));
+        Assert.All(searches, s => Assert.Equal(10, s["size"]!.GetValue<int>()));
         Assert.Equal(3, fake.ToolCalls("manipulate_cart").Count);
         Assert.Single(fake.ToolCalls("get_cart"));
-        Assert.All(fake.AllToolNames, n => Assert.Contains(n, new[] { "product_search", "manipulate_cart", "get_cart" }));
+        Assert.All(fake.AllToolNames, n => Assert.Contains(n, new[] { "product_search", "likely_to_buy", "manipulate_cart", "get_cart" }));
         Assert.Equal(25, result.GetProperty("added").GetArrayLength());
         Assert.Equal("done", result.GetProperty("status").GetString());
     }
@@ -556,6 +556,268 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
 
         Assert.Equal(2, fake.RevokeRequests.Count);
         Assert.True(result.GetProperty("connectionClosed").GetBoolean());
+    }
+
+    // ---- Usually bought (T-114) --------------------------------------------------------------------------------------
+
+    private static Dictionary<string, JsonElement> AddedByName(JsonElement result) =>
+        result.GetProperty("added").EnumerateArray().ToDictionary(a => a.GetProperty("name").GetString()!, a => a);
+
+    private static long[] AddedProductIds(FakeOda fake) =>
+        [.. fake.ToolCalls("manipulate_cart").SelectMany(c => c["operations"]!.AsArray()).Select(o => o!["productId"]!.GetValue<long>())];
+
+    [Fact]
+    public async Task Fill_prefers_usual_product()
+    {
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(1004); // the second hit for Rice
+        fake.UsualProductIds.Add(2002); // the second hit for Tomat
+        await using var host = Host(fake);
+        var (owner, household) = await OdaHost.ScenarioAsync(host); // Rice (1001, 1004), Egg (1002 sold out, 1003)
+        await OdaHost.AddManualAsync(owner.Client, household, "Tomat"); // 2001, 2002
+        await OdaHost.AddManualAsync(owner.Client, household, "Ost"); // 2011, 2012 (sold out), 2013
+        await OdaHost.AddManualAsync(owner.Client, household, "Smør"); // a single generated hit
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        var added = AddedByName(result);
+        Assert.Equal("usually-bought", added["Rice"].GetProperty("source").GetString());
+        Assert.Equal("usually-bought", added["Tomat"].GetProperty("source").GetString());
+        Assert.Equal("first-hit", added["Egg"].GetProperty("source").GetString());
+        Assert.Equal("first-hit", added["Ost"].GetProperty("source").GetString());
+        Assert.Equal("first-hit", added["Smør"].GetProperty("source").GetString());
+        Assert.Equal("Fake Jasminris 1 kg", added["Rice"].GetProperty("productName").GetString());
+        Assert.Equal("Fake Tomat Cherry Favoritt", added["Tomat"].GetProperty("productName").GetString());
+        var ids = AddedProductIds(fake);
+        Assert.Contains(1004L, ids);
+        Assert.Contains(2002L, ids);
+        Assert.Contains(1003L, ids);
+        Assert.Contains(2011L, ids);
+        Assert.DoesNotContain(1001L, ids);
+        Assert.DoesNotContain(2001L, ids);
+        Assert.Equal("used", result.GetProperty("usuallyBought").GetProperty("status").GetString());
+        Assert.Equal(2, result.GetProperty("usuallyBought").GetProperty("count").GetInt32());
+        Assert.Equal("done", result.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task History_is_one_call()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake);
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        owner.Client.Language = "en";
+        for (var i = 1; i <= 25; i++)
+        {
+            await OdaHost.AddManualAsync(owner.Client, household, $"Item {i}");
+        }
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Equal(
+            ["product_search", "product_search", "product_search", "likely_to_buy", "manipulate_cart", "manipulate_cart", "manipulate_cart", "get_cart"],
+            fake.AllToolNames);
+        Assert.Equal("used", result.GetProperty("usuallyBought").GetProperty("status").GetString());
+        Assert.Equal(0, result.GetProperty("usuallyBought").GetProperty("count").GetInt32());
+    }
+
+    [Fact]
+    public async Task History_skipped_when_no_hits()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake);
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        owner.Client.Language = "en";
+        await OdaHost.AddManualAsync(owner.Client, household, "Kaffefilter"); // no hits
+        await OdaHost.AddManualAsync(owner.Client, household, "Melk"); // hits, none available
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Empty(fake.ToolCalls("likely_to_buy"));
+        Assert.Equal("skipped", result.GetProperty("usuallyBought").GetProperty("status").GetString());
+        Assert.Equal(0, result.GetProperty("usuallyBought").GetProperty("count").GetInt32());
+        Assert.Equal("nothing-added", result.GetProperty("status").GetString());
+    }
+
+    [Theory]
+    [InlineData("server-error")]
+    [InlineData("rate-limited-429")]
+    [InlineData("timeout")]
+    [InlineData("is-error")]
+    [InlineData("no-result")]
+    [InlineData("not-array")]
+    [InlineData("tool-missing")]
+    public async Task History_failure_falls_back(string failure)
+    {
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(1004); // would win if the history were read
+        switch (failure)
+        {
+            case "server-error":
+                fake.FailTool = "likely_to_buy";
+                break;
+            case "rate-limited-429":
+                fake.ToolStatus["likely_to_buy"] = HttpStatusCode.TooManyRequests;
+                break;
+            case "timeout":
+                fake.TimeoutTool = "likely_to_buy";
+                break;
+            case "is-error":
+                fake.ToolIsError.Add("likely_to_buy");
+                break;
+            case "tool-missing":
+                fake.OmitTools.Add("likely_to_buy");
+                break;
+            default:
+                fake.HistoryDamage = failure;
+                break;
+        }
+
+        await using var host = Host(fake);
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        var result = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Equal("done", result.GetProperty("status").GetString());
+        var added = AddedByName(result);
+        Assert.Equal("Fake Basmatiris 1 kg", added["Rice"].GetProperty("productName").GetString()); // the T-053 result
+        Assert.All(added.Values, a => Assert.Equal("first-hit", a.GetProperty("source").GetString()));
+        Assert.Equal("unavailable", result.GetProperty("usuallyBought").GetProperty("status").GetString());
+        Assert.Equal(0, result.GetProperty("usuallyBought").GetProperty("count").GetInt32());
+        Assert.InRange(fake.ToolCalls("likely_to_buy").Count, 0, 1);
+        Assert.Equal(failure == "tool-missing" ? 0 : 1, fake.ToolCalls("likely_to_buy").Count);
+        Assert.True(result.GetProperty("connectionClosed").GetBoolean());
+        Assert.Single(fake.RevokeRequests, r => OdaHost.Form(r.Body)["token"] == fake.AccessToken);
+    }
+
+    [Fact]
+    public async Task History_429_not_worked_around()
+    {
+        var fake = new FakeOda();
+        fake.ToolStatus["likely_to_buy"] = HttpStatusCode.TooManyRequests;
+        fake.ToolStatus["manipulate_cart"] = HttpStatusCode.TooManyRequests;
+        await using var host = Host(fake);
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+        var (_, state) = await OdaHost.StartAsync(owner.Client, household);
+
+        using var response = await OdaHost.CartAsync(owner.Client, household, state);
+
+        await response.AssertProblemAsync(HttpStatusCode.BadGateway, "oda-unavailable");
+        var body = await response.JsonAsync();
+        Assert.Equal(0, body.GetProperty("added").GetArrayLength());
+        Assert.True(body.GetProperty("connectionClosed").GetBoolean());
+        Assert.Single(fake.ToolCalls("likely_to_buy"));
+        Assert.Single(fake.ToolCalls("manipulate_cart"));
+        Assert.Empty(fake.ToolCalls("get_cart"));
+    }
+
+    [Fact]
+    public async Task History_unavailable_usual_skipped()
+    {
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(2012); // sold out: skipped, the first available hit rules
+        await using var host = Host(fake);
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        owner.Client.Language = "en";
+        await OdaHost.AddManualAsync(owner.Client, household, "Ost");
+
+        var first = await OdaHost.StartAndCompleteAsync(owner.Client, household);
+
+        Assert.Equal([2011L], AddedProductIds(fake));
+        Assert.Equal("first-hit", AddedByName(first)["Ost"].GetProperty("source").GetString());
+        Assert.Equal(0, first.GetProperty("usuallyBought").GetProperty("count").GetInt32());
+
+        var next = new FakeOda();
+        next.UsualProductIds.Add(2012);
+        next.UsualProductIds.Add(2013); // available, ranked third: wins over the first hit
+        await using var nextHost = Host(next);
+        var nextOwner = await nextHost.SignInAsync();
+        var nextHousehold = await nextOwner.Client.CreateHouseholdAsync();
+        nextOwner.Client.Language = "en";
+        await OdaHost.AddManualAsync(nextOwner.Client, nextHousehold, "Ost");
+
+        var second = await OdaHost.StartAndCompleteAsync(nextOwner.Client, nextHousehold);
+
+        Assert.Equal([2013L], AddedProductIds(next));
+        Assert.Equal("usually-bought", AddedByName(second)["Ost"].GetProperty("source").GetString());
+    }
+
+    [Fact]
+    public async Task History_never_persisted_or_logged()
+    {
+        const long recognisableId = 987654321;
+        var logs = new Foodplanner.Api.Tests.Profiles.CapturingLoggerProvider();
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(recognisableId);
+        fake.UsualProductIds.Add(1004);
+        await using var host = Host(fake, logs);
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+        var (_, state) = await OdaHost.StartAsync(owner.Client, household);
+        using var response = await OdaHost.CartAsync(owner.Client, household, state);
+        var body = await response.Content.ReadAsStringAsync(Ct);
+
+        var failing = new FakeOda { ToolIsError = { "likely_to_buy" } };
+        failing.UsualProductIds.Add(recognisableId);
+        await using var failHost = Host(failing, logs);
+        var (failOwner, failHousehold) = await OdaHost.ScenarioAsync(failHost);
+        var (_, failState) = await OdaHost.StartAsync(failOwner.Client, failHousehold);
+        using var failed = await OdaHost.CartAsync(failOwner.Client, failHousehold, failState);
+        var failBody = await failed.Content.ReadAsStringAsync(Ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, JsonDocument.Parse(body).RootElement.GetProperty("usuallyBought").GetProperty("count").GetInt32()); // not vacuous
+        string[] needles = [recognisableId.ToString(System.Globalization.CultureInfo.InvariantCulture), "Fake History Name", "Fake Usual Product", "upstream-error-body-should-not-leak"];
+        string[] messages;
+        lock (logs.Messages)
+        {
+            messages = [.. logs.Messages];
+        }
+
+        Assert.Contains(messages, m => m.Contains("usually bought", StringComparison.Ordinal)); // the one line carries only a count
+        foreach (var needle in needles)
+        {
+            Assert.DoesNotContain(messages, m => m.Contains(needle, StringComparison.Ordinal));
+            Assert.DoesNotContain(needle, body, StringComparison.Ordinal);
+            Assert.DoesNotContain(needle, failBody, StringComparison.Ordinal);
+        }
+
+        var hits = await OdaHost.FindInDatabaseAsync(db.ConnectionString, recognisableId.ToString(System.Globalization.CultureInfo.InvariantCulture), "Fake History Name", "Fake Usual Product");
+        Assert.Empty(hits);
+    }
+
+    [Fact]
+    public async Task A_failed_fill_reports_the_source_of_what_was_added_before()
+    {
+        var fake = new FakeOda();
+        fake.UsualProductIds.Add(2002);
+        var calls = 0;
+        fake.BeforeTool = name =>
+        {
+            if (name == "manipulate_cart" && ++calls == 2)
+            {
+                fake.FailTool = "manipulate_cart";
+            }
+        };
+        await using var host = Host(fake);
+        var owner = await host.SignInAsync();
+        var household = await owner.Client.CreateHouseholdAsync();
+        owner.Client.Language = "en";
+        await OdaHost.AddManualAsync(owner.Client, household, "Tomat");
+        for (var i = 1; i <= 10; i++)
+        {
+            await OdaHost.AddManualAsync(owner.Client, household, $"Item {i}");
+        }
+
+        var (_, state) = await OdaHost.StartAsync(owner.Client, household);
+        using var response = await OdaHost.CartAsync(owner.Client, household, state);
+
+        await response.AssertProblemAsync(HttpStatusCode.BadGateway, "oda-unavailable");
+        var added = (await response.JsonAsync()).GetProperty("added").EnumerateArray().ToList();
+        Assert.Equal(10, added.Count);
+        Assert.All(added, a => Assert.Contains(a.GetProperty("source").GetString(), new[] { "usually-bought", "first-hit" }));
     }
 
     // ---- Nothing kept, nothing leaked --------------------------------------------------------------------------------
@@ -752,7 +1014,7 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
 
         await OdaHost.StartAndCompleteAsync(owner.Client, household);
 
-        Assert.All(fake.AllToolNames, n => Assert.Contains(n, new[] { "product_search", "manipulate_cart", "get_cart" }));
+        Assert.All(fake.AllToolNames, n => Assert.Contains(n, new[] { "product_search", "likely_to_buy", "manipulate_cart", "get_cart" }));
         Assert.All(fake.Requests, r => Assert.True(r.Url.AbsolutePath is "/mcp" or "/o/token/" or "/o/revoke_token/" || r.Url.AbsolutePath.StartsWith("/.well-known/", StringComparison.Ordinal)));
     }
 

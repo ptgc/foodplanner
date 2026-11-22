@@ -20,7 +20,11 @@ public sealed record OdaStartResponse(string AuthorizeUrl);
 /// <summary>What Oda redirected the browser back with: <c>state</c> plus <c>code</c>, or <c>state</c> plus <c>error</c> (the user cancelled).</summary>
 public sealed record OdaCompleteRequest(string? State, string? Code, string? Error);
 
-public sealed record OdaAddedItemResponse(Guid ItemId, string Name, string ProductName, int Quantity);
+/// <summary><c>Source</c>: <c>usually-bought</c> (the household has bought this product before, T-114) or <c>first-hit</c>.</summary>
+public sealed record OdaAddedItemResponse(Guid ItemId, string Name, string ProductName, int Quantity, string Source);
+
+/// <summary><c>Status</c>: <c>used</c> (the purchase history was read), <c>unavailable</c> (it could not be read, first hits were used) or <c>skipped</c> (not asked for). <c>Count</c>: added lines with source <c>usually-bought</c>. No product data.</summary>
+public sealed record OdaUsuallyBoughtResponse(string Status, int Count);
 
 /// <summary><c>Reason</c>: <c>no-match</c>, <c>unavailable</c> or <c>rejected</c>.</summary>
 public sealed record OdaNotAddedItemResponse(Guid ItemId, string Name, string Reason);
@@ -37,7 +41,8 @@ public sealed record OdaCartResponse(
     OdaNotAddedItemResponse[] NotAdded,
     string[] CartMessages,
     bool ConnectionClosed,
-    string? ConnectionMessage);
+    string? ConnectionMessage,
+    OdaUsuallyBoughtResponse UsuallyBought);
 
 /// <summary>
 /// Send the shopping list to the household's Oda cart, session-only (T-053, ADR 0008, Q-024/Q-025/Q-033). Owner or Adult, never kid
@@ -137,7 +142,7 @@ public static class OdaEndpoints
 
         if (!string.IsNullOrWhiteSpace(request?.Error))
         {
-            return Results.Ok(new OdaCartResponse("cancelled", null, [], [], [], ConnectionClosed: true, ConnectionMessage: null));
+            return Results.Ok(new OdaCartResponse("cancelled", null, [], [], [], ConnectionClosed: true, ConnectionMessage: null, new OdaUsuallyBoughtResponse("skipped", 0)));
         }
 
         var code = request?.Code;
@@ -189,10 +194,19 @@ public static class OdaEndpoints
                 }))],
             [.. fill.Cart?.Messages ?? []],
             outcome.ConnectionClosed,
-            ConnectionMessage(outcome.ConnectionClosed)));
+            ConnectionMessage(outcome.ConnectionClosed),
+            new OdaUsuallyBoughtResponse(
+                fill.UsuallyBought switch
+                {
+                    UsuallyBoughtStatus.Used => "used",
+                    UsuallyBoughtStatus.Unavailable => "unavailable",
+                    _ => "skipped",
+                },
+                fill.UsuallyBoughtCount)));
     }
 
-    private static OdaAddedItemResponse ToResponse(CartAddedLine line) => new(line.ItemId, line.Name, line.ProductName, line.Quantity);
+    private static OdaAddedItemResponse ToResponse(CartAddedLine line) => new(
+        line.ItemId, line.Name, line.ProductName, line.Quantity, line.Source == ProductMatchSource.UsuallyBought ? "usually-bought" : "first-hit");
 
     private static string? ConnectionMessage(bool closed) =>
         closed ? null : "The connection to Oda could not be closed. Remove Foodplanner under Privacy & security in your Oda account.";

@@ -539,3 +539,15 @@ body {
   box-sizing: border-box;
   text-decoration: none;
 }
+
+/* T-114: the "Usually bought" label on a line of the Oda result. It wraps with the line and never widens it. */
+.oda-usual {
+  display: inline-block;
+  margin-inline-start: 0.5rem;
+  padding: 0 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

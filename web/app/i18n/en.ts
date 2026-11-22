@@ -195,6 +195,8 @@ export const en = {
   "oda.result.added": "Added",
   "oda.result.addedLine": "{name}: {productName}, {quantity}",
   "oda.result.addedLineNoQuantity": "{name}: {productName}",
+  "oda.result.usual": "Usually bought",
+  "oda.result.usualUnavailable": "Your usual products could not be read, so the first matches were used.",
   "oda.result.notAdded": "Not added",
   "oda.result.notAddedLine": "{name}: {reason}",
   "oda.reason.no-match": "no matching product",

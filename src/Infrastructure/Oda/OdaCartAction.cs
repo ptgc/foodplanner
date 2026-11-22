@@ -55,13 +55,15 @@ public sealed class OdaCartAction(OdaOAuth oauth, OdaMcpSessionFactory sessions,
 
         var added = fill?.Added.Count ?? partial.Count;
         logger.LogInformation(
-            "Oda cart action for household {HouseholdId} by user {UserId}: {Outcome}, added {Added}, not added {NotAdded}, connection closed {Closed}, {Milliseconds} ms",
+            "Oda cart action for household {HouseholdId} by user {UserId}: {Outcome}, added {Added}, not added {NotAdded}, connection closed {Closed}, usually bought {UsuallyBought} (history {History}), {Milliseconds} ms",
             householdId,
             userId,
             fill is null ? "failed" : "finished",
             added,
             fill?.NotAdded.Count ?? 0,
             closed,
+            fill?.UsuallyBoughtCount ?? 0,
+            fill?.UsuallyBought.ToString() ?? "none",
             clock.ElapsedMilliseconds);
         return new OdaActionOutcome(fill, partial, closed);
     }

@@ -55,6 +55,82 @@ public class CartFillTests
         Assert.Null(unavailable.Product);
     }
 
+    // ---- Usual matcher (T-114: Usual_matcher_rules) ---------------------------------------------------------------------
+
+    private static IReadOnlySet<string> Usual(params string[] ids) => ids.ToHashSet(StringComparer.Ordinal);
+
+    [Fact]
+    public void A_usual_hit_wins_over_an_earlier_available_hit()
+    {
+        var match = ProductMatcher.Match([Hit("1"), Hit("2"), Hit("3")], Usual("2"));
+
+        Assert.Equal(ProductMatchOutcome.Matched, match.Outcome);
+        Assert.Equal("2", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.UsuallyBought, match.Source);
+    }
+
+    [Fact]
+    public void No_usual_hit_gives_the_first_available_hit_as_first_hit()
+    {
+        var match = ProductMatcher.Match([Hit("1", available: false), Hit("2"), Hit("3")], Usual("9"));
+
+        Assert.Equal("2", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.FirstHit, match.Source);
+    }
+
+    [Fact]
+    public void A_usual_hit_that_is_unavailable_is_skipped()
+    {
+        var match = ProductMatcher.Match([Hit("1"), Hit("2", available: false), Hit("3")], Usual("2"));
+
+        Assert.Equal("1", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.FirstHit, match.Source);
+        var next = ProductMatcher.Match([Hit("1"), Hit("2", available: false), Hit("3")], Usual("2", "3"));
+        Assert.Equal("3", next.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.UsuallyBought, next.Source);
+    }
+
+    [Fact]
+    public void Two_usual_hits_give_the_better_ranked_one_whatever_the_set_order()
+    {
+        Assert.Equal("2", ProductMatcher.Match([Hit("1"), Hit("2"), Hit("3")], Usual("3", "2")).Product!.ProductId);
+        Assert.Equal("2", ProductMatcher.Match([Hit("1"), Hit("2"), Hit("3")], Usual("2", "3")).Product!.ProductId);
+    }
+
+    [Fact]
+    public void A_usual_id_that_is_not_among_the_hits_is_never_chosen()
+    {
+        var match = ProductMatcher.Match([Hit("1"), Hit("2")], Usual("99"));
+
+        Assert.Equal("1", match.Product!.ProductId);
+        Assert.Equal(ProductMatchSource.FirstHit, match.Source);
+        Assert.Equal(ProductMatchOutcome.NoMatch, ProductMatcher.Match([], Usual("99")).Outcome);
+    }
+
+    [Fact]
+    public void Usual_ids_are_compared_exactly()
+    {
+        Assert.Equal(ProductMatchSource.FirstHit, ProductMatcher.Match([Hit("12")], Usual("1", "123", " 12")).Source);
+    }
+
+    [Fact]
+    public void Usual_matching_keeps_no_match_and_unavailable_and_an_empty_set_is_the_old_rule()
+    {
+        Assert.Equal(ProductMatchOutcome.NoMatch, ProductMatcher.Match([], Usual("1")).Outcome);
+        Assert.Equal(ProductMatchOutcome.Unavailable, ProductMatcher.Match([Hit("1", false), Hit("2", false)], Usual("1")).Outcome);
+        var hits = new[] { Hit("1", false), Hit("2"), Hit("3") };
+        Assert.Equal(ProductMatcher.Match(hits), ProductMatcher.Match(hits, Usual()));
+        Assert.Equal(ProductMatchSource.FirstHit, ProductMatcher.Match(hits, Usual()).Source);
+    }
+
+    [Fact]
+    public void Matcher_null_arguments_throw()
+    {
+        Assert.Throws<ArgumentNullException>(() => ProductMatcher.Match(null!));
+        Assert.Throws<ArgumentNullException>(() => ProductMatcher.Match(null!, Usual()));
+        Assert.Throws<ArgumentNullException>(() => ProductMatcher.Match([Hit("1")], null!));
+    }
+
     // ---- Filling -----------------------------------------------------------------------------------------------------
 
     private sealed class FakeSession : ICartProviderSession
@@ -73,15 +149,32 @@ public class CartFillTests
 
         public Exception? CartFailure { get; set; }
 
+        public IReadOnlySet<string> Usual { get; set; } = new HashSet<string>();
+
+        public Exception? HistoryFailure { get; set; }
+
+        public int HistoryReads { get; private set; }
+
+        public List<string> Calls { get; } = [];
+
+        public Task<IReadOnlySet<string>> ReadUsuallyBoughtIdsAsync(CancellationToken cancellationToken)
+        {
+            HistoryReads++;
+            Calls.Add("history");
+            return HistoryFailure is null ? Task.FromResult(Usual) : Task.FromException<IReadOnlySet<string>>(HistoryFailure);
+        }
+
         public Task<IReadOnlyList<IReadOnlyList<ProductCandidate>>> SearchAsync(IReadOnlyList<string> queries, CancellationToken cancellationToken)
         {
             Searches.Add(queries);
+            Calls.Add("search");
             return Task.FromResult<IReadOnlyList<IReadOnlyList<ProductCandidate>>>([.. queries.Select(Hits)]);
         }
 
         public Task<IReadOnlySet<string>> AddOnePackEachAsync(IReadOnlyList<string> productIds, CancellationToken cancellationToken)
         {
             Adds.Add(productIds);
+            Calls.Add("add");
             if (AddFailure(Adds.Count) is { } failure)
             {
                 throw failure;
@@ -194,6 +287,78 @@ public class CartFillTests
         Assert.Null(result.Cart);
     }
 
+    // ---- History in the fill (T-114) ---------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task The_history_is_read_once_after_the_last_search_and_before_the_first_add()
+    {
+        var session = new FakeSession
+        {
+            Hits = q => [Hit(q + "-a"), Hit(q + "-b")],
+            Usual = new HashSet<string> { "item2-b", "item13-b" },
+        };
+
+        var result = await CartFiller.FillAsync(session, Items(25), CancellationToken.None);
+
+        Assert.Equal(1, session.HistoryReads);
+        Assert.Equal(["search", "search", "search", "history", "add", "add", "add"], session.Calls);
+        Assert.Equal(UsuallyBoughtStatus.Used, result.UsuallyBought);
+        Assert.Equal(2, result.UsuallyBoughtCount);
+        Assert.Equal(["item2", "item13"], result.Added.Where(a => a.Source == ProductMatchSource.UsuallyBought).Select(a => a.Name).ToArray());
+        Assert.Contains("item2-b", session.Adds.SelectMany(a => a));
+        Assert.DoesNotContain("item2-a", session.Adds.SelectMany(a => a));
+        Assert.Contains("item3-a", session.Adds.SelectMany(a => a));
+    }
+
+    [Fact]
+    public async Task The_history_is_skipped_when_no_item_has_an_available_hit()
+    {
+        var session = new FakeSession { Hits = q => q == "item1" ? [] : [Hit("x", available: false)] };
+
+        var result = await CartFiller.FillAsync(session, Items(3), CancellationToken.None);
+
+        Assert.Equal(0, session.HistoryReads);
+        Assert.Equal(UsuallyBoughtStatus.Skipped, result.UsuallyBought);
+    }
+
+    [Fact]
+    public async Task A_history_failure_falls_back_to_first_hits_without_a_retry()
+    {
+        var session = new FakeSession
+        {
+            HistoryFailure = new ProviderUnavailableException("429"),
+            Hits = q => [Hit(q + "-a"), Hit(q + "-b")],
+            Usual = new HashSet<string> { "item1-b" },
+        };
+
+        var result = await CartFiller.FillAsync(session, Items(2), CancellationToken.None);
+
+        Assert.Equal(1, session.HistoryReads);
+        Assert.Equal(UsuallyBoughtStatus.Unavailable, result.UsuallyBought);
+        Assert.Equal(0, result.UsuallyBoughtCount);
+        Assert.Equal(2, result.Added.Count);
+        Assert.All(result.Added, a => Assert.Equal(ProductMatchSource.FirstHit, a.Source));
+    }
+
+    [Fact]
+    public async Task An_empty_history_is_used_and_matches_nothing()
+    {
+        var session = new FakeSession();
+
+        var result = await CartFiller.FillAsync(session, Items(2), CancellationToken.None);
+
+        Assert.Equal(UsuallyBoughtStatus.Used, result.UsuallyBought);
+        Assert.Equal(0, result.UsuallyBoughtCount);
+    }
+
+    [Fact]
+    public async Task Cancellation_while_reading_the_history_is_not_swallowed()
+    {
+        var session = new FakeSession { HistoryFailure = new OperationCanceledException() };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => CartFiller.FillAsync(session, Items(2), CancellationToken.None));
+    }
+
     private sealed class MismatchedSession : ICartProviderSession
     {
         public Task<IReadOnlyList<IReadOnlyList<ProductCandidate>>> SearchAsync(IReadOnlyList<string> queries, CancellationToken cancellationToken) =>
@@ -203,5 +368,7 @@ public class CartFillTests
             throw new InvalidOperationException();
 
         public Task<CartSnapshot> ReadCartAsync(CancellationToken cancellationToken) => throw new InvalidOperationException();
+
+        public Task<IReadOnlySet<string>> ReadUsuallyBoughtIdsAsync(CancellationToken cancellationToken) => throw new InvalidOperationException();
     }
 }

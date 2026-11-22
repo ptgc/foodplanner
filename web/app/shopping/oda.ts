@@ -86,6 +86,7 @@ function addedOf(body: unknown): OdaAdded[] {
       name,
       productName: asString(l.productName) ?? "",
       quantity: typeof l.quantity === "number" || typeof l.quantity === "string" ? l.quantity : 1,
+      source: asString(l.source) ?? "first-hit",
     });
   }
   return lines;

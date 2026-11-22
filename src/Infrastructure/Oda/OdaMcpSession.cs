@@ -24,7 +24,7 @@ public sealed class OdaMcpSessionFactory(OdaHttp http, IOptions<OdaOptions> opti
 /// A minimal MCP client (Streamable HTTP, JSON-RPC; replies as JSON or SSE) for one action, with the access token in memory
 /// (T-053). Oda's MCP server changes over time (2.0.0 to 2.3.0 within weeks), so tool schemas are treated as unstable: a missing
 /// tool, argument or response field fails closed with <see cref="ProviderUnavailableException"/>. It calls only the tools
-/// <c>product_search</c>, <c>manipulate_cart</c> (positive quantities only) and <c>get_cart</c>, and never retries a call.
+/// <c>product_search</c>, <c>manipulate_cart</c> (positive quantities only), <c>get_cart</c> and, when offered, <c>likely_to_buy</c> (T-114), and never retries a call.
 /// </summary>
 public sealed class OdaMcpSession : ICartProviderSession
 {
@@ -40,6 +40,8 @@ public sealed class OdaMcpSession : ICartProviderSession
     private bool _searchHasIntent;
     private bool _cartHasIntent;
     private bool _getCartHasIntent;
+    private bool _hasLikelyToBuy;
+    private bool _likelyToBuyHasIntent;
 
     internal OdaMcpSession(OdaHttp http, OdaOptions options, OdaSecret token)
     {
@@ -96,6 +98,10 @@ public sealed class OdaMcpSession : ICartProviderSession
         _searchHasIntent = search.ContainsKey("intent");
         _cartHasIntent = cart.ContainsKey("intent");
         _getCartHasIntent = get.ContainsKey("intent");
+
+        // Optional (T-114): without it the fill uses the first available hits and says so.
+        _hasLikelyToBuy = tools.TryGetValue("likely_to_buy", out var likely);
+        _likelyToBuyHasIntent = likely?["inputSchema"]?["properties"] is JsonObject likelyProperties && likelyProperties.ContainsKey("intent");
     }
 
     private static JsonObject Properties(Dictionary<string, JsonObject> tools, string tool, params string[] required)
@@ -202,6 +208,41 @@ public sealed class OdaMcpSession : ICartProviderSession
         }
 
         return new CartSnapshot(url, messages);
+    }
+
+    /// <summary>
+    /// One <c>likely_to_buy</c> call (T-114). Only the integer <c>id</c> of each entry is read; names, prices and the rest are never
+    /// looked at, and the ids are returned to the caller's request only. Entries without a valid id are ignored. Not retried.
+    /// </summary>
+    public async Task<IReadOnlySet<string>> ReadUsuallyBoughtIdsAsync(CancellationToken cancellationToken)
+    {
+        if (!_hasLikelyToBuy)
+        {
+            throw new ProviderUnavailableException("The purchase history tool is not offered by Oda.");
+        }
+
+        var arguments = new JsonObject();
+        if (_likelyToBuyHasIntent)
+        {
+            arguments["intent"] = "prefers the products the household usually buys when adding the shopping list";
+        }
+
+        var result = await CallToolAsync("likely_to_buy", arguments, cancellationToken);
+        if ((result is JsonArray bare ? bare : (result as JsonObject)?["result"] as JsonArray) is not { } rows)
+        {
+            throw Unexpected();
+        }
+
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            if (row?["id"] is JsonValue id && id.TryGetValue<long>(out var number) && number > 0)
+            {
+                ids.Add(number.ToString(CultureInfo.InvariantCulture));
+            }
+        }
+
+        return ids;
     }
 
     // ---- Shapes ------------------------------------------------------------------------------------------------------
