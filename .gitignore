@@ -44,3 +44,6 @@ mssql-data/
 
 # Agent worktrees
 .claude/worktrees/
+
+# Recipe-photo skill examples (T-118, Q-034 D1): copyrighted book pages, kept local only
+eval-private/
