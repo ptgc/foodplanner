@@ -175,6 +175,16 @@ public static class TenantIsolationRegistry
             },
             entry => entry.Property(w => w.Amount).CurrentValue = 2m),
 
+        // Preferred Oda products (T-052): unique per (household, ingredient), so the factory seeds its own household ingredient each time.
+        TenantIsolationCase.For<PreferredOdaProduct>(
+            async (env, household) =>
+            {
+                var ingredient = new Ingredient(household, "Isolation " + Guid.NewGuid().ToString("N"), isStaple: false, UnitDimension.Volume);
+                await env.SaveAsync(household, ingredient);
+                return new PreferredOdaProduct(ingredient.Id, 4242);
+            },
+            entry => entry.Property(p => p.OdaProductId).CurrentValue = 4343),
+
         // Dismissed regular-grocery suggestions (T-110): the label is unique per household, so the factory makes a fresh one each time.
         TenantIsolationCase.For<DismissedGrocerySuggestion>(
             (_, _) => Task.FromResult(new DismissedGrocerySuggestion("isolation " + Guid.NewGuid().ToString("N"), DateTimeOffset.UtcNow)),

@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { components } from "../api/schema";
 import { pendingTtlMs, rememberPending, takePending } from "./oda";
+import { addedLine } from "./oda-fixtures";
 import { OdaResult } from "./oda-result";
 
 type Cart = components["schemas"]["OdaCartResponse"];
@@ -13,7 +14,7 @@ function cartWith(quantity: unknown): Cart {
   return {
     status: "done",
     cartUrl: "https://oda.example/cart",
-    added: [{ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: quantity as number, source: "first-hit" }],
+    added: [addedLine({ itemId: "i1", name: "Melk", productName: "Tine Lettmelk 1 l", quantity: quantity as number, source: "first-hit" })],
     notAdded: [],
     cartMessages: [],
     connectionClosed: true,

@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json.Serialization;
 using Foodplanner.Api.Authorization;
 using Foodplanner.Api.Localization;
 using Foodplanner.Api.Problems;
@@ -7,6 +9,7 @@ using Foodplanner.Domain.ShoppingLists.Cart;
 using Foodplanner.Domain.Users;
 using Foodplanner.Infrastructure.Oda;
 using Foodplanner.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Features.ShoppingLists;
@@ -20,11 +23,76 @@ public sealed record OdaStartResponse(string AuthorizeUrl);
 /// <summary>What Oda redirected the browser back with: <c>state</c> plus <c>code</c>, or <c>state</c> plus <c>error</c> (the user cancelled).</summary>
 public sealed record OdaCompleteRequest(string? State, string? Code, string? Error);
 
-/// <summary><c>Source</c>: <c>usually-bought</c> (the household has bought this product before, T-114) or <c>first-hit</c>.</summary>
-public sealed record OdaAddedItemResponse(Guid ItemId, string Name, string ProductName, int Quantity, string Source);
+/// <summary>Why a product was added: the household's own choice (T-052), what it usually buys (T-114), or the first available hit.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum OdaLineSource
+{
+    /// <summary>The household's own choice for this ingredient.</summary>
+    [JsonStringEnumMemberName("preferred")]
+    Preferred,
 
-/// <summary><c>Status</c>: <c>used</c> (the purchase history was read), <c>unavailable</c> (it could not be read, first hits were used) or <c>skipped</c> (not asked for). <c>Count</c>: added lines with source <c>usually-bought</c>. No product data.</summary>
-public sealed record OdaUsuallyBoughtResponse(string Status, int Count);
+    /// <summary>The household has bought this product before.</summary>
+    [JsonStringEnumMemberName("usually-bought")]
+    UsuallyBought,
+
+    /// <summary>The first available search hit.</summary>
+    [JsonStringEnumMemberName("first-hit")]
+    FirstHit,
+}
+
+/// <summary>Whether the purchase history was used (T-114).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum OdaHistoryStatus
+{
+    /// <summary>The purchase history was read.</summary>
+    [JsonStringEnumMemberName("used")]
+    Used,
+
+    /// <summary>It could not be read; first hits were used.</summary>
+    [JsonStringEnumMemberName("unavailable")]
+    Unavailable,
+
+    /// <summary>Not asked for.</summary>
+    [JsonStringEnumMemberName("skipped")]
+    Skipped,
+}
+
+/// <summary>Why the household's choice for an ingredient was not used (T-052).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum OdaPreferenceProblem
+{
+    /// <summary>The chosen product was among the hits but cannot be bought now (for example sold out).</summary>
+    [JsonStringEnumMemberName("unavailable")]
+    Unavailable,
+
+    /// <summary>The chosen product was not among the hits (gone from the range or ranked outside the page).</summary>
+    [JsonStringEnumMemberName("not-found")]
+    NotFound,
+}
+
+/// <summary>One product the picker offers for a line (T-052), from the same search as the fill. Never stored.</summary>
+public sealed record OdaAlternativeResponse(long ProductId, string ProductName, bool IsAdded, bool IsPreferred);
+
+/// <summary>
+/// <c>Source</c>: see <see cref="OdaLineSource"/>. <c>IngredientId</c> is null for a manual item. <c>ProductId</c> is the added product's
+/// Oda id. <c>HasPreference</c>: the household has a choice for the ingredient (used or not). <c>PreferenceProblem</c>: why it was not used.
+/// <c>Alternatives</c>: up to 5 available hits of this fill, in Oda's order, the added one always among them; empty for a manual item and in
+/// the body of a 502. Names and ids here exist only in this response.
+/// </summary>
+public sealed record OdaAddedItemResponse(
+    Guid ItemId,
+    string Name,
+    string ProductName,
+    int Quantity,
+    OdaLineSource Source,
+    Guid? IngredientId,
+    long ProductId,
+    bool HasPreference,
+    OdaPreferenceProblem? PreferenceProblem,
+    OdaAlternativeResponse[] Alternatives);
+
+/// <summary><c>Status</c>: see <see cref="OdaHistoryStatus"/>. <c>Count</c>: added lines with source <c>usually-bought</c>. No product data.</summary>
+public sealed record OdaUsuallyBoughtResponse(OdaHistoryStatus Status, int Count);
 
 /// <summary><c>Reason</c>: <c>no-match</c>, <c>unavailable</c> or <c>rejected</c>.</summary>
 public sealed record OdaNotAddedItemResponse(Guid ItemId, string Name, string Reason);
@@ -142,7 +210,7 @@ public static class OdaEndpoints
 
         if (!string.IsNullOrWhiteSpace(request?.Error))
         {
-            return Results.Ok(new OdaCartResponse("cancelled", null, [], [], [], ConnectionClosed: true, ConnectionMessage: null, new OdaUsuallyBoughtResponse("skipped", 0)));
+            return Results.Ok(new OdaCartResponse("cancelled", null, [], [], [], ConnectionClosed: true, ConnectionMessage: null, new OdaUsuallyBoughtResponse(OdaHistoryStatus.Skipped, 0)));
         }
 
         var code = request?.Code;
@@ -157,7 +225,11 @@ public static class OdaEndpoints
             return refused;
         }
 
-        var outcome = await action.RunAsync(householdId, userId, new OdaSecret(code), new OdaSecret(state.Verifier), lines, cancellationToken);
+        // The household's own choices (T-052), read through the filtered set before Oda is called. An in-memory map for this request only.
+        var preferences = (await db.PreferredOdaProducts.AsNoTracking().Select(p => new { p.IngredientId, p.OdaProductId }).ToListAsync(cancellationToken))
+            .ToDictionary(p => p.IngredientId, p => p.OdaProductId.ToString(CultureInfo.InvariantCulture));
+
+        var outcome = await action.RunAsync(householdId, userId, new OdaSecret(code), new OdaSecret(state.Verifier), lines, preferences, cancellationToken);
         if (outcome.Fill is not { } fill)
         {
             return AppProblems.Problem(
@@ -167,7 +239,7 @@ public static class OdaEndpoints
                 "The cart could not be filled. Share or copy the list as text instead.",
                 new Dictionary<string, object?>
                 {
-                    ["added"] = outcome.AddedBeforeFailure.Select(ToResponse).ToArray(),
+                    ["added"] = outcome.AddedBeforeFailure.Select(l => ToResponse(l, withAlternatives: false)).ToArray(),
                     ["connectionClosed"] = outcome.ConnectionClosed,
                     ["connectionMessage"] = ConnectionMessage(outcome.ConnectionClosed),
                     ["fallback"] = new { export = "text" },
@@ -182,7 +254,7 @@ public static class OdaEndpoints
                 _ => "nothing-added",
             },
             fill.Cart?.Url,
-            [.. fill.Added.Select(ToResponse)],
+            [.. fill.Added.Select(l => ToResponse(l, withAlternatives: true))],
             [.. fill.NotAdded.Select(n => new OdaNotAddedItemResponse(
                 n.ItemId,
                 n.Name,
@@ -198,15 +270,39 @@ public static class OdaEndpoints
             new OdaUsuallyBoughtResponse(
                 fill.UsuallyBought switch
                 {
-                    UsuallyBoughtStatus.Used => "used",
-                    UsuallyBoughtStatus.Unavailable => "unavailable",
-                    _ => "skipped",
+                    UsuallyBoughtStatus.Used => OdaHistoryStatus.Used,
+                    UsuallyBoughtStatus.Unavailable => OdaHistoryStatus.Unavailable,
+                    _ => OdaHistoryStatus.Skipped,
                 },
                 fill.UsuallyBoughtCount)));
     }
 
-    private static OdaAddedItemResponse ToResponse(CartAddedLine line) => new(
-        line.ItemId, line.Name, line.ProductName, line.Quantity, line.Source == ProductMatchSource.UsuallyBought ? "usually-bought" : "first-hit");
+    private static OdaAddedItemResponse ToResponse(CartAddedLine line, bool withAlternatives) => new(
+        line.ItemId,
+        line.Name,
+        line.ProductName,
+        line.Quantity,
+        line.Source switch
+        {
+            ProductMatchSource.Preferred => OdaLineSource.Preferred,
+            ProductMatchSource.UsuallyBought => OdaLineSource.UsuallyBought,
+            _ => OdaLineSource.FirstHit,
+        },
+        line.IngredientId,
+        ParseId(line.ProductId),
+        line.HasPreference,
+        line.PreferenceProblem switch
+        {
+            Domain.ShoppingLists.Cart.PreferenceProblem.Unavailable => OdaPreferenceProblem.Unavailable,
+            Domain.ShoppingLists.Cart.PreferenceProblem.NotFound => OdaPreferenceProblem.NotFound,
+            _ => null,
+        },
+        withAlternatives
+            ? [.. line.AlternativeList.Select(a => new OdaAlternativeResponse(ParseId(a.ProductId), a.ProductName, a.IsAdded, a.IsPreferred))]
+            : []);
+
+    /// <summary>Oda's ids are positive integers (the client only accepts those); anything else would be a bug, shown as 0 rather than failing the fill.</summary>
+    private static long ParseId(string id) => long.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : 0;
 
     private static string? ConnectionMessage(bool closed) =>
         closed ? null : "The connection to Oda could not be closed. Remove Foodplanner under Privacy & security in your Oda account.";
@@ -219,7 +315,7 @@ public static class OdaEndpoints
         AppDbContext db, DateOnly monday, string locale, Guid userId, CancellationToken cancellationToken)
     {
         var list = await ShoppingListEndpoints.ReadAsync(db, monday, locale, userId, cancellationToken);
-        return CartLineSelector.Select(list.Main.Select(i => new CartSourceItem(i.Id, i.Name, i.Checked)));
+        return CartLineSelector.Select(list.Main.Select(i => new CartSourceItem(i.Id, i.Name, i.Checked, i.IsManual ? null : i.IngredientId)));
     }
 
     private static IResult? CheckLines(IReadOnlyList<CartLine> lines, OdaOptions options) =>

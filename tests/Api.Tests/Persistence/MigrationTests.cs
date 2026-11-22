@@ -697,4 +697,59 @@ public sealed class MigrationTests(SqlServerFixture server)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT OBJECT_ID('__EFMigrationsHistory')"));
     }
+
+    [Fact]
+    public async Task AddPreferredOdaProducts_applies_to_an_existing_database_has_a_unique_index_and_a_household_delete_removes_its_rows()
+    {
+        var connectionString = await server.CreateDatabaseAsync("odapreferences", Ct);
+        await using var context = TenancyDatabase.CreateProductionContext(connectionString);
+        var migrator = context.GetService<IMigrator>();
+
+        await migrator.MigrateAsync("20261109123346_AddAiUsageCounters", Ct); // the migration before T-052, with a household in it
+        Assert.Equal(DBNull.Value, await ScalarAsync(connectionString, "SELECT OBJECT_ID('PreferredOdaProducts')"));
+        await ScalarAsync(connectionString, "INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (NEWID(), N'Existing', SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET())");
+
+        await migrator.MigrateAsync(null, Ct);
+
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Households"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM __EFMigrationsHistory WHERE MigrationId LIKE '%[_]AddPreferredOdaProducts'"));
+        Assert.Equal(1, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM sys.indexes WHERE object_id = OBJECT_ID('PreferredOdaProducts') AND is_unique = 1 AND name = 'IX_PreferredOdaProducts_HouseholdId_IngredientId'"));
+        Assert.Equal(
+            new[] { "Id", "HouseholdId", "IngredientId", "OdaProductId", "CreatedAt", "UpdatedAt" }.Order().ToArray(),
+            await ColumnsAsync(connectionString, "PreferredOdaProducts"));
+
+        var salt = IngredientSeed.All.Single(r => r.Key == "salt");
+        await ScalarAsync(connectionString, $"""
+            DECLARE @h uniqueidentifier = NEWID();
+            DECLARE @now datetimeoffset = SYSDATETIMEOFFSET();
+            INSERT INTO Households (Id, Name, CreatedAt, UpdatedAt) VALUES (@h, N'Cascade', @now, @now);
+            INSERT INTO PreferredOdaProducts (Id, HouseholdId, IngredientId, OdaProductId, CreatedAt, UpdatedAt) VALUES (NEWID(), @h, '{salt.Id}', 42, @now, @now);
+            """);
+        await Assert.ThrowsAsync<SqlException>(() => ScalarAsync(connectionString, $"""
+            INSERT INTO PreferredOdaProducts (Id, HouseholdId, IngredientId, OdaProductId, CreatedAt, UpdatedAt)
+            SELECT NEWID(), HouseholdId, IngredientId, 43, SYSDATETIMEOFFSET(), SYSDATETIMEOFFSET() FROM PreferredOdaProducts
+            """));
+
+        await ScalarAsync(connectionString, "DELETE FROM Households WHERE Name = N'Cascade'");
+
+        Assert.Equal(0, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM PreferredOdaProducts"));
+        Assert.Equal(IngredientSeed.All.Count, await ScalarAsync(connectionString, "SELECT COUNT(*) FROM Ingredients")); // NO ACTION: the catalog stays
+        Assert.Empty(await context.Database.GetPendingMigrationsAsync(Ct));
+    }
+
+    private static async Task<string[]> ColumnsAsync(string connectionString, string table)
+    {
+        var columns = new List<string>();
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"SELECT name FROM sys.columns WHERE object_id = OBJECT_ID('{table}') ORDER BY name";
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+        while (await reader.ReadAsync(Ct))
+        {
+            columns.Add(reader.GetString(0));
+        }
+
+        return [.. columns];
+    }
 }

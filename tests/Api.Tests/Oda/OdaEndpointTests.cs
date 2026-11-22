@@ -837,7 +837,10 @@ public sealed class OdaEndpointTests(AuthDatabase db) : IClassFixture<AuthDataba
         Assert.Empty(hits);
         using var scope = host.Services.CreateScope();
         var model = scope.ServiceProvider.GetRequiredService<Foodplanner.Infrastructure.Persistence.AppDbContext>().Model;
-        Assert.DoesNotContain(model.GetEntityTypes(), e => e.ClrType.Name.Contains("Oda", StringComparison.OrdinalIgnoreCase));
+        // T-052 narrowed this: the one Oda thing in the model is the chosen product id per ingredient (see OdaPreferenceTests.Preference_stores_only_the_id).
+        Assert.Equal(
+            ["PreferredOdaProduct"],
+            model.GetEntityTypes().Where(e => e.ClrType.Name.Contains("Oda", StringComparison.OrdinalIgnoreCase)).Select(e => e.ClrType.Name).ToArray());
     }
 
     [Fact]

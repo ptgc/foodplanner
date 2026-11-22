@@ -5710,6 +5710,227 @@
         }
       }
     },
+    "/api/households/{householdId}/oda-preferences": {
+      "get": {
+        "tags": [
+          "OdaPreferenceEndpoints"
+        ],
+        "operationId": "ListOdaPreferences",
+        "parameters": [
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OdaPreferenceResponse"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/households/{householdId}/oda-preferences/{ingredientId}": {
+      "put": {
+        "tags": [
+          "OdaPreferenceEndpoints"
+        ],
+        "operationId": "SetOdaPreference",
+        "parameters": [
+          {
+            "name": "ingredientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/OdaPreferenceRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OdaPreferenceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "OdaPreferenceEndpoints"
+        ],
+        "operationId": "ClearOdaPreference",
+        "parameters": [
+          {
+            "name": "ingredientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "householdId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error (RFC 9457 ProblemDetails)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/households/{householdId}/pantry": {
       "get": {
         "tags": [
@@ -8553,7 +8774,12 @@
           "name",
           "productName",
           "quantity",
-          "source"
+          "source",
+          "ingredientId",
+          "productId",
+          "hasPreference",
+          "preferenceProblem",
+          "alternatives"
         ],
         "type": "object",
         "properties": {
@@ -8576,7 +8802,69 @@
             "format": "int32"
           },
           "source": {
+            "$ref": "#/components/schemas/OdaLineSource"
+          },
+          "ingredientId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "productId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "hasPreference": {
+            "type": "boolean"
+          },
+          "preferenceProblem": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OdaPreferenceProblem"
+              }
+            ]
+          },
+          "alternatives": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OdaAlternativeResponse"
+            }
+          }
+        }
+      },
+      "OdaAlternativeResponse": {
+        "required": [
+          "productId",
+          "productName",
+          "isAdded",
+          "isPreferred"
+        ],
+        "type": "object",
+        "properties": {
+          "productId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "productName": {
             "type": "string"
+          },
+          "isAdded": {
+            "type": "boolean"
+          },
+          "isPreferred": {
+            "type": "boolean"
           }
         }
       },
@@ -8662,6 +8950,20 @@
           }
         }
       },
+      "OdaHistoryStatus": {
+        "enum": [
+          "used",
+          "unavailable",
+          "skipped"
+        ]
+      },
+      "OdaLineSource": {
+        "enum": [
+          "preferred",
+          "usually-bought",
+          "first-hit"
+        ]
+      },
       "OdaNotAddedItemResponse": {
         "required": [
           "itemId",
@@ -8679,6 +8981,51 @@
           },
           "reason": {
             "type": "string"
+          }
+        }
+      },
+      "OdaPreferenceProblem": {
+        "enum": [
+          "unavailable",
+          "not-found",
+          null
+        ]
+      },
+      "OdaPreferenceRequest": {
+        "required": [
+          "odaProductId"
+        ],
+        "type": "object",
+        "properties": {
+          "odaProductId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "OdaPreferenceResponse": {
+        "required": [
+          "ingredientId",
+          "ingredientName",
+          "setAt"
+        ],
+        "type": "object",
+        "properties": {
+          "ingredientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ingredientName": {
+            "type": "string"
+          },
+          "setAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -8715,7 +9062,7 @@
         "type": "object",
         "properties": {
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/OdaHistoryStatus"
           },
           "count": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -10822,6 +11169,9 @@
     },
     {
       "name": "OdaEndpoints"
+    },
+    {
+      "name": "OdaPreferenceEndpoints"
     },
     {
       "name": "PantryEndpoints"

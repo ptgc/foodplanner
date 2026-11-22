@@ -42,6 +42,7 @@ public static class IngredientReferences
         (typeof(Foodplanner.Domain.ShoppingLists.PantryItem), nameof(Foodplanner.Domain.ShoppingLists.PantryItem.IngredientId)),
         (typeof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative), nameof(Foodplanner.Domain.Recipes.RecipeIngredientAlternative.IngredientId)),
         (typeof(Foodplanner.Domain.ShoppingLists.WeeklyGrocery), nameof(Foodplanner.Domain.ShoppingLists.WeeklyGrocery.IngredientId)),
+        (typeof(Foodplanner.Domain.ShoppingLists.PreferredOdaProduct), nameof(Foodplanner.Domain.ShoppingLists.PreferredOdaProduct.IngredientId)),
     ];
 }
 
@@ -244,6 +245,8 @@ public static class OwnIngredientEndpoints
             }
         }
 
+        // A chosen Oda product (T-052) is a convenience, not a reference that protects the ingredient: it goes in the same save.
+        db.PreferredOdaProducts.RemoveRange(await db.PreferredOdaProducts.Where(p => p.IngredientId == ingredientId).ToListAsync(cancellationToken));
         db.Ingredients.Remove(ingredient);
         try
         {

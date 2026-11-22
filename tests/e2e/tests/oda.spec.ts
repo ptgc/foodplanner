@@ -55,16 +55,19 @@ async function fakeOda(page: Page, redirectQuery: string, cart: (route: Route) =
   return fake;
 }
 
+// T-052: every added line of the real response carries the choice fields; the tests give only what they care about.
+const addedDefaults = { source: "first-hit", ingredientId: null, productId: 1, hasPreference: false, preferenceProblem: null, alternatives: [] };
+
 const cartBody = (over: Record<string, unknown>) => ({
   status: "done",
   cartUrl: "https://oda.example/cart",
-  added: [],
   notAdded: [],
   cartMessages: [],
   connectionClosed: true,
   connectionMessage: null,
   usuallyBought: { status: "skipped", count: 0 },
   ...over,
+  added: ((over.added as Record<string, unknown>[] | undefined) ?? []).map((line) => ({ ...addedDefaults, ...line })),
 });
 
 async function sendToOda(page: Page, week: string, labels: string[]) {

@@ -15,6 +15,7 @@ export default [
     route("plan", "routes/plan.tsx"),
     route("recipes/:id/edit", "routes/recipe-edit.tsx", { id: "recipe-edit" }),
     route("shopping", "routes/shopping.tsx"),
+    route("shopping/oda-choices", "routes/oda-choices.tsx"),
     route("oda/callback", "routes/oda-callback.tsx"),
     route("pantry", "routes/pantry.tsx"),
     route("what-can-i-make", "routes/what-can-i-make.tsx"),

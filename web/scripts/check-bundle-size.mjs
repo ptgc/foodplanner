@@ -15,7 +15,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const budgetKb = { initial: 135, firstLoad: 159, total: 257 }; // total raised 234 -> 250 for T-095 (Q-031), 250 -> 260 for T-054 (Oda screens and texts in nb and en), lowered 260 -> 257 in T-116 (measured 251.0 + 3.7 for the T-113 privacy page + headroom)
+const budgetKb = { initial: 135, firstLoad: 159, total: 260 }; // total raised 257 -> 260 for T-052 (preferred Oda product picker, choices page and their nb+en texts, measured 259.0), raised 234 -> 250 for T-095 (Q-031), 250 -> 260 for T-054 (Oda screens and texts in nb and en), lowered 260 -> 257 in T-116 (measured 251.0 + 3.7 for the T-113 privacy page + headroom)
 const assets = resolve(dirname(fileURLToPath(import.meta.url)), "..", "build", "client", "assets");
 
 const sizes = new Map(); // "/assets/x.js" -> gzipped bytes

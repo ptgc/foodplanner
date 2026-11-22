@@ -53,6 +53,8 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:store-not-found": "household.stores.problem.notFound",
   "urn:foodplanner:problem:store-conflict": "household.stores.problem.conflict",
   "urn:foodplanner:problem:pantry-conflict": "pantry.problem.conflict",
+  "urn:foodplanner:problem:oda-preference-limit": "oda.pick.problem.limit",
+  "urn:foodplanner:problem:oda-preference-conflict": "oda.pick.problem.conflict",
   "urn:foodplanner:problem:meal-mix-rules-conflict": "household.mix.problem.conflict",
   "urn:foodplanner:problem:pin-not-set": "kid.problem.pinNotSet",
   "urn:foodplanner:problem:pin-incorrect": "kid.problem.pinIncorrect",

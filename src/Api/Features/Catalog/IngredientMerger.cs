@@ -111,6 +111,21 @@ public static class IngredientMerger
             }
         }
 
+        // Chosen Oda product (T-052): unique per (household, ingredient). It moves to the target when that has none; otherwise the
+        // target's choice stays and the source's goes.
+        var sourcePreference = await db.PreferredOdaProducts.FirstOrDefaultAsync(p => p.IngredientId == source.Id, cancellationToken);
+        if (sourcePreference is not null)
+        {
+            if (await db.PreferredOdaProducts.AnyAsync(p => p.IngredientId == target.Id, cancellationToken))
+            {
+                db.PreferredOdaProducts.Remove(sourcePreference);
+            }
+            else
+            {
+                sourcePreference.ChangeIngredient(target.Id);
+            }
+        }
+
         // Shopping list items: unique per (list, ingredient) too. Quantities are not copied: the list is regenerated below.
         var sourceItems = await db.ShoppingListItems.Where(i => i.IngredientId == source.Id).ToListAsync(cancellationToken);
         var listIds = sourceItems.Select(i => i.ShoppingListId).Distinct().ToList();

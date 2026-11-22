@@ -100,6 +100,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>The household's regular weekly groceries (T-092).</summary>
     public DbSet<WeeklyGrocery> WeeklyGroceries => Set<WeeklyGrocery>();
 
+    /// <summary>The Oda product id each household picked per ingredient (T-052). Only the id.</summary>
+    public DbSet<PreferredOdaProduct> PreferredOdaProducts => Set<PreferredOdaProduct>();
+
     /// <summary>Regular-grocery suggestions the household dismissed (T-110).</summary>
     public DbSet<DismissedGrocerySuggestion> DismissedGrocerySuggestions => Set<DismissedGrocerySuggestion>();
 
