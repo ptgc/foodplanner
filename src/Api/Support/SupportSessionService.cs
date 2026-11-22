@@ -164,15 +164,21 @@ public sealed class SupportSessionService(
         }
 
         var proof = await passwords.CheckAsync(adminUser, password);
-        return proof.Outcome switch
+        if (proof.Outcome == PasswordProofOutcome.Ok)
         {
-            PasswordProofOutcome.Ok => null,
-            PasswordProofOutcome.Locked => new SupportRateLimitedResult(proof.RetryAfter),
-            PasswordProofOutcome.NoPassword => AppProblems.Problem(
-                StatusCodes.Status409Conflict, AppProblems.PasswordRequired, "No password set", "This account has no password, so a write session cannot be started."),
-            _ => AppProblems.Problem(
-                StatusCodes.Status403Forbidden, AppProblems.PasswordIncorrect, "The password is wrong", "Check the password and try again."),
-        };
+            return null;
+        }
+
+        if (proof.Outcome == PasswordProofOutcome.Locked)
+        {
+            return new SupportRateLimitedResult(proof.RetryAfter);
+        }
+
+        return proof.Outcome == PasswordProofOutcome.NoPassword
+            ? AppProblems.Problem(
+                StatusCodes.Status409Conflict, AppProblems.PasswordRequired, "No password set", "This account has no password, so a write session cannot be started.")
+            : AppProblems.Problem(
+                StatusCodes.Status403Forbidden, AppProblems.PasswordIncorrect, "The password is wrong", "Check the password and try again.");
     }
 
     /// <summary>The admin's active, unexpired session as the API returns it, or the 404.</summary>

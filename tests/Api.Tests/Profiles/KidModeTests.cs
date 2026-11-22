@@ -410,6 +410,7 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
             .Where(e => e.RoutePattern.RawText!.StartsWith("/api/", StringComparison.Ordinal)
                 && !e.RoutePattern.RawText!.StartsWith("/api/hubs/", StringComparison.Ordinal))
             .ToList();
+        // T-096: the support routes carry SystemAdmin, a policy that includes the FullSession requirement (SupportEndpointRulesTests checks that).
         string[] allowList =
         [
             "/api/health", "/api/health/ready",
@@ -425,7 +426,7 @@ public sealed partial class KidModeTests(AuthDatabase db) : IClassFixture<AuthDa
             var methods = e.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [];
             var householdScoped = path.StartsWith("/api/households/{householdId:guid}", StringComparison.Ordinal);
             var isListHouseholds = path == "/api/households" && methods.All(m => m == "GET");
-            return !householdScoped && !policies.Contains(Policies.FullSession) && !allowList.Contains(path)
+            return !householdScoped && !policies.Contains(Policies.FullSession) && !policies.Contains(Policies.SystemAdmin) && !allowList.Contains(path)
                 || (path == "/api/households" && !isListHouseholds && !policies.Contains(Policies.FullSession));
         }).Select(e => e.DisplayName).ToList();
         Assert.Empty(offenders);

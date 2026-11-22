@@ -67,6 +67,33 @@ public sealed class SupportEndpointRulesTests
     }
 
     [Fact]
+    public async Task The_support_policies_include_full_session_and_admin_and_the_household_support_list_is_adult_only()
+    {
+        await using var host = AuthHost.Create(connectionString: string.Empty);
+        var policies = host.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+
+        foreach (var name in new[] { Policies.SystemAdmin, Policies.SupportSessionRead, Policies.SupportSessionWrite })
+        {
+            var policy = await policies.GetPolicyAsync(name);
+            Assert.NotNull(policy);
+            Assert.Contains(policy.Requirements, r => r is FullSessionRequirement); // kid mode wins
+            Assert.Contains(policy.Requirements, r => r is SystemAdminRequirement);
+            Assert.Contains(policy.Requirements, r => r is Microsoft.AspNetCore.Authorization.Infrastructure.DenyAnonymousAuthorizationRequirement);
+        }
+
+        Assert.DoesNotContain((await policies.GetPolicyAsync(Policies.SystemAdmin))!.Requirements, r => r is SupportSessionRequirement);
+        Assert.Contains((await policies.GetPolicyAsync(Policies.SupportSessionRead))!.Requirements, r => r is SupportSessionRequirement { RequireWrite: false });
+        Assert.Contains((await policies.GetPolicyAsync(Policies.SupportSessionWrite))!.Requirements, r => r is SupportSessionRequirement { RequireWrite: true });
+
+        // What a household sees of support is an ordinary household route for Owner and Adult.
+        var access = host.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>()
+            .Single(e => e.RoutePattern.RawText == "/api/households/{householdId:guid}/support-access");
+        Assert.Contains(Policies.HouseholdAdult, Policy(access));
+        Assert.Contains(Policies.HouseholdMember, Policy(access));
+        Assert.DoesNotContain(Policies.SystemAdmin, Policy(access));
+    }
+
+    [Fact]
     public async Task Support_metadata_exists_only_under_api_support()
     {
         await using var host = AuthHost.Create(connectionString: string.Empty);
