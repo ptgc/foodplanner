@@ -47,3 +47,19 @@ internal sealed class AiGlobalUsageConfiguration : IEntityTypeConfiguration<AiGl
         usage.HasIndex(u => u.MonthStart).IsUnique();
     }
 }
+
+// One row per call to Claude (T-118), for the metrics of T-121. Household -> AiCallLog is the only cascade. ImportId is a plain column.
+internal sealed class AiCallLogConfiguration : IEntityTypeConfiguration<AiCallLog>
+{
+    public void Configure(EntityTypeBuilder<AiCallLog> log)
+    {
+        log.ToTable("AiCallLogs");
+        log.Property(l => l.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
+        log.Property(l => l.Outcome).HasConversion<string>().HasMaxLength(20).IsRequired();
+        log.Property(l => l.Model).HasMaxLength(AiCallLog.MaxModelLength).IsRequired();
+        log.Property(l => l.Effort).HasMaxLength(AiCallLog.MaxEffortLength).IsRequired();
+        log.Property(l => l.StopReason).HasMaxLength(AiCallLog.MaxStopReasonLength);
+        log.HasIndex(l => l.HouseholdId);
+        log.HasOne<Household>().WithMany().HasForeignKey(l => l.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}

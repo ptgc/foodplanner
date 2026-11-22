@@ -103,7 +103,11 @@ public static class AiSuggestionMerger
         return new AiMergeResult(draft with { Lines = lines }, applied, dropped);
     }
 
-    private static ImportDraftLine? Build(ImportDraftLine current, AiLineSuggestion s, IngredientMatcher matcher, Func<string, Guid?> unitIdByCode)
+    /// <summary>
+    /// The one set of line rules for everything an AI returns (the T-077 fallback and the T-118 photo import): the line, or null
+    /// when any part fails. The callers decide what a failure means (drop the suggestion, or keep the line for review).
+    /// </summary>
+    internal static ImportDraftLine? Build(ImportDraftLine current, AiLineSuggestion s, IngredientMatcher matcher, Func<string, Guid?> unitIdByCode)
     {
         if (!IsPlainName(s.Ingredient))
         {
@@ -219,7 +223,7 @@ public static class AiSuggestionMerger
         return result.Status == ImportLineStatus.Matched ? result : null;
     }
 
-    private static bool ValidQuantity(decimal? value, out decimal rounded)
+    internal static bool ValidQuantity(decimal? value, out decimal rounded)
     {
         rounded = 0;
         if (value is not { } v || v <= 0 || v > RecipeIngredient.MaxQuantity)
@@ -231,10 +235,10 @@ public static class AiSuggestionMerger
         return rounded > 0;
     }
 
-    private static bool IsPlainName(string? name) =>
+    internal static bool IsPlainName(string? name) =>
         !string.IsNullOrWhiteSpace(name) && name.Trim().Length <= MaxNameLength && !name.Any(char.IsControl);
 
-    private static string? CleanNote(string? note)
+    internal static string? CleanNote(string? note)
     {
         if (string.IsNullOrWhiteSpace(note))
         {

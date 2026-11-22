@@ -21,6 +21,7 @@ public class OutboundHttpRulesTests
         ["src/Infrastructure/Import/WebPageFetching.cs"] = "The fetcher's DNS resolver seam (DnsHostResolver); its answers are vetted by the fetcher before any connection.",
         ["src/Infrastructure/Import/Ai/AnthropicRecipeLineAi.cs"] = "Fixed-host provider client (AiImport:BaseUrl, Anthropic; T-077). Sends only unresolved ingredient line text; no user-supplied URL.",
         ["src/Infrastructure/Oda/OdaHttp.cs"] = "Fixed-host provider client for Oda (T-053): only hosts on the Oda:AllowedHosts allow-list (default oda.com), https only, no redirects, no user-supplied URL; every other Oda file goes through it.",
+        ["src/Infrastructure/Import/Ai/AnthropicRecipePhotoReader.cs"] = "Fixed-host provider client (AiImport:BaseUrl, Anthropic SDK; T-118). Sends only the prepared photos, the unit codes and the book name; no user-supplied URL, no redirects, no retries.",
         ["src/Infrastructure/Import/Ai/AiImportRegistration.cs"] = "Creates the one HttpClient of the Anthropic client above (T-077).",
     };
 

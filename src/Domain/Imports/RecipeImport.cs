@@ -9,6 +9,9 @@ public enum ImportSource
 {
     Url,
     Text,
+
+    /// <summary>Read from photos of a recipe by Claude (T-118). No URL; the raw content is the page text Claude read.</summary>
+    Photo,
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]

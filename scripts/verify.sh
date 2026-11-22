@@ -42,6 +42,8 @@ step "web-test" npm --prefix web test -- "${vitest_args[@]}"
 step "web-build" npm --prefix web run build
 step "web-bundle-size" node web/scripts/check-bundle-size.mjs
 step "web-api-check" npm --prefix web run api:check
+# T-118: the scoring helpers of the photo-skill eval, on a tiny synthetic set. No network, no key; the eval itself is never run here.
+step "photo-scoring-tests" node --test "tests/photo-scoring/*.test.mjs"
 
 # e2e needs the running stack (scripts/local-up), so it is opt-in: E2E=1 ./scripts/verify.sh or --e2e
 if [ "${E2E:-0}" = 1 ] || [ "${1:-}" = --e2e ]; then

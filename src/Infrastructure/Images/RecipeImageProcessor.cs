@@ -69,6 +69,38 @@ public static class RecipeImageProcessor
 
     public static ImageProcessingResult Process(byte[] bytes, ImageOptions options)
     {
+        if (Validate(bytes, options) is { } rejected)
+        {
+            return rejected;
+        }
+
+        try
+        {
+            var results = new List<ProcessedImage>();
+            foreach (var size in RecipeImageSizes.All)
+            {
+                var max = RecipeImageSizes.MaxSide(size);
+                // Shrink-on-load, EXIF orientation applied, never enlarged (Size.Down), aspect ratio kept inside max x max.
+                using var resized = Image.ThumbnailBuffer(
+                    bytes, max, height: max, size: Enums.Size.Down, noRotate: false, outputProfile: "srgb", failOn: Enums.FailOn.Warning);
+                var encoded = resized.WebpsaveBuffer(q: options.WebpQuality, keep: Enums.ForeignKeep.None);
+                results.Add(new ProcessedImage(size, encoded, resized.Width, resized.Height));
+            }
+
+            return new ImageProcessingResult(results, null, null);
+        }
+        catch (VipsException)
+        {
+            return Reject(ImageRejection.NotAnImage, "The file is not a valid JPEG, PNG or WebP picture.");
+        }
+    }
+
+    /// <summary>
+    /// The checks every uploaded picture passes (T-022), shared with the photo import (T-118): size in bytes, format by magic
+    /// bytes, animation, dimensions from the header, then one full decode. Null when the bytes are an acceptable still picture.
+    /// </summary>
+    public static ImageProcessingResult? Validate(byte[] bytes, ImageOptions options)
+    {
         if (bytes.LongLength > options.MaxUploadBytes)
         {
             return Reject(ImageRejection.TooLarge, $"The file is larger than {options.MaxUploadBytes / (1024 * 1024)} MB.");
@@ -104,19 +136,7 @@ public static class RecipeImageProcessor
 
             // One full decode with warnings fatal: a truncated or damaged file fails here instead of becoming a half-grey picture.
             _ = header.Avg();
-
-            var results = new List<ProcessedImage>();
-            foreach (var size in RecipeImageSizes.All)
-            {
-                var max = RecipeImageSizes.MaxSide(size);
-                // Shrink-on-load, EXIF orientation applied, never enlarged (Size.Down), aspect ratio kept inside max x max.
-                using var resized = Image.ThumbnailBuffer(
-                    bytes, max, height: max, size: Enums.Size.Down, noRotate: false, outputProfile: "srgb", failOn: Enums.FailOn.Warning);
-                var encoded = resized.WebpsaveBuffer(q: options.WebpQuality, keep: Enums.ForeignKeep.None);
-                results.Add(new ProcessedImage(size, encoded, resized.Width, resized.Height));
-            }
-
-            return new ImageProcessingResult(results, null, null);
+            return null;
         }
         catch (VipsException)
         {

@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "isRecipe": { "type": "boolean" },
+    "readable": { "type": "boolean" },
+    "title": { "type": ["string", "null"] },
+    "servings": { "type": ["integer", "null"] },
+    "prepMinutes": { "type": ["integer", "null"] },
+    "cookMinutes": { "type": ["integer", "null"] },
+    "description": { "type": ["string", "null"] },
+    "sourceBook": { "type": ["string", "null"] },
+    "rawText": { "type": "string" },
+    "steps": { "type": "array", "items": { "type": "string" } },
+    "ingredients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "original": { "type": "string" },
+          "ingredient": { "type": "string" },
+          "amountKind": { "type": "string", "enum": ["Measured", "ToTaste", "AsNeeded"] },
+          "quantity": { "type": ["number", "null"] },
+          "quantityLow": { "type": ["number", "null"] },
+          "unit": { "type": ["string", "null"] },
+          "purpose": { "type": "string", "enum": ["Main", "Frying", "Serving", "Garnish", "Seasoning"] },
+          "isOptional": { "type": "boolean" },
+          "alternatives": { "type": "array", "items": { "type": "string" } },
+          "note": { "type": ["string", "null"] }
+        },
+        "required": ["original", "ingredient", "amountKind", "quantity", "quantityLow", "unit", "purpose", "isOptional", "alternatives", "note"]
+      }
+    },
+    "picture": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "photoIndex": { "type": "integer" },
+        "box": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "w": { "type": "number" },
+            "h": { "type": "number" }
+          },
+          "required": ["x", "y", "w", "h"]
+        },
+        "rotationDegrees": { "type": "integer" }
+      },
+      "required": ["photoIndex", "box", "rotationDegrees"]
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": [
+    "isRecipe", "readable", "title", "servings", "prepMinutes", "cookMinutes", "description", "sourceBook",
+    "rawText", "steps", "ingredients", "picture", "warnings"
+  ]
+}

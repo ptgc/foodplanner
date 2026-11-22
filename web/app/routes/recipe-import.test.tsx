@@ -80,6 +80,7 @@ const freshDraft = (): Draft => ({
   savedRecipeId: null,
   createdAt: "2026-10-26T10:00:00Z",
   aiAssist: "NotUsed",
+  useSuggestedImage: false, // T-118: the generated type has it; the screen for it is T-119
 });
 
 type Server = {

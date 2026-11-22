@@ -80,6 +80,8 @@ public class AiImportConfigRulesTests
         var factory = Assert.Single(files, f => f.Path == "tests/Api.Tests/TestApiFactory.cs");
         Assert.Contains("AiImport:Enabled", factory.CodeWithStrings, StringComparison.Ordinal); // not vacuous
         Assert.Contains("NoRealAiClient", factory.Code, StringComparison.Ordinal);
+        Assert.Contains("AiPhotoImport:Enabled", factory.CodeWithStrings, StringComparison.Ordinal); // T-118
+        Assert.Contains("NoRealPhotoReader", factory.Code, StringComparison.Ordinal);
 
         Assert.Empty(BareHostFactories(files.Where(f => f.Path != factory.Path)));
 

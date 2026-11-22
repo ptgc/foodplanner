@@ -20,6 +20,18 @@ public interface IAiUsageLimiter
     /// <see cref="AiReservation.Reserved"/> the call is counted, and a limit can never be passed by two requests at once.
     /// </summary>
     Task<AiReservation> TryReserveAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The same for a photo import (T-118), with its own counters (<c>PhotoDayCalls</c>, <c>PhotoCalls</c>): the household's daily
+    /// limit and the global monthly cap. If the global cap refuses, the household's reservation is given back.
+    /// </summary>
+    Task<AiReservation> TryReservePhotoAsync(CancellationToken cancellationToken);
+
+    /// <summary>Gives a photo reservation back (only when nothing was sent to Claude).</summary>
+    Task ReleasePhotoAsync(CancellationToken cancellationToken);
+
+    /// <summary>How many photo imports the current household may still make today (never negative).</summary>
+    Task<int> PhotoRemainingTodayAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -29,7 +41,8 @@ public interface IAiUsageLimiter
 /// once hit the unique index, the loser retries as an update. A call is counted when reserved, whether or not the AI answers
 /// (it may still have cost money). The household rows go through the tenant filter, so only the current household is touched.
 /// </summary>
-public sealed class AiUsageLimiter(AppDbContext db, TimeProvider time, IOptions<AiImportOptions> options) : IAiUsageLimiter
+public sealed class AiUsageLimiter(
+    AppDbContext db, TimeProvider time, IOptions<AiImportOptions> options, IOptions<AiPhotoImportOptions>? photoOptions = null) : IAiUsageLimiter
 {
     private const int Attempts = 3;
 
@@ -149,6 +162,139 @@ public sealed class AiUsageLimiter(AppDbContext db, TimeProvider time, IOptions<
 
         throw new InvalidOperationException("The AI usage counter could not be updated.");
     }
+
+    public async Task<AiReservation> TryReservePhotoAsync(CancellationToken cancellationToken)
+    {
+        var settings = photoOptions?.Value ?? new AiPhotoImportOptions();
+        var now = time.GetUtcNow();
+        var day = AiUsagePeriod.Day(now);
+        var month = AiUsagePeriod.Month(now);
+        if (settings.DailyPerHousehold <= 0)
+        {
+            return AiReservation.HouseholdLimit;
+        }
+
+        if (settings.GlobalMonthly <= 0)
+        {
+            return AiReservation.GlobalLimit;
+        }
+
+        if (!await ReservePhotoHouseholdAsync(now, day, settings.DailyPerHousehold, cancellationToken))
+        {
+            return AiReservation.HouseholdLimit;
+        }
+
+        if (!await ReservePhotoGlobalAsync(now, month, settings.GlobalMonthly, cancellationToken))
+        {
+            await ReleasePhotoHouseholdAsync(day, cancellationToken);
+            return AiReservation.GlobalLimit;
+        }
+
+        return AiReservation.Reserved;
+    }
+
+    public async Task ReleasePhotoAsync(CancellationToken cancellationToken)
+    {
+        var now = time.GetUtcNow();
+        await ReleasePhotoHouseholdAsync(AiUsagePeriod.Day(now), cancellationToken);
+        var month = AiUsagePeriod.Month(now);
+        await db.AiGlobalUsages
+            .Where(u => u.MonthStart == month && u.PhotoCalls > 0)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.PhotoCalls, u => u.PhotoCalls - 1), cancellationToken);
+    }
+
+    public async Task<int> PhotoRemainingTodayAsync(CancellationToken cancellationToken)
+    {
+        var limit = (photoOptions?.Value ?? new AiPhotoImportOptions()).DailyPerHousehold;
+        var day = AiUsagePeriod.Day(time.GetUtcNow());
+        var used = await db.AiHouseholdUsages.AsNoTracking().Where(u => u.PhotoDay == day).Select(u => u.PhotoDayCalls).FirstOrDefaultAsync(cancellationToken);
+        return Math.Max(0, limit - used);
+    }
+
+    private async Task<bool> ReservePhotoHouseholdAsync(DateTimeOffset now, DateOnly day, int limit, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < Attempts; attempt++)
+        {
+            var updated = await db.AiHouseholdUsages
+                .Where(u => u.PhotoDay != day || u.PhotoDayCalls < limit)
+                .ExecuteUpdateAsync(
+                    s => s
+                        .SetProperty(u => u.PhotoDayCalls, u => u.PhotoDay == day ? u.PhotoDayCalls + 1 : 1)
+                        .SetProperty(u => u.PhotoDay, day),
+                    cancellationToken);
+            if (updated == 1)
+            {
+                return true;
+            }
+
+            if (await db.AiHouseholdUsages.AnyAsync(cancellationToken))
+            {
+                return false;
+            }
+
+            var row = AiHouseholdUsage.ForFirstPhotoCall(now);
+            db.AiHouseholdUsages.Add(row);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                db.Entry(row).State = EntityState.Detached;
+            }
+            catch
+            {
+                db.Entry(row).State = EntityState.Detached;
+                throw;
+            }
+        }
+
+        throw new InvalidOperationException("The AI usage counter could not be updated.");
+    }
+
+    private async Task<bool> ReservePhotoGlobalAsync(DateTimeOffset now, DateOnly month, int cap, CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < Attempts; attempt++)
+        {
+            var updated = await db.AiGlobalUsages
+                .Where(u => u.MonthStart == month && u.PhotoCalls < cap)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.PhotoCalls, u => u.PhotoCalls + 1), cancellationToken);
+            if (updated == 1)
+            {
+                return true;
+            }
+
+            if (await db.AiGlobalUsages.AnyAsync(u => u.MonthStart == month, cancellationToken))
+            {
+                return false;
+            }
+
+            var row = AiGlobalUsage.ForFirstPhotoCall(now);
+            db.AiGlobalUsages.Add(row);
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return true;
+            }
+            catch (DbUpdateException)
+            {
+                db.Entry(row).State = EntityState.Detached;
+            }
+            catch
+            {
+                db.Entry(row).State = EntityState.Detached;
+                throw;
+            }
+        }
+
+        throw new InvalidOperationException("The AI usage counter could not be updated.");
+    }
+
+    private Task<int> ReleasePhotoHouseholdAsync(DateOnly day, CancellationToken cancellationToken) =>
+        db.AiHouseholdUsages.ExecuteUpdateAsync(
+            s => s.SetProperty(u => u.PhotoDayCalls, u => u.PhotoDay == day && u.PhotoDayCalls > 0 ? u.PhotoDayCalls - 1 : u.PhotoDayCalls),
+            cancellationToken);
 
     /// <summary>Gives the household's call back when the global cap refused it, so a refused import costs the household nothing.</summary>
     private Task<int> ReleaseHouseholdAsync(DateOnly day, DateOnly month, CancellationToken cancellationToken) =>

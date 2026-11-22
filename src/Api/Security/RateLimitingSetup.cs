@@ -31,6 +31,9 @@ public static class RateLimitPolicies
 
     /// <summary>Starting and completing the Oda cart flow (T-053): by user.</summary>
     public const string OdaAction = "oda-action";
+
+    /// <summary>Recipe from a photo (T-118): by user. Each call can cost money, so this is the burst limit on top of the daily and monthly counters.</summary>
+    public const string PhotoImport = "photo-import";
 }
 
 public sealed class LimitOptions
@@ -74,6 +77,9 @@ public sealed class RateLimitOptions
 
     /// <summary>Recipe imports from a URL (T-042), per user: 10 per 10 minutes. See <see cref="UrlImportRateLimiter"/>.</summary>
     public LimitOptions UrlImport { get; set; } = new() { PermitLimit = 10, WindowSeconds = 600 };
+
+    /// <summary>Recipe from a photo (T-118), per user: 5 per 10 minutes.</summary>
+    public LimitOptions PhotoImport { get; set; } = new() { PermitLimit = 5, WindowSeconds = 600 };
 }
 
 /// <summary>
@@ -141,6 +147,9 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.OdaAction, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Oda.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.PhotoImport, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.PhotoImport.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.ExternalSignin, http =>
                 RateLimitPartition.GetFixedWindowLimiter($"ip:{ClientIp(http)}", _ => limits.ExternalSignin.ToFixedWindow()));
         });

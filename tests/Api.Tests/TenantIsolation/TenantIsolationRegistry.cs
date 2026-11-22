@@ -222,6 +222,11 @@ public static class TenantIsolationRegistry
         TenantIsolationCase.For<AiHouseholdUsage>(
             (_, _) => Task.FromResult(new AiHouseholdUsage(DateTimeOffset.UtcNow)),
             entry => entry.Property(u => u.DayCalls).CurrentValue = 7),
+
+        // One row per call to Claude (T-118): tokens and outcome, no content. Cascade only from the household.
+        TenantIsolationCase.For<AiCallLog>(
+            (_, _) => Task.FromResult(new AiCallLog(AiCallKind.PhotoImport, "claude-opus-5-5", "medium", 1, 2, 100, 50, "end_turn", AiCallOutcome.Ok, 1234, null)),
+            entry => entry.Property(l => l.DurationMs).CurrentValue = 4321),
     ];
 
     private static async Task<ShoppingListItem> NewItemAsync(TenantIsolationEnvironment env, Guid household)

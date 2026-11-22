@@ -32,6 +32,15 @@ public sealed class AiHouseholdUsage : Entity, ITenantEntity
         MonthCalls = 1;
     }
 
+    /// <summary>The row for a household's first photo import (T-118): one photo call today, no line-help calls.</summary>
+    public static AiHouseholdUsage ForFirstPhotoCall(DateTimeOffset now) => new()
+    {
+        Day = AiUsagePeriod.Day(now),
+        MonthStart = AiUsagePeriod.Month(now),
+        PhotoDay = AiUsagePeriod.Day(now),
+        PhotoDayCalls = 1,
+    };
+
     public Guid HouseholdId { get; private set; }
 
     public DateOnly Day { get; private set; }
@@ -41,6 +50,11 @@ public sealed class AiHouseholdUsage : Entity, ITenantEntity
     public DateOnly MonthStart { get; private set; }
 
     public int MonthCalls { get; private set; }
+
+    /// <summary>The UTC day <see cref="PhotoDayCalls"/> counts (T-118). Separate from <see cref="Day"/>: photo imports have their own budget. Another day counts as zero.</summary>
+    public DateOnly PhotoDay { get; private set; }
+
+    public int PhotoDayCalls { get; private set; }
 }
 
 /// <summary>
@@ -59,7 +73,13 @@ public sealed class AiGlobalUsage : Entity
         Calls = 1;
     }
 
+    /// <summary>The row of a month whose first call is a photo import (T-118).</summary>
+    public static AiGlobalUsage ForFirstPhotoCall(DateTimeOffset now) => new() { MonthStart = AiUsagePeriod.Month(now), PhotoCalls = 1 };
+
     public DateOnly MonthStart { get; private set; }
 
     public int Calls { get; private set; }
+
+    /// <summary>Photo imports by all households in the month (T-118): its own cap, not part of <see cref="Calls"/>.</summary>
+    public int PhotoCalls { get; private set; }
 }

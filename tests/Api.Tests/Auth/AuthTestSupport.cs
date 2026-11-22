@@ -137,6 +137,8 @@ public sealed class AuthHost : IAsyncDisposable
             // wants it enables it explicitly and brings a fake client; no test host can reach the real API.
             ["AiImport:Enabled"] = "false",
             ["AiImport:ApiKey"] = "",
+            ["AiPhotoImport:Enabled"] = "false",
+            ["RateLimiting:PhotoImport:PermitLimit"] = "1000",
         };
         foreach (var (key, value) in configuration ?? new Dictionary<string, string?>())
         {
@@ -156,6 +158,8 @@ public sealed class AuthHost : IAsyncDisposable
                 services.AddSingleton<IStartupFilter, RemoteIpStartupFilter>();
                 services.RemoveAll<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi>();
                 services.AddSingleton<Foodplanner.Infrastructure.Import.Ai.IRecipeLineAi, Import.NoRealAiClient>();
+                services.RemoveAll<Foodplanner.Infrastructure.Import.Ai.IRecipePhotoReader>();
+                services.AddSingleton<Foodplanner.Infrastructure.Import.Ai.IRecipePhotoReader, Import.NoRealPhotoReader>();
                 configureServices?.Invoke(services);
             });
         });
@@ -272,6 +276,19 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
         form.Add(file, partName, fileName);
         using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = form };
+        if (antiforgery)
+        {
+            request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());
+        }
+
+        AddRemoteIp(request);
+        return await Send(request);
+    }
+
+    /// <summary>A multipart/form-data request with any method and parts (several files, text fields), with a freshly fetched antiforgery token.</summary>
+    public async Task<HttpResponseMessage> SendMultipartAsync(HttpMethod method, string url, MultipartFormDataContent form, bool antiforgery = true)
+    {
+        using var request = new HttpRequestMessage(method, url) { Content = form };
         if (antiforgery)
         {
             request.Headers.Add("X-XSRF-TOKEN", await GetTokenAsync());

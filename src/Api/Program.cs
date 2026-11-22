@@ -104,6 +104,7 @@ api.MapCatalogEndpoints();
 api.MapOwnIngredientEndpoints();
 api.MapRecipeEndpoints();
 api.MapRecipeImportEndpoints();
+api.MapPhotoImportEndpoints();
 api.MapTagEndpoints();
 api.MapMealPlanEndpoints();
 api.MapMealMixRuleEndpoints();

@@ -21,11 +21,14 @@ public class TestApiFactory : WebApplicationFactory<Program>
         {
             ["AiImport:Enabled"] = "false",
             ["AiImport:ApiKey"] = "",
+            ["AiPhotoImport:Enabled"] = "false",
         }));
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IRecipeLineAi>();
             services.AddSingleton<IRecipeLineAi, NoRealAiClient>();
+            services.RemoveAll<IRecipePhotoReader>();
+            services.AddSingleton<IRecipePhotoReader, NoRealPhotoReader>();
         });
     }
 }

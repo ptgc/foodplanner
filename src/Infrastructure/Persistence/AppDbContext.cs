@@ -127,6 +127,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
     /// <summary>All households' AI calls per month, for the global cap (T-077). Not tenant data.</summary>
     public DbSet<AiGlobalUsage> AiGlobalUsages => Set<AiGlobalUsage>();
 
+    /// <summary>One row per call to Claude with its tokens and outcome (T-118), for the metrics of T-121.</summary>
+    public DbSet<AiCallLog> AiCallLogs => Set<AiCallLog>();
+
     /// <summary>Read by the tenant query filter on every query. Must stay an instance member (see the filter).</summary>
     internal Guid? CurrentHouseholdId => _currentHousehold.HouseholdId;
 

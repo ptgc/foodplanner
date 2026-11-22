@@ -32,6 +32,15 @@ public partial class AiUsageBulkWriteScopeTests
             Assert.Contains(receiver, new[] { "AiHouseholdUsages", "AiGlobalUsages" });
         }
 
+        // T-118: the photo counters are raised only by the same limiter, by the same conditional UPDATE pattern, and never touch another set.
+        Assert.Contains("PhotoDayCalls", file.Code, StringComparison.Ordinal);
+        Assert.Contains("PhotoCalls", file.Code, StringComparison.Ordinal);
+        Assert.DoesNotContain("AiCallLogs", file.Code, StringComparison.Ordinal); // the call log is written by SaveChanges only, never in bulk
+        foreach (var other in SourceScanner.Load("src").Where(f => f.Path != LimiterFile && f.Path != "src/Domain/Imports/AiUsage.cs"))
+        {
+            Assert.DoesNotMatch(@"\.(PhotoDay|PhotoDayCalls|PhotoCalls)\b", other.Code);
+        }
+
         // No other file may borrow the exemption.
         Assert.Equal(
             [LimiterFile, TenantSourceRules.TenantResolutionFile],
