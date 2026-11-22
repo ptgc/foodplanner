@@ -132,6 +132,24 @@ internal sealed class TenantResolution(AppDbContext db, ITenantWriteScope writeS
         return [.. rows.Select(r => new AccountHouseholdFacts(r.Id, r.Name, r.Role, r.MemberCount, r.OtherOwnerCount))];
     }
 
+    public async Task EnsureHouseholdPlan(Guid householdId, string? name, HouseholdPlanLimits limits, CancellationToken cancellationToken)
+    {
+        var plan = await db.HouseholdPlans.IgnoreQueryFilters(TenantFilterOnly).Where(p => p.HouseholdId == householdId).SingleOrDefaultAsync(cancellationToken);
+        using (writeScope.ForHousehold(householdId))
+        {
+            if (plan is null)
+            {
+                db.HouseholdPlans.Add(new HouseholdPlan(name, limits));
+            }
+            else
+            {
+                plan.Replace(name, limits); // No change leaves the entity unmodified, so nothing is written.
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
     public async Task<AccountErasureResult> EraseUserReferences(Guid userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var filter = TenantFilterOnly;

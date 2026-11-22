@@ -58,7 +58,7 @@ test("the admin starts a read session, sees the members and ends the session; a 
 
     // The overview and the members of that ONE household; a read session has no write button.
     await page.getByRole("button", { name: "Overview" }).click();
-    await expect(page.getByTestId("support-plan")).toHaveText("No plan set");
+    await expect(page.getByTestId("support-plan")).toHaveText("Default");
     await page.getByRole("button", { name: "Members" }).click();
     await expect(page.getByTestId("support-member-row")).toHaveCount(1);
     await expect(page.getByTestId("support-member-row")).toContainText(process.env.E2E_ADMIN_EMAIL!);

@@ -94,6 +94,32 @@ public sealed class SupportEndpointRulesTests
     }
 
     [Fact]
+    public async Task Plan_has_no_member_endpoint()
+    {
+        await using var host = AuthHost.Create(connectionString: string.Empty);
+        var all = host.Services.GetRequiredService<EndpointDataSource>().Endpoints.OfType<RouteEndpoint>().ToList();
+
+        // Nothing under a household route reads or writes a plan: the plan details are for support only.
+        Assert.DoesNotContain(
+            all.Where(e => e.RoutePattern.RawText?.StartsWith("/api/households/", StringComparison.Ordinal) == true),
+            e => e.RoutePattern.RawText!.Contains("plan", StringComparison.OrdinalIgnoreCase)
+                && !e.RoutePattern.RawText.Contains("meal-plans", StringComparison.Ordinal));
+
+        // Exactly the three plan endpoints under the support household group, each audited and under a session policy.
+        var plan = all.Where(e => e.RoutePattern.RawText == ScopedPrefix + ":guid}/plan").ToList();
+        Assert.Equal(["DELETE", "GET", "PUT"], plan.SelectMany(e => e.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods).Order(StringComparer.Ordinal));
+        foreach (var endpoint in plan)
+        {
+            Assert.NotNull(endpoint.Metadata.GetMetadata<SupportAuditedMetadata>());
+            Assert.Contains(Policy(endpoint), p => p is Policies.SupportSessionRead or Policies.SupportSessionWrite);
+        }
+
+        Assert.Equal(
+            ["plan.reset", "plan.set", "view.plan"],
+            plan.Select(e => e.Metadata.GetMetadata<SupportAuditedMetadata>()!.Action).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public async Task Support_metadata_exists_only_under_api_support()
     {
         await using var host = AuthHost.Create(connectionString: string.Empty);

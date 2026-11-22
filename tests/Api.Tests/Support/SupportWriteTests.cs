@@ -162,6 +162,7 @@ public sealed class SupportWriteTests(AuthDatabase db) : IClassFixture<AuthDatab
             [
                 "DELETE /api/support/households/{targetHouseholdId:guid}/invites/{inviteId:guid}",
                 "DELETE /api/support/households/{targetHouseholdId:guid}/meal-plans/{weekStart}/lock",
+                "DELETE /api/support/households/{targetHouseholdId:guid}/plan", // T-123: reset a household's plan (a named fix of its own)
                 "DELETE /api/support/sessions/current",
                 "GET /api/support/households",
                 "GET /api/support/households/{targetHouseholdId:guid}/",
@@ -169,6 +170,7 @@ public sealed class SupportWriteTests(AuthDatabase db) : IClassFixture<AuthDatab
                 "GET /api/support/households/{targetHouseholdId:guid}/invites",
                 "GET /api/support/households/{targetHouseholdId:guid}/meal-plans/{weekStart}",
                 "GET /api/support/households/{targetHouseholdId:guid}/members",
+                "GET /api/support/households/{targetHouseholdId:guid}/plan",
                 "GET /api/support/households/{targetHouseholdId:guid}/profiles",
                 "GET /api/support/households/{targetHouseholdId:guid}/recipes",
                 "GET /api/support/households/{targetHouseholdId:guid}/shopping-lists/{weekStart}",
@@ -177,6 +179,7 @@ public sealed class SupportWriteTests(AuthDatabase db) : IClassFixture<AuthDatab
                 "POST /api/support/households/{targetHouseholdId:guid}/members/{userId:guid}/pin-unlock",
                 "POST /api/support/sessions/",
                 "PUT /api/support/households/{targetHouseholdId:guid}/members/{userId:guid}/role",
+                "PUT /api/support/households/{targetHouseholdId:guid}/plan",
             ],
             routes);
     }

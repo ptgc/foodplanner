@@ -1428,6 +1428,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/support/households/{targetHouseholdId}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetSupportHouseholdPlan"];
+        put: operations["SetSupportHouseholdPlan"];
+        post?: never;
+        delete: operations["ResetSupportHouseholdPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/support-access": {
         parameters: {
             query?: never;
@@ -1903,16 +1919,19 @@ export interface components {
         };
         PhotoUsageResponse: {
             /** Format: int32 */
-            remainingToday: number | string;
+            remainingToday: null | number | string;
             /** Format: int32 */
-            dailyLimit: number | string;
+            dailyLimit: null | number | string;
+            /** @default false */
+            unlimited: boolean;
         };
         PhotoUsageStatusResponse: {
             enabled: boolean;
+            unlimited: boolean;
             /** Format: int32 */
-            dailyLimit: number | string;
+            dailyLimit: null | number | string;
             /** Format: int32 */
-            remainingToday: number | string;
+            remainingToday: null | number | string;
         };
         PickedByResponse: {
             /** Format: uuid */
@@ -2344,6 +2363,30 @@ export interface components {
             pinLocked: boolean;
             /** Format: date-time */
             pinLockedUntil: null | string;
+        };
+        SupportPlanDefaults: {
+            photoImportsPerDay: components["schemas"]["SupportPlanLimit"];
+            lineHelpPerDay: components["schemas"]["SupportPlanLimit"];
+            lineHelpPerMonth: components["schemas"]["SupportPlanLimit"];
+        };
+        SupportPlanLimit: {
+            unlimited: boolean;
+            /** Format: int32 */
+            limit: null | number | string;
+        };
+        SupportPlanRequest: {
+            name: null | string;
+            photoImportsPerDay: null | components["schemas"]["SupportPlanLimit"];
+            lineHelpPerDay: null | components["schemas"]["SupportPlanLimit"];
+            lineHelpPerMonth: null | components["schemas"]["SupportPlanLimit"];
+        };
+        SupportPlanResponse: {
+            source: string;
+            name: null | string;
+            photoImportsPerDay: components["schemas"]["SupportPlanLimit"];
+            lineHelpPerDay: components["schemas"]["SupportPlanLimit"];
+            lineHelpPerMonth: components["schemas"]["SupportPlanLimit"];
+            defaults: components["schemas"]["SupportPlanDefaults"];
         };
         SupportProfileItem: {
             /** Format: uuid */
@@ -8902,6 +8945,137 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSupportHouseholdPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetHouseholdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetSupportHouseholdPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetHouseholdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["SupportPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportPlanResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ResetSupportHouseholdPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                targetHouseholdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {

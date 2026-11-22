@@ -10,7 +10,7 @@ namespace Foodplanner.Api.Seeding;
 /// <c>Seed:AdminPassword</c> (user secrets). Run from the host with <c>dotnet run --project src/Api -- seed-admin</c>
 /// (scripts/local-seed). Development only: it refuses in any other environment, and Program never runs it on its own.
 /// Optionally (T-045, e2e invite flow) also creates a second confirmed user from <c>Seed:MemberEmail</c> and
-/// <c>Seed:MemberPassword</c> who belongs to NO household: the tests invite them. Optionally (T-122) a demo user (Seed:DemoEmail, default havard.rikke@example.test, and Seed:DemoPassword) who owns household "Håvard og Rikke". Idempotent. Uses UserManager (configured hasher and password rules) and ITenantResolution (household + Owner).
+/// <c>Seed:MemberPassword</c> who belongs to NO household: the tests invite them. Optionally (T-122) a demo user (Seed:DemoEmail, default havard.rikke@example.test, and Seed:DemoPassword) who owns household "Håvard og Rikke". Idempotent. T-123: household "Home" gets a plan with every Claude limit unlimited (label "Unlimited"). Uses UserManager (configured hasher and password rules) and ITenantResolution (household + Owner).
 /// </summary>
 public static class LocalAdminSeeder
 {
@@ -20,6 +20,7 @@ public static class LocalAdminSeeder
     public const string PasswordKey = "Seed:AdminPassword";
     public const string MemberEmailKey = "Seed:MemberEmail";
     public const string MemberPasswordKey = "Seed:MemberPassword";
+    public const string UnlimitedPlanName = "Unlimited";
     public const string DemoHouseholdName = "Håvard og Rikke";
     public const string DemoEmailKey = "Seed:DemoEmail";
     public const string DemoPasswordKey = "Seed:DemoPassword";
@@ -49,10 +50,12 @@ public static class LocalAdminSeeder
         var user = await EnsureConfirmedUserAsync(users, email, password);
 
         var memberships = await resolution.GetMembershipsForUser(user.Id, cancellationToken);
-        if (!memberships.Any(m => m.Name == HouseholdName && m.Role == HouseholdRole.Owner))
-        {
-            await resolution.CreateHouseholdWithOwner(HouseholdName, user.Id, cancellationToken);
-        }
+        var home = memberships.FirstOrDefault(m => m.Name == HouseholdName && m.Role == HouseholdRole.Owner)
+            ?? await resolution.CreateHouseholdWithOwner(HouseholdName, user.Id, cancellationToken);
+
+        // T-123: the architect's own household is unlimited (every Claude limit). The demo household below keeps the default plan.
+        await resolution.EnsureHouseholdPlan(
+            home.HouseholdId, UnlimitedPlanName, new HouseholdPlanLimits(AiLimit.Unlimited, AiLimit.Unlimited, AiLimit.Unlimited), cancellationToken);
 
         // Optional second user for the e2e invite flow. Not added to any household here.
         var memberEmail = configuration[MemberEmailKey];

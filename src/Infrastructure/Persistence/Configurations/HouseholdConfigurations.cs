@@ -36,6 +36,25 @@ internal sealed class MembershipConfiguration : IEntityTypeConfiguration<Members
     }
 }
 
+// A household's plan (T-123, migration AddHouseholdPlans): at most one row per household (unique index), cascade with the household.
+// A count is null (unlimited) or 0 to 10000; no row means the default plan from configuration.
+internal sealed class HouseholdPlanConfiguration : IEntityTypeConfiguration<HouseholdPlan>
+{
+    public void Configure(EntityTypeBuilder<HouseholdPlan> plan)
+    {
+        plan.ToTable("HouseholdPlans", table =>
+        {
+            table.HasCheckConstraint("CK_HouseholdPlans_PhotoImportsPerDay", "[PhotoImportsPerDay] IS NULL OR ([PhotoImportsPerDay] >= 0 AND [PhotoImportsPerDay] <= 10000)");
+            table.HasCheckConstraint("CK_HouseholdPlans_LineHelpPerDay", "[LineHelpPerDay] IS NULL OR ([LineHelpPerDay] >= 0 AND [LineHelpPerDay] <= 10000)");
+            table.HasCheckConstraint("CK_HouseholdPlans_LineHelpPerMonth", "[LineHelpPerMonth] IS NULL OR ([LineHelpPerMonth] >= 0 AND [LineHelpPerMonth] <= 10000)");
+        });
+        plan.Property(p => p.Name).HasMaxLength(HouseholdPlan.MaxNameLength);
+        plan.Ignore(p => p.Limits);
+        plan.HasIndex(p => p.HouseholdId).IsUnique();
+        plan.HasOne<Household>().WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class InviteConfiguration : IEntityTypeConfiguration<Invite>
 {
     public void Configure(EntityTypeBuilder<Invite> invite)

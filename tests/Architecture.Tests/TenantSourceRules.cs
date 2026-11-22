@@ -29,6 +29,17 @@ public static partial class TenantSourceRules
             "Test support: the seeder runs before any household context exists, so the test counts the seeded Membership across households with the named Tenant filter bypassed."),
     };
 
+    /// <summary>
+    /// T-123: the files that may mention <c>ITenantResolution.EnsureHouseholdPlan</c>: the interface, the implementation and its ONE
+    /// caller, the Development-only local seeder. A plan is otherwise changed only by a super admin in an audited support session.
+    /// </summary>
+    public static readonly string[] EnsureHouseholdPlanFiles =
+    [
+        "src/Api/Seeding/LocalAdminSeeder.cs",
+        "src/Infrastructure/Persistence/Tenancy/ITenantResolution.cs",
+        TenantResolutionFile,
+    ];
+
     public sealed record BypassAllowance(string[] Symbols, string Reason);
 
     public sealed record Finding(string File, int Line, string Message)

@@ -58,6 +58,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
 
     public DbSet<Invite> Invites => Set<Invite>();
 
+    /// <summary>A household's Claude limits (T-123). No row means the default plan from configuration.</summary>
+    public DbSet<HouseholdPlan> HouseholdPlans => Set<HouseholdPlan>();
+
     /// <summary>Global-or-household catalog (<see cref="ICatalogEntity"/>): reads see global rows and the current household's.</summary>
     public DbSet<Ingredient> Ingredients => Set<Ingredient>();
 
