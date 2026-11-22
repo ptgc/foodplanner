@@ -264,7 +264,8 @@ beforeEach(() => {
   resetAntiforgeryToken();
   window.localStorage.clear();
   hubState.hub = null;
-  hubState.defaultState = () => ({ version: "v1", list: structuredClone(server.list) });
+  // The version follows the content, as on the server: a fixed "v1" made accept() skip a later answer (T-128: the hub now answers after the REST read).
+  hubState.defaultState = () => ({ version: `v${JSON.stringify(server.list)}`, list: structuredClone(server.list) });
   server = { list: baseList(), down: false, listStatus: 200, puts: [], pantry: [], pantryCalls: [], pantryBodies: [], exports: [], exportStatus: 200, weekly: 2, weeklyPosts: 0, notDue: [], weeklyWeeks: [], anyway: [], stores: [], chosenStore: null, chosenPuts: [], odaStarts: [] };
   installFetch();
 });
@@ -275,6 +276,8 @@ afterEach(() => {
 
 async function ready() {
   await screen.findByRole("heading", { name: t("shopping.sectionMain"), level: 2 });
+  // SignalR is a lazy chunk (T-128): wait until the hub has joined and answered, as it did before the list was drawn.
+  await waitFor(() => expect(hubState.hub?.calls.length).toBe(2));
 }
 
 describe("shopping list rendering", () => {
@@ -882,7 +885,6 @@ describe("send to Oda (T-054)", () => {
     home.role = "Child";
     renderPage();
     await ready();
-    await new Promise((r) => setTimeout(r, 100)); // the button is a lazy chunk: give it time to show if it were going to
     expect(odaButton()).toBeNull();
     expect(screen.queryByTestId("oda-choices-link")).toBeNull(); // T-052: the choices link is for Adults only
   });

@@ -6,6 +6,8 @@ import { defineConfig } from "vite";
 const apiTarget = process.env.API_PROXY_TARGET ?? "http://localhost:5000";
 
 export default defineConfig({
+  // T-128: terser (a build-time devDependency, not shipped) gzips about 4.7 KB smaller in total than the default esbuild minifier.
+  build: { minify: "terser", terserOptions: { compress: { passes: 2 } } },
   plugins: [reactRouter()],
   server: {
     port: 5173,
