@@ -57,6 +57,11 @@ export default function HouseholdPage() {
           </Link>
         </div>
       )}
+      <p>
+        <Link className="auth-link" to="/privacy" data-testid="privacy-link">
+          {t("privacy.link")}
+        </Link>
+      </p>
     </section>
   );
 }

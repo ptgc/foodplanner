@@ -34,6 +34,7 @@ export const en = {
     "Signed in, but the browser did not keep the session cookie. Safari does not store Secure cookies on http://localhost; try Chrome or use https.",
 
   "login.createAccount": "Create account",
+  "privacy.link": "Privacy",
   "login.passwordSet": "Your password is set. Sign in with it.",
   "login.accountDeleted": "Your account was deleted.",
 

@@ -1,0 +1,35 @@
+/* Privacy page (T-113). 390px first; links are at least 44px (var(--touch)). */
+.privacy {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+
+.privacy h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+}
+
+.privacy h2 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.privacy ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.privacy li {
+  margin-bottom: 0.5rem;
+}
+
+.privacy a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-decoration: none;
+}
