@@ -280,7 +280,7 @@ npm --prefix web run api:generate
 | Script (`.sh` / `.ps1`) | What it does |
 | --- | --- |
 | `doctor` | checks the machine: tools, container engine, branch |
-| `local-secrets` | generates the SQL password and the seeded admin login into user secrets, once (run by `local-up` for you) |
+| `local-secrets` | generates the SQL password and the seeded admin login into user secrets, once (run by `local-up` for you); `--claude-on` / `--claude-off` (`-ClaudeOn` / `-ClaudeOff`) switch the Claude features, see the AI import section |
 | `local-migrate` | applies EF migrations to the local database (idempotent; run by `local-up`) |
 | `local-seed` | creates the local admin and the household "Home", plus the demo household "Håvard og Rikke" (Development only, idempotent; run by `local-up`) |
 | `local-up` | starts the stack, migrates and seeds; `local-up sql` starts only SQL and Azurite, the database init, migrations and seed |
@@ -451,20 +451,24 @@ Configuration (section `AiImport`; env var form `AiImport__Enabled`):
 | `AiImport:MonthlyCallsPerHousehold` | `200` | Per household and UTC month. |
 | `AiImport:GlobalMonthlyCalls` | `2000` | All households together per UTC month. |
 
-Turn it on locally (the API on the host in Development, see section 5; the compose `api` container does not read user
-secrets, so it stays off). Set the key and the flag yourself; the values are not in this repo and must not be printed or pasted:
+Turn it on locally (T-133). The key stays in user secrets; `local-up`/`local-down`/`local-reset` pass it and the switches to the
+compose `api` container as environment for that one process (`AiImport__ApiKey`, `AiImport__Enabled`, `AiPhotoImport__Enabled`),
+so http://localhost:3000 gets the features too. Without the secrets all three stay empty/false = off. The key is not in this repo
+and must not be printed or pasted:
 
 ```bash
 dotnet user-secrets set AiImport:ApiKey "<your Anthropic key>" --project src/Api
-dotnet user-secrets set AiImport:Enabled true --project src/Api
+./scripts/local-secrets.sh --claude-on     # sets AiImport:Enabled and AiPhotoImport:Enabled to true
+./scripts/local-up.sh                      # recreates the api container with the new settings
 ```
 
 ```powershell
 dotnet user-secrets set AiImport:ApiKey "<your Anthropic key>" --project src/Api
-dotnet user-secrets set AiImport:Enabled true --project src/Api
+.\scripts\local-secrets.ps1 -ClaudeOn
+.\scripts\local-up.ps1
 ```
 
-Turn it off again with `dotnet user-secrets set AiImport:Enabled false --project src/Api`. Test environment: a Key Vault
+The key is visible to `docker inspect` on the local api container (it is an environment variable); that is acceptable for a local-only stack, so use a key you can revoke. The same secrets also apply to the API on the host (section 5). Turn it off again with `--claude-off` / `-ClaudeOff` (then `local-up`). Test environment: a Key Vault
 secret reference for `AiImport__ApiKey` plus the app setting `AiImport__Enabled=true`, set up by the architect; prod stays
 off until decided. `verify.sh` and e2e never call the real API (tests use a fake client). Details: docs/domain.md, "AI-assisted
 import fallback". The UI must show the privacy text (unresolved import lines may be sent to Anthropic) before the review round ships.

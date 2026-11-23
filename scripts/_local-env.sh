@@ -16,5 +16,8 @@ compose() {
     return 1
   fi
   # T-096: the local system admin allow-list (a user secret copied from Seed:AdminEmail) reaches the api container the same way.
-  MSSQL_SA_PASSWORD="$pw" SUPPORT_ADMIN_EMAIL="$(secret Support:SystemAdminEmails:0)" docker compose "$@"
+  # T-133: the Claude key and the on/off switches (user secrets, default off) reach it the same way. The key is never printed.
+  MSSQL_SA_PASSWORD="$pw" SUPPORT_ADMIN_EMAIL="$(secret Support:SystemAdminEmails:0)" \
+    AI_IMPORT_API_KEY="$(secret AiImport:ApiKey)" AI_IMPORT_ENABLED="$(secret AiImport:Enabled)" \
+    AI_PHOTO_IMPORT_ENABLED="$(secret AiPhotoImport:Enabled)" docker compose "$@"
 }

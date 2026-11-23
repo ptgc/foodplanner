@@ -74,6 +74,11 @@ services:
       # Neither value is a secret (public OAuth client).
       Oda__ClientId: ${ODA_CLIENT_ID:-}
       Oda__WebOrigin: ${ODA_WEB_ORIGIN:-http://localhost:3000}
+      # T-133: Claude for photo import (T-118) and line help (T-077). scripts/local-up passes these from the AiImport:ApiKey,
+      # AiImport:Enabled and AiPhotoImport:Enabled user secrets for that one process; empty = off. The key is never in a file.
+      AiImport__ApiKey: ${AI_IMPORT_API_KEY:-}
+      AiImport__Enabled: ${AI_IMPORT_ENABLED:-false}
+      AiPhotoImport__Enabled: ${AI_PHOTO_IMPORT_ENABLED:-false}
 
   web:
     build:
