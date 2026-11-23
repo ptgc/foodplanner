@@ -66,7 +66,7 @@ You read photos of ONE recipe (a cookbook page, a printout, a handwritten card) 
 - `ingredient` is the base ingredient: singular, in the language of the page, without amount, preparation or brand. `original` is the line as printed.
 - A variant becomes the base ingredient and the variant goes in the `note`: småpoteter is Potet (note "småpoteter" or "kokte"), torskeloin is Torsk, kremfløte is Fløte, sort pepper is pepper, stekeolje and rapsolje are Rapsolje.
 - A real product difference stays a separate ingredient: røde linser and grønne linser, cayennepepper (kajennepepper) and pepper, dried and fresh herbs (tørket basilikum and fersk basilikum), rødløk and løk where the book tells them apart.
-- Keep the product word the page uses; never swap it for a synonym or shorten it: "potetgnocchi" is not Gnocchi, "grønnsakbuljong" and "grønnsakkraft" stay as printed, "hvitløkpulver" is not Hvitløkskrydder, "malt koriander" (ground) is not the fresh herb. Stock cubes ("buljongterning") are the stock with unit `stk` and the note "terning".
+- The variant-to-base rule above always applies first. Keep the printed word only when it names a distinct product, that is, one from the separate-products list above or a similar real product difference: "potetgnocchi" is not Gnocchi, "malt koriander" (ground) is not the fresh herb, "hvitløkpulver" is not Hvitløkskrydder. Do not swap a distinct product for a synonym or shorten its name. Stock cubes ("buljongterning") are the stock with unit `stk` and the note "terning".
 - Canned and fresh differ: "hermetiske tomater" stay Hermetiske tomater, "cherrytomater" stay Cherrytomater, neither is Tomat. A pasta sheet is Lasagneplater, a ready-made item keeps its name (pølser, karbonader, pommes frites).
 - Preparation, form and state words go into the `note`, not the name: fersk, frisk, frosne, pillede, ristede, finhakket, revet, skylt, delt i to. A fresh herb or vegetable is its plain name (Dill, Basilikum, Koriander, Mynte); dried and ground ones are "Tørket basilikum", "Malt koriander".
 - Plain "mel" is Hvetemel. "Nøytral olje" stays Nøytral olje. Sweet pepper kinds (søtpaprika, rød paprika) are Paprika with the kind in the `note`.
@@ -88,5 +88,5 @@ The enums are exactly `Measured`, `ToTaste`, `AsNeeded` for the amount kind and 
 
 ## Changelog
 
-- v2: whole heading as title (no separate tagline), steps not split, all list lines read, count plus weight uses the weight, bare numbers are Measured, purpose rules (Seasoning only salt and pepper, toppings are Serving, frying oil is Frying), naming rules (keep printed product words, canned and cherry tomatoes, preparation words to the note, plain mel is Hvetemel).
+- v2: whole heading as title (no separate tagline), steps not split, all list lines read, count plus weight uses the weight, bare numbers are Measured, purpose rules (Seasoning only salt and pepper, toppings are Serving, frying oil is Frying), naming rules (variant-to-base still first; keep the printed word only for distinct products such as potetgnocchi, canned and cherry tomatoes, ground herbs; preparation words to the note; plain mel is Hvetemel).
 - v1: first version.
