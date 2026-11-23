@@ -14,6 +14,8 @@ import { odaEn } from "./app/i18n/oda-en";
 import { odaNb } from "./app/i18n/oda-nb";
 import { supportEn } from "./app/i18n/support-en";
 import { supportNb } from "./app/i18n/support-nb";
+import { photoEn } from "./app/i18n/photo-en";
+import { photoNb } from "./app/i18n/photo-nb";
 import { suggestEn } from "./app/i18n/suggest-en";
 import { suggestNb } from "./app/i18n/suggest-nb";
 
@@ -55,12 +57,14 @@ registerMessages("en", "suggest", suggestEn);
 registerMessages("en", "privacy", privacyEn);
 registerMessages("en", "oda", odaEn);
 registerMessages("en", "support", supportEn);
+registerMessages("en", "photo", photoEn);
 registerMessages("nb", "core", nb);
 registerMessages("nb", "account", accountNb);
 registerMessages("nb", "suggest", suggestNb);
 registerMessages("nb", "privacy", privacyNb);
 registerMessages("nb", "oda", odaNb);
 registerMessages("nb", "support", supportNb);
+registerMessages("nb", "photo", photoNb);
 registerMessages("nb", "kid", kidNb);
 
 // The project (en or nb) decides the language of the whole test run; nothing is stored on the "device".

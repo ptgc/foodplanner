@@ -192,7 +192,7 @@ export function OpenDrafts({ householdId }: { householdId: string }) {
               <div>
                 <strong>{title}</strong>
                 <p className="import-draft-meta">
-                  {item.source === "Url" ? t("import.draftFromUrl") : t("import.draftFromText")} &middot; {formatDayMonth(new Date(item.createdAt))}
+                  {t(item.source === "Url" ? "import.draftFromUrl" : item.source === "Photo" ? "import.draftFromPhoto" : "import.draftFromText")} &middot; {formatDayMonth(new Date(item.createdAt))}
                 </p>
               </div>
               <Link

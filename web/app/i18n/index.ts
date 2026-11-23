@@ -6,6 +6,7 @@ import type { odaEn } from "./oda-en";
 import type { suggestEn } from "./suggest-en";
 import type { kidEn } from "./kid-en";
 import type { supportEn } from "./support-en";
+import type { photoEn } from "./photo-en";
 
 /**
  * Tiny in-house i18n (see web/README.md "Internationalisation" for why and how to add text).
@@ -21,13 +22,13 @@ export const locales: readonly Locale[] = ["nb", "en"];
 
 type Base<K extends string> = K extends `${infer B}.${"one" | "other"}` ? B : K;
 /** Every translatable message, by key (plural messages appear once, without `.one`/`.other`). */
-export type MessageKey = Base<keyof typeof en | keyof typeof kidEn | keyof typeof accountEn | keyof typeof suggestEn | keyof typeof privacyEn | keyof typeof odaEn | keyof typeof supportEn>;
+export type MessageKey = Base<keyof typeof en | keyof typeof kidEn | keyof typeof accountEn | keyof typeof suggestEn | keyof typeof privacyEn | keyof typeof odaEn | keyof typeof supportEn | keyof typeof photoEn>;
 
 export type Params = Record<string, string | number>;
 export type Dictionary = Readonly<Record<string, string | undefined>>;
 
 /** "core": the whole grown-up app. "kid": kid mode and kid profiles, loaded with those screens only. "account": the delete-account screen (T-095). "suggest": the what-can-I-make screen (T-100). "privacy": the privacy page (T-113). "oda": the Oda product picker and choices page (T-052). "support": the system admin support pages (T-096). */
-export type MessageGroup = "core" | "kid" | "account" | "suggest" | "privacy" | "oda" | "support";
+export type MessageGroup = "core" | "kid" | "account" | "suggest" | "privacy" | "oda" | "support" | "photo";
 
 const loaders: Record<Locale, Record<MessageGroup, () => Promise<Dictionary>>> = {
   en: {
@@ -38,6 +39,7 @@ const loaders: Record<Locale, Record<MessageGroup, () => Promise<Dictionary>>> =
     privacy: () => import("./privacy-en").then((m) => m.privacyEn),
     oda: () => import("./oda-en").then((m) => m.odaEn),
     support: () => import("./support-en").then((m) => m.supportEn),
+    photo: () => import("./photo-en").then((m) => m.photoEn),
   },
   nb: {
     core: () => import("./nb").then((m) => m.nb),
@@ -47,6 +49,7 @@ const loaders: Record<Locale, Record<MessageGroup, () => Promise<Dictionary>>> =
     privacy: () => import("./privacy-nb").then((m) => m.privacyNb),
     oda: () => import("./oda-nb").then((m) => m.odaNb),
     support: () => import("./support-nb").then((m) => m.supportNb),
+    photo: () => import("./photo-nb").then((m) => m.photoNb),
   },
 };
 
@@ -59,7 +62,7 @@ const wantedGroups = new Set<MessageGroup>(["core"]);
 /** Make a loaded dictionary known. Loading does this; tests call it for every locale up front (vitest.setup.ts). */
 export function registerMessages(locale: Locale, group: MessageGroup, dictionary: Dictionary): void {
   groupDictionaries[locale][group] = dictionary;
-  merged[locale] = { ...groupDictionaries[locale].core, ...groupDictionaries[locale].kid, ...groupDictionaries[locale].account, ...groupDictionaries[locale].suggest, ...groupDictionaries[locale].privacy, ...groupDictionaries[locale].oda, ...groupDictionaries[locale].support };
+  merged[locale] = { ...groupDictionaries[locale].core, ...groupDictionaries[locale].kid, ...groupDictionaries[locale].account, ...groupDictionaries[locale].suggest, ...groupDictionaries[locale].privacy, ...groupDictionaries[locale].oda, ...groupDictionaries[locale].support, ...groupDictionaries[locale].photo };
   listeners.forEach((listener) => listener());
 }
 

@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const budgetKb = { initial: 130.5, firstLoad: 153.5, total: 269 }; // lowered in T-128 (measured 129.5 / 152.4 / 267.4: terser, SignalR as a lazy chunk); history of the raises and the reasons: README "Bundle budget"
+const budgetKb = { initial: 130.5, firstLoad: 154.5, total: 278 }; // T-119 raised first load and total a little (measured 129.7 / 153.6 / 276.7: recipe from a photo, lazy screen + messages); lowered in T-128 (measured 129.5 / 152.4 / 267.4: terser, SignalR as a lazy chunk); history of the raises and the reasons: README "Bundle budget"
 const assets = resolve(dirname(fileURLToPath(import.meta.url)), "..", "build", "client", "assets");
 
 const sizes = new Map(); // "/assets/x.js" -> gzipped bytes
