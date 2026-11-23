@@ -10,6 +10,7 @@ export default [
     route("recipes", "routes/recipes.tsx"),
     route("recipes/new", "routes/recipe-edit.tsx", { id: "recipe-new" }),
     route("recipes/import", "routes/recipe-import.tsx"),
+    route("recipes/import/photo", "routes/recipe-import-photo.tsx"),
     route("recipes/:id","routes/recipe-detail.tsx"),
     route("recipes/:id/cook", "routes/recipe-cook.tsx"),
     route("plan", "routes/plan.tsx"),

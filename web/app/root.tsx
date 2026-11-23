@@ -9,6 +9,7 @@ import "./planner/planner.css";
 import "./recipes/recipe-edit.css";
 import "./recipes/cook.css";
 import "./imports/import.css";
+import "./photo/photo.css";
 import "./household/household.css";
 import "./kid/avatar.css";
 

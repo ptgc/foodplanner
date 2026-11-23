@@ -640,6 +640,9 @@ export const en = {
   "invite.open": "Open the household",
 
   "import.entry": "Import recipe",
+  "import.photoEntry": "From photo",
+  "import.pictureNotSaved": "The recipe is saved, but its picture could not be saved. You can add a picture when you edit the recipe.",
+  "import.draftFromPhoto": "From photos",
   "import.title": "Import a recipe",
   "import.noAccess": "Only adults in the household can import recipes.",
   "import.intro": "Paste a web address or the text of a recipe. You can check and fix everything before it is saved.",

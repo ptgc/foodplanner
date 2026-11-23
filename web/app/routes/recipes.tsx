@@ -17,6 +17,7 @@ import {
 import { FOOD_TYPES, foodTypeKey } from "../recipes/food-types";
 import { ProfileAvatar } from "../kid/avatar";
 import { useProfiles } from "../kid/kid-api";
+import { usePhotoUsage } from "../photo/use-photo-usage";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
 import { RecipeImage } from "../recipes/recipe-image";
 import { canEditRecipes, useActiveRole } from "../recipes/use-catalog";
@@ -49,6 +50,9 @@ function RecipesScreen({ householdId }: { householdId: string }) {
   const { list, loadMore, retry } = useRecipeList(householdId, filters);
   const searchId = useId();
   const canEdit = canEditRecipes(useActiveRole());
+  // "From photo" is offered only when the server says the feature is on (a failed request hides it); a Child never asks.
+  const photoUsage = usePhotoUsage(householdId, canEdit);
+  const photoOn = canEdit && photoUsage.state.status === "ok" && photoUsage.state.usage.enabled;
 
   // The box shows what is typed; the URL (and the request) follow after a pause. A change that did not come from
   // typing here (back/forward, "clear filters") is copied into the box.
@@ -84,6 +88,11 @@ function RecipesScreen({ householdId }: { householdId: string }) {
             <Link to="/recipes/import" className="button button-outline" data-testid="recipe-import-link">
               {t("import.entry")}
             </Link>
+            {photoOn && (
+              <Link to="/recipes/import/photo" className="button button-outline" data-testid="recipe-photo-link">
+                {t("import.photoEntry")}
+              </Link>
+            )}
             <Link to="/recipes/new" className="button" data-testid="recipe-new-link">
               {t("recipe.new")}
             </Link>

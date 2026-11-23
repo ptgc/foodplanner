@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useI18n, type I18n } from "../i18n";
+import { lazyWithMessages } from "../i18n/lazy";
 import { ErrorText, fieldProps } from "../recipes/form-parts";
 import { emptyStep, fieldId, limits, newKey, orderedKeys, type FieldErrors, type StepRow } from "../recipes/recipe-form";
 import { StepRows } from "../recipes/step-rows";
@@ -19,7 +20,10 @@ import {
 import { attentionIndexes, lineOfKey, mapImportErrors, removalEdit } from "./import-lines";
 import { LineCard } from "./line-card";
 
-type Loaded = { status: "loading" } | { status: "error"; failure: ImportFailure } | { status: "gone" } | { status: "ok"; draft: ImportDraft };
+// The photo-only parts and their texts (message group "photo") load together, and only for a photo import (T-119).
+const PhotoReviewExtras = lazyWithMessages("photo", () => import("./photo-review"));
+
+type Loaded ={ status: "loading" } | { status: "error"; failure: ImportFailure } | { status: "gone" } | { status: "ok"; draft: ImportDraft };
 
 /** Step 2 loader: reads the draft (so a reload or "Continue" from the list works the same) and shows the review. */
 export function ImportReview({ householdId, draftId }: { householdId: string; draftId: string }) {
@@ -156,6 +160,9 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
     cookMinutes: initial.cookMinutes === null ? "" : String(initial.cookMinutes),
     steps: initial.steps.map((text) => ({ key: newKey(), text })) as StepRow[],
   }));
+  // A photo import (T-119) also has the source book and the choice of the suggested dish picture.
+  const isPhoto = initial.source === "Photo";
+  const [photo, setPhoto] = useState({ sourceName: initial.sourceName ?? "", useSuggestedImage: initial.useSuggestedImage });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -226,6 +233,19 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
     } else failWith(result.failure, t("import.editFailed"));
   };
 
+  /** The switch is saved at once, so the choice survives a reload; a failure puts the switch back. */
+  const toggleSuggested = async (use: boolean) => {
+    setPhoto((p) => ({ ...p, useSuggestedImage: use }));
+    setNotice(null);
+    setBusy(true);
+    const result = await updateImport(householdId, draftId, { useSuggestedImage: use });
+    setBusy(false);
+    if (!result.ok) {
+      setPhoto((p) => ({ ...p, useSuggestedImage: !use }));
+      setNotice(t("photo.review.switchFailed"));
+    }
+  };
+
   const save = async () => {
     if (busy || saving) return;
     setNotice(null);
@@ -241,6 +261,7 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
       prepMinutes: form.prepMinutes.trim() === "" ? null : Number(form.prepMinutes),
       cookMinutes: form.cookMinutes.trim() === "" ? null : Number(form.cookMinutes),
       steps: form.steps.map((s) => s.text.trim()),
+      ...(isPhoto ? { sourceName: photo.sourceName.trim(), useSuggestedImage: photo.useSuggestedImage } : {}),
     });
     if (!put.ok) {
       setSaving(false);
@@ -252,7 +273,7 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
     takeAnswer(put.value);
     const saved = await saveImport(householdId, draftId);
     if (saved.ok) {
-      void navigate(`/recipes/${saved.value.recipeId}`);
+      void navigate(`/recipes/${saved.value.recipeId}`, saved.value.pictureSaved === false ? { state: { pictureNotSaved: true } } : undefined);
       return;
     }
     setSaving(false);
@@ -283,7 +304,20 @@ function ReviewForm({ householdId, initial }: { householdId: string; initial: Im
   return (
     <div className="import-review">
       <p>{t("import.reviewIntro")}</p>
-      <AiNote status={initial.aiAssist} />
+      {isPhoto ? (
+        <Suspense fallback={null}>
+          <PhotoReviewExtras
+            sourceName={photo.sourceName}
+            onSourceName={(sourceName) => setPhoto((p) => ({ ...p, sourceName }))}
+            pictureUrl={initial.suggestedImage?.url ?? null}
+            useSuggestedImage={photo.useSuggestedImage}
+            onUseSuggestedImage={(use) => void toggleSuggested(use)}
+            busy={busy || saving}
+          />
+        </Suspense>
+      ) : (
+        <AiNote status={initial.aiAssist} />
+      )}
       {initial.warnings.length > 0 && <p className="import-notes">{t("import.notes", { count: initial.warnings.length })}</p>}
 
       {(keys.length > 0 || notice) && (

@@ -639,6 +639,9 @@ export const nb: Dictionary = {
   "invite.open": "Åpne husstanden",
 
   "import.entry": "Importer oppskrift",
+  "import.photoEntry": "Fra bilde",
+  "import.pictureNotSaved": "Oppskriften er lagret, men bildet kunne ikke lagres. Du kan legge til et bilde når du redigerer oppskriften.",
+  "import.draftFromPhoto": "Fra bilder",
   "import.title": "Importer en oppskrift",
   "import.noAccess": "Bare voksne i husstanden kan importere oppskrifter.",
   "import.intro": "Lim inn en nettadresse eller teksten til en oppskrift. Du kan sjekke og rette alt før den lagres.",

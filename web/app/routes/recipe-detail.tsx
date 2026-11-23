@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { useI18n } from "../i18n";
 import { problemKey } from "../i18n/problems";
 import { isOffline, OfflineNotice } from "../pwa/offline-notice";
@@ -68,6 +68,7 @@ function RecipeArticle({
   canEdit: boolean;
 }) {
   const { t, formatNumber } = useI18n();
+  const location = useLocation();
   const base = Number(recipe.servings);
   const [servings, setServings] = useState(base);
   const scaled = useScaledIngredients(householdId, recipe, servings);
@@ -102,6 +103,11 @@ function RecipeArticle({
         sizes="(min-width: 40rem) 40rem, 100vw"
       />
       <h1 id="recipe-title">{recipe.title}</h1>
+      {(location.state as { pictureNotSaved?: boolean } | null)?.pictureNotSaved === true && (
+        <p role="status" className="import-problem" data-testid="picture-not-saved">
+          {t("import.pictureNotSaved")}
+        </p>
+      )}
       {total !== null && (
         <dl className="recipe-times" aria-label={t("recipe.times")}>
           {prep !== null && cook !== null && (
