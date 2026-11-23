@@ -468,7 +468,7 @@ dotnet user-secrets set AiImport:ApiKey "<your Anthropic key>" --project src/Api
 .\scripts\local-up.ps1
 ```
 
-The same secrets also apply to the API on the host (section 5). Turn it off again with `--claude-off` / `-ClaudeOff` (then `local-up`). Test environment: a Key Vault
+The key is visible to `docker inspect` on the local api container (it is an environment variable); that is acceptable for a local-only stack, so use a key you can revoke. The same secrets also apply to the API on the host (section 5). Turn it off again with `--claude-off` / `-ClaudeOff` (then `local-up`). Test environment: a Key Vault
 secret reference for `AiImport__ApiKey` plus the app setting `AiImport__Enabled=true`, set up by the architect; prod stays
 off until decided. `verify.sh` and e2e never call the real API (tests use a fake client). Details: docs/domain.md, "AI-assisted
 import fallback". The UI must show the privacy text (unresolved import lines may be sent to Anthropic) before the review round ships.
