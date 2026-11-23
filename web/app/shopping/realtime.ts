@@ -1,4 +1,3 @@
-import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import type { ShoppingList } from "./storage";
 
 /**
@@ -26,12 +25,35 @@ export type HubLike = {
   invoke<T>(method: string, ...args: unknown[]): Promise<T>;
 };
 
+/**
+ * The real connection, with SignalR loaded on the first `start()` (T-128): the library is a lazy chunk, so it is not in
+ * the first load of /shopping. Handlers registered before `start()` are attached once it is loaded; `invoke` before a
+ * successful start rejects like a disconnected SignalR connection does.
+ */
 export function defaultHubFactory(): HubLike {
-  return new HubConnectionBuilder()
-    .withUrl(HUB_PATH)
-    .withAutomaticReconnect()
-    .configureLogging(LogLevel.None)
-    .build() as unknown as HubLike;
+  let hub: HubLike | undefined;
+  const pending: Array<(h: HubLike) => void> = [];
+  const register = (apply: (h: HubLike) => void) => {
+    if (hub) apply(hub);
+    else pending.push(apply);
+  };
+  return {
+    on: (method, callback) => register((h) => h.on(method, callback)),
+    onreconnecting: (callback) => register((h) => h.onreconnecting(callback)),
+    onreconnected: (callback) => register((h) => h.onreconnected(callback)),
+    onclose: (callback) => register((h) => h.onclose(callback)),
+    async start() {
+      if (!hub) {
+        const { buildHubConnection } = await import("./signalr-hub");
+        const built = (hub ??= buildHubConnection(HUB_PATH));
+        pending.splice(0).forEach((apply) => apply(built));
+      }
+      await hub.start();
+    },
+    stop: () => (hub ? hub.stop() : Promise.resolve()),
+    invoke: <T,>(method: string, ...args: unknown[]) =>
+      hub ? hub.invoke<T>(method, ...args) : Promise.reject(new Error("The hub connection is not started.")),
+  };
 }
 
 export type RealtimeHandlers = {

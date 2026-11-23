@@ -8,6 +8,7 @@
 //               Kid mode (screens, messages, kid.css) and the other language load only when used (T-106).
 //   first load  the initial JS plus the chunks of one route (and its parent layouts); reported per route, the budget
 //               applies to the heaviest route. This is what a cold visit to that URL downloads.
+//   (The SignalR client, 14.5 KB, is a lazy chunk loaded after /shopping has drawn from REST (T-128): it is not in any first load above, but it is in the total.)
 //   total       every chunk. The service worker precaches all of them in the background (T-041), so this is the
 //               one-time cost of "works offline", not of the first paint.
 import { readdirSync, readFileSync } from "node:fs";
@@ -15,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const budgetKb = { initial: 135, firstLoad: 159, total: 272 }; // total raised 262 -> 272 for T-096 (the system admin support pages and their nb+en texts as lazy chunks and a lazy "support" message group, measured 270.0, nothing of it in the initial load), raised 257 -> 262 for T-052 (preferred Oda product picker, choices page and their nb+en texts as a lazy "oda" message group, measured 260.5; the group split saved 0.4 KB initial and 0.3 KB first load but costs 1.4 KB more in total than texts in core), raised 234 -> 250 for T-095 (Q-031), 250 -> 260 for T-054 (Oda screens and texts in nb and en), lowered 260 -> 257 in T-116 (measured 251.0 + 3.7 for the T-113 privacy page + headroom)
+const budgetKb = { initial: 130.5, firstLoad: 153.5, total: 269 }; // lowered in T-128 (measured 129.5 / 152.4 / 267.4: terser, SignalR as a lazy chunk); history of the raises and the reasons: README "Bundle budget"
 const assets = resolve(dirname(fileURLToPath(import.meta.url)), "..", "build", "client", "assets");
 
 const sizes = new Map(); // "/assets/x.js" -> gzipped bytes
