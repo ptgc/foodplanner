@@ -68,9 +68,20 @@ public class AiImportConfigRulesTests
         foreach (var file in candidates)
         {
             var text = File.ReadAllText(file);
-            Assert.DoesNotContain("AiImport__ApiKey", text, StringComparison.OrdinalIgnoreCase);
+            // T-133: the compose file may only pass the key through from the environment (${AI_IMPORT_API_KEY:-}), never hold a value.
+            Assert.DoesNotMatch(ApiKeyWithLiteralValue, text);
             Assert.DoesNotMatch(@"AiImport__Enabled\s*[:=]\s*[""']?true", text);
         }
+    }
+
+    private const string ApiKeyWithLiteralValue = @"AiImport__ApiKey[ \t]*[:=][ \t]*(?!""?\$\{)\S";
+
+    [Fact]
+    public void The_compose_key_rule_allows_a_pass_through_but_not_a_literal()
+    {
+        Assert.DoesNotMatch(ApiKeyWithLiteralValue, "      AiImport__ApiKey: ${AI_IMPORT_API_KEY:-}\n");
+        Assert.Matches(ApiKeyWithLiteralValue, "      AiImport__ApiKey: sk-ant-abc\n");
+        Assert.Matches(ApiKeyWithLiteralValue, "      - AiImport__ApiKey=sk-ant-abc\n");
     }
 
     [Fact]

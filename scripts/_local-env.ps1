@@ -17,8 +17,15 @@ function Invoke-Compose {
     # T-096: the local system admin allow-list (a user secret copied from Seed:AdminEmail) reaches the api container the same way.
     $supportAdmin = Get-Secret 'Support:SystemAdminEmails:0'
     if ($supportAdmin) { $env:SUPPORT_ADMIN_EMAIL = $supportAdmin }
+    # T-133: the Claude key and the on/off switches (user secrets, default off) reach it the same way. The key is never printed.
+    $aiVars = @{ AI_IMPORT_API_KEY = 'AiImport:ApiKey'; AI_IMPORT_ENABLED = 'AiImport:Enabled'; AI_PHOTO_IMPORT_ENABLED = 'AiPhotoImport:Enabled' }
+    foreach ($name in $aiVars.Keys) {
+        $value = Get-Secret $aiVars[$name]
+        if ($value) { Set-Item -Path "Env:\$name" -Value $value }
+    }
     try { docker compose @args }
     finally {
+        foreach ($name in $aiVars.Keys) { Remove-Item "Env:\$name" -ErrorAction SilentlyContinue }
         Remove-Item Env:\MSSQL_SA_PASSWORD -ErrorAction SilentlyContinue
         Remove-Item Env:\SUPPORT_ADMIN_EMAIL -ErrorAction SilentlyContinue
     }

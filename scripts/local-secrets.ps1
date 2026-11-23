@@ -2,8 +2,24 @@
 #   Sql:SaPassword             used by local-up/down/reset
 #   ConnectionStrings:Default  used by the API when it runs on the host (F5 / dotnet run)
 # Skips keys that are already set. Never prints the password.
+# Claude (T-133): .\scripts\local-secrets.ps1 -ClaudeOn | -ClaudeOff sets AiImport:Enabled and AiPhotoImport:Enabled in user secrets
+# (default: not set = off). The key itself is never generated or printed: set it with dotnet user-secrets set AiImport:ApiKey.
+param([switch]$ClaudeOn, [switch]$ClaudeOff)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '_local-env.ps1')
+
+if ($ClaudeOn -or $ClaudeOff) {
+    $flag = if ($ClaudeOn -and -not $ClaudeOff) { 'true' } else { 'false' }
+    dotnet user-secrets set AiImport:Enabled $flag --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    dotnet user-secrets set AiPhotoImport:Enabled $flag --project src/Api | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'dotnet user-secrets set failed' }
+    Write-Host "Set AiImport:Enabled and AiPhotoImport:Enabled to $flag."
+    if ($flag -eq 'true' -and -not (Get-Secret 'AiImport:ApiKey')) {
+        Write-Host 'No AiImport:ApiKey user secret yet, so it stays off. Set it: dotnet user-secrets set AiImport:ApiKey "<your key>" --project src/Api'
+    }
+    return
+}
 
 function New-SqlPassword {
     # 24 alphanumerics with at least one upper, lower and digit, plus one '-' (SQL Server policy,

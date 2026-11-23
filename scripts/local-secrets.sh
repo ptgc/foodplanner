@@ -4,8 +4,23 @@
 #   ConnectionStrings:Blobs    UseDevelopmentStorage=true (Azurite, recipe images)
 #   ConnectionStrings:Default  used by the API when it runs on the host (F5 / dotnet run). Uses 127.0.0.1 not localhost: see README troubleshooting
 # Skips keys that are already set. Never prints the password.
+# Claude (T-133): ./scripts/local-secrets.sh --claude-on | --claude-off sets AiImport:Enabled and AiPhotoImport:Enabled in user secrets
+# (default: not set = off). The key itself is never generated or printed: set it with dotnet user-secrets set AiImport:ApiKey.
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_local-env.sh"
+
+case "${1:-}" in
+  --claude-on|--claude-off)
+    flag=true; [ "$1" = "--claude-off" ] && flag=false
+    dotnet user-secrets set AiImport:Enabled "$flag" --project src/Api >/dev/null
+    dotnet user-secrets set AiPhotoImport:Enabled "$flag" --project src/Api >/dev/null
+    echo "Set AiImport:Enabled and AiPhotoImport:Enabled to $flag."
+    if [ "$flag" = true ] && [ -z "$(secret AiImport:ApiKey)" ]; then
+      echo "No AiImport:ApiKey user secret yet, so it stays off. Set it: dotnet user-secrets set AiImport:ApiKey \"<your key>\" --project src/Api"
+    fi
+    exit 0
+    ;;
+esac
 
 existing="$(dotnet user-secrets list --project src/Api)"
 has() { printf '%s\n' "$existing" | grep -q "^$1 = "; }
