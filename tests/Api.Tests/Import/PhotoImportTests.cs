@@ -555,7 +555,7 @@ public sealed class PhotoImportTests(AuthDatabase db) : IClassFixture<AuthDataba
         async Task<object?> Col(string column) =>
             await HouseholdScenario.ScalarAsync(db.ConnectionString, $"SELECT {column} FROM AiCallLogs WHERE HouseholdId = @h", ("@h", household));
         Assert.Equal("PhotoImport", await Col("Kind"));
-        Assert.Equal("claude-opus-5-5", await Col("Model"));
+        Assert.Equal("claude-sonnet-5-5", await Col("Model"));
         Assert.Equal("medium", await Col("Effort"));
         Assert.Equal(RecipePhotoSkill.Version, await Col("SkillVersion"));
         Assert.Equal(3, await Col("PhotoCount"));

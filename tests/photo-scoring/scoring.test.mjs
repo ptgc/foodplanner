@@ -60,7 +60,7 @@ test("--dry-run scores the stored answers, prints the per-field table and exits 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /title\s+servings\s+cook\s+description\s+source\s+recall\s+precision/);
   assert.match(result.stdout, /overall mean: 100%/);
-  assert.match(result.stdout, /estimated cost \$0\.040/); // 5000 in at $4 + 1000 out at $20 per MTok
+  assert.match(result.stdout, /estimated cost \$0\.020/); // 5000 in at $2 + 1000 out at $10 per MTok (the default model is Sonnet 5.5)
   assert.ok(existsSync(join(dir, "reports")));
 });
 
@@ -122,4 +122,14 @@ test("helpers: folding, overlap, iou and the default quantity kind", () => {
   assert.ok(iou({ x: 0, y: 0, w: 1, h: 1 }, { x: 0, y: 0, w: 0.5, h: 1 }) === 0.5);
   assert.equal(expectedLine(["Salt", null, null, null, {}]).amountKind, "ToTaste");
   assert.equal(expectedLine(["Torsk", 150, "g"]).amountKind, "Measured");
+});
+
+test("scoring: a null expected cook or servings is not scored, and a printed range accepts any value inside it", () => {
+  const recipe = { n: 1, title: "T", servings: null, cook: null, tip: null, steps: [], lines: [["Hvitløk", 3, "fedd"], ["Reker", 200, "g"], ["Ost", 300, "g"]] };
+  const line = (ingredient, quantity, quantityLow, unit) => ({ ingredient, quantity, quantityLow, unit, amountKind: "Measured", purpose: "Main", isOptional: false });
+  const scored = scoreRecipe(recipe, { title: "T", cookMinutes: 30, servings: 4, steps: [], ingredients: [line("Hvitløk", 4, 2, "fedd"), line("Reke", 200, null, "g"), line("Ost", 400, 350, "g")] }, "x", {});
+  assert.equal(scored.cook, null);
+  assert.equal(scored.servings, null);
+  assert.equal(scored.recall, 1); // "reke" and "reker" are the same word
+  assert.ok(Math.abs(scored.quantity - 2 / 3) < 1e-9); // 3 is inside 2-4; 300 is outside 350-400
 });

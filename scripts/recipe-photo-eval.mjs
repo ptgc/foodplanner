@@ -1,15 +1,16 @@
 // Scores the "recipe from a photo" skill (T-118) on a local example set. NOT part of verify.sh or CI: it calls the real Anthropic API
 // and spends money, so it only runs by hand with a key in the environment.
 //
-//   ANTHROPIC_API_KEY=... node scripts/recipe-photo-eval.mjs --book kaptein-sabeltann --model claude-opus-5-5 [--effort medium] [--only 1,5] [--dry-run]
+//   ANTHROPIC_API_KEY=... node scripts/recipe-photo-eval.mjs --book kaptein-sabeltann --model claude-sonnet-5-5 [--effort medium] [--only 1,5] [--dry-run]
 //
 // Options
 //   --book <name>        folder under <dir>/recipe-photos (required)
-//   --model <id>         default claude-opus-5-5          --effort <low|medium|high>   default medium
+//   --model <id>         default claude-sonnet-5-5          --effort <low|medium|high>   default medium
 //   --only 1,5           only these recipe numbers        --max-tokens <n>             default 12000
 //   --dry-run            no network: load the set, build the requests (sizes only) and score a stored answers file
 //   --answers <file>     stored answers for --dry-run (default <dir>/recipe-photos/<book>/answers.json; written by every real run)
 //   --dir <path>         the eval-private folder (default <repo>/eval-private; it is gitignored: copyrighted pages)
+//   --skill-file <path>  score another skill text (for example an older version from git) instead of Skills/recipe-from-photo.md
 //   --report-dir <path>  where the JSON report goes (default <dir>/reports)      --no-report   do not write the report
 //
 // It refuses to run when CI is set, when --book has no folder, or (without --dry-run) when ANTHROPIC_API_KEY is not in the
@@ -20,6 +21,9 @@
 //   export const source = "Book title (publisher)";
 //   export const recipes = [{ n, title, servings, cook, tags, tip, lines: [[ingredient, quantity|null, unit|null, note|null, opts]], steps, picture?, crop? }]
 //   export const canonical = { "småpoteter": "Potet" }   // optional: ingredient names normalised before comparing
+//   export const bookName = "Book title"                  // optional: the name the user would type (default: the part of `source` before "(")
+// A null `cook` or `servings` means "the book prints none": that field is not scored (null score, left out of the means).
+// Quantity: a printed range is answered as quantityLow..quantity, so an expected value anywhere inside that range counts as right.
 // opts: k = "AsNeeded" | "ToTaste" (default Measured when a quantity is given, else ToTaste), p = purpose (default Main), o = optional.
 // picture = { photo, box: {x, y, w, h} } or crop = [x0, y0, x1, y1, rotation] (on the EXIF-oriented photo) is scored as IoU >= 0.6.
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
@@ -46,7 +50,7 @@ function fail(message) {
 }
 
 export function parseArgs(argv) {
-  const args = { model: "claude-opus-5-5", effort: "medium", maxTokens: 12000, dryRun: false, report: true };
+  const args = { model: "claude-sonnet-5-5", effort: "medium", maxTokens: 12000, dryRun: false, report: true };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i] ?? fail(`${a} needs a value`);
@@ -60,6 +64,7 @@ export function parseArgs(argv) {
       case "--answers": args.answers = next(); break;
       case "--dir": args.dir = next(); break;
       case "--report-dir": args.reportDir = next(); break;
+      case "--skill-file": args.skillFile = next(); break;
       case "--no-report": args.report = false; break;
       default: fail(`unknown option ${a}`);
     }
@@ -80,6 +85,7 @@ export function fold(text) {
 function stem(word) {
   if (word.length > 5 && word.endsWith("ene")) return word.slice(0, -3);
   if (word.length > 4 && (word.endsWith("er") || word.endsWith("en") || word.endsWith("et"))) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith("e")) return word.slice(0, -1);
   if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
   return word;
 }
@@ -126,7 +132,7 @@ export const FIELDS = ["title", "servings", "cook", "description", "source", "re
 /** Scores one answer against one expected recipe. Every score is 0..1 or null (not applicable); `note` and `pictureFound` are only reported. */
 export function scoreRecipe(expected, answer, source, canonical) {
   const lines = (answer.ingredients ?? []).map((i) => ({
-    ingredient: i.ingredient, quantity: i.quantity ?? null, unit: i.unit ?? null, note: i.note ?? null,
+    ingredient: i.ingredient, quantity: i.quantity ?? null, quantityLow: i.quantityLow ?? null, unit: i.unit ?? null, note: i.note ?? null,
     amountKind: i.amountKind, purpose: i.purpose, optional: i.isOptional === true,
   }));
   const wanted = expected.lines.map(expectedLine);
@@ -155,13 +161,14 @@ export function scoreRecipe(expected, answer, source, canonical) {
 
   return {
     title: fold(answer.title) === fold(expected.title) ? 1 : 0,
-    servings: (answer.servings ?? null) === (expected.servings ?? null) ? 1 : 0,
-    cook: (answer.cookMinutes ?? null) === (expected.cook ?? null) ? 1 : 0,
+    servings: expected.servings == null ? null : (answer.servings ?? null) === expected.servings ? 1 : 0,
+    cook: expected.cook == null ? null : (answer.cookMinutes ?? null) === expected.cook ? 1 : 0,
     description: expected.tip ? (overlap(expected.tip, answer.description ?? "") >= 0.8 ? 1 : 0) : (answer.description ? 0 : 1),
     source: bookTitle && fold(answer.sourceBook ?? "").includes(bookTitle) ? 1 : 0,
     recall: wanted.length === 0 ? 1 : pairs.length / wanted.length,
     precision: lines.length === 0 ? (wanted.length === 0 ? 1 : 0) : pairs.length / lines.length,
-    quantity: share((w, a) => (w.quantity == null ? a.quantity == null : a.quantity != null && Math.abs(a.quantity - w.quantity) <= 0.0001)),
+    quantity: share((w, a) => (w.quantity == null ? a.quantity == null : a.quantity != null && (Math.abs(a.quantity - w.quantity) <= 0.0001
+      || (a.quantityLow != null && w.quantity >= a.quantityLow - 0.0001 && w.quantity <= a.quantity + 0.0001)))),
     unit: share((w, a) => w.unit === a.unit),
     amountKind: share((w, a) => w.amountKind === a.amountKind),
     purpose: share((w, a) => w.purpose === a.purpose),
@@ -198,8 +205,8 @@ export function formatTable(rows) {
 
 // ---- loading the set and building the request ----------------------------------------------------------------------------
 
-function loadSkill() {
-  const text = readFileSync(join(skillDir, "recipe-from-photo.md"), "utf8").replace(/\r\n/g, "\n");
+function loadSkill(file) {
+  const text = readFileSync(file ?? join(skillDir, "recipe-from-photo.md"), "utf8").replace(/\r\n/g, "\n");
   const version = Number(/^Version:\s*(\d+)/.exec(text)?.[1]);
   if (!Number.isInteger(version)) fail("the skill file must start with 'Version: N'");
   const schema = JSON.parse(readFileSync(join(skillDir, "recipe-from-photo.schema.json"), "utf8"));
@@ -268,7 +275,7 @@ export async function main(argv, env = process.env) {
 
   const expectedModule = await import(pathToFileURL(join(folder, "expected.mjs")).href);
   const canonical = Object.fromEntries(Object.entries({ ...DEFAULT_CANONICAL, ...(expectedModule.canonical ?? {}) }).map(([k, v]) => [fold(k), v]));
-  const skill = loadSkill();
+  const skill = loadSkill(args.skillFile ? resolve(args.skillFile) : null);
   const units = unitCodes();
   const recipes = expectedModule.recipes.filter((r) => !args.only || args.only.includes(r.n));
   if (recipes.length === 0) fail("no recipe selected.");
@@ -284,7 +291,8 @@ export async function main(argv, env = process.env) {
     const files = photosOf(folder, recipe.n);
     if (files.length === 0) { console.warn(`recipe ${recipe.n}: no photo found, skipped`); continue; }
     const photos = files.map((f) => ({ mediaType: mediaType(f), data: readFileSync(join(folder, f)).toString("base64") }));
-    const body = buildRequest({ model: args.model, effort: args.effort, maxTokens: args.maxTokens, skill, units, photos, bookName: null });
+    const bookName = expectedModule.bookName ?? String(expectedModule.source).split("(")[0].trim();
+    const body = buildRequest({ model: args.model, effort: args.effort, maxTokens: args.maxTokens, skill, units, photos, bookName });
     let result;
     if (args.dryRun) {
       result = stored[recipe.n] ?? { error: "no stored answer" };

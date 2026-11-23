@@ -15,7 +15,7 @@ public sealed class AiPhotoImportOptions
     public bool Enabled { get; set; }
 
     /// <summary>The model id; config, so the eval result can change it without code.</summary>
-    public string Model { get; set; } = "claude-opus-5-5";
+    public string Model { get; set; } = "claude-sonnet-5-5";
 
     /// <summary>The value of <c>output_config.effort</c> (low, medium, high, ...). Thinking cannot be switched off, depth is the effort.</summary>
     public string Effort { get; set; } = "medium";
