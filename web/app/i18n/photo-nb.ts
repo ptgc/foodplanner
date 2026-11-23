@@ -17,8 +17,6 @@ export const photoNb: Record<keyof typeof photoEn, string> = {
   "photo.picker.group": "Bilder av oppskriften",
   "photo.picker.camera": "Ta bilde",
   "photo.picker.files": "Velg bilder",
-  "photo.picker.cameraInput": "Ta et bilde med kameraet",
-  "photo.picker.filesInput": "Velg bilder fra enheten",
   "photo.picker.heading": "Bilder ({n} av {max})",
   "photo.picker.empty": "Ingen bilder ennå. Legg til 1 til {max} bilder av én oppskrift, for eksempel ett per side.",
   "photo.picker.thumbAlt": "Bilde {n}: {name}",

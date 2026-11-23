@@ -72,7 +72,7 @@ export function PhotoPicker({ photos, onChange, max, disabled = false }: Props) 
           capture="environment"
           className="visually-hidden"
           tabIndex={-1}
-          aria-label={t("photo.picker.cameraInput")}
+          aria-hidden="true"
           data-testid="photo-camera-input"
           disabled={disabled || full}
           onChange={add}
@@ -84,7 +84,7 @@ export function PhotoPicker({ photos, onChange, max, disabled = false }: Props) 
           multiple
           className="visually-hidden"
           tabIndex={-1}
-          aria-label={t("photo.picker.filesInput")}
+          aria-hidden="true"
           data-testid="photo-files-input"
           disabled={disabled || full}
           onChange={add}

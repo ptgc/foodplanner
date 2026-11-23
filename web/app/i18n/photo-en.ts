@@ -15,8 +15,6 @@ export const photoEn = {
   "photo.picker.group": "Photos of the recipe",
   "photo.picker.camera": "Take a photo",
   "photo.picker.files": "Choose photos",
-  "photo.picker.cameraInput": "Take a photo with the camera",
-  "photo.picker.filesInput": "Choose photos from your device",
   "photo.picker.heading": "Photos ({n} of {max})",
   "photo.picker.empty": "No photos yet. Add 1 to {max} photos of one recipe, for example one per page.",
   "photo.picker.thumbAlt": "Photo {n}: {name}",
