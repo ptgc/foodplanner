@@ -59,29 +59,47 @@ public class AiImportConfigRulesTests
     }
 
     [Fact]
-    public void Compose_and_workflows_do_not_enable_the_ai_fallback_or_carry_a_key()
+    public void Compose_passes_the_key_through_and_workflows_never_mention_it_and_neither_enables_the_fallback()
     {
         var root = SourceScanner.SolutionRoot();
-        var candidates = Directory.EnumerateFiles(root, "*.*", SearchOption.TopDirectoryOnly)
-            .Where(f => Path.GetFileName(f).StartsWith("docker-compose", StringComparison.Ordinal))
-            .Concat(Directory.Exists(Path.Combine(root, ".github")) ? Directory.EnumerateFiles(Path.Combine(root, ".github"), "*.yml", SearchOption.AllDirectories) : []);
-        foreach (var file in candidates)
+        var composeFiles = Directory.EnumerateFiles(root, "*.*", SearchOption.TopDirectoryOnly)
+            .Where(f => Path.GetFileName(f).StartsWith("docker-compose", StringComparison.Ordinal)).ToList();
+        var workflowFiles = Directory.Exists(Path.Combine(root, ".github"))
+            ? Directory.EnumerateFiles(Path.Combine(root, ".github"), "*.yml", SearchOption.AllDirectories).ToList()
+            : [];
+        Assert.NotEmpty(composeFiles);
+
+        foreach (var file in composeFiles)
         {
             var text = File.ReadAllText(file);
-            // T-133: the compose file may only pass the key through from the environment (${AI_IMPORT_API_KEY:-}), never hold a value.
-            Assert.DoesNotMatch(ApiKeyWithLiteralValue, text);
+            // T-133: compose may only pass the key through from the environment (${NAME} or ${NAME:-}), never hold a value or default.
+            Assert.Empty(ComposeKeyViolations(text));
+            Assert.DoesNotMatch(@"AiImport__Enabled\s*[:=]\s*[""']?true", text);
+        }
+
+        foreach (var file in workflowFiles)
+        {
+            var text = File.ReadAllText(file);
+            Assert.DoesNotContain("AiImport__ApiKey", text, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotMatch(@"AiImport__Enabled\s*[:=]\s*[""']?true", text);
         }
     }
 
-    private const string ApiKeyWithLiteralValue = @"AiImport__ApiKey[ \t]*[:=][ \t]*(?!""?\$\{)\S";
+    private static List<string> ComposeKeyViolations(string text) =>
+        [.. text.Split('\n')
+            .Where(l => l.Contains("AiImport__ApiKey", StringComparison.OrdinalIgnoreCase) && !l.TrimStart().StartsWith('#'))
+            .Where(l => !System.Text.RegularExpressions.Regex.IsMatch(l, @"^\s*AiImport__ApiKey:\s*""?\$\{[A-Za-z_][A-Za-z0-9_]*(:-)?\}""?\s*$"))];
 
     [Fact]
-    public void The_compose_key_rule_allows_a_pass_through_but_not_a_literal()
+    public void The_compose_key_rule_allows_a_bare_pass_through_but_not_a_literal_or_default()
     {
-        Assert.DoesNotMatch(ApiKeyWithLiteralValue, "      AiImport__ApiKey: ${AI_IMPORT_API_KEY:-}\n");
-        Assert.Matches(ApiKeyWithLiteralValue, "      AiImport__ApiKey: sk-ant-abc\n");
-        Assert.Matches(ApiKeyWithLiteralValue, "      - AiImport__ApiKey=sk-ant-abc\n");
+        Assert.Empty(ComposeKeyViolations("      AiImport__ApiKey: ${AI_IMPORT_API_KEY:-}\n"));
+        Assert.Empty(ComposeKeyViolations("      AiImport__ApiKey: ${AI_IMPORT_API_KEY}\n"));
+        Assert.NotEmpty(ComposeKeyViolations("      AiImport__ApiKey: sk-ant-abc\n"));
+        Assert.NotEmpty(ComposeKeyViolations("      - AiImport__ApiKey=sk-ant-abc\n"));
+        Assert.NotEmpty(ComposeKeyViolations("      AiImport__ApiKey: ${X:-sk-ant-literal}\n"));
+        Assert.NotEmpty(ComposeKeyViolations("      AiImport__ApiKey: ${X}sk-ant-literal\n"));
+        Assert.NotEmpty(ComposeKeyViolations("      AiImport__ApiKey: ${{ secrets.X }}\n"));
     }
 
     [Fact]
