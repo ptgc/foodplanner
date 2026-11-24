@@ -5,16 +5,24 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Foodplanner.Domain.ShoppingLists.Cart;
+using Foodplanner.Domain.ShoppingLists.Sync;
 using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Infrastructure.Oda;
 
+/// <summary>What a session is opened for: the cart fill needs all three tools, the sync (T-130) only <c>product_search</c> (and <c>likely_to_buy</c> when offered).</summary>
+public enum OdaSessionPurpose
+{
+    Cart,
+    Sync,
+}
+
 /// <summary>Opens <see cref="OdaMcpSession"/>s. Holds no state of its own.</summary>
 public sealed class OdaMcpSessionFactory(OdaHttp http, IOptions<OdaOptions> options)
 {
-    public async Task<OdaMcpSession> OpenAsync(OdaSecret accessToken, CancellationToken cancellationToken)
+    public async Task<OdaMcpSession> OpenAsync(OdaSecret accessToken, CancellationToken cancellationToken, OdaSessionPurpose purpose = OdaSessionPurpose.Cart)
     {
-        var session = new OdaMcpSession(http, options.Value, accessToken);
+        var session = new OdaMcpSession(http, options.Value, accessToken, purpose);
         await session.InitializeAsync(cancellationToken);
         return session;
     }
@@ -34,6 +42,7 @@ public sealed class OdaMcpSession : ICartProviderSession
     private readonly OdaOptions _options;
     private readonly OdaSecret _token;
     private readonly Uri _mcp;
+    private readonly OdaSessionPurpose _purpose;
     private string? _sessionId;
     private int _nextId;
     private bool _searchHasSize;
@@ -43,8 +52,9 @@ public sealed class OdaMcpSession : ICartProviderSession
     private bool _hasLikelyToBuy;
     private bool _likelyToBuyHasIntent;
 
-    internal OdaMcpSession(OdaHttp http, OdaOptions options, OdaSecret token)
+    internal OdaMcpSession(OdaHttp http, OdaOptions options, OdaSecret token, OdaSessionPurpose purpose = OdaSessionPurpose.Cart)
     {
+        _purpose = purpose;
         _http = http;
         _options = options;
         _token = token;
@@ -92,12 +102,17 @@ public sealed class OdaMcpSession : ICartProviderSession
         }
 
         var search = Properties(tools, "product_search", "queries");
-        var cart = Properties(tools, "manipulate_cart", "operations");
-        var get = Properties(tools, "get_cart");
         _searchHasSize = search.ContainsKey("size");
         _searchHasIntent = search.ContainsKey("intent");
-        _cartHasIntent = cart.ContainsKey("intent");
-        _getCartHasIntent = get.ContainsKey("intent");
+
+        // The sync (T-130) never touches the cart, so it does not require the cart tools.
+        if (_purpose == OdaSessionPurpose.Cart)
+        {
+            var cart = Properties(tools, "manipulate_cart", "operations");
+            var get = Properties(tools, "get_cart");
+            _cartHasIntent = cart.ContainsKey("intent");
+            _getCartHasIntent = get.ContainsKey("intent");
+        }
 
         // Optional (T-114): without it the fill uses the first available hits and says so.
         _hasLikelyToBuy = tools.TryGetValue("likely_to_buy", out var likely);
@@ -132,7 +147,9 @@ public sealed class OdaMcpSession : ICartProviderSession
 
         if (_searchHasIntent)
         {
-            arguments["intent"] = "adds this week's shopping list items to the cart";
+            arguments["intent"] = _purpose == OdaSessionPurpose.Sync
+                ? "finds the products for the ingredients of the household's recipes, to remember as preferred products"
+                : "adds this week's shopping list items to the cart";
         }
 
         var result = await CallToolAsync("product_search", arguments, cancellationToken);
@@ -224,7 +241,9 @@ public sealed class OdaMcpSession : ICartProviderSession
         var arguments = new JsonObject();
         if (_likelyToBuyHasIntent)
         {
-            arguments["intent"] = "prefers the products the household usually buys when adding the shopping list";
+            arguments["intent"] = _purpose == OdaSessionPurpose.Sync
+                ? "suggests the products the household usually buys as its preferred products"
+                : "prefers the products the household usually buys when adding the shopping list";
         }
 
         var result = await CallToolAsync("likely_to_buy", arguments, cancellationToken);
@@ -397,7 +416,7 @@ public sealed class OdaMcpSession : ICartProviderSession
     {
         if (response.Status == HttpStatusCode.TooManyRequests)
         {
-            throw new ProviderUnavailableException("Oda's usage limit was reached.");
+            throw new ProviderLimitException("Oda's usage limit was reached.");
         }
 
         if (response.Status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)

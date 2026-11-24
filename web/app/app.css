@@ -565,3 +565,20 @@ body {
 .oda-alternative { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.75rem; width: 100%; min-height: var(--touch); box-sizing: border-box; padding: 0.25rem 0; border-bottom: 1px solid currentColor; }
 .oda-alternative-name { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
 .oda-alternative-mark { font-size: 0.8125rem; }
+
+/* T-130: Sync with Oda. One column at 390px; every row, option and button is at least 44px tall; long names wrap. */
+.oda-sync-check { display: flex; align-items: center; gap: 0.75rem; min-height: var(--touch); margin-bottom: 0.25rem; }
+.oda-sync-check input,
+.oda-sync-label input,
+.oda-sync-option-label input { flex: none; width: 1.5rem; height: 1.5rem; margin: 0; }
+.oda-sync-section { margin: 0 0 1rem; }
+.oda-sync-list { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.oda-sync-row { padding: 0.25rem 0; border-bottom: 1px solid currentColor; }
+.oda-sync-label { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: var(--touch); }
+.oda-sync-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.oda-sync-ingredient { font-weight: 600; }
+.oda-sync-note { font-size: 0.8125rem; }
+.oda-sync-notfound { display: flex; align-items: center; min-height: var(--touch); padding: 0.25rem 0; overflow-wrap: anywhere; }
+.oda-sync-option-label { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: var(--touch); }
+.oda-sync-savebar { position: sticky; bottom: 0; padding: 0.5rem 0; background: var(--bg); }
+.oda-sync-savebar .button { width: 100%; min-height: var(--touch); }

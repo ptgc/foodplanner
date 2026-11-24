@@ -4,9 +4,12 @@ using Foodplanner.Api.Problems;
 using Foodplanner.Api.Tenancy;
 using Foodplanner.Domain.Catalog;
 using Foodplanner.Domain.ShoppingLists;
+using Foodplanner.Domain.ShoppingLists.Sync;
+using Foodplanner.Infrastructure.Oda;
 using Foodplanner.Infrastructure.Persistence;
 using Foodplanner.Infrastructure.Persistence.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Foodplanner.Api.Features.ShoppingLists;
 
@@ -18,6 +21,18 @@ public sealed record OdaPreferenceRequest(long? OdaProductId);
 
 /// <summary>One choice: the ingredient (name in the request language) and when it was set. No Oda product id or name is returned.</summary>
 public sealed record OdaPreferenceResponse(Guid IngredientId, string IngredientName, DateTimeOffset SetAt);
+
+/// <summary>
+/// One item of the bulk save (T-130): the ingredient, Oda's integer product id (more than 0) and <c>Replace</c>: whether an existing choice may
+/// be replaced (the client sends true only for a row the user ticked that had a choice).
+/// </summary>
+public sealed record OdaPreferenceBulkItem(Guid? IngredientId, long? OdaProductId, bool? Replace);
+
+/// <summary>Up to <c>Oda:MaxBulkPreferences</c> (default 200) items, one per ingredient.</summary>
+public sealed record OdaPreferenceBulkRequest(OdaPreferenceBulkItem[]? Items);
+
+/// <summary>Counts and ids only. <c>SkippedExisting</c>: ingredients that have a choice and were not marked <c>replace</c>; they were left as they are.</summary>
+public sealed record OdaPreferenceBulkResponse(int Created, int Replaced, int Unchanged, Guid[] SkippedExisting);
 
 /// <summary>
 /// The household's chosen Oda product per ingredient (T-052, Q-032): list, set and clear, Adult or Owner only, never kid mode (policies
@@ -36,6 +51,15 @@ public static class OdaPreferenceEndpoints
             .WithName("ListOdaPreferences")
             .Produces<OdaPreferenceResponse[]>()
             .ProducesProblem(StatusCodes.Status403Forbidden);
+
+        preferences.MapPut("", SetOdaPreferences)
+            .WithName("SetOdaPreferences")
+            .Accepts<OdaPreferenceBulkRequest>("application/json")
+            .Produces<OdaPreferenceBulkResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         preferences.MapPut("/{ingredientId:guid}", SetOdaPreference)
             .WithName("SetOdaPreference")
@@ -134,6 +158,175 @@ public static class OdaPreferenceEndpoints
             AppProblems.OdaPreferenceConflict,
             "Choice changed at the same time",
             "Someone else changed this choice at the same moment. Nothing was lost; try again.");
+    }
+
+    /// <summary>
+    /// Saves many choices in one call (T-130), all or nothing: the ticked rows of the Sync with Oda review. An item for an ingredient that
+    /// has a choice is applied only with <c>replace</c> (never overwrite unless ticked). Nothing calls Oda; only ids are accepted and stored.
+    /// </summary>
+    private static async Task<IResult> SetOdaPreferences(
+        HttpRequest http, AppDbContext db, IOptions<OdaOptions> options, ILoggerFactory loggers, CancellationToken cancellationToken)
+    {
+        var max = Math.Max(1, options.Value.MaxBulkPreferences);
+        var (items, errors) = await ReadBulkAsync(http, max, cancellationToken);
+        if (items is null)
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        // Q-012 rule: every ingredient is resolved through the filtered set. Another household's id and an unknown id are the same 404.
+        var wanted = items.Select(i => i.IngredientId).ToList();
+        var known = await db.Ingredients.AsNoTracking().Where(i => wanted.Contains(i.Id)).Select(i => i.Id).ToListAsync(cancellationToken);
+        if (known.Count != wanted.Count)
+        {
+            return IngredientNotFound();
+        }
+
+        // A lost race on the unique index (or a row deleted under us) is retried once, then answered as a conflict.
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            var rows = await db.PreferredOdaProducts.ToListAsync(cancellationToken);
+            var plan = BulkPreferencePlanner.Plan(rows.ToDictionary(r => r.IngredientId, r => r.OdaProductId), items);
+            if (plan.ExceedsLimit)
+            {
+                return AppProblems.Problem(
+                    StatusCodes.Status409Conflict,
+                    AppProblems.OdaPreferenceLimit,
+                    "Too many Oda choices",
+                    $"A household can keep at most {PreferredOdaProduct.MaxPerHousehold} Oda product choices. Clear some first.");
+            }
+
+            var byIngredient = rows.ToDictionary(r => r.IngredientId);
+            foreach (var item in plan.Created)
+            {
+                db.PreferredOdaProducts.Add(new PreferredOdaProduct(item.IngredientId, item.OdaProductId));
+            }
+
+            foreach (var item in plan.Replaced)
+            {
+                byIngredient[item.IngredientId].Replace(item.OdaProductId);
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is DbUpdateConcurrencyException
+                                           || ex is DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } })
+            {
+                db.ChangeTracker.Clear();
+                continue;
+            }
+
+            loggers.CreateLogger("Foodplanner.Api.OdaPreferences").LogInformation(
+                "Oda choices bulk save: created {Created}, replaced {Replaced}, unchanged {Unchanged}, skipped {Skipped}",
+                plan.Created.Count,
+                plan.Replaced.Count,
+                plan.Unchanged.Count,
+                plan.SkippedExisting.Count);
+            return Results.Ok(new OdaPreferenceBulkResponse(plan.Created.Count, plan.Replaced.Count, plan.Unchanged.Count, [.. plan.SkippedExisting]));
+        }
+
+        return AppProblems.Problem(
+            StatusCodes.Status409Conflict,
+            AppProblems.OdaPreferenceConflict,
+            "Choices changed at the same time",
+            "Someone else changed these choices at the same moment. Nothing was lost; try again.");
+    }
+
+    /// <summary>
+    /// The body is read by hand so that every bad value (missing, text, 1.5, too large, no or broken JSON) is a field error such as
+    /// <c>items[2].odaProductId</c> and not a binder failure. OpenAPI documents the body as <see cref="OdaPreferenceBulkRequest"/>.
+    /// </summary>
+    private static async Task<(List<BulkPreferenceItem>? Items, Dictionary<string, string[]> Errors)> ReadBulkAsync(
+        HttpRequest http, int max, CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var limit = (max * 256) + 1024;
+        try
+        {
+            var buffer = new byte[limit + 1];
+            var length = 0;
+            int read;
+            while (length < buffer.Length && (read = await http.Body.ReadAsync(buffer.AsMemory(length), cancellationToken)) > 0)
+            {
+                length += read;
+            }
+
+            if (length == 0 || length > limit
+                || System.Text.Json.JsonDocument.Parse(buffer.AsMemory(0, length)).RootElement is not { ValueKind: System.Text.Json.JsonValueKind.Object } root
+                || !root.TryGetProperty("items", out var list) || list.ValueKind != System.Text.Json.JsonValueKind.Array)
+            {
+                errors["items"] = [$"items must be a list of 1 to {max} choices."];
+                return (null, errors);
+            }
+
+            var count = list.GetArrayLength();
+            if (count is 0 || count > max)
+            {
+                errors["items"] = [$"items must hold 1 to {max} choices."];
+                return (null, errors);
+            }
+
+            var items = new List<BulkPreferenceItem>(count);
+            var seen = new HashSet<Guid>();
+            var index = 0;
+            foreach (var element in list.EnumerateArray())
+            {
+                var prefix = $"items[{index}]";
+                if (element.ValueKind != System.Text.Json.JsonValueKind.Object)
+                {
+                    errors[prefix] = ["Each choice must be an object."];
+                }
+                else
+                {
+                    Guid? ingredient = element.TryGetProperty("ingredientId", out var i) && i.ValueKind == System.Text.Json.JsonValueKind.String
+                                       && Guid.TryParse(i.GetString(), out var parsed) && parsed != Guid.Empty ? parsed : null;
+                    long? product = element.TryGetProperty("odaProductId", out var p) && p.ValueKind == System.Text.Json.JsonValueKind.Number
+                                    && p.TryGetInt64(out var id) && PreferredOdaProduct.IsValidProductId(id) ? id : null;
+                    var replaceOk = true;
+                    var replace = false;
+                    if (element.TryGetProperty("replace", out var r) && r.ValueKind != System.Text.Json.JsonValueKind.Null)
+                    {
+                        replaceOk = r.ValueKind is System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False;
+                        replace = r.ValueKind == System.Text.Json.JsonValueKind.True;
+                    }
+
+                    if (ingredient is null)
+                    {
+                        errors[$"{prefix}.ingredientId"] = ["ingredientId must be an ingredient id."];
+                    }
+                    else if (!seen.Add(ingredient.Value))
+                    {
+                        errors[$"{prefix}.ingredientId"] = ["Each ingredient can be listed once."];
+                    }
+
+                    if (product is null)
+                    {
+                        errors[$"{prefix}.odaProductId"] = ["odaProductId must be a whole number above 0."];
+                    }
+
+                    if (!replaceOk)
+                    {
+                        errors[$"{prefix}.replace"] = ["replace must be true or false."];
+                    }
+
+                    if (ingredient is { } ing && product is { } prod && replaceOk)
+                    {
+                        items.Add(new BulkPreferenceItem(ing, prod, replace));
+                    }
+                }
+
+                index++;
+            }
+
+            return errors.Count == 0 ? (items, errors) : (null, errors);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            errors["items"] = [$"items must be a list of 1 to {max} choices."];
+            return (null, errors);
+        }
     }
 
     private const int MaxBodyBytes = 1024;

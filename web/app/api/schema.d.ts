@@ -964,6 +964,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/households/{householdId}/oda-sync/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StartOdaSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/households/{householdId}/oda-sync/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ReviewOdaSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/households/{householdId}/oda-preferences": {
         parameters: {
             query?: never;
@@ -972,7 +1004,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["ListOdaPreferences"];
-        put?: never;
+        put: operations["SetOdaPreferences"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1850,6 +1882,25 @@ export interface components {
             name: string;
             reason: string;
         };
+        OdaPreferenceBulkItem: {
+            /** Format: uuid */
+            ingredientId: null | string;
+            /** Format: int64 */
+            odaProductId: null | number | string;
+            replace: null | boolean;
+        };
+        OdaPreferenceBulkRequest: {
+            items: null | components["schemas"]["OdaPreferenceBulkItem"][];
+        };
+        OdaPreferenceBulkResponse: {
+            /** Format: int32 */
+            created: number | string;
+            /** Format: int32 */
+            replaced: number | string;
+            /** Format: int32 */
+            unchanged: number | string;
+            skippedExisting: string[];
+        };
         /** @enum {unknown} */
         OdaPreferenceProblem: "unavailable" | "not-found" | null;
         OdaPreferenceRequest: {
@@ -1869,6 +1920,55 @@ export interface components {
         OdaStartResponse: {
             authorizeUrl: string;
         };
+        /** @enum {unknown} */
+        OdaSyncCategory: "usually-bought" | "suggestion" | "current" | "not-found";
+        OdaSyncOptionResponse: {
+            /** Format: int64 */
+            productId: number | string;
+            productName: string;
+            isUsual: boolean;
+            isCurrent: boolean;
+        };
+        /** @enum {unknown} */
+        OdaSyncReason: "no-match" | "unavailable" | null;
+        OdaSyncReviewResponse: {
+            status: string;
+            stopped: null | components["schemas"]["OdaSyncStopped"];
+            usuallyBought: components["schemas"]["OdaHistoryStatus"];
+            rows: components["schemas"]["OdaSyncRowResponse"][];
+            /** Format: int32 */
+            notCheckedCount: number | string;
+            connectionClosed: boolean;
+            connectionMessage: null | string;
+        };
+        OdaSyncRowResponse: {
+            /** Format: uuid */
+            ingredientId: string;
+            ingredientName: string;
+            category: components["schemas"]["OdaSyncCategory"];
+            reason: null | components["schemas"]["OdaSyncReason"];
+            hasExistingChoice: boolean;
+            /** Format: int64 */
+            selectedProductId: null | number | string;
+            preticked: boolean;
+            options: components["schemas"]["OdaSyncOptionResponse"][];
+        };
+        OdaSyncStartRequest: {
+            confirmed: null | boolean;
+            includeStaples: null | boolean;
+            includeExisting: null | boolean;
+            /** Format: int32 */
+            offset: null | number | string;
+        };
+        OdaSyncStartResponse: {
+            authorizeUrl: string;
+            /** Format: int32 */
+            ingredientCount: number | string;
+            /** Format: int32 */
+            notCheckedCount: number | string;
+        };
+        /** @enum {unknown} */
+        OdaSyncStopped: "time" | "oda-limit" | "oda-error" | null;
         OdaUsuallyBoughtResponse: {
             status: components["schemas"]["OdaHistoryStatus"];
             /** Format: int32 */
@@ -6921,6 +7021,179 @@ export interface operations {
             };
         };
     };
+    StartOdaSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["OdaSyncStartRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OdaSyncStartResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReviewOdaSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["OdaCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OdaSyncReviewResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before trying again. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListOdaPreferences: {
         parameters: {
             query?: never;
@@ -6943,6 +7216,77 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Error (RFC 9457 ProblemDetails) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetOdaPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                householdId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OdaPreferenceBulkRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OdaPreferenceBulkResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

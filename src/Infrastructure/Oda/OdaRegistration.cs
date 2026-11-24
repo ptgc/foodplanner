@@ -18,6 +18,7 @@ public static class OdaRegistration
         services.TryAddSingleton<OdaOAuth>();
         services.TryAddSingleton<OdaMcpSessionFactory>();
         services.TryAddScoped<OdaCartAction>();
+        services.TryAddScoped<OdaSyncAction>();
         services.AddShoppingListExporter<OdaShoppingListExporter>();
         return services;
     }

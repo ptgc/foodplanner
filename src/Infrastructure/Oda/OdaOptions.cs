@@ -31,6 +31,15 @@ public sealed class OdaOptions
     /// <summary>Hits asked for per query (T-114: the usually bought product is looked for among them, so the page is 10; the tool allows up to 20).</summary>
     public int SearchPageSize { get; set; } = 10;
 
+    /// <summary>Most ingredients one "Sync with Oda" run checks (T-130, Q-039); the rest is offered as "Check the next ones" with an offset.</summary>
+    public int MaxSyncIngredients { get; set; } = 200;
+
+    /// <summary>Total time budget of one sync run, checked before every call to Oda (T-130, Q-039).</summary>
+    public int SyncBudgetSeconds { get; set; } = 90;
+
+    /// <summary>Most items in one bulk save of Oda choices (T-130).</summary>
+    public int MaxBulkPreferences { get; set; } = 200;
+
     /// <summary>Per call to Oda.</summary>
     public int TimeoutSeconds { get; set; } = 30;
 

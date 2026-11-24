@@ -73,6 +73,7 @@ const problemKeys: Record<string, MessageKey> = {
   "urn:foodplanner:problem:oda-too-many-items": "oda.problem.tooMany",
   "urn:foodplanner:problem:oda-not-configured": "oda.problem.notConfigured",
   "urn:foodplanner:problem:oda-nothing-to-add": "oda.problem.nothingToAdd",
+  "urn:foodplanner:problem:oda-sync-nothing-to-sync": "oda.sync.problem.nothing",
   "urn:foodplanner:problem:support-session-required": "support.problem.sessionRequired",
   "urn:foodplanner:problem:support-session-mismatch": "support.problem.sessionMismatch",
   "urn:foodplanner:problem:support-write-required": "support.problem.writeRequired",

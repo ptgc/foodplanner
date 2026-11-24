@@ -152,6 +152,7 @@ public sealed class OdaPreferenceTests(AuthDatabase db) : IClassFixture<AuthData
             [
                 "DELETE /api/households/{householdId:guid}/oda-preferences/{ingredientId:guid}",
                 "GET /api/households/{householdId:guid}/oda-preferences",
+                "PUT /api/households/{householdId:guid}/oda-preferences", // T-130: the bulk save
                 "PUT /api/households/{householdId:guid}/oda-preferences/{ingredientId:guid}",
             ],
             endpoints.SelectMany(e => e.Metadata.GetMetadata<IHttpMethodMetadata>()!.HttpMethods.Select(m => $"{m} {e.RoutePattern.RawText!.TrimEnd('/')}")).Order(StringComparer.Ordinal).ToArray());

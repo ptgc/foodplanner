@@ -205,7 +205,7 @@ public static class OdaEndpoints
         if (flow.Take(http, request?.State, householdId, monday, userId) is not { } state)
         {
             return AppProblems.Problem(
-                StatusCodes.Status400BadRequest, AppProblems.OdaStateInvalid, "Sign-in expired", "Start sending to Oda again.");
+                StatusCodes.Status400BadRequest, AppProblems.OdaStateInvalid, "Sign-in expired", "Start again from the beginning.");
         }
 
         if (!string.IsNullOrWhiteSpace(request?.Error))
@@ -302,12 +302,12 @@ public static class OdaEndpoints
             : []);
 
     /// <summary>Oda's ids are positive integers (the client only accepts those); anything else would be a bug, shown as 0 rather than failing the fill.</summary>
-    private static long ParseId(string id) => long.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : 0;
+    internal static long ParseId(string id) => long.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : 0;
 
-    private static string? ConnectionMessage(bool closed) =>
+    internal static string? ConnectionMessage(bool closed) =>
         closed ? null : "The connection to Oda could not be closed. Remove Foodplanner under Privacy & security in your Oda account.";
 
-    private static IResult NotConfigured() =>
+    internal static IResult NotConfigured() =>
         AppProblems.Problem(StatusCodes.Status404NotFound, AppProblems.OdaNotConfigured, "Oda is not set up", "Sending to Oda is not available here. Share or copy the list as text.");
 
     /// <summary>The list is always read here, server-side, in the household of the route; the client never sends items.</summary>
