@@ -60,6 +60,35 @@ public class OdaSyncTests
     }
 
     [Fact]
+    public void Continuing_after_saving_choices_with_the_offset_moved_back_checks_every_ingredient_exactly_once()
+    {
+        // The household saves a choice for every ingredient a run checked, so the next list (existing choices left out) no longer holds them.
+        const int cap = 10;
+        var all = Enumerable.Range(0, 25).Select(i => Ing($"Item {i:00}", 100 - i)).ToList();
+        var seen = new List<string>();
+        var offset = 0;
+        for (var run = 0; run < 10; run++)
+        {
+            var page = SyncSelector.Select(all, false, false, offset, cap, StringComparer.Ordinal);
+            if (page.Selected.Count == 0)
+            {
+                break;
+            }
+
+            seen.AddRange(page.Selected.Select(i => i.Name));
+            var saved = page.Selected.Select(i => i.IngredientId).ToHashSet();
+            all = [.. all.Select(i => saved.Contains(i.IngredientId) ? i with { HasChoice = true } : i)];
+            offset = offset + page.Selected.Count - saved.Count; // what the web client does: offset + searched - created
+        }
+
+        Assert.Equal(Enumerable.Range(0, 25).Select(i => $"Item {i:00}"), seen);
+
+        // Without the move back the second run would start at 10 of a list that already shrank to 15 entries and skip five of them.
+        var shrunk = Enumerable.Range(0, 25).Select(i => Ing($"Item {i:00}", 100 - i, choice: i < 10));
+        Assert.Equal(["Item 20", "Item 21", "Item 22", "Item 23", "Item 24"], SyncSelector.Select(shrunk, false, false, 10, cap, StringComparer.Ordinal).Selected.Select(i => i.Name));
+    }
+
+    [Fact]
     public void Selection_rejects_a_negative_offset_and_a_cap_below_one()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => SyncSelector.Select([], false, false, -1, 10, StringComparer.Ordinal));

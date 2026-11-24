@@ -353,3 +353,32 @@ describe("the Sync with Oda review on the callback page", () => {
     for (const text of [secret, "st-1", "Basmati", "Jasmine", "Rice", "1004", "oda.example"]) expect(stored).not.toContain(text);
   });
 });
+
+describe("'Check the next ones' after saving (the offset follows the list)", () => {
+  async function nextStartBody(options: { includeExisting: boolean; offset: number }, created: number) {
+    const user = userEvent.setup();
+    vi.spyOn(navigation, "go").mockImplementation(() => undefined);
+    reviewAnswer = () => json(review({ status: "partial", stopped: "time", notCheckedCount: 40 }));
+    saveAnswer = () => json({ created, replaced: 0, unchanged: 0, skippedExisting: [] });
+    startAnswer = () => json({ authorizeUrl: "https://oda.example/o/authorize/?state=s3", ingredientCount: 40, notCheckedCount: 0 });
+    arrive(options);
+    renderCallback();
+    await screen.findByTestId("oda-sync-usually-bought");
+
+    await user.click(screen.getByRole("button", { name: t("oda.sync.save", { count: 1 }) })); // Rice is pre-ticked
+    await screen.findByTestId("oda-sync-saved");
+    await user.click(within(screen.getByTestId("oda-sync-partial")).getByRole("button", { name: t("oda.sync.next") }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: t("oda.sync.confirm.submit") }));
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/start"))).toHaveLength(1));
+    return calls.filter((c) => c.path.endsWith("/start"))[0]!.body;
+  }
+
+  it("moves the offset back by the choices just created, because they drop out of the next list", async () => {
+    // 200 before, 5 rows searched, 1 new choice saved: 200 + 5 - 1.
+    expect(await nextStartBody({ includeExisting: false, offset: 200 }, 1)).toEqual({ confirmed: true, includeStaples: false, includeExisting: false, offset: 204 });
+  });
+
+  it("does not move the offset when existing choices are included (saved ingredients stay in the list)", async () => {
+    expect(await nextStartBody({ includeExisting: true, offset: 200 }, 1)).toEqual({ confirmed: true, includeStaples: false, includeExisting: true, offset: 205 });
+  });
+});
