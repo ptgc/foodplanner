@@ -253,8 +253,9 @@ public static class OdaPreferenceEndpoints
                 length += read;
             }
 
-            if (length == 0 || length > limit
-                || System.Text.Json.JsonDocument.Parse(buffer.AsMemory(0, length)).RootElement is not { ValueKind: System.Text.Json.JsonValueKind.Object } root
+            using var document = length == 0 || length > limit ? null : System.Text.Json.JsonDocument.Parse(buffer.AsMemory(0, length));
+            if (document is null
+                || document.RootElement is not { ValueKind: System.Text.Json.JsonValueKind.Object } root
                 || !root.TryGetProperty("items", out var list) || list.ValueKind != System.Text.Json.JsonValueKind.Array)
             {
                 errors["items"] = [$"items must be a list of 1 to {max} choices."];

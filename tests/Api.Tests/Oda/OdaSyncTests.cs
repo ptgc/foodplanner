@@ -155,8 +155,9 @@ public sealed class OdaSyncTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         {
             using var start = await client.PostAsync(Url(household, "start"), new { confirmed = true });
             using var review = await client.PostAsync(Url(household, "review"), new { state = "x", code = "y" });
+            using var preview = await client.PostAsync(Url(household, "preview"), new { });
             using var bulk = await BulkAsync(client, household, (Rice, 1001, false));
-            foreach (var response in new[] { start, review, bulk })
+            foreach (var response in new[] { start, review, preview, bulk })
             {
                 Assert.Equal(status, response.StatusCode);
                 if (code is not null)
@@ -185,7 +186,7 @@ public sealed class OdaSyncTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         var adultOfA = await host.SignInAsync();
         await adultOfA.Client.CreateHouseholdAsync();
 
-        foreach (var action in new[] { "start", "review" })
+        foreach (var action in new[] { "start", "review", "preview" })
         {
             using var response = await adultOfA.Client.PostAsync(Url(householdB, action), new { confirmed = true, state = "x", code = "y" });
             await response.AssertProblemAsync(HttpStatusCode.Forbidden, "forbidden");
@@ -209,6 +210,7 @@ public sealed class OdaSyncTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         Assert.Equal(
             [
                 "/api/households/{householdId:guid}/oda-preferences",
+                "/api/households/{householdId:guid}/oda-sync/preview",
                 "/api/households/{householdId:guid}/oda-sync/review",
                 "/api/households/{householdId:guid}/oda-sync/start",
             ],
@@ -219,8 +221,11 @@ public sealed class OdaSyncTests(AuthDatabase db) : IClassFixture<AuthDatabase>
             Assert.Contains(Policies.HouseholdAdult, policies);
             Assert.Contains(Policies.FullSession, policies);
             Assert.NotNull(endpoint.Metadata.GetMetadata<Foodplanner.Api.Security.AntiforgeryValidatedMetadata>());
-            var limited = endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName == Foodplanner.Api.Security.RateLimitPolicies.OdaAction;
-            Assert.Equal(!endpoint.RoutePattern.RawText!.TrimEnd((char)47).EndsWith("/oda-preferences", StringComparison.Ordinal), limited);
+            var policy = endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
+            var path = endpoint.RoutePattern.RawText!.TrimEnd((char)47);
+            Assert.Equal(
+                path.EndsWith("/oda-preferences", StringComparison.Ordinal) ? null : path.EndsWith("/preview", StringComparison.Ordinal) ? Foodplanner.Api.Security.RateLimitPolicies.OdaPreview : Foodplanner.Api.Security.RateLimitPolicies.OdaAction,
+                policy);
         }
     }
 
@@ -254,6 +259,51 @@ public sealed class OdaSyncTests(AuthDatabase db) : IClassFixture<AuthDatabase>
         Assert.Equal(2, body2.GetProperty("ingredientCount").GetInt32()); // Rice and Egg; Salt is a staple
         Assert.Equal(0, body2.GetProperty("notCheckedCount").GetInt32());
         Assert.Equal(0, fake.RequestCount);
+    }
+
+    [Fact]
+    public async Task Sync_preview_counts_without_a_cookie_a_sign_in_address_or_a_call_to_oda_and_has_its_own_limit()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake, null, ("RateLimiting:Oda:PermitLimit", "2"));
+        var (owner, household) = await OdaHost.ScenarioAsync(host); // Rice, Egg and Salt (a staple)
+
+        async Task<(int Count, int Left)> PreviewAsync(object body)
+        {
+            using var response = await owner.Client.PostAsync(Url(household, "preview"), body);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Empty(response.SetCookies());
+            var json = await response.JsonAsync();
+            Assert.False(json.TryGetProperty("authorizeUrl", out _));
+            return (json.GetProperty("ingredientCount").GetInt32(), json.GetProperty("notCheckedCount").GetInt32());
+        }
+
+        Assert.Equal((2, 0), await PreviewAsync(new { }));
+        Assert.Equal((3, 0), await PreviewAsync(new { includeStaples = true }));
+        Assert.Equal((1, 0), await PreviewAsync(new { offset = 1 }));
+        for (var i = 0; i < 6; i++)
+        {
+            await PreviewAsync(new { includeExisting = true }); // the oda-action limit of 2 does not apply
+        }
+
+        using var negative = await owner.Client.PostAsync(Url(household, "preview"), new { offset = -1 });
+        Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
+        using var beyond = await owner.Client.PostAsync(Url(household, "preview"), new { offset = 10 });
+        await beyond.AssertProblemAsync(HttpStatusCode.Conflict, "oda-sync-nothing-to-sync");
+        Assert.Equal(0, fake.RequestCount);
+
+    }
+
+    [Fact]
+    public async Task Sync_preview_without_a_client_id_is_not_configured()
+    {
+        var fake = new FakeOda();
+        await using var host = Host(fake, null, ("Oda:ClientId", ""));
+        var (owner, household) = await OdaHost.ScenarioAsync(host);
+
+        using var response = await owner.Client.PostAsync(Url(household, "preview"), new { });
+
+        await response.AssertProblemAsync(HttpStatusCode.NotFound, "oda-not-configured");
     }
 
     [Fact]

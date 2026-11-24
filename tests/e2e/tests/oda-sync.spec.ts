@@ -39,6 +39,7 @@ type Plan = { id: string; name: string; kind: "usual" | "suggestion" | "missing"
 class FakeSync {
   starts: { includeStaples: boolean; includeExisting: boolean; offset: number }[] = [];
   reviews = 0;
+  previews = 0;
   searched: string[][] = [];
   partialFirst = true;
 
@@ -55,6 +56,17 @@ class FakeSync {
   h = "";
 
   async install(page: Page) {
+    // The count of the confirmation (no cookie, no Oda call). Faked like start because this stack has no Oda client id.
+    await page.route(/\/api\/households\/[^/]+\/oda-sync\/preview$/, async (route) => {
+      const body = route.request().postDataJSON() as { includeExisting?: boolean };
+      const rows = await this.selected(body.includeExisting === true);
+      this.previews++;
+      if (rows.length === 0) {
+        await route.fulfill({ status: 409, contentType: "application/problem+json", json: { type: "urn:foodplanner:problem:oda-sync-nothing-to-sync", title: "x", status: 409 } });
+        return;
+      }
+      await route.fulfill({ json: { ingredientCount: rows.length, notCheckedCount: 0 } });
+    });
     await page.route(/\/api\/households\/[^/]+\/oda-sync\/start$/, async (route) => {
       const body = route.request().postDataJSON() as { includeStaples?: boolean; includeExisting?: boolean; offset?: number };
       const options = { includeStaples: body.includeStaples === true, includeExisting: body.includeExisting === true, offset: body.offset ?? 0 };
@@ -156,6 +168,7 @@ test.describe("an Adult syncs with Oda", () => {
       await expect(page.getByRole("heading", { name: "Sync with Oda", level: 1 })).toBeVisible();
       await expect(page.getByTestId("oda-sync-usually-bought")).toBeVisible();
       expect(fake.reviews).toBe(1);
+      expect(fake.starts).toHaveLength(1); // start only on Confirm; the dialog counted with preview
       const usualBox = page.getByTestId("oda-sync-usually-bought").getByRole("checkbox");
       const suggestionBox = page.getByTestId("oda-sync-suggestion").getByRole("checkbox");
       await expect(usualBox).toBeChecked();

@@ -19,7 +19,30 @@ export type OdaSyncStartResult =
   | { kind: "ready"; url: string; ingredientCount: number; notCheckedCount: number }
   | { kind: "refused"; reason: "not-configured" | "nothing-to-sync" | "rate-limited" | "forbidden" | "failed" };
 
-/** Step 1 (and the preview of the confirmation): the API counts the ingredients and returns Oda's sign-in address. No call to Oda is made. */
+export type OdaSyncPreviewResult =
+  | { kind: "ready"; ingredientCount: number; notCheckedCount: number }
+  | { kind: "refused"; reason: Extract<OdaSyncStartResult, { kind: "refused" }>["reason"] };
+
+/** The count shown in the confirmation. Sets no cookie and makes no call to Oda, so it is asked on every toggle; `start` is only asked on Confirm. */
+export async function previewSync(householdId: string, options: OdaSyncOptions): Promise<OdaSyncPreviewResult> {
+  try {
+    const { data, response, error } = await api.POST("/api/households/{householdId}/oda-sync/preview", {
+      params: { path: { householdId } },
+      body: { includeStaples: options.includeStaples, includeExisting: options.includeExisting, offset: options.offset },
+    });
+    if (response.ok && data) return { kind: "ready", ingredientCount: Number(data.ingredientCount), notCheckedCount: Number(data.notCheckedCount) };
+    const type = problemTypeOf(error);
+    if (type === `${prefix}oda-sync-nothing-to-sync`) return { kind: "refused", reason: "nothing-to-sync" };
+    if (type === `${prefix}oda-not-configured` || response.status === 404) return { kind: "refused", reason: "not-configured" };
+    if (response.status === 429) return { kind: "refused", reason: "rate-limited" };
+    if (response.status === 403 || response.status === 401) return { kind: "refused", reason: "forbidden" };
+    return { kind: "refused", reason: "failed" };
+  } catch {
+    return { kind: "refused", reason: "failed" };
+  }
+}
+
+/** Step 1, on Confirm only: the API issues the flow cookie for exactly these options and returns Oda's sign-in address. No call to Oda is made. */
 export async function startSync(householdId: string, options: OdaSyncOptions): Promise<OdaSyncStartResult> {
   try {
     const { data, response, error } = await api.POST("/api/households/{householdId}/oda-sync/start", {

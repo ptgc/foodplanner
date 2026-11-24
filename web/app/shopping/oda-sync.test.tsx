@@ -50,6 +50,7 @@ const review = (over: Partial<Review> = {}): Review => ({
 
 let role: Role;
 let startAnswer: () => Response;
+let previewAnswer: () => Response;
 let reviewAnswer: () => Response;
 let saveAnswer: (body: unknown) => Response;
 let calls: { method: string; path: string; body: unknown }[];
@@ -64,6 +65,7 @@ function install() {
       if (path === "/api/households") return json([{ id: "h1", name: "Home", role }]);
       const body = request.method === "GET" || request.method === "DELETE" ? null : await request.json();
       calls.push({ method: request.method, path, body });
+      if (path === "/api/households/h1/oda-sync/preview") return previewAnswer();
       if (path === "/api/households/h1/oda-sync/start") return startAnswer();
       if (path === "/api/households/h1/oda-sync/review") return reviewAnswer();
       if (path === "/api/households/h1/oda-preferences" && request.method === "PUT") return saveAnswer(body);
@@ -81,6 +83,7 @@ beforeEach(() => {
   role = "Adult";
   calls = [];
   startAnswer = () => json({ authorizeUrl: "https://oda.example/o/authorize/?state=s1", ingredientCount: 120, notCheckedCount: 0 });
+  previewAnswer = () => json({ ingredientCount: 120, notCheckedCount: 0 });
   reviewAnswer = () => json(review());
   saveAnswer = (body) => json({ created: (body as { items: unknown[] }).items.length, replaced: 0, unchanged: 0, skippedExisting: [] });
   install();
@@ -115,16 +118,22 @@ describe("the Sync with Oda button and confirmation", () => {
     const existing = within(dialog).getByRole("checkbox", { name: t("oda.sync.confirm.existing") });
     expect(staples).not.toBeChecked();
     expect(existing).not.toBeChecked();
-    expect(calls.filter((c) => c.path.endsWith("/start")).map((c) => c.body)).toEqual([{ confirmed: true, includeStaples: false, includeExisting: false, offset: 0 }]);
+    expect(calls.filter((c) => c.path.endsWith("/preview")).map((c) => c.body)).toEqual([{ includeStaples: false, includeExisting: false, offset: 0 }]);
 
-    startAnswer = () => json({ authorizeUrl: "https://oda.example/o/authorize/?state=s2", ingredientCount: 140, notCheckedCount: 60 });
+    previewAnswer = () => json({ ingredientCount: 140, notCheckedCount: 60 });
     await user.click(staples);
     expect(await within(dialog).findByText(t("oda.sync.confirm.count", { count: 140 }))).toBeInTheDocument();
     expect(within(dialog).getByTestId("oda-sync-left")).toHaveTextContent(t("oda.sync.confirm.left", { count: 60 }));
-    expect(calls.filter((c) => c.path.endsWith("/start")).at(-1)?.body).toEqual({ confirmed: true, includeStaples: true, includeExisting: false, offset: 0 });
+    expect(calls.filter((c) => c.path.endsWith("/preview")).at(-1)?.body).toEqual({ includeStaples: true, includeExisting: false, offset: 0 });
+    await user.click(existing);
+    await user.click(existing);
+    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/preview"))).toHaveLength(4));
+    expect(calls.filter((c) => c.path.endsWith("/start"))).toHaveLength(0); // opening and toggling never start a flow
 
+    startAnswer = () => json({ authorizeUrl: "https://oda.example/o/authorize/?state=s2", ingredientCount: 140, notCheckedCount: 60 });
     await user.click(within(dialog).getByRole("button", { name: t("oda.sync.confirm.submit") }));
-    expect(go).toHaveBeenCalledWith("https://oda.example/o/authorize/?state=s2");
+    await waitFor(() => expect(go).toHaveBeenCalledWith("https://oda.example/o/authorize/?state=s2"));
+    expect(calls.filter((c) => c.path.endsWith("/start")).map((c) => c.body)).toEqual([{ confirmed: true, includeStaples: true, includeExisting: false, offset: 0 }]); // exactly one
     const pending = JSON.parse(window.sessionStorage.getItem("foodplanner.oda.pending")!) as Record<string, unknown>;
     expect(pending).toMatchObject({ kind: "sync", householdId: "h1", includeStaples: true, includeExisting: false, offset: 0 });
     expect(Object.keys(pending).sort()).toEqual(["at", "householdId", "includeExisting", "includeStaples", "kind", "offset"]); // numbers and flags only
@@ -138,7 +147,7 @@ describe("the Sync with Oda button and confirmation", () => {
     child.unmount();
 
     role = "Adult";
-    startAnswer = () => problem("oda-not-configured", 404);
+    previewAnswer = () => problem("oda-not-configured", 404);
     const user = userEvent.setup();
     renderChoices();
     await user.click(await screen.findByRole("button", { name: t("oda.sync.button") }));
@@ -148,7 +157,7 @@ describe("the Sync with Oda button and confirmation", () => {
   });
 
   it("explains an empty run and keeps the confirm button off", async () => {
-    startAnswer = () => problem("oda-sync-nothing-to-sync", 409);
+    previewAnswer = () => problem("oda-sync-nothing-to-sync", 409);
     const user = userEvent.setup();
     renderChoices();
 

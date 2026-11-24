@@ -23,6 +23,12 @@ namespace Foodplanner.Api.Features.ShoppingLists;
 /// </summary>
 public sealed record OdaSyncStartRequest(bool? Confirmed, bool? IncludeStaples, bool? IncludeExisting, int? Offset);
 
+/// <summary>The options of a run, to count its ingredients (the confirmation dialog). Defaults: both flags false, offset 0.</summary>
+public sealed record OdaSyncPreviewRequest(bool? IncludeStaples, bool? IncludeExisting, int? Offset);
+
+/// <summary>How many ingredients the run would search, and how many matching ingredients are left after it. Counts only.</summary>
+public sealed record OdaSyncPreviewResponse(int IngredientCount, int NotCheckedCount);
+
 /// <summary>
 /// Where to send the browser to sign in at Oda, and how many ingredients this run will search (a count only) and how many matching
 /// ingredients are left after it. No secret: the PKCE verifier stays in the encrypted flow cookie.
@@ -123,9 +129,19 @@ public static class OdaSyncEndpoints
         var sync = api.MapHouseholdScopedGroup().MapGroup("/oda-sync");
         sync.RequireAuthorization(Policies.HouseholdAdult);
         sync.RequireAuthorization(Policies.FullSession);
-        sync.RequireRateLimiting(RateLimitPolicies.OdaAction);
+
+        sync.MapPost("/preview", Preview)
+            .RequireRateLimiting(RateLimitPolicies.OdaPreview)
+            .WithName("PreviewOdaSync")
+            .Produces<OdaSyncPreviewResponse>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         sync.MapPost("/start", Start)
+            .RequireRateLimiting(RateLimitPolicies.OdaAction)
             .WithName("StartOdaSync")
             .Produces<OdaSyncStartResponse>()
             .ProducesValidationProblem()
@@ -136,6 +152,7 @@ public static class OdaSyncEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         sync.MapPost("/review", Review)
+            .RequireRateLimiting(RateLimitPolicies.OdaAction)
             .WithName("ReviewOdaSync")
             .Produces<OdaSyncReviewResponse>()
             .ProducesValidationProblem()
@@ -147,6 +164,30 @@ public static class OdaSyncEndpoints
             .ProducesProblem(StatusCodes.Status502BadGateway);
 
         return api;
+    }
+
+    /// <summary>
+    /// The count for the confirmation: how many ingredients a run with these options searches. Sets no cookie, builds no sign-in address and
+    /// makes no call to Oda, so it can be asked on every toggle without touching the flow state of the one real <c>start</c>.
+    /// </summary>
+    private static async Task<IResult> Preview(
+        Guid householdId, OdaSyncPreviewRequest? request, RequestLocale locale, AppDbContext db, IOptions<OdaOptions> options, CancellationToken cancellationToken)
+    {
+        if (!options.Value.IsConfigured)
+        {
+            return OdaEndpoints.NotConfigured();
+        }
+
+        if (request?.Offset is < 0)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["offset"] = ["offset must be 0 or more."] });
+        }
+
+        var (selection, _) = await SelectAsync(
+            db, locale.Code, request?.IncludeStaples == true, request?.IncludeExisting == true, request?.Offset ?? 0, options.Value, cancellationToken);
+        return selection.Selected.Count == 0
+            ? NothingToSync()
+            : Results.Ok(new OdaSyncPreviewResponse(selection.Selected.Count, selection.NotCheckedCount));
     }
 
     private static async Task<IResult> Start(

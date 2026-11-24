@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../household/confirm-dialog";
 import { useI18n, type MessageKey } from "../i18n";
 import { navigation, rememberSyncPending, safeHttpUrl } from "./oda";
-import { startSync, type OdaSyncOptions, type OdaSyncStartResult } from "./oda-sync";
+import { previewSync, startSync, type OdaSyncOptions, type OdaSyncStartResult } from "./oda-sync";
 
 type Preview =
   | { status: "loading" }
-  | { status: "ready"; url: string; count: number; left: number }
+  | { status: "ready"; count: number; left: number }
   | { status: "refused"; key: MessageKey };
 
 const refusalKeys: Record<Extract<OdaSyncStartResult, { kind: "refused" }>["reason"], MessageKey> = {
@@ -31,6 +31,8 @@ export function OdaSyncStart({ householdId, online }: { householdId: string; onl
   const [answer, setAnswer] = useState<{ key: string; value: Exclude<Preview, { status: "loading" }> } | null>(null);
   // The server says Oda is not set up (404): the button goes away.
   const [unavailable, setUnavailable] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<MessageKey | null>(null);
   const key = `${staples}|${existing}`;
   const preview: Preview = answer?.key === key ? answer.value : { status: "loading" };
 
@@ -38,10 +40,10 @@ export function OdaSyncStart({ householdId, online }: { householdId: string; onl
     if (!open) return;
     let live = true; // a newer count (another box ticked) is on its way when this is false
     void (async () => {
-      const result = await startSync(householdId, { includeStaples: staples, includeExisting: existing, offset: 0 });
+      const result = await previewSync(householdId, { includeStaples: staples, includeExisting: existing, offset: 0 });
       if (!live) return;
       if (result.kind === "ready") {
-        setAnswer({ key, value: { status: "ready", url: result.url, count: result.ingredientCount, left: result.notCheckedCount } });
+        setAnswer({ key, value: { status: "ready", count: result.ingredientCount, left: result.notCheckedCount } });
       } else if (result.reason === "not-configured") {
         setOpen(false);
         setUnavailable(true);
@@ -60,13 +62,21 @@ export function OdaSyncStart({ householdId, online }: { householdId: string; onl
     );
   }
 
-  const confirm = () => {
-    if (preview.status !== "ready") return;
-    const url = safeHttpUrl(preview.url);
-    if (!url) return;
+  // `start` is called exactly once, here: the flow cookie it issues is for these options and no later answer can replace it.
+  const confirm = async () => {
+    if (preview.status !== "ready" || busy) return;
+    setBusy(true);
+    setConfirmError(null);
     const options: OdaSyncOptions = { includeStaples: staples, includeExisting: existing, offset: 0 };
+    const result = await startSync(householdId, options);
+    const url = result.kind === "ready" ? safeHttpUrl(result.url) : null;
+    if (result.kind !== "ready" || !url) {
+      setBusy(false);
+      setConfirmError(result.kind === "ready" ? "problem.generic" : refusalKeys[result.reason]);
+      return;
+    }
     rememberSyncPending({ householdId, ...options });
-    // A full-page navigation to Oda. The dialog stays as it is: the page is going away.
+    // A full-page navigation to Oda. The dialog stays busy: the page is going away.
     navigation.go(url);
   };
 
@@ -93,10 +103,10 @@ export function OdaSyncStart({ householdId, online }: { householdId: string; onl
           }
           confirmLabel={t("oda.sync.confirm.submit")}
           tone="primary"
-          busy={false}
+          busy={busy}
           confirmDisabled={preview.status !== "ready"}
-          error={null}
-          onConfirm={confirm}
+          error={confirmError}
+          onConfirm={() => void confirm()}
           onCancel={() => setOpen(false)}
         >
           {preview.status === "ready" && preview.left > 0 && (
