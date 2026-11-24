@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus (2026-11-22): theme "easy to start, gives time back". Now: T-130 (in progress; Q-039, Q-040 answered). Queue, in order: T-130 (Sync with Oda), T-131 (Kom i gang + Help, how-to rule), T-132 (pantry from a photo). Also queued: T-135 (axe accessibility check). Also open: T-126 (support-access view), T-125, T-127. Waiting on the architect: T-134 (design update; settle the direction before T-131 builds many screens), T-117 (privacy wording and skills check). Later: T-120/T-099 (own Claude key), T-121 (admin emails), T-124 (admin sign-in mode), T-107. Stretch: T-086, T-094
+## Current focus (2026-11-22): theme "easy to start, gives time back". Now: T-130 (in progress; Q-039, Q-040 answered). Queue, in order: T-130 (Sync with Oda), T-131 (Kom i gang + Help, how-to rule), T-132 (pantry from a photo). Also queued: T-135 (axe accessibility check). Also open: T-126 (support-access view), T-125, T-127. Waiting on the architect: T-134 (user flows and usability first; line up T-131 with it), then T-136 (modern look), T-117 (privacy wording and skills check). Later: T-120/T-099 (own Claude key), T-121 (admin emails), T-124 (admin sign-in mode), T-107. Stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -161,5 +161,6 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-131 | Getting started ("Kom i gang") and Help with how-tos | M4 | T-119 | implementer-frontend | no |
 | T-132 | Fill the pantry from a photo | M4 | T-118, T-119, T-093 | implementer-backend | no |
 | T-133 | Local stack: pass Claude settings to the api container | L3 | T-118 | implementer-infra | no |
-| T-134 | Design update: a fresher, image-led, kid-friendly look | M4 | - | architect | no |
+| T-134 | User flows and usability review (design update, part 1) | M4 | - | architect | no |
 | T-135 | Automated accessibility check with axe | W | - | implementer-frontend | no |
+| T-136 | Modern, fresh look (design update, part 2) | M4 | T-134 | architect | no |
