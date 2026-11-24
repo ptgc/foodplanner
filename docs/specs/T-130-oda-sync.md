@@ -1,8 +1,9 @@
 # Spec: Sync with Oda, set up preferred products in one go (T-130)
+Status: approved by the architect 2026-11-24 (Q-039 and Q-040 answered option 1)
 ## Goal
 An Adult or Owner taps "Sync with Oda", signs in to the household's shared Oda account once, and gets one review list for the ingredients used in the household's recipes: what the household usually buys (pre-ticked), a suggestion (unticked), and what was not found. Confirming saves the ticked rows as T-052 preferred products (Oda product ids only). The Oda connection is session-only and is closed (revoked) before the review is shown; nothing but the confirmed product ids is stored.
 
-Decision record: architect request and decisions 2026-11-22 (task file T-130): only ingredients used in recipes plus opt-in staples; existing choices are never overwritten unless ticked; `likely_to_buy` only, no order history; batched searches within Oda usage limits. Base specs: [T-053](T-053-oda-cart-session.md) (session-only connection, OAuth/PKCE, revoke, flow cookie), [T-114](T-114-oda-usually-bought.md) (`likely_to_buy`, matching), [T-052](T-052-preferred-oda-product.md) (`PreferredOdaProduct`, endpoints, choices page). ADR 0008 (Decision 2026-11-20), [Q-024](../questions/Q-024.md), [Q-025](../questions/Q-025.md), [Q-032](../questions/Q-032.md) and [Q-033](../questions/Q-033.md) apply unchanged. Numbers below marked (Q-039) assume that question's recommendation.
+Decision record: architect request and decisions 2026-11-22 (task file T-130): only ingredients used in recipes plus opt-in staples; existing choices are never overwritten unless ticked; `likely_to_buy` only, no order history; batched searches within Oda usage limits. Base specs: [T-053](T-053-oda-cart-session.md) (session-only connection, OAuth/PKCE, revoke, flow cookie), [T-114](T-114-oda-usually-bought.md) (`likely_to_buy`, matching), [T-052](T-052-preferred-oda-product.md) (`PreferredOdaProduct`, endpoints, choices page). ADR 0008 (Decision 2026-11-20), [Q-024](../questions/Q-024.md), [Q-025](../questions/Q-025.md), [Q-032](../questions/Q-032.md) and [Q-033](../questions/Q-033.md) apply unchanged. Numbers below marked (Q-039) follow that question's answer (option 1, architect 2026-11-24).
 
 ## Users & roles
 | Action | Anonymous | Non-member | Child member | Kid-mode session | Adult | Owner |
@@ -117,6 +118,6 @@ All Api tests use the fake Oda (recorded, scrubbed fixtures, extended with multi
 - [ ] `./scripts/verify.sh` is green and never calls the real Oda.
 
 ## Open questions
-- [Q-039](../questions/Q-039.md): run size and time limits (cap per run 200, time budget 90 s, continuation with an offset, partial results on 429 or time). The numbers and the behaviour above assume the recommendation (option 1).
-- [Q-040](../questions/Q-040.md): does searching every recipe ingredient (not only the items of one shopping list) fit Oda's "own shopping" terms (Q-024)? The spec assumes option 1 (proceed, narrow limits, note the reading in the PR).
+- [Q-039](../questions/Q-039.md): run size and time limits (cap per run 200, time budget 90 s, continuation with an offset, partial results on 429 or time). Answered 2026-11-24: option 1, as above.
+- [Q-040](../questions/Q-040.md): does searching every recipe ingredient (not only the items of one shopping list) fit Oda's "own shopping" terms (Q-024)? Answered 2026-11-24: option 1 (proceed, narrow limits, note the reading in the PR).
 - Answered and applied: the Decisions in the task file (2026-11-22), [Q-024](../questions/Q-024.md), [Q-025](../questions/Q-025.md), [Q-032](../questions/Q-032.md), [Q-033](../questions/Q-033.md).
