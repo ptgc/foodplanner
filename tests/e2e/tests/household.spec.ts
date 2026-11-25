@@ -39,7 +39,8 @@ test("invite flow: create a household, invite a member who joins, change their r
     // --- Admin creates a household and becomes its Owner ---
     await page.goto("/household");
     await expect(page.getByRole("heading", { name: "Household", level: 1 })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Household" })).toBeVisible();
+    // Household has no tab of its own: it sits under "More", which is the marked tab here.
+    await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "More" })).toHaveAttribute("aria-current", "page");
     await page.getByLabel("Name of the new household").fill(name);
     await page.getByRole("button", { name: "Create household" }).click();
     await expect(page.getByTestId("household-notice")).toHaveText(`${name} was created and is now active.`);

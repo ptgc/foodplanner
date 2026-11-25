@@ -1,5 +1,5 @@
 import { request as playwrightRequest, type APIRequestContext, type Page } from "@playwright/test";
-import { adminState, expect, memberCredentials, signIn, test, uniqueStamp, uniqueWeek } from "./fixtures";
+import { adminState, expect, openProfile, memberCredentials, signIn, test, uniqueStamp, uniqueWeek } from "./fixtures";
 
 // The page is NOT signed in as the seeded admin (the architect's real account). It signs in as the seeded e2e member and joins the
 // test household as an Adult; the PIN therefore belongs to that e2e-only account. The admin API context only sets up and deletes.
@@ -183,7 +183,7 @@ test("kid mode: profile and PIN as adult, likes, a week within the rules, the PI
     await expect(pinCard.getByTestId("pin-saved")).toBeVisible();
 
     // ---- Switch to the kid ----
-    await page.getByTestId("switch-profile").click();
+    await (await openProfile(page)).getByTestId("switch-profile").click();
     const picker = page.getByRole("dialog", { name: "Who are you?" });
     await expect(picker.getByTestId("profile-tile")).toHaveCount(1);
     if (mobile) await atLeast(picker.getByTestId("profile-tile"), 96, "profile tile");
@@ -301,7 +301,7 @@ test("kid mode: profile and PIN as adult, likes, a week within the rules, the PI
     await shot(page, "06-pin-wrong");
     await expect(page.getByTestId("kid-shell")).toBeVisible();
     for (const d of pin) await key(d).click();
-    await expect(page.getByTestId("user-email")).toBeVisible();
+    await expect(page.getByTestId("profile-button")).toBeVisible();
     await expect(page.getByTestId("kid-shell")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Main", exact: true })).toBeVisible();
 

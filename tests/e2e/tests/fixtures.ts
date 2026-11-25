@@ -44,18 +44,35 @@ export async function signIn(page: Page, returnTo = "/", credentials = adminCred
     if (response.status() !== 429 || attempt >= 4) break;
     await page.waitForTimeout(15_000);
   }
-  await expect(page.getByTestId("user-email")).toHaveText(email);
+  const sheet = await openProfile(page);
+  await expect(sheet.getByTestId("user-email")).toHaveText(email);
+  await closeProfile(page);
 }
 
-/** Asserts the shell shows `name` as the active household: plain text, or the selected option of the switcher. */
+/** Opens the profile sheet (T-137): email, household, language, switch profile and log out live there. */
+export async function openProfile(page: Page): Promise<Locator> {
+  await page.getByTestId("profile-button").click();
+  const sheet = page.getByTestId("profile-sheet");
+  await expect(sheet).toBeVisible();
+  return sheet;
+}
+
+/** Closes the profile sheet with Escape and waits until it is gone. */
+export async function closeProfile(page: Page) {
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("profile-sheet")).toHaveCount(0);
+}
+
+/** Asserts the profile sheet shows `name` as the active household: plain text, or the selected option of the switcher. */
 export async function expectActiveHousehold(page: Page, name: string) {
-  const shell = page.getByRole("banner");
-  const switcher = shell.getByLabel("Household");
+  const sheet = await openProfile(page);
+  const switcher = sheet.getByLabel("Household");
   if ((await switcher.count()) > 0) {
     await expect(switcher.locator("option:checked")).toHaveText(name);
   } else {
-    await expect(shell.getByTestId("household-name")).toHaveText(name);
+    await expect(sheet.getByTestId("household-name")).toHaveText(name);
   }
+  await closeProfile(page);
 }
 
 /**

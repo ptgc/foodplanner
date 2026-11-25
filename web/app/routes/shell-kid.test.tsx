@@ -44,8 +44,11 @@ function renderApp(url = "/") {
 describe("Shell: kid mode follows /api/auth/me", () => {
   it("a grown-up session shows the normal app with a Switch profile button", async () => {
     renderApp();
-    expect(await screen.findByTestId("user-email")).toBeInTheDocument();
+    expect(await screen.findByTestId("profile-button")).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: t("shell.mainNavigation") })).toBeInTheDocument();
+    expect(screen.queryByTestId("user-email")).not.toBeInTheDocument(); // the top bar shows no email: it is in the sheet
+    await userEvent.click(screen.getByTestId("profile-button"));
+    expect(await screen.findByTestId("user-email")).toBeInTheDocument();
     expect(screen.getByTestId("switch-profile")).toBeInTheDocument();
     expect(screen.queryByTestId("kid-shell")).not.toBeInTheDocument();
   });
@@ -53,6 +56,7 @@ describe("Shell: kid mode follows /api/auth/me", () => {
   it("a Child member has no Switch profile button (no PIN to come back with)", async () => {
     fake.role = "Child";
     renderApp();
+    await userEvent.click(await screen.findByTestId("profile-button"));
     await screen.findByTestId("user-email");
     expect(screen.queryByTestId("switch-profile")).not.toBeInTheDocument();
   });
@@ -60,6 +64,7 @@ describe("Shell: kid mode follows /api/auth/me", () => {
   it("switching to a kid replaces the whole shell: no email, no menu, only the kid screens", async () => {
     const u = userEvent.setup();
     renderApp("/household");
+    await u.click(await screen.findByTestId("profile-button"));
     await u.click(await screen.findByTestId("switch-profile"));
     await u.click(await screen.findByRole("button", { name: t("kid.picker.switchTo", { name: "Mia" }) }));
     expect(await screen.findByTestId("kid-shell")).toBeInTheDocument();
@@ -87,7 +92,7 @@ describe("Shell: kid mode follows /api/auth/me", () => {
     expect(screen.getByTestId("kid-shell")).toBeInTheDocument();
 
     for (const d of "4827") await u.click(within(keypad).getByRole("button", { name: d }));
-    expect(await screen.findByTestId("user-email")).toBeInTheDocument();
+    expect(await screen.findByTestId("profile-button")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByTestId("kid-shell")).not.toBeInTheDocument());
     expect(screen.getByRole("navigation", { name: t("shell.mainNavigation") })).toBeInTheDocument();
   });

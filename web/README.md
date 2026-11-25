@@ -152,8 +152,16 @@ Run `node web/scripts/check-bundle-size.mjs --print` for the per-route list. The
 - Tests: Vitest `suggest/what-can-i-make.test.tsx`; Playwright `tests/e2e/tests/what-can-i-make.spec.ts` (390 px).
 - Bundle: lazy route, its own chunk and CSS; initial 131.3 KB (was 131.2), heaviest first load unchanged (155.9), total 244.1 KB (was 239.1) within the 250 budget, so the budgets did not change.
 
+## App frame (T-137)
+- `routes/shell.tsx`: a slim top bar (the title of the screen on the left, a 44px profile button on the right showing the first letter of the email) and a bottom tab bar (`nav.shell-tabs`, sticky, with `env(safe-area-inset-bottom)`; `viewport-fit=cover` is set in `root.tsx`): I dag, Ukeplan, Oppskrifter, Handleliste, Mer. The active tab has `aria-current="page"`. "Mer" is active for every screen under it (`sections` table in the shell). Kid mode keeps its own frame (`kid/kid-app.tsx`); cook mode is unchanged (T-144).
+- Profile sheet (`routes/profile-sheet.tsx`, a lazy chunk opened by the profile button, dialog behaviour from `app/use-modal.ts`, moved out of `kid/`): the email, the household (a switcher with more than one), the language picker, "Switch profile" (unchanged, hiding it is T-145) and "Log out". The top bar shows none of them. Playwright reaches them with `openProfile(page)` in `fixtures.ts`.
+- "Mer" (`routes/more.tsx`, `/more`): Pantry, What can I make?, Household, Ingredients, Privacy, and Support for a system admin (T-131 adds Help). Every route in `routes.ts` is reachable: the tabs, "Mer", the links inside the screens (recipe, cook, import, shopping, Oda choices and callback, account delete from the household page, invite links by mail) and the API status page, which moved to `/status` and is linked from the support page.
+- "I dag" (`/`) renders the week plan (the same route module as `/plan`) until T-138 builds the start screen; at `/` the "I dag" tab is the marked one, at `/plan` "Ukeplan".
+- Bundle (T-137): initial 129.8 KB, heaviest first load 153.5 KB, total 285.0 KB (budget 285; the sheet and its dialog hook are lazy, message keys reuse existing ones).
+- Tests: Vitest `routes/shell-frame.test.tsx` (tabs, active tab, sheet, Mer, admin Support), `routes/shell-kid.test.tsx`, `routes/auth.test.tsx`; Playwright `tests/e2e/tests/app-frame.spec.ts` (390 px: slim bar, bar on the bottom edge, 44px targets, every Mer link) plus the updated `auth`, `nb`, `kid-mode`, `language-switch`, `household` and `pwa` specs.
+
 ## Household settings (T-045, `/household`, `/invite/:token`)
-Nav entry "Household" (nb "Husstand") in the shell. The screen works on the active household (the switcher in the header changes it) and takes its role from `GET /api/households`. Controls follow the API policies; the API still decides, and a 403 is shown as the translated "You do not have access to this."
+Entry "Household" (nb "Husstand") under the "More" tab (T-137). The screen works on the active household (the switcher in the profile sheet changes it) and takes its role from `GET /api/households`. Controls follow the API policies; the API still decides, and a 403 is shown as the translated "You do not have access to this."
 
 | Control | Owner | Adult | Child |
 |---|---|---|---|
@@ -186,7 +194,7 @@ All user-facing text is translatable. Code, keys and the fallback are English; l
 
 **Library choice:** a small in-house module (`app/i18n/index.ts`, no dependency), not i18next. We need only key lookup, `{name}` interpolation, one/other plurals, a language switch and Intl formatting. The module is typed end to end (a misspelled key does not compile), has nothing to pin or upgrade, and is easy to swap for i18next later because call sites are just `t("key", params)`. Dates and numbers use the platform `Intl` API.
 
-**Files:** `app/i18n/en.ts` (source of truth for keys, fallback), `app/i18n/nb.ts` (bokmål), `app/i18n/kid-en.ts` and `kid-nb.ts` (kid mode and kid profiles, T-106), `app/i18n/lazy.ts` (`lazyWithMessages`), `app/i18n/problems.ts` (ProblemDetails `type` to message key), `app/i18n/language-switch.tsx` (44px select, in the shell header and on the login page).
+**Files:** `app/i18n/en.ts` (source of truth for keys, fallback), `app/i18n/nb.ts` (bokmål), `app/i18n/kid-en.ts` and `kid-nb.ts` (kid mode and kid profiles, T-106), `app/i18n/lazy.ts` (`lazyWithMessages`), `app/i18n/problems.ts` (ProblemDetails `type` to message key), `app/i18n/language-switch.tsx` (44px select, in the profile sheet and on the login page).
 
 **Keys and fallback:** keys are dotted English ids, `screen.thingInCamelCase` (`shopping.generate`). Lookup order: active locale, then English, then a placeholder made from the last key segment (`shopping.generateFromPlan` gives "Generate from plan"), so a forgotten translation never shows a raw key. TypeScript only accepts keys that exist in `en.ts`; a test fails if `nb.ts` lacks one or has extra keys, or if a `{placeholder}` differs between them. Plurals: define `key.one` and `key.other` with `{count}` and call `t("key", { count })`.
 

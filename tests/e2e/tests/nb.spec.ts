@@ -1,17 +1,20 @@
-import { adminCredentials, adminState, expect, test } from "./fixtures";
+import { adminCredentials, adminState, closeProfile, expect, openProfile, test } from "./fixtures";
 
 // Runs only in the "mobile-390-nb" project (browser language nb-NO). The other projects run the English specs.
 test.use({ storageState: adminState });
 
 test("the app follows the browser language: shell, home and shopping list are in Norwegian at 390px", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByTestId("user-email")).toHaveText(adminCredentials().email);
   await expect(page.locator("html")).toHaveAttribute("lang", "nb");
+  const sheet = await openProfile(page);
+  await expect(sheet.getByTestId("user-email")).toHaveText(adminCredentials().email);
+  await expect(sheet.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  await closeProfile(page);
 
-  await expect(page.getByRole("button", { name: "Logg ut" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Handleliste" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Hjem" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "API-status" })).toBeVisible();
+  const tabs = page.getByRole("navigation", { name: "Hovedmeny" });
+  await expect(tabs.getByRole("link")).toHaveText(["I dag", "Ukeplan", "Oppskrifter", "Handleliste", "Mer"]);
+  await expect(tabs.getByRole("link", { name: "I dag" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Ukeplan", level: 1 })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow, "no horizontal scroll at 390px").toBeLessThanOrEqual(0);
@@ -38,21 +41,23 @@ test("the recipe grid is in Norwegian at 390px", async ({ page }) => {
 
 test("the language switch is a 44px target, switches the app and is remembered on this device", async ({ page }) => {
   await page.goto("/");
-  const select = page.getByRole("banner").getByLabel("Språk");
+  const sheet = await openProfile(page);
+  const select = sheet.getByLabel("Språk");
   const box = await select.boundingBox();
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
 
   await select.selectOption("en");
-  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Log out" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Log out" })).toBeVisible(); // remembered, despite nb-NO browser
+  const again = await openProfile(page);
+  await expect(again.getByRole("button", { name: "Log out" })).toBeVisible(); // remembered, despite nb-NO browser
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-  await page.getByRole("banner").getByLabel("Language").selectOption("nb");
-  await expect(page.getByRole("button", { name: "Logg ut" })).toBeVisible();
+  await again.getByLabel("Language").selectOption("nb");
+  await expect(again.getByRole("button", { name: "Logg ut" })).toBeVisible();
 });
 
 test("the login page is Norwegian and has the language switch", async ({ browser }) => {

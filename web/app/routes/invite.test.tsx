@@ -83,6 +83,7 @@ describe("accepting an invitation", () => {
     expect(await screen.findByText(t("invite.joined", { role: t("household.role.Adult") }))).toBeInTheDocument();
     expect(server.accepted).toEqual(["tok_abc-123"]);
     // The session was refreshed: the shell now shows the new household.
+    await user.click(await screen.findByTestId("profile-button"));
     await waitFor(() => expect(screen.getByTestId("household-name")).toHaveTextContent("Cabin"));
     expect(screen.getByRole("link", { name: t("invite.open") })).toHaveAttribute("href", "/household");
   });

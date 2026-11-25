@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminState, expect, signIn, test, uniqueStamp, uniqueWeek } from "./fixtures";
+import { adminState, expect, openProfile, signIn, test, uniqueStamp, uniqueWeek } from "./fixtures";
 import { solidPng } from "./png";
 
 // T-041: install, offline shell, recently viewed recipes offline, update banner. Every other spec runs with the
@@ -317,7 +317,7 @@ test("log out clears the recipes and pictures the service worker kept (shared de
     const before = await cacheKeys(page);
     expect(Object.keys(before)).toEqual(expect.arrayContaining(["fp-runtime-api", "fp-runtime-images"]));
 
-    await page.getByRole("button", { name: "Log out" }).click();
+    await (await openProfile(page)).getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await expect.poll(async () => Object.keys(await cacheKeys(page)).filter((n) => n.startsWith("fp-runtime-"))).toEqual([]);
     // The app itself stays cached; it holds no user data.

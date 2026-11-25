@@ -90,7 +90,8 @@ describe("route guard and login", () => {
     await fillAndSubmit();
     expect(await screen.findByRole("heading", { name: "Recipes page" })).toBeInTheDocument();
     expect(screen.getByTestId("where")).toHaveTextContent("/recipes?x=1");
-    expect(screen.getByTestId("user-email")).toHaveTextContent("admin@example.test");
+    await userEvent.click(await screen.findByTestId("profile-button"));
+    expect(await screen.findByTestId("user-email")).toHaveTextContent("admin@example.test");
     expect(screen.getByTestId("household-name")).toHaveTextContent("Home");
   });
 
@@ -98,6 +99,7 @@ describe("route guard and login", () => {
     renderApp("/login");
     await fillAndSubmit();
     await screen.findByRole("heading", { name: "Start" });
+    await userEvent.click(await screen.findByTestId("profile-button"));
     await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
     await screen.findByRole("heading", { name: t("common.signIn") });
     const posts = requests.filter((r) => r.method === "POST");
@@ -172,6 +174,7 @@ describe("shell", () => {
   it("stays signed in on load and logs out back to /login", async () => {
     backend.signedIn = true;
     renderApp("/");
+    await userEvent.click(await screen.findByTestId("profile-button"));
     expect(await screen.findByTestId("user-email")).toHaveTextContent("admin@example.test");
     await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
     await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/login"));
@@ -185,7 +188,7 @@ describe("shell", () => {
     });
     backend.signedIn = true;
     renderApp("/");
-    await screen.findByTestId("user-email");
+    await userEvent.click(await screen.findByTestId("profile-button"));
     expect([...store]).toContain("fp-runtime-api"); // signed in on load: nothing cleared
 
     await userEvent.click(screen.getByRole("button", { name: t("shell.logOut") }));
@@ -194,7 +197,7 @@ describe("shell", () => {
 
     store.add("fp-runtime-api"); // left by someone else in the meantime
     await fillAndSubmit();
-    await screen.findByTestId("user-email");
+    await screen.findByTestId("profile-button");
     expect([...store]).toEqual(["fp-precache-1"]);
   });
 
@@ -202,6 +205,7 @@ describe("shell", () => {
     backend.signedIn = true;
     backend.households = [home, cabin];
     const first = renderApp("/");
+    await userEvent.click(await screen.findByTestId("profile-button"));
     const select = await screen.findByLabelText(t("shell.household"));
     expect(select).toHaveValue("h1");
     await userEvent.selectOptions(select, "h2");
@@ -210,6 +214,7 @@ describe("shell", () => {
     first.unmount();
 
     renderApp("/");
+    await userEvent.click(await screen.findByTestId("profile-button"));
     expect(await screen.findByLabelText(t("shell.household"))).toHaveValue("h2");
   });
 });

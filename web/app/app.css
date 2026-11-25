@@ -31,18 +31,35 @@ body {
   margin: 0 auto;
 }
 
+/* Slim top bar (T-137): the page title and the profile button, nothing else. */
 .shell-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   min-height: var(--touch);
-  padding: 0 1rem;
-  background: var(--accent);
-  color: #fff;
+  padding: 0 0.5rem 0 1rem;
+  border-bottom: 1px solid #d0d0d8;
 }
 
 .shell-title {
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.shell-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .shell-main {
@@ -89,30 +106,8 @@ body {
   color: var(--error);
 }
 
-.shell-header {
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  justify-content: space-between;
-}
-
-.shell-session {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.75rem;
-  font-size: 0.9rem;
-}
-
 .shell-email {
   overflow-wrap: anywhere;
-}
-
-.shell-session select {
-  min-height: var(--touch);
-  font: inherit;
-  padding: 0 0.5rem;
 }
 
 .shell-main:focus {
@@ -193,13 +188,18 @@ body {
   cursor: not-allowed;
 }
 
-/* Navigation */
-.shell-nav {
+/* Bottom tab bar (T-137): within thumb reach, clear of the home indicator on phones. */
+.shell-tabs {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
   display: flex;
-  border-bottom: 1px solid #d0d0d8;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border-top: 1px solid #d0d0d8;
+  background: var(--bg);
 }
 
-.shell-nav a {
+.shell-tabs a {
   flex: 1 1 0;
   min-width: 0;
   display: inline-flex;
@@ -210,13 +210,90 @@ body {
   color: var(--fg);
   text-decoration: none;
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
-.shell-nav a[aria-current="page"] {
+.shell-tabs a[aria-current="page"] {
   color: var(--accent);
-  box-shadow: inset 0 -3px 0 var(--accent);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+/* Profile sheet (T-137) */
+.profile-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.profile-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 40rem;
+  max-height: 94dvh;
+  overflow-y: auto;
+  padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  border-radius: 1rem 1rem 0 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.profile-sheet:focus {
+  outline: none;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.profile-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.profile-line {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.profile-label {
+  font-size: 0.85rem;
+  color: #55555f;
+}
+
+.profile-sheet select {
+  min-height: var(--touch);
+  font: inherit;
+  padding: 0 0.5rem;
+}
+
+/* "Mer" (T-137) */
+.more-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.more-list a {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  border-bottom: 1px solid #e4e4ea;
+  color: var(--fg);
+  text-decoration: none;
+  font-weight: 600;
 }
 
 /* Shopping list: large targets for use with one hand in a shop or kitchen. */
@@ -582,3 +659,9 @@ body {
 .oda-sync-option-label { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: var(--touch); }
 .oda-sync-savebar { position: sticky; bottom: 0; padding: 0.5rem 0; background: var(--bg); }
 .oda-sync-savebar .button { width: 100%; min-height: var(--touch); }
+
+.profile-sheet .button-outline {
+  background: #fff;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}

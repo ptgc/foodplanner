@@ -1,8 +1,7 @@
-import { Suspense, useEffect, useRef, useState } from "react";
-import { NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { loginPathFor } from "../auth-paths";
-import { APP_NAME, useI18n } from "../i18n";
-import { LanguageSwitch } from "../i18n/language-switch";
+import { APP_NAME, useI18n, type MessageKey } from "../i18n";
 import { lazyWithMessages } from "../i18n/lazy";
 import { useSession } from "../session";
 
@@ -10,13 +9,41 @@ import { useSession } from "../session";
 const KidApp = lazyWithMessages("kid", () => import("../kid/kid-app"));
 const ProfilePicker = lazyWithMessages("kid", () => import("../kid/profile-picker").then((m) => ({ default: m.ProfilePicker })));
 
+// The profile sheet is opened now and then: its code (and the dialog and language parts) load on the first tap.
+const ProfileSheet = lazy(() => import("./profile-sheet").then((m) => ({ default: m.ProfileSheet })));
+
+// The first path segment to the top bar title, and true when the screen lives under the "More" tab.
+const sections: Record<string, [MessageKey, boolean]> = {
+  "": ["nav.today", false],
+  plan: ["nav.plan", false],
+  recipes: ["nav.recipes", false],
+  shopping: ["nav.shopping", false],
+  oda: ["nav.shopping", false],
+  more: ["nav.more", true],
+  pantry: ["pantry.title", true],
+  "what-can-i-make": ["nav.suggest", true],
+  household: ["nav.household", true],
+  ingredients: ["recipes.ingredients", true],
+  support: ["nav.support", true],
+  status: ["nav.support", true],
+};
+
+type Section = { title: MessageKey; more: boolean };
+
+/** Which screen a path belongs to: the top bar title, and whether the "Mer" tab is the active one (T-137). */
+function sectionOf(pathname: string): Section | undefined {
+  const [title, more] = sections[pathname.split("/")[1] ?? ""] ?? [];
+  return title ? { title, more: more === true } : undefined;
+}
+
 export default function Shell() {
   const { t } = useI18n();
-  const { session, signOut, setActiveHousehold } = useSession();
+  const { session } = useSession();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const signedIn = session.status === "signedIn";
   const [picking, setPicking] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // Move focus to the content when the route changes, so keyboard and screen reader users start there.
   useEffect(() => {
@@ -41,6 +68,7 @@ export default function Shell() {
 
   const active = session.households.find((h) => h.id === session.activeHouseholdId);
   const canSwitchProfile = active !== undefined && active.role !== "Child";
+  const section = sectionOf(location.pathname);
 
   return (
     <div className="shell">
@@ -48,54 +76,43 @@ export default function Shell() {
         {t("common.skipToContent")}
       </a>
       <header className="shell-header">
-        <span className="shell-title">{APP_NAME}</span>
-        <div className="shell-session">
-          <span className="shell-email" data-testid="user-email">
-            {session.user.email}
-          </span>
-          {session.households.length > 1 ? (
-            <>
-              <label htmlFor="household" className="visually-hidden">
-                {t("shell.household")}
-              </label>
-              <select
-                id="household"
-                value={session.activeHouseholdId ?? ""}
-                onChange={(e) => setActiveHousehold(e.target.value)}
-              >
-                {session.households.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          ) : (
-            <span data-testid="household-name">{active?.name ?? t("shell.noHousehold")}</span>
-          )}
-          <LanguageSwitch />
-          {canSwitchProfile && (
-            <button type="button" className="button button-light" data-testid="switch-profile" onClick={() => setPicking(true)}>
-              {t("kid.switchProfile")}
-            </button>
-          )}
-          <button type="button" className="button button-light" onClick={() => void signOut()}>
-            {t("shell.logOut")}
-          </button>
-        </div>
+        <span className="shell-title">{section ? t(section.title) : APP_NAME}</span>
+        <button
+          type="button"
+          className="shell-profile"
+          data-testid="profile-button"
+          aria-label={t("shell.profile")}
+          onClick={() => setProfileOpen(true)}
+        >
+          {session.user.email.charAt(0).toUpperCase()}
+        </button>
       </header>
-      <nav className="shell-nav" aria-label={t("shell.mainNavigation")}>
-        <NavLink to="/" end>
-          {t("nav.home")}
-        </NavLink>
-        <NavLink to="/recipes">{t("nav.recipes")}</NavLink>
-        <NavLink to="/plan">{t("nav.plan")}</NavLink>
-        <NavLink to="/shopping">{t("nav.shopping")}</NavLink>
-        <NavLink to="/household">{t("nav.household")}</NavLink>
-      </nav>
       <main id="main" ref={mainRef} tabIndex={-1} className="shell-main">
         <Outlet />
       </main>
+      <nav className="shell-tabs" aria-label={t("shell.mainNavigation")}>
+        <NavLink to="/" end>
+          {t("nav.today")}
+        </NavLink>
+        <NavLink to="/plan">{t("nav.plan")}</NavLink>
+        <NavLink to="/recipes">{t("nav.recipes")}</NavLink>
+        <NavLink to="/shopping">{t("nav.shopping")}</NavLink>
+        <Link to="/more" aria-current={section?.more ? "page" : undefined}>
+          {t("nav.more")}
+        </Link>
+      </nav>
+      {profileOpen && (
+        <Suspense fallback={null}>
+          <ProfileSheet
+            canSwitchProfile={canSwitchProfile}
+            onClose={() => setProfileOpen(false)}
+            onSwitchProfile={() => {
+              setProfileOpen(false);
+              setPicking(true);
+            }}
+          />
+        </Suspense>
+      )}
       {picking && active && (
         <Suspense fallback={null}>
           <ProfilePicker householdId={active.id} kidMode={false} activeProfileId={null} onClose={() => setPicking(false)} />

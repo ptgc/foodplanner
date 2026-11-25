@@ -19,7 +19,7 @@ export function Layout({ children }: { children: ReactNode }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>{APP_NAME}</title>
         {/* PWA (T-041): installable; the manifest and icons are static files in public/. */}
         <link rel="manifest" href="/manifest.webmanifest" />
