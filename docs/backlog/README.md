@@ -10,7 +10,7 @@ Branch names are `task/T-xxx-` plus a lowercase kebab slug of the title, max 40 
 
 Web bundle budget (Q-031, architect 2026-11-08): total 250 KB, initial stays 135 KB. A task may raise the total (and firstLoad) a little when it needs to, without asking; keep the first load quick (lazy chunks for new screens). A big increase is made anyway, with a cleanup task added to shrink it later. Record each raise in web/README.md and the task Result.
 
-## Current focus (2026-11-22): theme "easy to start, gives time back". Now: T-130 (in progress; Q-039, Q-040 answered). Queue, in order: T-130 (Sync with Oda), T-131 (Kom i gang + Help, how-to rule), T-132 (pantry from a photo). Also queued: T-135 (axe accessibility check). Also open: T-126 (support-access view), T-125, T-127. Waiting on the architect: T-134 (user flows and usability first; line up T-131 with it), then T-136 (modern look), T-117 (privacy wording and skills check). Later: T-120/T-099 (own Claude key), T-121 (admin emails), T-124 (admin sign-in mode), T-107. Stretch: T-086, T-094
+## Current focus (2026-11-25): theme "easy to start, gives time back", then the design update. Now: T-130 (Sync with Oda; approved, final checks before merge). Queue, in order: T-137 (app frame, bottom tabs), T-139 (empty-list Oda hint bug, any time), T-138 ("I dag" start screen), T-131 (Kom i gang + Help on I dag), T-140 + T-141 (recipes list and page), T-142 (shopping list and Oda card), T-143, T-144, T-145, T-146, T-147, T-148 (fill the week; spec first), then T-136 (modern look, architect). Also queued: T-132 (pantry from a photo), T-135 (axe check). Also open: T-126 (support-access view), T-125, T-127. Waiting on the architect: T-117 (privacy wording and skills check). Later: T-120/T-099 (own Claude key), T-121 (admin emails), T-124 (admin sign-in mode), T-107. Stretch: T-086, T-094
 
 ## Done: L3 local household management and kitchen use
 Approved by the architect on 2026-10-25. Local only; same gates as L2 (implementer evidence + green verify.sh on dev; extra reviewer on tenancy/security changes: T-037, T-044, T-048). Order: T-074 (L2 leftover) and T-040 now; then T-037, T-044, T-048, T-045; T-041; T-050, T-051; T-042, T-043. T-001 (Oda spike) separately later.
@@ -163,4 +163,16 @@ Prefer to build M0 tasks T-002 and T-008 to T-011 with architect supervision: th
 | T-133 | Local stack: pass Claude settings to the api container | L3 | T-118 | implementer-infra | no |
 | T-134 | User flows and usability review (design update, part 1) | M4 | - | architect | no |
 | T-135 | Automated accessibility check with axe | W | - | implementer-frontend | no |
-| T-136 | Modern, fresh look (design update, part 2) | M4 | T-134 | architect | no |
+| T-136 | Modern, fresh look (design update, part 2) | M4 | T-134, T-137, T-138, T-140, T-141, T-142 | architect | no |
+| T-137 | App frame: bottom tab bar and profile menu | M4 | - | implementer-frontend | no |
+| T-138 | "I dag" start screen | M4 | T-137 | implementer-frontend | no |
+| T-139 | Shopping list: wrong Oda hint on an empty list | M4 | - | implementer-frontend | no |
+| T-140 | Recipes list: one add button and a filter sheet | M4 | T-137 | implementer-frontend | no |
+| T-141 | Recipe page: add to week plan, ingredients first | M4 | T-137 | implementer-frontend | no |
+| T-142 | Shopping list: list first, one Oda card | M4 | T-130, T-137, T-139 | implementer-frontend | no |
+| T-143 | Household page split into sub-pages | M4 | T-137 | implementer-frontend | no |
+| T-144 | Cooking view full screen | M4 | T-137 | implementer-frontend | no |
+| T-145 | Hide Bytt profil until a kid profile exists | M4 | T-137 | implementer-frontend | no |
+| T-146 | Recipe card: add a picture when there is none | M4 | T-140 | implementer-frontend | no |
+| T-147 | Week plan quick wins | M4 | T-137 | implementer-frontend | no |
+| T-148 | Fill the week for me, and copy last week | M4 | T-147 | implementer-backend | no |
