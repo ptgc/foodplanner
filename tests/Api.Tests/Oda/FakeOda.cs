@@ -82,6 +82,11 @@ internal sealed class FakeOda : HttpMessageHandler
     /// <summary>Product ids the search reports as not available (sold out), whatever the fixture says.</summary>
     public HashSet<long> SoldOut { get; } = [];
 
+    /// <summary>Queries (any case) that find nothing, and queries whose one generated product is sold out (T-130; the recorded fixtures only know a few names).</summary>
+    public HashSet<string> NoHitQueries { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    public HashSet<string> SoldOutQueries { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Product ids the cart refuses to take (the call succeeds but the line is not in the cart).</summary>
     public HashSet<long> RefuseProducts { get; } = [];
 
@@ -312,7 +317,7 @@ internal sealed class FakeOda : HttpMessageHandler
                     products.Add(product!.DeepClone());
                 }
             }
-            else if (!_hits.AsObject().ContainsKey(query.ToLowerInvariant()))
+            else if (!_hits.AsObject().ContainsKey(query.ToLowerInvariant()) && !NoHitQueries.Contains(query))
             {
                 var id = _generated.TryGetValue(query, out var existing) ? existing : _generated[query] = 5000 + _generated.Count;
                 products.Add(new JsonObject
@@ -323,7 +328,7 @@ internal sealed class FakeOda : HttpMessageHandler
                     ["price"] = "10.00",
                     ["unitPrice"] = "10.00",
                     ["unitName"] = "stk",
-                    ["availability"] = new JsonObject { ["isAvailable"] = true, ["description"] = "Available", ["code"] = "available" },
+                    ["availability"] = new JsonObject { ["isAvailable"] = !SoldOutQueries.Contains(query), ["description"] = "Available", ["code"] = "available" },
                 });
             }
 

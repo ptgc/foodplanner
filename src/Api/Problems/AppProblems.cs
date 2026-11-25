@@ -79,6 +79,7 @@ public static class AppProblems
     public const string OdaNotConfigured = "oda-not-configured";
     public const string OdaStateInvalid = "oda-state-invalid";
     public const string OdaUnavailable = "oda-unavailable";
+    public const string OdaSyncNothingToSync = "oda-sync-nothing-to-sync";
 
     public const string PasswordIncorrect = "password-incorrect";
     public const string PasswordRequired = "password-required";

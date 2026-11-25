@@ -6,8 +6,28 @@ using Microsoft.AspNetCore.DataProtection;
 
 namespace Foodplanner.Api.Features.ShoppingLists;
 
-/// <summary>What the browser that started an Oda sign-in carries to the call that completes it (Q-033, option 1).</summary>
-public sealed record OdaFlowState(string Verifier, string State, Guid HouseholdId, DateOnly WeekStart, Guid UserId, DateTimeOffset ExpiresAt);
+/// <summary>Which action a flow cookie belongs to (T-130): the cart fill of T-053 or "Sync with Oda". A cookie of one kind never completes the other.</summary>
+public enum OdaFlowKind
+{
+    Cart = 0,
+    Sync = 1,
+}
+
+/// <summary>
+/// What the browser that started an Oda sign-in carries to the call that completes it (Q-033, option 1). <c>Kind</c> defaults to the cart.
+/// For <c>Sync</c> the week is unused and the options of the run are fixed here, so the completing call cannot change them (T-130).
+/// </summary>
+public sealed record OdaFlowState(
+    string Verifier,
+    string State,
+    Guid HouseholdId,
+    DateOnly WeekStart,
+    Guid UserId,
+    DateTimeOffset ExpiresAt,
+    OdaFlowKind Kind = OdaFlowKind.Cart,
+    bool IncludeStaples = false,
+    bool IncludeExisting = false,
+    int Offset = 0);
 
 /// <summary>
 /// The OAuth flow state of the session-only Oda connection (T-053, Q-033 option 1): the PKCE verifier, the <c>state</c>, the
@@ -36,7 +56,7 @@ public sealed class OdaFlowCookie(IDataProtectionProvider protection, TimeProvid
     /// expired, wrong <c>state</c>, another user, household or week, already used), so the answers cannot be told apart. The cookie is
     /// always deleted.
     /// </summary>
-    public OdaFlowState? Take(HttpContext http, string? presentedState, Guid householdId, DateOnly weekStart, Guid userId)
+    public OdaFlowState? Take(HttpContext http, string? presentedState, Guid householdId, DateOnly weekStart, Guid userId, OdaFlowKind kind = OdaFlowKind.Cart)
     {
         var raw = http.Request.Cookies[CookieName];
         http.Response.Cookies.Delete(CookieName, Options(TimeSpan.Zero));
@@ -57,6 +77,7 @@ public sealed class OdaFlowCookie(IDataProtectionProvider protection, TimeProvid
 
         var now = time.GetUtcNow();
         if (state is null || state.ExpiresAt <= now || state.UserId != userId || state.HouseholdId != householdId || state.WeekStart != weekStart
+            || state.Kind != kind || state.Offset < 0
             || string.IsNullOrEmpty(state.State) || string.IsNullOrEmpty(state.Verifier)
             || !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(state.State), Encoding.UTF8.GetBytes(presentedState)))
         {

@@ -32,6 +32,9 @@ public static class RateLimitPolicies
     /// <summary>Starting and completing the Oda cart flow (T-053): by user.</summary>
     public const string OdaAction = "oda-action";
 
+    /// <summary>The count shown in the "Sync with Oda" confirmation (T-130): no call to Oda, no cookie, so it has its own lenient limit.</summary>
+    public const string OdaPreview = "oda-preview";
+
     /// <summary>Recipe from a photo (T-118): by user. Each call can cost money, so this is the burst limit on top of the daily and monthly counters.</summary>
     public const string PhotoImport = "photo-import";
 
@@ -80,6 +83,9 @@ public sealed class RateLimitOptions
 
     /// <summary>Oda cart flow (T-053), per user: 10 per minute across <c>oda/start</c> and <c>oda/cart</c>.</summary>
     public LimitOptions Oda { get; set; } = new() { PermitLimit = 10, WindowSeconds = 60 };
+
+    /// <summary>The sync preview count (T-130), per user: 60 per minute.</summary>
+    public LimitOptions OdaPreview { get; set; } = new() { PermitLimit = 60, WindowSeconds = 60 };
 
     /// <summary>Recipe imports from a URL (T-042), per user: 10 per 10 minutes. See <see cref="UrlImportRateLimiter"/>.</summary>
     public LimitOptions UrlImport { get; set; } = new() { PermitLimit = 10, WindowSeconds = 600 };
@@ -159,6 +165,9 @@ public static class RateLimitingSetup
             limiter.AddPolicy(RateLimitPolicies.OdaAction, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.Oda.ToFixedWindow()));
+            limiter.AddPolicy(RateLimitPolicies.OdaPreview, http =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.OdaPreview.ToFixedWindow()));
             limiter.AddPolicy(RateLimitPolicies.PhotoImport, http =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     $"user:{http.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? $"ip:{ClientIp(http)}"}", _ => limits.PhotoImport.ToFixedWindow()));

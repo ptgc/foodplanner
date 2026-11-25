@@ -177,16 +177,40 @@ export function rememberPending(pending: OdaPending, now: number = Date.now()): 
   }
 }
 
-/** Reads and clears the pending week. An entry older than 10 minutes (or without a timestamp) is ignored. */
-export function takePending(now: number = Date.now()): OdaPending | null {
+/** What "Sync with Oda" (T-130) remembers for the callback: the household and the options of the run. Numbers and flags only; no names or ids from Oda. */
+export type OdaSyncPending = { householdId: string; includeStaples: boolean; includeExisting: boolean; offset: number };
+
+/** Remembers a sync run for the callback (same key, same 10 minutes, cleared when read). */
+export function rememberSyncPending(pending: OdaSyncPending, now: number = Date.now()): void {
+  try {
+    window.sessionStorage.setItem(pendingKey, JSON.stringify({ ...pending, kind: "sync", at: now }));
+  } catch {
+    // Blocked storage: the callback then cannot find the run and says so.
+  }
+}
+
+export type OdaPendingAny = ({ kind: "cart" } & OdaPending) | ({ kind: "sync" } & OdaSyncPending);
+
+/** Reads and clears the pending record of either action. An entry older than 10 minutes (or without a timestamp) is ignored. */
+export function takeAnyPending(now: number = Date.now()): OdaPendingAny | null {
   try {
     const raw = window.sessionStorage.getItem(pendingKey);
     window.sessionStorage.removeItem(pendingKey);
     if (!raw) return null;
-    const v = JSON.parse(raw) as Partial<OdaPending> & { at?: unknown };
-    if (typeof v.at !== "number" || !Number.isFinite(v.at) || now - v.at > pendingTtlMs) return null;
-    return typeof v.householdId === "string" && typeof v.weekStart === "string" ? { householdId: v.householdId, weekStart: v.weekStart } : null;
+    const v = JSON.parse(raw) as Partial<OdaPending & OdaSyncPending> & { at?: unknown; kind?: unknown };
+    if (typeof v.at !== "number" || !Number.isFinite(v.at) || now - v.at > pendingTtlMs || typeof v.householdId !== "string") return null;
+    if (v.kind === "sync") {
+      const offset = typeof v.offset === "number" && Number.isInteger(v.offset) && v.offset >= 0 ? v.offset : 0;
+      return { kind: "sync", householdId: v.householdId, includeStaples: v.includeStaples === true, includeExisting: v.includeExisting === true, offset };
+    }
+    return typeof v.weekStart === "string" ? { kind: "cart", householdId: v.householdId, weekStart: v.weekStart } : null;
   } catch {
     return null;
   }
+}
+
+/** Reads and clears the pending week of the cart action. A sync record is cleared and ignored. */
+export function takePending(now: number = Date.now()): OdaPending | null {
+  const pending = takeAnyPending(now);
+  return pending?.kind === "cart" ? { householdId: pending.householdId, weekStart: pending.weekStart } : null;
 }

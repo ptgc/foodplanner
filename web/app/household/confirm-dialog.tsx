@@ -19,6 +19,8 @@ type Props = {
   children?: ReactNode;
   /** "primary" for a confirmation that is not destructive. */
   tone?: "danger" | "primary";
+  /** Keeps the confirm button disabled while something it depends on is not ready (T-130: the count of the run). */
+  confirmDisabled?: boolean;
 };
 
 /**
@@ -26,7 +28,7 @@ type Props = {
  * described by its body, focus starts on Cancel (or on the text field), Tab stays inside, Escape cancels, and focus
  * returns to the control that opened it. Confirming only calls `onConfirm`; the caller decides when to close.
  */
-export function ConfirmDialog({ title, body, confirmLabel, requireText, requireTextLabel, busy, error, onConfirm, onCancel, children, tone = "danger" }: Props) {
+export function ConfirmDialog({ title, body, confirmLabel, requireText, requireTextLabel, busy, error, onConfirm, onCancel, children, tone = "danger", confirmDisabled = false }: Props) {
   const { t } = useI18n();
   const titleId = useId();
   const bodyId = useId();
@@ -78,7 +80,7 @@ export function ConfirmDialog({ title, body, confirmLabel, requireText, requireT
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!busy && matches) onConfirm();
+    if (!busy && matches && !confirmDisabled) onConfirm();
   };
 
   return (
@@ -119,7 +121,7 @@ export function ConfirmDialog({ title, body, confirmLabel, requireText, requireT
             <button ref={cancel} type="button" className="button button-outline" disabled={busy} onClick={onCancel}>
               {t("household.dialog.cancel")}
             </button>
-            <button type="submit" className={tone === "danger" ? "button button-danger" : "button"} disabled={busy || !matches}>
+            <button type="submit" className={tone === "danger" ? "button button-danger" : "button"} disabled={busy || !matches || confirmDisabled}>
               {confirmLabel}
             </button>
           </div>

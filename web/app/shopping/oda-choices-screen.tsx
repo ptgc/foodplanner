@@ -4,6 +4,7 @@ import { powers } from "../household/roles";
 import { useLoaded } from "../household/use-loaded";
 import { useI18n, type MessageKey } from "../i18n";
 import { clearPreference, listPreferences, useOnline, type OdaPreference } from "./oda-preferences";
+import { OdaSyncStart } from "./oda-sync-start";
 import { useSession } from "../session";
 
 /**
@@ -55,6 +56,7 @@ function ChoicesScreen({ householdId }: { householdId: string }) {
   return (
     <section className="household oda-choices" aria-labelledby="oda-choices-title" data-testid="oda-choices">
       <h1 id="oda-choices-title">{t("oda.choices.title")}</h1>
+      <OdaSyncStart householdId={householdId} online={online} />
       <p>{t("oda.choices.intro")}</p>
       <p>
         <Link to="/shopping">{t("oda.result.back")}</Link>
