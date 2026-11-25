@@ -1,6 +1,7 @@
 /** English messages of the system admin support pages (T-096). Loaded on demand with those pages (loadMessages("support")). */
 export const supportEn = {
   "support.title": "Support",
+  "support.statusLink": "API status",
   "support.notFound.title": "Page not found",
   "support.notFound.body": "There is nothing here.",
   "support.loading": "Loading...",

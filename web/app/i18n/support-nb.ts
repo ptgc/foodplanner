@@ -3,6 +3,7 @@ import type { supportEn } from "./support-en";
 /** Norwegian (bokmål) messages of the system admin support pages (T-096). Loaded on demand with those pages. */
 export const supportNb: Partial<Record<keyof typeof supportEn, string>> = {
   "support.title": "Support",
+  "support.statusLink": "API-status",
   "support.notFound.title": "Siden finnes ikke",
   "support.notFound.body": "Det er ingenting her.",
   "support.loading": "Laster ...",

@@ -6,7 +6,10 @@ export default [
   route("set-password", "routes/set-password.tsx"),
   route("privacy", "routes/privacy.tsx"),
   layout("routes/shell.tsx", [
-    index("routes/home.tsx"),
+    // "I dag" (T-137): until the real start screen exists (T-138) the front door shows the week plan.
+    index("routes/plan.tsx", { id: "today" }),
+    route("status", "routes/home.tsx"),
+    route("more", "routes/more.tsx"),
     route("recipes", "routes/recipes.tsx"),
     route("recipes/new", "routes/recipe-edit.tsx", { id: "recipe-new" }),
     route("recipes/import", "routes/recipe-import.tsx"),

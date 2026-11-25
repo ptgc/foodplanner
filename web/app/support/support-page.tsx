@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema";
@@ -55,6 +56,9 @@ function Support() {
   return (
     <section className="household support" aria-labelledby="support-title">
       <h1 id="support-title">{t("support.title")}</h1>
+      <Link className="button button-outline" to="/status">
+        {t("support.statusLink")}
+      </Link>
       {!current && !loaded.error && <p role="status">{t("support.loading")}</p>}
       {!current && loaded.error && (
         <div className="household-card">

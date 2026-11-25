@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from "@playwright/test";
-import { adminState, expect, test, uniqueStamp, uniqueWeek } from "./fixtures";
+import { adminState, closeProfile, expect, openProfile, test, uniqueStamp, uniqueWeek } from "./fixtures";
 
 test.use({ storageState: adminState });
 test.setTimeout(180_000);
@@ -80,10 +80,12 @@ async function deleteRecipe(request: APIRequestContext, f: Fixture) {
   await request.delete(`/api/households/${f.household}/recipes/${f.recipeId}`, { headers: await csrf(request) });
 }
 
-/** The language switch in the header, by its stable id (its label changes with the language). */
+/** The language switch in the profile sheet, by its stable id (its label changes with the language). */
 async function switchTo(page: Page, language: "en" | "nb") {
-  await page.locator("#language").selectOption(language);
+  const sheet = await openProfile(page); // the language picker lives in the profile sheet (T-137)
+  await sheet.locator("#language").selectOption(language);
   await expect(page.locator("html")).toHaveAttribute("lang", language);
+  await closeProfile(page);
 }
 
 const noHorizontalScroll = async (page: Page) =>
@@ -148,13 +150,23 @@ test("every main screen changes language in place: UI text and catalog names (nb
     // 4. Plan: heading, and the picker's recipe grid with the tag chips.
     await page.goto(`/plan?week=${week}`);
     await expect(page.getByRole("heading", { name: "Meal plan", level: 1 })).toBeVisible();
-    await page.getByRole("button", { name: /^Pick a meal for/ }).first().click();
-    await expect(page.getByRole("button", { name: f.tag.en, exact: true }).first()).toBeVisible();
+    // The picker is a modal that covers the profile button (T-137), so the switch is made between openings.
+    const openPicker = async (name: RegExp) => {
+      await page.getByRole("button", { name }).first().click();
+      return page.getByRole("dialog");
+    };
+    let picker = await openPicker(/^Pick a meal for/);
+    await expect(picker.getByRole("button", { name: f.tag.en, exact: true }).first()).toBeVisible();
+    await picker.getByRole("button", { name: "Close" }).click();
     await switchTo(page, "nb");
     await expect(page.getByRole("heading", { name: "Ukeplan", level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: f.tag.nb, exact: true }).first()).toBeVisible();
+    picker = await openPicker(/^Velg måltid for/);
+    await expect(picker.getByRole("button", { name: f.tag.nb, exact: true }).first()).toBeVisible();
+    await picker.getByRole("button", { name: "Lukk" }).click();
     await switchTo(page, "en");
-    await expect(page.getByRole("button", { name: f.tag.en, exact: true }).first()).toBeVisible();
+    picker = await openPicker(/^Pick a meal for/);
+    await expect(picker.getByRole("button", { name: f.tag.en, exact: true }).first()).toBeVisible();
+    await picker.getByRole("button", { name: "Close" }).click();
 
     // 5. Shopping list: generated from a plan entry; item names, store sections and UI text.
     const entry = await request.post(`/api/households/${f.household}/meal-plans/${week}/entries`, {
